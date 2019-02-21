@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -21,14 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
-
 #include "GNEFrame.h"
-
-// ===========================================================================
-// class declarations
-// ===========================================================================
-class GNEAttributeCarrier;
 
 // ===========================================================================
 // class definitions
@@ -45,42 +38,89 @@ public:
     // class LockGLObjectTypes
     // ===========================================================================
 
-    class LockGLObjectTypes : public FXGroupBox {
+    class LockGLObjectTypes : protected FXGroupBox {
 
     public:
+        /// @brief class for object types entries
+        class ObjectTypeEntry : protected FXObject {
+            /// @brief FOX-declaration
+            FXDECLARE(GNESelectorFrame::LockGLObjectTypes::ObjectTypeEntry)
+
+        public:
+            /// @brief constructor
+            ObjectTypeEntry(FXMatrix* matrixParent, const std::string& label);
+
+            /// @brief show ObjectTypeEntry
+            void showObjectTypeEntry();
+
+            /// @brief hide ObjectTypeEntry
+            void hideObjectTypeEntry();
+
+            /// @brief up count
+            void counterUp();
+
+            /// @brief down count
+            void counterDown();
+
+            /// @brief check if current GLType is blocked
+            bool isGLTypeLocked() const;
+
+            /// @name FOX-callbacks
+            /// @{
+            /// @brief called when user change the CheckBox
+            long onCmdSetCheckBox(FXObject*, FXSelector, void*);
+
+            /// @}
+
+        protected:
+            /// @brief FOX needs this
+            ObjectTypeEntry() {}
+
+        private:
+            /// @brief label counter
+            FXLabel* myLabelCounter;
+
+            /// @brief label type nane
+            FXLabel* myLabelTypeName;
+
+            /// @brief check box to check if GLObject type is blocked
+            FXCheckButton* myCheckBoxLocked;
+
+            /// @brief counter
+            int myCounter;
+        };
+
         /// @brief constructor
         LockGLObjectTypes(GNESelectorFrame* selectorFrameParent);
 
         /// @brief destructor
         ~LockGLObjectTypes();
 
-        /// @brief update selected items
-        void updateLockGLObjectTypes();
+        /// @brief set object selected
+        void addedLockedObject(const GUIGlObjectType type);
+
+        /// @brief set object unselected
+        void removeLockedObject(const GUIGlObjectType type);
 
         /// @brief check if an object is locked
-        bool IsObjectTypeLocked(GUIGlObjectType type) const;
+        bool IsObjectTypeLocked(const GUIGlObjectType type) const;
+
+        /// @brief show type Entries (depending if we're in Network or demand supermode)
+        void showTypeEntries();
 
     private:
-        struct ObjectTypeEntry {
-            ObjectTypeEntry(FXMatrix* parent, const std::string& label, const std::string& label2);
-            ObjectTypeEntry() : count(0), typeName(0), locked(0) {}
-            FXLabel* count;
-            FXLabel* typeName;
-            FXMenuCheck* locked;
-        };
-
         /// @brief pointer to Selector Frame Parent
         GNESelectorFrame* mySelectorFrameParent;
 
         /// @brief check boxes for type-based selection locking and selected object counts
-        std::map<GUIGlObjectType, ObjectTypeEntry> myTypeEntries;
+        std::map<GUIGlObjectType, std::pair<Supermode, ObjectTypeEntry* > > myTypeEntries;
     };
 
     // ===========================================================================
     // class ModificationMode
     // ===========================================================================
 
-    class ModificationMode : public FXGroupBox {
+    class ModificationMode : protected FXGroupBox {
         /// @brief FOX-declaration
         FXDECLARE(GNESelectorFrame::ModificationMode)
 
@@ -138,17 +178,18 @@ public:
     // class ElementSet
     // ===========================================================================
 
-    class ElementSet : public FXGroupBox {
+    class ElementSet : protected FXGroupBox {
         /// @brief FOX-declaration
         FXDECLARE(GNESelectorFrame::ElementSet)
 
     public:
         /// @brief type of Set
         enum ElementSetType {
-            ELEMENTSET_NETELEMENT = 1,
-            ELEMENTSET_ADDITIONAL = 2,
-            ELEMENTSET_SHAPE      = 3,
-            ELEMENTSET_INVALID    = 4,
+            ELEMENTSET_NETELEMENT    = 1,
+            ELEMENTSET_ADDITIONAL    = 2,
+            ELEMENTSET_SHAPE         = 3,
+            ELEMENTSET_DEMANDELEMENT = 4,
+            ELEMENTSET_INVALID       = 5,
         };
 
         /// @brief constructor
@@ -159,6 +200,11 @@ public:
 
         /// @brief get current selected element set
         ElementSetType getElementSet() const;
+
+        /// @brief refresh element set
+        void refreshElementSet();
+
+        /// @brief update current element set (called after
 
         /// @name FOX-callbacks
         /// @{
@@ -187,7 +233,7 @@ public:
     // class MatchAttribute
     // ===========================================================================
 
-    class MatchAttribute : public FXGroupBox {
+    class MatchAttribute : protected FXGroupBox {
         /// @brief FOX-declaration
         FXDECLARE(GNESelectorFrame::MatchAttribute)
 
@@ -257,7 +303,7 @@ public:
     // class VisualScaling
     // ===========================================================================
 
-    class VisualScaling : public FXGroupBox {
+    class VisualScaling : protected FXGroupBox {
         /// @brief FOX-declaration
         FXDECLARE(GNESelectorFrame::VisualScaling)
 
@@ -292,7 +338,7 @@ public:
     // class SelectionOperation
     // ===========================================================================
 
-    class SelectionOperation : public FXGroupBox {
+    class SelectionOperation : protected FXGroupBox {
         /// @brief FOX-declaration
         FXDECLARE(GNESelectorFrame::SelectionOperation)
 
@@ -354,9 +400,6 @@ public:
     /// @brief hide Frame
     void hide();
 
-    /// @brief get selected items
-    LockGLObjectTypes* getLockGLObjectTypes() const;
-
     /// @brief clear current selection with possibility of undo/redo
     void clearCurrentSelection() const;
 
@@ -364,6 +407,9 @@ public:
      * @note if setop==SET_DEFAULT than the currently set mode (mySetOperation) is used
      */
     void handleIDs(const std::vector<GNEAttributeCarrier*>& ACs, ModificationMode::SetOperation setop = ModificationMode::SET_DEFAULT);
+
+    /// @brief get selected items Modul
+    LockGLObjectTypes* getLockGLObjectTypes() const;
 
     /// @brief get modification mode modul
     ModificationMode* getModificationModeModul() const;

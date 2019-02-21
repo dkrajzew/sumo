@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -36,7 +36,7 @@
 #include <ctime>
 #include <xercesc/sax/SAXException.hpp>
 #include <xercesc/sax/SAXParseException.hpp>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/MsgHandler.h>
 #include <utils/common/UtilExceptions.h>
 #include <utils/common/SystemFrame.h>
@@ -122,7 +122,7 @@ startComputation(RODFNet* optNet, RODFDetectorFlows& flows, RODFDetectorCon& det
     }
 
     // if a network was loaded... (mode1)
-    if (optNet != 0) {
+    if (optNet != nullptr) {
         if (oc.getBool("remove-empty-detectors")) {
             PROGRESS_BEGIN_MESSAGE("Removing empty detectors");
             optNet->removeEmptyDetectors(detectors, flows);
@@ -255,9 +255,9 @@ main(int argc, char** argv) {
     oc.setApplicationDescription("Builds vehicle routes for SUMO using detector values.");
     oc.setApplicationName("dfrouter", "Eclipse SUMO dfrouter Version " VERSION_STRING);
     int ret = 0;
-    RODFNet* net = 0;
-    RODFDetectorCon* detectors = 0;
-    RODFDetectorFlows* flows = 0;
+    RODFNet* net = nullptr;
+    RODFDetectorCon* detectors = nullptr;
+    RODFDetectorFlows* flows = nullptr;
     try {
         // initialise the application system (messaging, xml, options)
         XMLSubSys::init();

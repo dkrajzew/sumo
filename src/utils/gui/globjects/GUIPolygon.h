@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -26,7 +26,6 @@
 #include <config.h>
 
 #include <string>
-#include <utils/foxtools/MFXMutex.h>
 #include <utils/shapes/SUMOPolygon.h>
 #include <utils/gui/globjects/GUIGlObject_AbstractAdd.h>
 #include <utils/gui/globjects/GLIncludes.h>
@@ -53,9 +52,10 @@ public:
      * @param[in] shape The shape of the polygon
      * @param[in] geo specifiy if shape was loaded as GEO
      * @param[in] fill Whether the polygon shall be filled
+     * @param[in] lineWidth Line width when drawing unfilled polygon
      */
     GUIPolygon(const std::string& id, const std::string& type,
-               const RGBColor& color, const PositionVector& shape, bool geo, bool fill,
+               const RGBColor& color, const PositionVector& shape, bool geo, bool fill, double lineWidth,
                double layer = 0, double angle = 0, const std::string& imgFile = "", bool relativePath = false);
 
     /// @brief Destructor
@@ -106,24 +106,22 @@ public:
     /// @brief set a new shape and update the tesselation
     virtual void setShape(const PositionVector& shape);
 
-    /// @brief set a new shape and update the tesselation
-    void setLineWidth(double lineWidth) {
-        myLineWidth = lineWidth;
-    }
-
 protected:
     /// @brief set color
-    void setColor(const GUIVisualizationSettings& s) const;
+    void setColor(const GUIVisualizationSettings& s, bool disableSelectionColor) const;
+
+    /// @brief check if Polygon can be drawn
+    bool checkDraw(const GUIVisualizationSettings& s) const;
+
+    /// @brief draw inner Polygon (before pushName() )
+    void drawInnerPolygon(const GUIVisualizationSettings& s, bool disableSelectionColor) const;
 
 private:
     /// The mutex used to avoid concurrent updates of the shape
-    mutable MFXMutex myLock;
+    mutable FXMutex myLock;
 
     /// @brief id of the display list for the cached tesselation
     mutable GLuint myDisplayList;
-
-    /// @brief the previous line width for deciding whether the display list must be refreshed
-    mutable double myLineWidth;
 
     /// @brief store the drawing commands in a display list
     void storeTesselation(double lineWidth) const;

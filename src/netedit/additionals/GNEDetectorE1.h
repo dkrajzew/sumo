@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -21,7 +21,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
 #include "GNEDetector.h"
 
@@ -53,11 +52,36 @@ public:
     /// @brief Destructor
     ~GNEDetectorE1();
 
-    /// @brief check if Position of detector is fixed
-    bool isDetectorPositionFixed() const;
+    /// @name members and functions relative to write additionals into XML
+    /// @{
+    /// @brief check if current additional is valid to be writed into XML
+    bool isAdditionalValid() const;
+
+    /// @brief return a string with the current additional problem
+    std::string getAdditionalProblem() const;
+
+    /// @brief fix additional problem
+    void fixAdditionalProblem();
+    /// @}
+
+    /// @name inherited from GNEDetector
+    /// @{
+    /// @brief get lane
+    GNELane* getLane() const;
+    /// @}
 
     /// @name Functions related with geometry of element
     /// @{
+    /**@brief change the position of the element geometry without saving in undoList
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
+     */
+    void moveGeometry(const Position& offset);
+
+    /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
+     * @param[in] undoList The undoList on which to register changes
+     */
+    void commitGeometryMoving(GNEUndoList* undoList);
+
     /// @brief update pre-computed geometry information
     void updateGeometry(bool updateGrid);
     /// @}
@@ -93,6 +117,10 @@ public:
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
     /// @}
+
+protected:
+    /// @brief The lane in which this detector is placed
+    GNELane* myLane;
 
 private:
     /// @brief set attribute after validation

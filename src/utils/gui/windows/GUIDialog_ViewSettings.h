@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -33,7 +33,7 @@
 // ===========================================================================
 // class declarations
 // ===========================================================================
-class MFXMutex;
+class MFXIconComboBox;
 
 
 // ===========================================================================
@@ -62,6 +62,7 @@ public:
         FXCheckButton* myCheck;
         FXRealSpinner* mySizeDial;
         FXColorWell* myColorWell;
+        FXColorWell* myBGColorWell;
         FXCheckButton* myConstSizeCheck;
     };
 
@@ -76,6 +77,7 @@ public:
         FXRealSpinner* myMinSizeDial;
         FXRealSpinner* myExaggerateDial;
         FXCheckButton* myCheck;
+        FXCheckButton* myCheckSelected;
     };
 
     /** @brief Constructor
@@ -89,7 +91,7 @@ public:
     GUIDialog_ViewSettings(GUISUMOAbstractView* parent,
                            GUIVisualizationSettings* settings,
                            std::vector<GUISUMOAbstractView::Decal>* decals,
-                           MFXMutex* decalsLock);
+                           FXMutex* decalsLock);
 
 
     /// @brief Destructor
@@ -244,7 +246,7 @@ private:
     std::vector<GUISUMOAbstractView::Decal>* myDecals;
 
     /// @brief Lock used when changing the decals
-    MFXMutex* myDecalsLock;
+    FXMutex* myDecalsLock;
 
     /// @name Dialog elements
     /// @{
@@ -256,8 +258,15 @@ private:
     FXVerticalFrame* myDecalsFrame;
     MFXAddEditTypedTable* myDecalsTable;
 
+    /// selection colors
+    FXColorWell* mySelectionColor;
+    FXColorWell* mySelectedEdgeColor;
+    FXColorWell* mySelectedLaneColor;
+    FXColorWell* mySelectedConnectionColor;
+    FXColorWell* mySelectedAdditionalColor;
+
     /// ... lane colorer
-    FXComboBox* myLaneEdgeColorMode;
+    MFXIconComboBox* myLaneEdgeColorMode;
     FXVerticalFrame* myLaneColorSettingFrame;
     std::vector<FXColorWell*> myLaneColors;
     std::vector<FXRealSpinner*> myLaneThresholds;
@@ -265,9 +274,10 @@ private:
     FXCheckButton* myLaneColorInterpolation;
     FXButton* myLaneColorRainbow;
     FXButton* myJunctionColorRainbow;
+    FXComboBox* myParamKey;
 
     /// ... lane scaler
-    FXComboBox* myLaneEdgeScaleMode;
+    MFXIconComboBox* myLaneEdgeScaleMode;
     FXVerticalFrame* myLaneScaleSettingFrame;
     std::vector<FXRealSpinner*> myLaneScales;
     std::vector<FXRealSpinner*> myLaneScaleThresholds;
@@ -279,7 +289,7 @@ private:
     FXRealSpinner* myLaneWidthUpscaleDialer;
     FXRealSpinner* myLaneMinWidthDialer;
 
-    FXComboBox* myVehicleColorMode, *myVehicleShapeDetail;
+    MFXIconComboBox* myVehicleColorMode, *myVehicleShapeDetail;
     FXVerticalFrame* myVehicleColorSettingFrame;
     std::vector<FXColorWell*> myVehicleColors;
     std::vector<FXRealSpinner*> myVehicleThresholds;
@@ -287,14 +297,14 @@ private:
     FXCheckButton* myVehicleColorInterpolation;
     FXCheckButton* myShowBlinker, *myShowMinGap, *myShowBTRange; /* *myShowLaneChangePreference,*/
 
-    FXComboBox* myPersonColorMode, *myPersonShapeDetail;
+    MFXIconComboBox* myPersonColorMode, *myPersonShapeDetail;
     FXVerticalFrame* myPersonColorSettingFrame;
     std::vector<FXColorWell*> myPersonColors;
     std::vector<FXRealSpinner*> myPersonThresholds;
     std::vector<FXButton*> myPersonButtons;
     FXCheckButton* myPersonColorInterpolation;
 
-    FXComboBox* myContainerColorMode, *myContainerShapeDetail;
+    MFXIconComboBox* myContainerColorMode, *myContainerShapeDetail;
     FXVerticalFrame* myContainerColorSettingFrame;
     std::vector<FXColorWell*> myContainerColors;
     std::vector<FXRealSpinner*> myContainerThresholds;
@@ -302,21 +312,21 @@ private:
     FXCheckButton* myContainerColorInterpolation;
     FXRealSpinner* myContainerMinSizeDialer, *myContainerUpscaleDialer;
 
-    FXComboBox* myJunctionColorMode;
+    MFXIconComboBox* myJunctionColorMode;
     FXVerticalFrame* myJunctionColorSettingFrame;
     std::vector<FXColorWell*> myJunctionColors;
     std::vector<FXRealSpinner*> myJunctionThresholds;
     std::vector<FXButton*> myJunctionButtons;
     FXCheckButton* myJunctionColorInterpolation;
 
-    FXComboBox* myPOIColorMode, *myPOIShapeDetail;
+    MFXIconComboBox* myPOIColorMode, *myPOIShapeDetail;
     FXVerticalFrame* myPOIColorSettingFrame;
     std::vector<FXColorWell*> myPOIColors;
     std::vector<FXRealSpinner*> myPOIThresholds;
     std::vector<FXButton*> myPOIButtons;
     FXCheckButton* myPOIColorInterpolation;
 
-    FXComboBox* myPolyColorMode, *myPolyShapeDetail;
+    MFXIconComboBox* myPolyColorMode, *myPolyShapeDetail;
     FXVerticalFrame* myPolyColorSettingFrame;
     std::vector<FXColorWell*> myPolyColors;
     std::vector<FXRealSpinner*> myPolyThresholds;
@@ -329,10 +339,13 @@ private:
     FXCheckButton* myDither;
     FXCheckButton* myShowSizeLegend;
 
-    NamePanel* myEdgeNamePanel, *myInternalEdgeNamePanel, *myCwaEdgeNamePanel, *myStreetNamePanel,
+    NamePanel* myEdgeNamePanel, *myInternalEdgeNamePanel, *myCwaEdgeNamePanel, *myStreetNamePanel, *myEdgeValuePanel,
                *myJunctionIndexPanel, *myTLIndexPanel,
                *myJunctionNamePanel, *myInternalJunctionNamePanel,
-               *myVehicleNamePanel, *myPersonNamePanel, *myContainerNamePanel,
+               *myTLSPhaseIndexPanel,
+               *myVehicleNamePanel, *myVehicleValuePanel,
+               *myPersonNamePanel, *myPersonValuePanel,
+               *myContainerNamePanel,
                *myAddNamePanel, *myAddFullNamePanel, *myPOINamePanel, *myPolyNamePanel, *myPOITypePanel, *myPolyTypePanel;
 
     SizePanel* myVehicleSizePanel, *myPersonSizePanel, *myContainerSizePanel, *myPOISizePanel, *myPolySizePanel, *myAddSizePanel, *myJunctionSizePanel;

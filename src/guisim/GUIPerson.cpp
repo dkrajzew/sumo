@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -35,7 +35,6 @@
 #include <microsim/devices/MSDevice_Vehroutes.h>
 #include <utils/common/StringUtils.h>
 #include <utils/vehicle/SUMOVehicleParameter.h>
-#include <utils/common/AbstractMutex.h>
 #include <utils/geom/GeomHelper.h>
 #include <utils/gui/images/GUITexturesHelper.h>
 #include <utils/gui/windows/GUISUMOAbstractView.h>
@@ -127,7 +126,7 @@ GUIPerson::GUIPersonPopupMenu::onCmdHideWalkingareaPath(FXObject*, FXSelector, v
 long
 GUIPerson::GUIPersonPopupMenu::onCmdShowPlan(FXObject*, FXSelector, void*) {
     GUIPerson* p = dynamic_cast<GUIPerson*>(myObject);
-    if (p == 0) {
+    if (p == nullptr) {
         return 1;
     }
     GUIParameterTableWindow* ret = new GUIParameterTableWindow(*myApplication, *p, p->getNumStages());
@@ -192,20 +191,20 @@ GUIPerson::getPopUpMenu(GUIMainWindow& app,
     buildNameCopyPopupEntry(ret);
     buildSelectionPopupEntry(ret);
     if (hasActiveAddVisualisation(&parent, VO_SHOW_ROUTE)) {
-        new FXMenuCommand(ret, "Hide Current Route", 0, ret, MID_HIDE_CURRENTROUTE);
+        new FXMenuCommand(ret, "Hide Current Route", nullptr, ret, MID_HIDE_CURRENTROUTE);
     } else {
-        new FXMenuCommand(ret, "Show Current Route", 0, ret, MID_SHOW_CURRENTROUTE);
+        new FXMenuCommand(ret, "Show Current Route", nullptr, ret, MID_SHOW_CURRENTROUTE);
     }
     if (hasActiveAddVisualisation(&parent, VO_SHOW_WALKINGAREA_PATH)) {
-        new FXMenuCommand(ret, "Hide Walkingarea Path", 0, ret, MID_HIDE_WALKINGAREA_PATH);
+        new FXMenuCommand(ret, "Hide Walkingarea Path", nullptr, ret, MID_HIDE_WALKINGAREA_PATH);
     } else {
-        new FXMenuCommand(ret, "Show Walkingarea Path", 0, ret, MID_SHOW_WALKINGAREA_PATH);
+        new FXMenuCommand(ret, "Show Walkingarea Path", nullptr, ret, MID_SHOW_WALKINGAREA_PATH);
     }
     new FXMenuSeparator(ret);
     if (parent.getTrackedID() != getGlID()) {
-        new FXMenuCommand(ret, "Start Tracking", 0, ret, MID_START_TRACK);
+        new FXMenuCommand(ret, "Start Tracking", nullptr, ret, MID_START_TRACK);
     } else {
-        new FXMenuCommand(ret, "Stop Tracking", 0, ret, MID_STOP_TRACK);
+        new FXMenuCommand(ret, "Stop Tracking", nullptr, ret, MID_STOP_TRACK);
     }
     new FXMenuSeparator(ret);
     //
@@ -282,7 +281,7 @@ GUIPerson::drawGL(const GUIVisualizationSettings& s) const {
     // set person color
     setColor(s);
     // scale
-    const double upscale = s.personSize.getExaggeration(s, 80);
+    const double upscale = s.personSize.getExaggeration(s, this, 80);
     glScaled(upscale, upscale, 1);
     switch (s.personQuality) {
         case 0:
@@ -302,18 +301,23 @@ GUIPerson::drawGL(const GUIVisualizationSettings& s) const {
     drawAction_drawWalkingareaPath(s);
 #endif
     drawName(p1, s.scale, s.personName, s.angle);
+    if (s.personValue.show) {
+        Position p2 = p1 + Position(0, 0.6 * s.personName.scaledSize(s.scale));
+        const double value = getColorValue(s.personColorer.getActive());
+        GLHelper::drawTextSettings(s.personValue, toString(value), p2, s.scale, s.angle, GLO_MAX - getType());
+    }
     glPopName();
 }
 
 void
 GUIPerson::drawAction_drawWalkingareaPath(const GUIVisualizationSettings& s) const {
     MSPersonStage_Walking* stage = dynamic_cast<MSPersonStage_Walking*>(getCurrentStage());
-    if (stage != 0) {
+    if (stage != nullptr) {
         setColor(s);
         MSPModel_Striping::PState* stripingState = dynamic_cast<MSPModel_Striping::PState*>(stage->getPedestrianState());
-        if (stripingState != 0) {
+        if (stripingState != nullptr) {
             MSPModel_Striping::WalkingAreaPath* waPath = stripingState->myWalkingAreaPath;
-            if (waPath != 0) {
+            if (waPath != nullptr) {
                 glPushMatrix();
                 glTranslated(0, 0, getType());
                 GLHelper::drawBoxLines(waPath->shape, 0.05);
@@ -339,7 +343,7 @@ GUIPerson::drawGLAdditional(GUISUMOAbstractView* const parent, const GUIVisualiz
             GLHelper::setColor(darker);
             MSPersonStage_Walking* stage = dynamic_cast<MSPersonStage_Walking*>(getCurrentStage());
             assert(stage != 0);
-            const double exaggeration = s.personSize.getExaggeration(s);
+            const double exaggeration = s.personSize.getExaggeration(s, this);
             const ConstMSEdgeVector& edges = stage->getRoute();
             for (ConstMSEdgeVector::const_iterator it = edges.begin(); it != edges.end(); ++it) {
                 GUILane* lane = static_cast<GUILane*>((*it)->getLanes()[0]);
@@ -430,21 +434,21 @@ GUIPerson::getColorValue(int activeScheme) const {
 
 double
 GUIPerson::getEdgePos() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSPerson::getEdgePos();
 }
 
 
 Position
 GUIPerson::getPosition() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSPerson::getPosition();
 }
 
 
 Position
 GUIPerson::getGUIPosition() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     if (getCurrentStageType() == DRIVING && !isWaiting4Vehicle() && myPositionInVehicle != Position::INVALID) {
         return myPositionInVehicle;
     } else {
@@ -455,21 +459,21 @@ GUIPerson::getGUIPosition() const {
 
 double
 GUIPerson::getNaviDegree() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return GeomHelper::naviDegree(MSPerson::getAngle());
 }
 
 
 double
 GUIPerson::getWaitingSeconds() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSPerson::getWaitingSeconds();
 }
 
 
 double
 GUIPerson::getSpeed() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSPerson::getSpeed();
 }
 
@@ -531,7 +535,7 @@ GUIPerson::drawAction_drawAsImage(const GUIVisualizationSettings& s) const {
         }
         int textureID = GUITexturesHelper::getTextureID(file);
         if (textureID > 0) {
-            const double exaggeration = s.personSize.getExaggeration(s);
+            const double exaggeration = s.personSize.getExaggeration(s, this);
             const double halfLength = getVehicleType().getLength() / 2.0 * exaggeration;
             const double halfWidth = getVehicleType().getWidth() / 2.0 * exaggeration;
             GUITexturesHelper::drawTexturedBox(textureID, -halfWidth, -halfLength, halfWidth, halfLength);

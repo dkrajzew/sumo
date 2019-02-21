@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -37,10 +37,18 @@
 #include <utils/options/OptionsCont.h>
 #include <utils/options/Option.h>
 
-#define MIN_GREEN_TIME 5
+#define HEIGH_WEIGHT 2
+#define LOW_WEIGHT .5;
 
+#define MIN_GREEN_TIME 5
+ 
 //#define DEBUG_STREAM_ORDERING
-#define DEBUGCOND true
+//#define DEBUG_PHASES
+//#define DEBUGCOND true
+//#define DEBUGCOND (getID() == "cluster_251050941_280598736_280598739_28902891_3142549227_3142550438")
+//#define DEBUGEDGE(edge) (edge->getID() == "23209153#1" || edge->getID() == "319583927#0")
+#define DEBUGCOND (true)
+#define DEBUGEDGE(edge) (true)
 
 // ===========================================================================
 // member method definitions
@@ -82,10 +90,10 @@ NBOwnTLDef::getDirectionalWeight(LinkDirection dir) {
         case LINKDIR_STRAIGHT:
         case LINKDIR_PARTLEFT:
         case LINKDIR_PARTRIGHT:
-            return 2.;
+            return HEIGH_WEIGHT;
         case LINKDIR_LEFT:
         case LINKDIR_RIGHT:
-            return .5;
+            return LOW_WEIGHT;
         default:
             break;
     }
@@ -107,22 +115,54 @@ NBOwnTLDef::computeUnblockedWeightedStreamNumber(const NBEdge* const e1, const N
                     if (e2->getTurnDestination() == (*e2c).toEdge) {
                         continue;
                     }
-                    if (!forbids(e1, (*e1c).toEdge, e2, (*e2c).toEdge, true)) {
-                        val += getDirectionalWeight(e1->getToNode()->getDirection(e1, (*e1c).toEdge));
-                        val += getDirectionalWeight(e2->getToNode()->getDirection(e2, (*e2c).toEdge));
+                    const double sign = (forbids(e1, (*e1c).toEdge, e2, (*e2c).toEdge, true) 
+                            || forbids(e2, (*e2c).toEdge, e1, (*e1c).toEdge, true)) ? -1 : 1;
+                    double w1;
+                    double w2;
+                    if (e1->getJunctionPriority(e1->getToNode()) == e2->getJunctionPriority(e2->getToNode())) {
+                        w1 = getDirectionalWeight(e1->getToNode()->getDirection(e1, (*e1c).toEdge));
+                        w2 = getDirectionalWeight(e2->getToNode()->getDirection(e2, (*e2c).toEdge));
+                    } else {
+                        if (e1->getJunctionPriority(e1->getToNode()) > e2->getJunctionPriority(e2->getToNode())) {
+                            w1 = HEIGH_WEIGHT;
+                            w2 = LOW_WEIGHT;
+                        } else {
+                            w1 = LOW_WEIGHT;
+                            w2 = HEIGH_WEIGHT;
+                        }
+                        if (sign == -1) {
+                            // extra penalty if edges with different junction priority are in conflict
+                            w1 *= 2;
+                            w2 *= 2;
+                        }
                     }
+                    val += sign * w1;
+                    val += sign * w2;
+#ifdef DEBUG_STREAM_ORDERING
+                    if (DEBUGCOND && DEBUGEDGE(e2) && DEBUGEDGE(e1)) {
+                        std::cout << "      sign=" << sign << " w1=" << w1 << " w2=" << w2 << " val=" << val 
+                            << " c1=" << (*e1c).getDescription(e1) 
+                            << " c2=" << (*e2c).getDescription(e2) 
+                            << "\n";
+                    }
+#endif
                 }
             }
         }
     }
+#ifdef DEBUG_STREAM_ORDERING
+    if (DEBUGCOND && DEBUGEDGE(e2) && DEBUGEDGE(e1)) {
+        std::cout << "     computeUnblockedWeightedStreamNumber e1=" << e1->getID() << " e2=" << e2->getID() << " val=" << val << "\n";
+    }
+#endif
     return val;
 }
 
 
 std::pair<NBEdge*, NBEdge*>
 NBOwnTLDef::getBestCombination(const EdgeVector& edges) {
-    std::pair<NBEdge*, NBEdge*> bestPair(static_cast<NBEdge*>(0), static_cast<NBEdge*>(0));
-    double bestValue = -1;
+    std::pair<NBEdge*, NBEdge*> bestPair(static_cast<NBEdge*>(nullptr), static_cast<NBEdge*>(nullptr));
+    double bestValue = -std::numeric_limits<double>::max();
     for (EdgeVector::const_iterator i = edges.begin(); i != edges.end(); ++i) {
         for (EdgeVector::const_iterator j = i + 1; j != edges.end(); ++j) {
             const double value = computeUnblockedWeightedStreamNumber(*i, *j);
@@ -142,6 +182,16 @@ NBOwnTLDef::getBestCombination(const EdgeVector& edges) {
             }
         }
     }
+    if (bestValue <=0) {
+        // do not group edges
+        bestPair.second = nullptr;
+        
+    }
+#ifdef DEBUG_STREAM_ORDERING
+    if (DEBUGCOND) {
+        std::cout << "   getBestCombination bestValue=" << bestValue << "  best=" << Named::getIDSecure(bestPair.first) << ", " << Named::getIDSecure(bestPair.second) << "\n";
+    }
+#endif
     return bestPair;
 }
 
@@ -150,7 +200,7 @@ std::pair<NBEdge*, NBEdge*>
 NBOwnTLDef::getBestPair(EdgeVector& incoming) {
     if (incoming.size() == 1) {
         // only one there - return the one
-        std::pair<NBEdge*, NBEdge*> ret(*incoming.begin(), static_cast<NBEdge*>(0));
+        std::pair<NBEdge*, NBEdge*> ret(*incoming.begin(), static_cast<NBEdge*>(nullptr));
         incoming.clear();
         return ret;
     }
@@ -176,7 +226,9 @@ NBOwnTLDef::getBestPair(EdgeVector& incoming) {
 #endif
 
     incoming.erase(find(incoming.begin(), incoming.end(), ret.first));
-    incoming.erase(find(incoming.begin(), incoming.end(), ret.second));
+    if (ret.second != nullptr) {
+        incoming.erase(find(incoming.begin(), incoming.end(), ret.second));
+    }
     return ret;
 }
 
@@ -191,7 +243,7 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
     myRightOnRedConflicts.clear();
     const SUMOTime brakingTime = TIME2STEPS(brakingTimeSeconds);
     const SUMOTime leftTurnTime = TIME2STEPS(OptionsCont::getOptions().getInt("tls.left-green.time"));
-    const SUMOTime minDur = myType == TLTYPE_STATIC ? UNSPECIFIED_DURATION : TIME2STEPS(OptionsCont::getOptions().getInt("tls.min-dur"));
+    const SUMOTime minMinDur = myType == TLTYPE_STATIC ? UNSPECIFIED_DURATION : TIME2STEPS(OptionsCont::getOptions().getInt("tls.min-dur"));
     const SUMOTime maxDur = myType == TLTYPE_STATIC ? UNSPECIFIED_DURATION : TIME2STEPS(OptionsCont::getOptions().getInt("tls.max-dur"));
 
     // build complete lists first
@@ -200,6 +252,7 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
     std::vector<bool> isTurnaround;
     std::vector<bool> hasTurnLane;
     std::vector<int> fromLanes;
+    std::vector<int> toLanes;
     int noLanesAll = 0;
     int noLinksAll = 0;
     for (int i1 = 0; i1 < (int)incoming.size(); i1++) {
@@ -209,7 +262,10 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
             NBEdge* fromEdge = incoming[i1];
             std::vector<NBEdge::Connection> approached = fromEdge->getConnectionsFromLane(i2);
             noLinksAll += (int) approached.size();
+            bool hasLeft = false;
             bool hasStraight = false;
+            bool hasRight = false;
+            bool hasTurnaround = false;
             for (int i3 = 0; i3 < (int)approached.size(); i3++) {
                 if (!fromEdge->mayBeTLSControlled(i2, approached[i3].toEdge, approached[i3].toLane)) {
                     --noLinksAll;
@@ -218,20 +274,34 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                 assert(i3 < (int)approached.size());
                 NBEdge* toEdge = approached[i3].toEdge;
                 fromEdges.push_back(fromEdge);
-                fromLanes.push_back((int)i2);
+                fromLanes.push_back(i2);
+                toLanes.push_back(approached[i3].toLane);
                 toEdges.push_back(toEdge);
-                if (toEdge != 0) {
+                if (toEdge != nullptr) {
                     isTurnaround.push_back(fromEdge->isTurningDirectionAt(toEdge));
                 } else {
                     isTurnaround.push_back(true);
                 }
-                if (fromEdge->getToNode()->getDirection(fromEdge, toEdge) == LINKDIR_STRAIGHT) {
+                LinkDirection dir = fromEdge->getToNode()->getDirection(fromEdge, toEdge);
+                if (dir == LINKDIR_STRAIGHT) {
                     hasStraight = true;
+                } else if (dir == LINKDIR_RIGHT || dir == LINKDIR_PARTRIGHT) {
+                    hasRight = true;
+                } else if (dir == LINKDIR_LEFT || dir == LINKDIR_PARTLEFT) {
+                    hasLeft = true;
+                } else if (dir == LINKDIR_TURN) {
+                    hasTurnaround = true;
                 }
             }
             for (int i3 = 0; i3 < (int)approached.size(); i3++) {
-                hasTurnLane.push_back(!hasStraight);
+                if (!fromEdge->mayBeTLSControlled(i2, approached[i3].toEdge, approached[i3].toLane)) {
+                    continue;
+                }
+                hasTurnLane.push_back(
+                        (hasLeft && !hasStraight && !hasRight) 
+                        || (!hasLeft && !hasTurnaround && hasRight));
             }
+            //std::cout << " from=" << fromEdge->getID() << "_" << i2 << " hasTurnLane=" << hasTurnLane.back() << " s=" << hasStraight << " l=" << hasLeft << " r=" << hasRight << " t=" << hasTurnaround << "\n";
         }
     }
     // collect crossings
@@ -251,29 +321,72 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
     const SUMOTime greenTime = TIME2STEPS(OptionsCont::getOptions().getInt("tls.green.time"));
     const SUMOTime allRedTime = TIME2STEPS(OptionsCont::getOptions().getInt("tls.allred.time"));
     const double minorLeftSpeedThreshold = OptionsCont::getOptions().getFloat("tls.minor-left.max-speed");
+    // left-turn phases do not work well for joined tls, so we build incoming instead
+    const double groupOpposites = (OptionsCont::getOptions().getString("tls.layout") == "opposites" 
+            && (myControlledNodes.size() <= 2 || corridorLike())); 
+
     // build all phases
     std::vector<int> greenPhases; // indices of green phases
     std::vector<bool> hadGreenMajor(noLinksAll, false);
     while (toProc.size() > 0) {
+        bool groupTram = false;
+        bool groupOther = false;
         std::pair<NBEdge*, NBEdge*> chosen;
-        if (incoming.size() == 2) {
-            // if there are only 2 incoming edges we need to decide whether they are a crossing or a "continuation"
-            // @node: this heuristic could be extended to also check the number of outgoing edges
-            double angle = fabs(NBHelpers::relAngle(incoming[0]->getAngleAtNode(incoming[0]->getToNode()), incoming[1]->getAngleAtNode(incoming[1]->getToNode())));
-            // angle would be 180 for straight opposing incoming edges
-            if (angle < 135) {
-                chosen = std::pair<NBEdge*, NBEdge*>(toProc[0], static_cast<NBEdge*>(0));
-                toProc.erase(toProc.begin());
+        if (groupOpposites) {
+            if (incoming.size() == 2) {
+                // if there are only 2 incoming edges we need to decide whether they are a crossing or a "continuation"
+                // @node: this heuristic could be extended to also check the number of outgoing edges
+                double angle = fabs(NBHelpers::relAngle(incoming[0]->getAngleAtNode(incoming[0]->getToNode()), incoming[1]->getAngleAtNode(incoming[1]->getToNode())));
+                // angle would be 180 for straight opposing incoming edges
+                if (angle < 135) {
+                    chosen = std::pair<NBEdge*, NBEdge*>(toProc[0], static_cast<NBEdge*>(nullptr));
+                    toProc.erase(toProc.begin());
+                } else {
+                    chosen = getBestPair(toProc);
+                }
             } else {
                 chosen = getBestPair(toProc);
+                if (chosen.second == nullptr && chosen.first->getPermissions() == SVC_TRAM) {
+                    groupTram = true;
+                    for (auto it = toProc.begin(); it != toProc.end();) {
+                        if ((*it)->getPermissions() == SVC_TRAM) {
+                            it = toProc.erase(it);
+                        } else {
+                            it++;
+                        }
+                    }
+                }
             }
         } else {
-            chosen = getBestPair(toProc);
+            NBEdge* chosenEdge = toProc[0];
+            chosen = std::pair<NBEdge*, NBEdge*>(chosenEdge, static_cast<NBEdge*>(nullptr));
+            toProc.erase(toProc.begin());
+            SVCPermissions perms = chosenEdge->getPermissions();
+            if (perms == SVC_TRAM) {
+                groupTram = true;
+            } else if ((perms & ~(SVC_PEDESTRIAN | SVC_BICYCLE | SVC_DELIVERY)) == 0) {
+                groupOther = true;
+            }
+            // group all edges with the same permissions into a single phase (later)
+            if (groupTram || groupOther) {
+                for (auto it = toProc.begin(); it != toProc.end();) {
+                    if ((*it)->getPermissions() == perms) {
+                        it = toProc.erase(it);
+                    } else {
+                        it++;
+                    }
+                }
+            }
         }
         int pos = 0;
         std::string state((int) noLinksAll, 'r');
-        //std::cout << " computing " << getID() << " prog=" << getProgramID() << " cho1=" << Named::getIDSecure(chosen.first) << " cho2=" << Named::getIDSecure(chosen.second) << " toProc=" << toString(toProc) << "\n";
+#ifdef DEBUG_PHASES
+    if (DEBUGCOND) {
+        std::cout << " computing " << getID() << " prog=" << getProgramID() << " cho1=" << Named::getIDSecure(chosen.first) << " cho2=" << Named::getIDSecure(chosen.second) << " toProc=" << toString(toProc) << " bentPrio=" << chosen.first->getToNode()->isBentPriority() << "\n";
+    }
+#endif
         // plain straight movers
+        double maxSpeed = 0;
         for (int i1 = 0; i1 < (int) incoming.size(); ++i1) {
             NBEdge* fromEdge = incoming[i1];
             const bool inChosen = fromEdge == chosen.first || fromEdge == chosen.second; //chosen.find(fromEdge)!=chosen.end();
@@ -286,6 +399,7 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                     }
                     if (inChosen) {
                         state[pos] = 'G';
+                        maxSpeed = MAX2(maxSpeed, fromEdge->getSpeed());
                     } else {
                         state[pos] = 'r';
                     }
@@ -293,25 +407,39 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                 }
             }
         }
-        //std::cout << " state after plain straight movers=" << state << "\n";
-        // correct behaviour for those that are not in chosen, but may drive, though
-        state = allowFollowersOfChosen(state, fromEdges, toEdges);
-        for (int i1 = 0; i1 < pos; ++i1) {
-            if (state[i1] == 'G') {
-                continue;
-            }
-            bool isForbidden = false;
-            for (int i2 = 0; i2 < pos && !isForbidden; ++i2) {
-                if (state[i2] == 'G' && !isTurnaround[i2] &&
-                        (forbids(fromEdges[i2], toEdges[i2], fromEdges[i1], toEdges[i1], true) || forbids(fromEdges[i1], toEdges[i1], fromEdges[i2], toEdges[i2], true))) {
-                    isForbidden = true;
-                }
-            }
-            if (!isForbidden && !hasCrossing(fromEdges[i1], toEdges[i1], crossings)) {
-                state[i1] = 'G';
-            }
+        // 5s at 50km/h, 10s at 80km/h, rounded to full seconds
+        const double minDurBySpeed = maxSpeed * 3.6 / 6 - 3.3;
+        SUMOTime minDur = MAX2(minMinDur, TIME2STEPS(floor(minDurBySpeed + 0.5)));
+        if (chosen.first->getPermissions() == SVC_TRAM && (chosen.second == nullptr || chosen.second->getPermissions() == SVC_TRAM)) {
+            // one tram per actuated phase 
+            minDur = TIME2STEPS(1);
         }
-        //std::cout << " state after finding additional 'G's=" << state << "\n";
+
+#ifdef DEBUG_PHASES
+    if (DEBUGCOND) {
+        std::cout << " state after plain straight movers " << state << "\n";
+    }
+#endif
+        // correct behaviour for those that are not in chosen, but may drive, though
+        state = allowCompatible(state, fromEdges, toEdges, fromLanes, toLanes);
+        if (groupTram) {
+            state = allowByVClass(state, fromEdges, toEdges, SVC_TRAM);
+        } else if (groupOther) {
+            state = allowByVClass(state, fromEdges, toEdges, SVC_PEDESTRIAN | SVC_BICYCLE | SVC_DELIVERY);
+        }
+#ifdef DEBUG_PHASES
+    if (DEBUGCOND) {
+        std::cout << " state after grouping by vClass " << state << "\n";
+    }
+#endif
+        if (groupOpposites || chosen.first->getToNode()->getType() == NODETYPE_TRAFFIC_LIGHT_RIGHT_ON_RED) {
+            state = allowUnrelated(state, fromEdges, toEdges, isTurnaround, crossings);
+        }
+#ifdef DEBUG_PHASES
+    if (DEBUGCOND) {
+        std::cout << " state after finding allowUnrelated " << state << "\n";
+    }
+#endif
         // correct behaviour for those that have to wait (mainly left-mover)
         bool haveForbiddenLeftMover = false;
         std::vector<bool> rightTurnConflicts(pos, false);
@@ -321,7 +449,11 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                 hadGreenMajor[i1] = true;
             }
         }
-        //std::cout << " state after correcting left movers=" << state << "\n";
+#ifdef DEBUG_PHASES
+    if (DEBUGCOND) {
+        std::cout << " state after correcting left movers=" << state << "\n";
+    }
+#endif
 
         std::vector<bool> leftGreen(pos, false);
         // check whether at least one left-turn lane exist
@@ -331,15 +463,19 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                 foundLeftTurnLane = true;
             }
         }
-        const bool buildLeftGreenPhase = haveForbiddenLeftMover && !myHaveSinglePhase && leftTurnTime > 0 && foundLeftTurnLane;
+        const bool buildLeftGreenPhase = (haveForbiddenLeftMover && !myHaveSinglePhase && leftTurnTime > 0 && foundLeftTurnLane 
+                && groupOpposites && !groupTram && !groupOther);
 
         // find indices for exclusive left green phase and apply option minor-left.max-speed
         for (int i1 = 0; i1 < pos; ++i1) {
-            if (state[i1] == 'g' && !rightTurnConflicts[i1]) {
+            if (state[i1] == 'g' && !rightTurnConflicts[i1] 
+                    // only activate turn-around together with a real left-turn
+                    && (!isTurnaround[i1] || (i1 > 0 && leftGreen[i1 - 1]))) {
                 leftGreen[i1] = true;
                 if (fromEdges[i1]->getSpeed() > minorLeftSpeedThreshold) {
                     if (buildLeftGreenPhase) {
                         state[i1] = 'r';
+                        //std::cout << " disabling minorLeft " << i1 << " (speed=" << fromEdges[i1]->getSpeed() << " thresh=" << minorLeftSpeedThreshold << ")\n";
                     } else if (!isTurnaround[i1]) {
                         WRITE_WARNING("Minor green from edge '" + fromEdges[i1]->getID() + "' to edge '" + toEdges[i1]->getID() + "' exceeds "
                                       + toString(minorLeftSpeedThreshold) + "m/s. Maybe a left-turn lane is missing.");
@@ -347,6 +483,16 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                 }
             }
         }
+
+#ifdef DEBUG_PHASES
+    if (DEBUGCOND) {
+        std::cout << getID() << " state=" << state << " buildLeft=" << buildLeftGreenPhase << " hFLM=" << haveForbiddenLeftMover << " turnLane=" << foundLeftTurnLane 
+            << "   \nrtC=" << toString(rightTurnConflicts) 
+            << "   \nhTL=" << toString(hasTurnLane)
+            << "   \nlGr=" << toString(leftGreen)
+            << "\n";
+    }
+#endif
 
         const std::string vehicleState = state; // backup state before pedestrian modifications
         greenPhases.push_back((int)logic->getPhases().size());
@@ -361,7 +507,10 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                 if (state[i1] != 'G' && state[i1] != 'g') {
                     continue;
                 }
-                if ((vehicleState[i1] >= 'a' && vehicleState[i1] <= 'z') && buildLeftGreenPhase && !rightTurnConflicts[i1]) {
+                if ((vehicleState[i1] >= 'a' && vehicleState[i1] <= 'z') 
+                        && buildLeftGreenPhase 
+                        && !rightTurnConflicts[i1]
+                        && leftGreen[i1]) {
                     continue;
                 }
                 state[i1] = 'y';
@@ -380,11 +529,11 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
                     state[i1] = 'r';
                     continue;
                 }
-                if (state[i1] == 'g' || leftGreen[i1]) {
+                if (leftGreen[i1]) {
                     state[i1] = 'G';
                 }
             }
-            state = allowFollowersOfChosen(state, fromEdges, toEdges);
+            state = allowCompatible(state, fromEdges, toEdges, fromLanes, toLanes);
             state = correctConflicting(state, fromEdges, toEdges, isTurnaround, fromLanes, hadGreenMajor, haveForbiddenLeftMover, rightTurnConflicts);
 
             // add step
@@ -463,7 +612,7 @@ NBOwnTLDef::computeLogicAndConts(int brakingTimeSeconds, bool onlyConts) {
         return logic;
     } else {
         delete logic;
-        return 0;
+        return nullptr;
     }
 }
 
@@ -618,7 +767,7 @@ EdgeVector
 NBOwnTLDef::getConnectedOuterEdges(const EdgeVector& incoming) {
     EdgeVector result = incoming;
     for (EdgeVector::iterator it = result.begin(); it != result.end();) {
-        if ((*it)->getConnections().size() == 0 || (*it)->isInnerEdge()) {
+        if ((*it)->getConnections().size() == 0 || (*it)->isInternal()) {
             it = result.erase(it);
         } else {
             ++it;
@@ -629,7 +778,38 @@ NBOwnTLDef::getConnectedOuterEdges(const EdgeVector& incoming) {
 
 
 std::string
-NBOwnTLDef::allowFollowersOfChosen(std::string state, const EdgeVector& fromEdges, const EdgeVector& toEdges) {
+NBOwnTLDef::allowCompatible(std::string state, const EdgeVector& fromEdges, const EdgeVector& toEdges,
+            const std::vector<int>& fromLanes, const std::vector<int>& toLanes) 
+{
+    state = allowSingleEdge(state, fromEdges);
+    state = allowFollowers(state, fromEdges, toEdges);
+    state = allowPredecessors(state, fromEdges, toEdges, fromLanes, toLanes);
+    return state;
+}
+
+std::string 
+NBOwnTLDef::allowSingleEdge(std::string state, const EdgeVector& fromEdges) {
+    // if only one edge has green, ensure sure that all connections from that edge are green
+    std::set<NBEdge*> greenEdges;
+    for (int i1 = 0; i1 < (int)state.size(); ++i1) {
+        if (state[i1] == 'G') {
+            greenEdges.insert(fromEdges[i1]);
+        }
+    }
+    if (greenEdges.size() == 1) {
+        NBEdge* greenEdge = *greenEdges.begin();
+        for (int i1 = 0; i1 < (int)state.size(); ++i1) {
+            if (fromEdges[i1] == greenEdge) {
+                state[i1] = 'G';
+            }
+        }
+    }
+    return state;
+}
+
+std::string 
+NBOwnTLDef::allowFollowers(std::string state, const EdgeVector& fromEdges, const EdgeVector& toEdges) {
+    // check continuation within joined traffic lights
     bool check = true;
     while (check) {
         check = false;
@@ -637,10 +817,14 @@ NBOwnTLDef::allowFollowersOfChosen(std::string state, const EdgeVector& fromEdge
             if (state[i1] == 'G') {
                 continue;
             }
+            //if (forbidden(state, i1, fromEdges, toEdges)) {
+            //    continue;
+            //}
             bool followsChosen = false;
-            for (int i2 = 0; i2 < (int)fromEdges.size() && !followsChosen; ++i2) {
+            for (int i2 = 0; i2 < (int)fromEdges.size(); ++i2) {
                 if (state[i2] == 'G' && fromEdges[i1] == toEdges[i2]) {
                     followsChosen = true;
+                    break;
                 }
             }
             if (followsChosen) {
@@ -650,6 +834,85 @@ NBOwnTLDef::allowFollowersOfChosen(std::string state, const EdgeVector& fromEdge
         }
     }
     return state;
+}
+
+            
+std::string 
+NBOwnTLDef::allowPredecessors(std::string state, const EdgeVector& fromEdges, const EdgeVector& toEdges,
+            const std::vector<int>& fromLanes, const std::vector<int>& toLanes) {
+    // also allow predecessors of chosen edges if the lanes match and there is no conflict
+    // (must be done after the followers are done because followers are less specific)
+    bool check = true;
+    while (check) {
+        check = false;
+        for (int i1 = 0; i1 < (int)fromEdges.size(); ++i1) {
+            if (state[i1] == 'G') {
+                continue;
+            }
+            if (forbidden(state, i1, fromEdges, toEdges)) {
+                continue;
+            }
+            bool preceedsChosen = false;
+            for (int i2 = 0; i2 < (int)fromEdges.size(); ++i2) {
+                if (state[i2] == 'G' && fromEdges[i2] == toEdges[i1]
+                        && fromLanes[i2] == toLanes[i1]) {
+                    preceedsChosen = true;
+                    break;
+                }
+            }
+            if (preceedsChosen) {
+                state[i1] = 'G';
+                check = true;
+            }
+        }
+    }
+    return state;
+}
+
+std::string 
+NBOwnTLDef::allowUnrelated(std::string state, const EdgeVector& fromEdges, const EdgeVector& toEdges, 
+        const std::vector<bool>& isTurnaround,
+        const std::vector<NBNode::Crossing*>& crossings) {
+    for (int i1 = 0; i1 < (int)fromEdges.size(); ++i1) {
+        if (state[i1] == 'G') {
+            continue;
+        }
+        bool isForbidden = false;
+        for (int i2 = 0; i2 < (int)fromEdges.size(); ++i2) {
+            if (state[i2] == 'G' && !isTurnaround[i2] &&
+                    (forbids(fromEdges[i2], toEdges[i2], fromEdges[i1], toEdges[i1], true) || forbids(fromEdges[i1], toEdges[i1], fromEdges[i2], toEdges[i2], true))) {
+                isForbidden = true;
+                break;
+            }
+        }
+        if (!isForbidden && !hasCrossing(fromEdges[i1], toEdges[i1], crossings)) {
+            state[i1] = 'G';
+        }
+    }
+    return state;
+}
+
+
+std::string 
+NBOwnTLDef::allowByVClass(std::string state, const EdgeVector& fromEdges, const EdgeVector& toEdges, SVCPermissions perm) {
+    for (int i1 = 0; i1 < (int)fromEdges.size(); ++i1) {
+        SVCPermissions linkPerm = (fromEdges[i1]->getPermissions() & toEdges[i1]->getPermissions());
+        if ((linkPerm & ~perm) == 0) {
+            state[i1] = 'G';
+        }
+    }
+    return state;
+}
+
+
+bool 
+NBOwnTLDef::forbidden(const std::string& state, int index, const EdgeVector& fromEdges, const EdgeVector& toEdges) {
+    for (int i2 = 0; i2 < (int)fromEdges.size(); ++i2) {
+        if (state[i2] == 'G' && foes(fromEdges[i2], toEdges[i2], fromEdges[index], toEdges[index])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -672,7 +935,7 @@ NBOwnTLDef::correctConflicting(std::string state, const EdgeVector& fromEdges, c
                     if (forbids(fromEdges[i2], toEdges[i2], fromEdges[i1], toEdges[i1], true, controlledWithin) || rightTurnConflicts[i1]) {
                         state[i1] = 'g';
                         myNeedsContRelation.insert(StreamPair(fromEdges[i1], toEdges[i1], fromEdges[i2], toEdges[i2]));
-                        if (!isTurnaround[i1] && !hadGreenMajor[i1]) {
+                        if (!isTurnaround[i1] && !hadGreenMajor[i1] && !rightTurnConflicts[i1]) {
                             haveForbiddenLeftMover = true;
                         }
                     }
@@ -796,10 +1059,35 @@ int
 NBOwnTLDef::getMaxIndex() {
     setParticipantsInformation();
     NBTrafficLightLogic* logic = compute(OptionsCont::getOptions());
-    if (logic != 0) {
+    if (logic != nullptr) {
         return logic->getNumLinks() - 1;
     } else {
         return -1;
     }
 }
+ 
+
+bool 
+NBOwnTLDef::corridorLike() const {
+    if (getID() == DummyID) {
+        // avoid infinite recursion
+        return true;
+    }
+    assert(myControlledNodes.size() >= 2);
+    NBOwnTLDef dummy(DummyID, myControlledNodes, 0, TLTYPE_STATIC);
+    dummy.setParticipantsInformation();
+    NBTrafficLightLogic* tllDummy = dummy.computeLogicAndConts(0, true);
+    int greenPhases = 0;
+    for (const auto& phase : tllDummy->getPhases()) {
+        if (phase.state.find_first_of("gG") != std::string::npos) {
+            greenPhases++;
+        }
+    }
+    delete tllDummy;
+    for (std::vector<NBNode*>::const_iterator i = myControlledNodes.begin(); i != myControlledNodes.end(); i++) {
+        (*i)->removeTrafficLight(&dummy);
+    }
+    return greenPhases <= 2;
+}
+
 /****************************************************************************/

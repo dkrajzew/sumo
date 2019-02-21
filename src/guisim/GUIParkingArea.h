@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -76,7 +76,8 @@ public:
     GUIParkingArea(const std::string& id,
                    const std::vector<std::string>& lines, MSLane& lane,
                    double frompos, double topos, unsigned int capacity,
-                   double width, double length, double angle, const std::string& name);
+                   double width, double length, double angle, const std::string& name,
+                   bool onRoad);
 
 
     /// @brief Destructor
@@ -118,6 +119,9 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief extend boundary
+    void addLotEntry(double x, double y, double z,
+                     double width, double length, double angle);
 
     /** @brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -139,6 +143,9 @@ private:
 
     /// @brief The rotation of the sign
     double mySignRot;
+
+    /// @brief the centering boundary
+    Boundary myBoundary;
 
 };
 

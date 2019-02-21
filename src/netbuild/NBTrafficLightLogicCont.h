@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -207,6 +207,9 @@ public:
      */
     void setTLControllingInformation(const NBEdgeCont& ec, const NBNodeCont& nc);
 
+    /// @brief Returns a list of all definitions (convenience for easier iteration)
+    typedef std::vector<NBTrafficLightDefinition*> Definitions;
+    Definitions getDefinitions() const;
 
 private:
     /// @brief Definition of internal the container types
@@ -215,7 +218,6 @@ private:
     typedef std::map<std::string, NBTrafficLightDefinition*> Program2Def;
     typedef std::map<std::string, Program2Def> Id2Defs;
     typedef std::vector<NBTrafficLightLogic*> Logics;
-    typedef std::vector<NBTrafficLightDefinition*> Definitions;
 
     /// @brief The container for previously computed tl-logics
     Id2Logics myComputed;
@@ -235,8 +237,6 @@ private:
     static const Program2Def EmptyDefinitions;
 
 private:
-    /// @brief Returns a list of all definitions (convenience for easier iteration)
-    Definitions getDefinitions() const;
 
     /** @brief Destroys all stored definitions and logics
      */

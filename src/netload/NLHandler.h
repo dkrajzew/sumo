@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -289,7 +289,6 @@ private:
     /// @brief Parses the given character into an enumeration typed link state
     LinkState parseLinkState(const std::string& state);
 
-
 protected:
     /// @brief A builder for object actions
     NLDiscreteEventBuilder myActionBuilder;
@@ -330,9 +329,10 @@ protected:
 
     bool myCurrentIsBroken;
 
-    bool myHaveWarnedAboutDeprecatedLanes;
+    bool myHaveWarnedAboutInvalidTLType;
 
-    Parameterised* myLastParameterised;
+    Parameterised myLastEdgeParameters;
+    std::vector<Parameterised*> myLastParameterised;
 
     /// @brief whether the loaded network contains internal lanes
     bool myHaveSeenInternalEdge;

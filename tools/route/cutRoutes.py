@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -35,6 +35,7 @@ if 'SUMO_HOME' in os.environ:
     sys.path.append(os.path.join(tools))
     from sumolib.output import parse, parse_fast  # noqa
     from sumolib.net import readNet  # noqa
+    import sumolib
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
@@ -48,8 +49,10 @@ extrapolated based on edge-lengths and maximum speeds multiplied with --speed-fa
     optParser.add_option("-v", "--verbose", action="store_true",
                          default=False, help="Give more output")
     optParser.add_option("--trips-output", help="output trip file")
-    optParser.add_option("--min-length", type='int',
-                         default=0, help="minimum route length in the subnetwork")
+    optParser.add_option("--min-length", type='int', dest="min_length",
+                         default=0, help="minimum route length in the subnetwork (in #edges)")
+    optParser.add_option("--min-air-dist", type='int', dest="min_air_dist",
+                         default=0, help="minimum route length in the subnetwork (in meters)")
     optParser.add_option("--routes-output", help="output route file")
     optParser.add_option("--stops-output", help="output filtered stop file")
     optParser.add_option(
@@ -101,8 +104,9 @@ def cut_routes(aEdges, orig_net, options, busStopEdges=None):
     multiAffectedRoutes = 0
     teleportFactorSum = 0.0
     too_short = 0
-    standaloneRoutes = {} # routeID -> routeObject
-    standaloneRoutesDepart = {} # routeID -> time or 'discard' or None
+    too_short_airdist = 0
+    standaloneRoutes = {}  # routeID -> routeObject
+    standaloneRoutesDepart = {}  # routeID -> time or 'discard' or None
     if options.additional_input:
         parse_standalone_routes(options.additional_input, standaloneRoutes)
     for routeFile in options.routeFiles:
@@ -157,6 +161,14 @@ def cut_routes(aEdges, orig_net, options, busStopEdges=None):
                     if routeRef:
                         standaloneRoutesDepart[vehicle.route] = 'discard'
                     continue
+                if options.min_air_dist > 0:
+                    fromPos = orig_net.getEdge(edges[fromIndex]).getFromNode().getCoord()
+                    toPos = orig_net.getEdge(edges[toIndex]).getToNode().getCoord()
+                    if sumolib.miscutils.euclidean(fromPos, toPos) < options.min_air_dist:
+                        too_short_airdist += 1
+                        if routeRef:
+                            standaloneRoutesDepart[vehicle.route] = 'discard'
+                        continue
                 # compute new departure
                 if routeRef or vehicle.route[0].exitTimes is None:
                     if orig_net is not None:
@@ -185,7 +197,8 @@ def cut_routes(aEdges, orig_net, options, busStopEdges=None):
                 remaining = edges[fromIndex:toIndex + 1]
                 stops = cut_stops(vehicle, busStopEdges, remaining)
                 if routeRef:
-                    routeRef.stop = cut_stops(routeRef, busStopEdges, remaining, departShift, options.defaultStopDuration)
+                    routeRef.stop = cut_stops(routeRef, busStopEdges, remaining,
+                                              departShift, options.defaultStopDuration)
                     routeRef.edges = " ".join(remaining)
                     yield None, routeRef
                 else:
@@ -212,9 +225,13 @@ def cut_routes(aEdges, orig_net, options, busStopEdges=None):
     if too_short > 0:
         print("Discarded %s routes because they have less than %s edges" %
               (too_short, options.min_length))
+    if too_short_airdist > 0:
+        print("Discarded %s routes because the air-line distance between start and end is less than %s" %
+              (too_short_airdist, options.min_air_dist))
     print("Number of disconnected routes: %s. Most frequent missing edges:" %
           multiAffectedRoutes)
     printTop(missingEdgeOccurences)
+
 
 def cut_stops(vehicle, busStopEdges, remaining, departShift=0, defaultDuration=0):
     stops = []
@@ -242,7 +259,6 @@ def cut_stops(vehicle, busStopEdges, remaining, departShift=0, defaultDuration=0
             elif stop.lane[:-2] in remaining:
                 stops.append(stop)
     return stops
-
 
 
 def getFirstIndex(areaEdges, edges):
@@ -308,6 +324,7 @@ def parse_standalone_routes(file, into):
     for route in parse(file, 'route'):
         into[route.id] = route
 
+
 def main(options):
     net = readNet(options.network)
     edges = set([e.getID() for e in net.getEdges()])
@@ -361,7 +378,7 @@ def main(options):
         elif num_taz > 0:
             print("Kept %s of %s tazs" % (
                 kept_taz, num_taz))
-                
+
     if options.stops_output:
         busStops.write('</additional>\n')
         busStops.close()
@@ -370,8 +387,8 @@ def main(options):
         f.write('<!-- generated with %s for %s from %s -->\n' %
                 (os.path.basename(__file__), options.network, options.routeFiles))
         f.write(
-            ('<%s xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
-             'xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">\n') % output_type)
+            ('<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
+             'xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">\n'))
         num_routeRefs = 0
         num_vehicles = 0
         for _, v in vehicles:
@@ -380,7 +397,7 @@ def main(options):
             else:
                 num_vehicles += 1
             writer(f, v)
-        f.write('</%s>\n' % output_type)
+        f.write('</routes>\n')
         if num_routeRefs > 0:
             print("Wrote %s standalone-routes and %s vehicles" % (num_routeRefs, num_vehicles))
         else:

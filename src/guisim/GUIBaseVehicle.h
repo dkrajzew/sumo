@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -29,8 +29,8 @@
 #include <vector>
 #include <set>
 #include <string>
+#include <fx.h>
 #include <utils/common/RGBColor.h>
-#include <utils/foxtools/MFXMutex.h>
 #include <utils/geom/GeomHelper.h>
 #include <utils/geom/PositionVector.h>
 #include <utils/gui/globjects/GUIGlObject.h>
@@ -90,8 +90,8 @@ public:
     /// @brief gets the color value according to the current scheme index
     virtual double getColorValue(int activeScheme) const = 0;
 
-    /// @brief draws the given guiShape if it has distinc carriages/modules and eturns true if so
-    virtual bool drawAction_drawCarriageClass(const GUIVisualizationSettings& s, SUMOVehicleShape guiShape, bool asImage) const = 0;
+    /// @brief draws the given guiShape with distinct carriages/modules
+    virtual void drawAction_drawCarriageClass(const GUIVisualizationSettings& s, bool asImage) const = 0;
 
     /** @brief Returns the time since the last lane change in seconds
      * @see MSVehicle::myLastLaneChangeOffset
@@ -312,21 +312,6 @@ protected:
     /// @brief sets the color according to the currente settings
     void setColor(const GUIVisualizationSettings& s) const;
 
-    /// @name drawing helper methods
-    /// @{
-    static void drawPoly(double* poses, double offset);
-
-    void drawAction_drawVehicleAsBoxPlus() const;
-    void drawAction_drawVehicleAsTrianglePlus() const;
-    bool drawAction_drawVehicleAsPoly(const GUIVisualizationSettings& s) const;
-
-    /* @brief try to draw vehicle as raster image and return true if sucessful
-     * @param[in] length The custom length of the vehicle
-     *   (defaults to the * length specified in the vehicle type if -1 is passed)
-    */
-    bool drawAction_drawVehicleAsImage(const GUIVisualizationSettings& s, double length = -1) const;
-    /// @}
-
     /// @brief returns the seat position for the person with the given index
     const Position& getSeatPosition(int personIndex) const;
 
@@ -337,10 +322,12 @@ protected:
         return myVehicle.getVehicleType();
     }
 
+    /// @brief draw vehicle body and return whether carriages are being drawn
+    bool drawAction_drawVehicleAsPolyWithCarriagges(const GUIVisualizationSettings& s, bool asImage=false) const;
 
 protected:
     /// The mutex used to avoid concurrent updates of the vehicle buffer
-    mutable MFXMutex myLock;
+    mutable FXMutex myLock;
 
     /// @brief positions of seats in the vehicle (updated at every drawing step)
     mutable PositionVector mySeatPositions;

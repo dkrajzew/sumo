@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -54,7 +54,7 @@ GNEAdditionalDialog::GNEAdditionalDialog(GNEAdditional* editedAdditional, bool u
     FXTopWindow(editedAdditional->getViewNet(), ("Edit '" + editedAdditional->getID() + "' data").c_str(), editedAdditional->getIcon(), editedAdditional->getIcon(), GUIDesignDialogBoxExplicit, 0, 0, width, height, 0, 0, 0, 0, 4, 4),
     myEditedAdditional(editedAdditional),
     myUpdatingElement(updatingElement),
-    myChangesDescription("change " + toString(editedAdditional->getTag()) + " values"),
+    myChangesDescription("change " + editedAdditional->getTagStr() + " values"),
     myNumberOfChanges(0) {
     // create main frame
     FXVerticalFrame* mainFrame = new FXVerticalFrame(this, GUIDesignAuxiliarFrame);

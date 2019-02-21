@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -26,7 +26,7 @@
 #include <utils/common/RandHelper.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/common/ToString.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include "Distribution_Parameterized.h"
 
 
@@ -60,10 +60,10 @@ Distribution_Parameterized::parse(const std::string& description) {
     if (distName == "norm" || distName == "normc") {
         std::vector<std::string> params = StringTokenizer(description.substr(distName.size() + 1, description.size() - distName.size() - 2), ',').getVector();
         myParameter.resize(params.size());
-        std::transform(params.begin(), params.end(), myParameter.begin(), TplConvert::_str2double);
+        std::transform(params.begin(), params.end(), myParameter.begin(), StringUtils::toDouble);
         setID(distName);
     } else {
-        myParameter[0] = TplConvert::_str2double(description);
+        myParameter[0] = StringUtils::toDouble(description);
     }
     assert(!myParameter.empty());
     if (myParameter.size() == 1) {
@@ -100,7 +100,14 @@ Distribution_Parameterized::getMax() const {
 
 std::string
 Distribution_Parameterized::toStr(std::streamsize accuracy) const {
-    return myParameter[1] == 0. ? toString(myParameter[0]) : myID + "(" + joinToString(myParameter, ",", accuracy) + ")";
+    if (myParameter[1] < 0) {
+        // only write simple speedFactor
+        return toString(myParameter[0]);
+    } else {
+        return (myParameter[1] == 0. 
+                ? myID + "(" + toString(myParameter[0], accuracy) + "," + toString(myParameter[1], accuracy) + ")"
+                : myID + "(" + joinToString(myParameter, ",", accuracy) + ")");
+    }
 }
 
 

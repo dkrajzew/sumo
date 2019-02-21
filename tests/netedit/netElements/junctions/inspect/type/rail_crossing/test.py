@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -28,11 +28,14 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 # rebuild network
 netedit.rebuildNetwork()
 
+# inspect central node
+netedit.leftClick(referencePosition, 325, 250)
+
 # set invalid value
-netedit.modifyAttribute(2, "dummyType")
+netedit.modifyAttribute(2, "dummyType", False)
 
 # change type of junction
-netedit.modifyAttribute(2, "rail_crossing")
+netedit.modifyAttribute(2, "rail_crossing", False)
 
 # rebuild network
 netedit.rebuildNetwork()

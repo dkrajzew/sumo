@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -52,7 +52,7 @@ HelpersEnergy::compute(const SUMOEmissionClass /* c */, const PollutantsInterfac
     if (e != PollutantsInterface::ELEC) {
         return 0.;
     }
-    if (param == 0) {
+    if (param == nullptr) {
         param = &myDefaultParameter;
     }
     //@ToDo: All formulas below work with the logic of the euler update (refs #860).

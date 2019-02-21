@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -35,12 +35,12 @@
 #include <utils/options/Option.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/options/OptionsIO.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/FileHelpers.h>
 #include <utils/common/SysUtils.h>
 #include <utils/common/ToString.h>
-#include <utils/xml/SUMORouteLoaderControl.h>
-#include <utils/xml/SUMORouteLoader.h>
+#include <utils/vehicle/SUMORouteLoaderControl.h>
+#include <utils/vehicle/SUMORouteLoader.h>
 #include <utils/xml/XMLSubSys.h>
 #include <mesosim/MEVehicleControl.h>
 #include <microsim/MSVehicleControl.h>
@@ -73,7 +73,7 @@ void
 NLBuilder::EdgeFloatTimeLineRetriever_EdgeEffort::addEdgeWeight(const std::string& id,
         double value, double begTime, double endTime) const {
     MSEdge* edge = MSEdge::dictionary(id);
-    if (edge != 0) {
+    if (edge != nullptr) {
         myNet.getWeightsStorage().addEffort(edge, begTime, endTime, value);
     } else {
         WRITE_ERROR("Trying to set the effort for the unknown edge '" + id + "'.");
@@ -88,7 +88,7 @@ void
 NLBuilder::EdgeFloatTimeLineRetriever_EdgeTravelTime::addEdgeWeight(const std::string& id,
         double value, double begTime, double endTime) const {
     MSEdge* edge = MSEdge::dictionary(id);
-    if (edge != 0) {
+    if (edge != nullptr) {
         myNet.getWeightsStorage().addTravelTime(edge, begTime, endTime, value);
     } else {
         WRITE_ERROR("Trying to set the travel time for the unknown edge '" + id + "'.");
@@ -189,7 +189,7 @@ NLBuilder::build() {
         XMLSubSys::runParser(h, f);
         if (myOptions.isDefault("begin")) {
             myOptions.set("begin", time2string(h.getTime()));
-            if (TraCIServer::getInstance() != 0) {
+            if (TraCIServer::getInstance() != nullptr) {
                 TraCIServer::getInstance()->setTargetTime(h.getTime());
             }
         }
@@ -231,11 +231,9 @@ NLBuilder::init() {
         throw ProcessError();
     }
     MsgHandler::initOutputOptions();
-    RandHelper::initRandGlobal();
-    RandHelper::initRandGlobal(MSRouteHandler::getParsingRNG());
-    RandHelper::initRandGlobal(MSDevice::getEquipmentRNG());
+    initRandomness();
     MSFrame::setMSGlobals(oc);
-    MSVehicleControl* vc = 0;
+    MSVehicleControl* vc = nullptr;
     if (MSGlobals::gUseMesoSim) {
         vc = new MEVehicleControl();
     } else {
@@ -264,21 +262,28 @@ NLBuilder::init() {
     throw ProcessError();
 }
 
+void
+NLBuilder::initRandomness() {
+    RandHelper::initRandGlobal();
+    RandHelper::initRandGlobal(MSRouteHandler::getParsingRNG());
+    RandHelper::initRandGlobal(MSDevice::getEquipmentRNG());
+    MSLane::initRNGs(OptionsCont::getOptions());
+}
 
 void
 NLBuilder::buildNet() {
-    MSEdgeControl* edges = 0;
-    MSJunctionControl* junctions = 0;
-    SUMORouteLoaderControl* routeLoaders = 0;
-    MSTLLogicControl* tlc = 0;
+    MSEdgeControl* edges = nullptr;
+    MSJunctionControl* junctions = nullptr;
+    SUMORouteLoaderControl* routeLoaders = nullptr;
+    MSTLLogicControl* tlc = nullptr;
     std::vector<SUMOTime> stateDumpTimes;
     std::vector<std::string> stateDumpFiles;
     try {
-        edges = myEdgeBuilder.build();
+        MSFrame::buildStreams(); // ensure streams are ready for output during building
+        edges = myEdgeBuilder.build(myXMLHandler.networkVersion());
         junctions = myJunctionBuilder.build();
         routeLoaders = buildRouteLoaderControl(myOptions);
         tlc = myJunctionBuilder.buildTLLogics();
-        MSFrame::buildStreams();
         const std::vector<int> times = myOptions.getIntVector("save-state.times");
         for (std::vector<int>::const_iterator i = times.begin(); i != times.end(); ++i) {
             stateDumpTimes.push_back(TIME2STEPS(*i));

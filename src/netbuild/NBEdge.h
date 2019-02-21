@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -251,6 +251,8 @@ public:
         double length;
     };
 
+    /// @brief Dummy edge to use when a reference must be supplied in the no-arguments constructor (FOX technicality)
+    static NBEdge DummyEdge;
 
     /// @brief unspecified lane width
     static const double UNSPECIFIED_WIDTH;
@@ -576,9 +578,15 @@ public:
         return mySignalOffset;
     }
 
+    /// @brief Returns the node that (possibly) represents a traffic signal controlling at the end of this edge
+    NBNode* getSignalNode() const {
+        return mySignalNode;
+    }
+
     /// @brief sets the offset of a traffic signal from the end of this edge
-    void setSignalOffset(double offset) {
+    void setSignalOffset(double offset, NBNode* signalNode) {
         mySignalOffset = offset;
+        mySignalNode = signalNode;
     }
 
     /** @brief Returns the lane definitions
@@ -682,7 +690,7 @@ public:
      *  but may differ in actual geomtric length.
      * @note Depends on previous call to NBNodeCont::computeNodeShapes
      */
-    void computeEdgeShape();
+    void computeEdgeShape(double smoothElevationThreshold = -1);
 
     /** @brief Returns the shape of the nth lane
      * @return The shape of the lane given by its index (counter from right)
@@ -962,14 +970,14 @@ public:
     }
 
     /// @brief Marks this edge being within an intersection
-    void setIsInnerEdge() {
+    void setInternal() {
         myAmInnerEdge = true;
     }
 
     /** @brief Returns whether this edge was marked as being within an intersection
      * @return Whether this edge was marked as being within an intersection
      */
-    bool isInnerEdge() const {
+    bool isInternal() const {
         return myAmInnerEdge;
     }
     /// @}
@@ -1050,7 +1058,7 @@ public:
      *  of this edge to the leftmost lane of myTurnDestination).
      * @param[in] noTLSControlled Whether the turnaround shall not be connected if this edge is controlled by a tls
      */
-    void appendTurnaround(bool noTLSControlled, bool onlyDeadends, bool checkPermissions);
+    void appendTurnaround(bool noTLSControlled, bool onlyDeadends, bool noGeometryLike, bool checkPermissions);
 
     /** @brief Returns the node at the given edges length (using an epsilon)
         @note When no node is existing at the given position, 0 is returned
@@ -1242,6 +1250,7 @@ public:
 
     /// @brief Set Node border
     void setNodeBorder(const NBNode* node, const Position& p, const Position& p2, bool rectangularCut);
+    const PositionVector& getNodeBorder(const NBNode* node);
     void resetNodeBorder(const NBNode* node);
 
     /// @brief whether this edge is part of a bidirectional railway
@@ -1255,6 +1264,11 @@ public:
 
     /// @brief compute the first intersection point between the given lane geometries considering their rspective widths
     static double firstIntersection(const PositionVector& v1, const PositionVector& v2, double width2);
+
+    /** returns a modified version of laneShape which starts at the outside of startNode. laneShape may be shorted or extended
+     * @note see [wiki:Developer/Network_Building_Process]
+     */
+    static PositionVector startShapeAt(const PositionVector& laneShape, const NBNode* startNode, PositionVector nodeShape);
 
     /// @name functions for router usage
     //@{
@@ -1286,7 +1300,6 @@ public:
     /** @brief Returns the following edges for the given vClass
      */
     const NBConstEdgePairVector& getViaSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const;
-
 
     //@}
 
@@ -1339,15 +1352,17 @@ private:
         /// @brief enum of possible directions
         enum Direction { DIR_RIGHTMOST, DIR_LEFTMOST, DIR_FORWARD };
 
-        /// @brief list of the main direction within the following junction relative to the edge
-        std::vector<Direction> myDirs;
-
     public:
         /// @brief constructor
-        MainDirections(const EdgeVector& outgoing, NBEdge* parent, NBNode* to, int indexOfStraightest);
+        MainDirections(const EdgeVector& outgoing, NBEdge* parent, NBNode* to, const std::vector<int>& availableLanes);
 
         /// @brief destructor
         ~MainDirections();
+
+        /// @brief returns the index of the straightmost among the given outgoing edges
+        int getStraightest() const {
+            return myStraightest;
+        }
 
         /// @brief returns the information whether no following street has a higher priority
         bool empty() const;
@@ -1356,6 +1371,12 @@ private:
         bool includes(Direction d) const;
 
     private:
+        /// @brief the index of the straightmost among the given outgoing edges
+        int myStraightest;
+
+        /// @brief list of the main direction within the following junction relative to the edge
+        std::vector<Direction> myDirs;
+
         /// @brief Invalidated copy constructor.
         MainDirections(const MainDirections&);
 
@@ -1392,16 +1413,13 @@ private:
     void divideOnEdges(const EdgeVector* outgoing);
 
     /// @brief divide selected lanes on edges
-    void divideSelectedLanesOnEdges(const EdgeVector* outgoing, const std::vector<int>& availableLanes, const std::vector<int>* priorities);
+    void divideSelectedLanesOnEdges(const EdgeVector* outgoing, const std::vector<int>& availableLanes);
 
     /// @brief add some straight connections
-    void addStraightConnections(const EdgeVector* outgoing, const std::vector<int>& availableLanes, const std::vector<int>* priorities);
+    void addStraightConnections(const EdgeVector* outgoing, const std::vector<int>& availableLanes, const std::vector<int>& priorities);
 
     /// @brief recomputes the edge priorities and manipulates them for a distribution of lanes on edges which is more like in real-life
-    std::vector<int>* prepareEdgePriorities(const EdgeVector* outgoing);
-
-    /// @brief computes the sum of the given list's entries (sic!)
-    static int computePrioritySum(const std::vector<int>& priorities);
+    const std::vector<int> prepareEdgePriorities(const EdgeVector* outgoing, const std::vector<int>& availableLanes);
 
     /// @name Setting and getting connections
     /// @{
@@ -1418,11 +1436,6 @@ private:
     /// @brief whether the connection can originate on newFromLane
     bool canMoveConnection(const Connection& con, int newFromLane) const;
     /// @}
-
-    /** returns a modified version of laneShape which starts at the outside of startNode. laneShape may be shorted or extended
-     * @note see [wiki:Developer/Network_Building_Process]
-     */
-    PositionVector startShapeAt(const PositionVector& laneShape, const NBNode* startNode, PositionVector nodeShape) const;
 
     /// @brief computes the angle of this edge and stores it in myAngle
     void computeAngle();
@@ -1519,16 +1532,6 @@ private:
     /// @brief Information whether this edge is a (macroscopic) connector
     bool myAmMacroscopicConnector;
 
-    /// @brief TLS Disabled Connections
-    struct TLSDisabledConnection {
-        int fromLane;
-        NBEdge* to;
-        int toLane;
-    };
-
-    /// @brief vector with the disabled connections
-    std::vector<TLSDisabledConnection> myTLSDisabledConnections;
-
     /// @brief The street name (or whatever arbitrary string you wish to attach)
     std::string myStreetName;
 
@@ -1537,6 +1540,7 @@ private:
 
     /// @brief the offset of a traffic light signal from the end of this edge (-1 for None)
     double mySignalOffset;
+    NBNode* mySignalNode;
 
     /// @brief intersection borders (because the node shape might be invalid)
     /// @{
@@ -1555,35 +1559,6 @@ private:
     mutable NBConstEdgePairVector myViaSuccessors;
 
 public:
-    /// @class tls_disable_finder
-    class tls_disable_finder {
-    public:
-        /// @brief constructor
-        tls_disable_finder(const TLSDisabledConnection& tpl) : myDefinition(tpl) { }
-
-        /// @brief operator ()
-        bool operator()(const TLSDisabledConnection& e) const {
-            if (e.to != myDefinition.to) {
-                return false;
-            }
-            if (e.fromLane != myDefinition.fromLane) {
-                return false;
-            }
-            if (e.toLane != myDefinition.toLane) {
-                return false;
-            }
-            return true;
-        }
-
-    private:
-        /// @brief definition of disable connection
-        TLSDisabledConnection myDefinition;
-
-    private:
-        /// @brief invalidated assignment operator
-        tls_disable_finder& operator=(const tls_disable_finder& s);
-    };
-
 
     /// @class connections_toedge_finder
     class connections_toedge_finder {
@@ -1751,6 +1726,10 @@ private:
 
     /// @brief invalidated assignment operator
     NBEdge& operator=(const NBEdge& s);
+
+    /// @brief constructor for dummy edge
+    NBEdge();
+
 };
 
 

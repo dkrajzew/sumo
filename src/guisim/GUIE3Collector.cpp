@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -98,7 +98,7 @@ GUIE3Collector::MyWrapper::drawGL(const GUIVisualizationSettings& s) const {
     typedef std::vector<SingleCrossingDefinition> CrossingDefinitions;
     CrossingDefinitions::const_iterator i;
     GLHelper::setColor(s.SUMO_color_E3Entry);
-    const double exaggeration = s.addSize.getExaggeration(s);
+    const double exaggeration = s.addSize.getExaggeration(s, this);
     for (i = myEntryDefinitions.begin(); i != myEntryDefinitions.end(); ++i) {
         drawSingleCrossing((*i).myFGPosition, (*i).myFGRotation, exaggeration);
     }

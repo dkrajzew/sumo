@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -49,11 +49,11 @@ public:
     /** @brief Constructor
      * @param[in] tlcontrol The tls control responsible for this tls
      * @param[in] id This tls' id
-     * @param[in] subid This tls' sub-id (program id)
+     * @param[in] programID This tls' sub-id (program id)
      * @param[in] parameters This tls' parameters
      */
     MSRailSignal(MSTLLogicControl& tlcontrol,
-                 const std::string& id, const std::string& subid,
+                 const std::string& id, const std::string& programID,
                  const std::map<std::string, std::string>& parameters);
 
 
@@ -66,6 +66,13 @@ public:
 
     /// @brief Destructor
     ~MSRailSignal();
+
+    /** @brief Adds a link on building
+     * @param[in] link The controlled link
+     * @param[in] lane The lane this link starts at
+     * @param[in] pos The link's index (signal group) within this program
+     */
+    void addLink(MSLink* link, MSLane* lane, int pos);
 
     /// @name Handling of controlled links
     /// @{
@@ -89,7 +96,8 @@ public:
      *
      * @return The state actually required for this signal.
      */
-    std::string getAppropriateState();
+    bool conflictLaneOccupied(int index) const;
+    bool hasLinkConflict(int index) const;
 
     /// @brief updates the current phase of the signal
     void updateCurrentPhase();
@@ -128,13 +136,6 @@ public:
     * @see MSTrafficLightLogic::getPhase
     */
     const MSPhaseDefinition& getPhase(int givenstep) const;
-
-    /** @brief Returns the type of the logic as a string
-     * @return The type of the logic
-     */
-    const std::string getLogicType() const {
-        return "railSignal";
-    }
     /// @}
 
 
@@ -202,24 +203,53 @@ public:
 
 protected:
 
-    /// The set of lanes going out from the junction
-    std::vector<MSLane*> myOutgoingLanes;
+    /*  The conflict lanes for each link index
+     *  If any of them is occupied the signal must be red */
+    std::vector<std::vector<MSLane*> > myConflictLanes;
 
-    /// A map that maps a link to its link index
-    std::map<MSLink*, int> myLinkIndices;
+    /* The conflict links for each link index
+     * Conflict resolution must be performed if vehicles are approaching the
+     * current link and any of the conflict links */
+    std::vector<std::vector<MSLink*> > myConflictLinks;
 
-    /// A map that maps an outgoing lane from the junction  to its set of links that lead to this lane
-    std::map<MSLane*, std::vector<MSLink*> > myLinksToLane;
+    /* Conflict lanes for each conflictLink of the current link
+     * linkIndex -> conflictLinkIndex -> lanes
+     * They must only be checked if the approaching vehicle's route enters the
+     * bidirectional block beyond that conflichLink */
+    std::vector<std::vector<std::vector<MSLane*> > > myRouteConflictLanes;
 
-    /// A map that maps a link from the junction to its vector of lanes leading from a previous signal to this link
-    std::map<MSLink*, std::vector<const MSLane*> > myAfferentBlocks;
+    /* Conflict links for each conflictLink of the current link
+     * linkIndex -> conflictLinkIndex -> links
+     * They must only be checked if the approaching vehicle's route enters the
+     * bidirectional block beyond that conflictLink, then they are treated like
+     * regular conflictLinks */
+    std::vector<std::vector<std::vector<MSLink*> > > myRouteConflictLinks;
 
-    /// A map that maps an outgoing lane from the junction to its vector of lanes leading to the next signal
-    std::map<MSLane*, std::vector<const MSLane*> > mySucceedingBlocks;
+    /// Storage for rerouting times to avoid superfluous calls
+    mutable std::vector<std::pair<SUMOVehicle*, SUMOTime> > myLastRerouteAttempt;
 
-    /// A map of lanes to links of approaching vehicles of succeeding blocks
-    std::map<const MSLane*, const MSLink*> mySucceedingBlocksIncommingLinks;
+    typedef std::set<MSLane*, ComparatorNumericalIdLess> LaneSet;
 
+    /// @brief collect conflict lanes in step 1
+    void collectForwardBlock(MSLane* toLane, double length, std::vector<MSLane*>& forwardBlock, LaneSet& visited);
+
+    /// @brief collect bidirectional conflict lanes in step 2
+    void collectBidiBlock(MSLane* toLane, double length, bool foundSwitch, std::vector<MSLane*>& bidiBlock, LaneSet& visited);
+
+    /// @brief collect additional conflict lanes and conflict links in step 3
+    void collectConflictLinks(MSLane* toLane, double length, 
+            std::vector<MSLane*>& backwardBlock,
+            std::vector<MSLink*>& conflictLinks,
+            LaneSet& visited);
+
+    /// @brief whether there are other controlled links from the same incoming lane
+    static bool hasAlternativeTrack(MSLink* link);
+
+    /// @brief whether there is an alternative track between the end of the forwardBlock and cLink
+    static bool hasAlternativeTrackBetween(const std::vector<MSLane*>& forwardBlock, MSLink* cLink);
+
+    /// @brief return logicID_linkIndex
+    static std::string getTLLinkID(MSLink* link);
 
 protected:
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,7 +28,7 @@
 #include <config.h>
 
 #include <vector>
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 #include <microsim/MSVehicle.h>
 #include <utils/common/WrappingCommand.h>
@@ -41,7 +41,7 @@
  * @class MSDevice_Transportable
  * @see MSDevice
  */
-class MSDevice_Transportable : public MSDevice {
+class MSDevice_Transportable : public MSVehicleDevice {
 public:
     /** @brief Build devices for the given vehicle, if needed
      *
@@ -50,7 +50,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static MSDevice_Transportable* buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into, const bool isContainer);
+    static MSDevice_Transportable* buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into, const bool isContainer);
 
 
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -86,36 +86,6 @@ public:
     private:
         /// the edge to compute the relative angle of
         NBEdge* myEdge;
-    };
-
-
-    /**
-     * straightness_sorter
-     * Class to sort edges according to how straight they are in relation to the
-     * reference edge at the given node
-     */
-    class straightness_sorter {
-    public:
-        /// constructor
-        explicit straightness_sorter(const NBNode* n, const NBEdge* e):
-            myRefIncoming(e->getToNode() == n) {
-            if (myRefIncoming) {
-                myReferencePos = e->getLaneShape(0).back();
-                myReferenceAngle = e->getShapeEndAngle();
-            } else {
-                myReferencePos = e->getLaneShape(0).front();
-                myReferenceAngle = e->getShapeStartAngle();
-            }
-        }
-
-    public:
-        /// comparing operation
-        int operator()(NBEdge* e1, NBEdge* e2) const;
-
-    private:
-        bool myRefIncoming;
-        Position myReferencePos;
-        double myReferenceAngle;
     };
 
 
@@ -243,20 +213,40 @@ public:
      * edge_similar_direction_sorter
      * Class to sort edges by their angle in relation to the given edge
      * The resulting list should have the edge in the most similar direction
-     * to the given edge as her first entry
+     * to the given edge as its first entry
      */
     class edge_similar_direction_sorter {
     public:
         /// constructor
         explicit edge_similar_direction_sorter(const NBEdge* const e)
-            : myAngle(e->getTotalAngle()) {}
+            : myAngle(e->getShapeEndAngle()) {}
 
         /// comparing operation
-        int operator()(NBEdge* e1, NBEdge* e2) const {
-            double d1 = GeomHelper::getMinAngleDiff(e1->getTotalAngle(), myAngle);
-            double d2 = GeomHelper::getMinAngleDiff(e2->getTotalAngle(), myAngle);
-            return d1 < d2;
+        int operator()(const NBEdge* e1, const NBEdge* e2) const {
+            const double d1 = angleDiff(e1->getShapeStartAngle(), myAngle);
+            const double d2 = angleDiff(e2->getShapeStartAngle(), myAngle);
+            if (fabs(fabs(d1) - fabs(d2)) < NUMERICAL_EPS) {
+                if (fabs(d1 - d2) > NUMERICAL_EPS) {
+                    return d1 < d2;
+                } else {
+                    return e1->getNumericalID() < e2->getNumericalID();
+                }
+            }
+            return fabs(d1) < fabs(d2);
         }
+
+    private:
+        double angleDiff(const double angle1, const double angle2) const {
+            double d = angle2 - angle1;
+            while (d >= 180.) {
+                d -= 360.;
+            }
+            while (d < -180.) {
+                d += 360.;
+            }
+            return d;
+        }
+
 
     private:
         /// the angle to find the edge with the opposite direction

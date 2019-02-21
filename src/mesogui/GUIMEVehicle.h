@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -88,8 +88,8 @@ public:
     /// @brief gets the color value according to the current scheme index
     double getColorValue(int activeScheme) const;
 
-    /// @brief draws the given guiShape if it has distinc carriages/modules and eturns true if so
-    bool drawAction_drawCarriageClass(const GUIVisualizationSettings& s, SUMOVehicleShape guiShape, bool asImage) const;
+    /// @brief draws the given guiShape with distinct carriages/modules
+    void drawAction_drawCarriageClass(const GUIVisualizationSettings& s, bool asImage) const;
 
     /** @brief Returns the time since the last lane change in seconds
      * @see MSVehicle::myLastLaneChangeOffset

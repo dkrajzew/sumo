@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -41,7 +41,7 @@ ROJTREdge::ROJTREdge(const std::string& id, RONode* from, RONode* to, int index,
 
 ROJTREdge::~ROJTREdge() {
     for (FollowerUsageCont::iterator i = myFollowingDefs.begin(); i != myFollowingDefs.end(); ++i) {
-        delete(*i).second;
+        delete (*i).second;
     }
 }
 
@@ -72,15 +72,15 @@ ROJTREdge*
 ROJTREdge::chooseNext(const ROVehicle* const veh, double time, const std::set<const ROEdge*>& avoid) const {
     // if no usable follower exist, return 0
     //  their probabilities are not yet regarded
-    if (myFollowingEdges.size() == 0 || (veh != 0 && allFollowersProhibit(veh))) {
-        return 0;
+    if (myFollowingEdges.size() == 0 || (veh != nullptr && allFollowersProhibit(veh))) {
+        return nullptr;
     }
     // gather information about the probabilities at this time
     RandomDistributor<ROJTREdge*> dist;
     // use the loaded definitions, first
     for (FollowerUsageCont::const_iterator i = myFollowingDefs.begin(); i != myFollowingDefs.end(); ++i) {
         if (avoid.count(i->first) == 0) {
-            if ((veh == 0 || !(*i).first->prohibits(veh)) && (*i).second->describesTime(time)) {
+            if ((veh == nullptr || !(*i).first->prohibits(veh)) && (*i).second->describesTime(time)) {
                 dist.add((*i).first, (*i).second->getValue(time));
             }
         }
@@ -89,7 +89,7 @@ ROJTREdge::chooseNext(const ROVehicle* const veh, double time, const std::set<co
     if (dist.getOverallProb() == 0) {
         for (int i = 0; i < (int)myParsedTurnings.size(); ++i) {
             if (avoid.count(myFollowingEdges[i]) == 0) {
-                if (veh == 0 || !myFollowingEdges[i]->prohibits(veh)) {
+                if (veh == nullptr || !myFollowingEdges[i]->prohibits(veh)) {
                     dist.add(static_cast<ROJTREdge*>(myFollowingEdges[i]), myParsedTurnings[i]);
                 }
             }
@@ -97,7 +97,7 @@ ROJTREdge::chooseNext(const ROVehicle* const veh, double time, const std::set<co
     }
     // if still no valid follower exists, return null
     if (dist.getOverallProb() == 0) {
-        return 0;
+        return nullptr;
     }
     // return one of the possible followers
     return dist.get();

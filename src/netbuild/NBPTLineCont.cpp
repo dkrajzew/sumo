@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,7 +20,7 @@
 #include <utils/common/MsgHandler.h>
 #include <utils/common/ToString.h>
 #include <utils/options/OptionsCont.h>
-#include <utils/vehicle/DijkstraRouter.h>
+#include <utils/router/DijkstraRouter.h>
 #include "NBPTLineCont.h"
 #include "NBPTStop.h"
 #include "NBEdge.h"
@@ -172,9 +172,9 @@ void NBPTLineCont::reviseStops(NBPTLine* myPTLine, NBEdgeCont& cont) {
         stop->addLine(myPTLine->getRef());
     }
 }
+
+
 void NBPTLineCont::constructRoute(NBPTLine* pTLine, NBEdgeCont& cont) {
-
-
     std::vector<NBEdge*> edges;
 
     NBNode* first = nullptr;
@@ -301,6 +301,8 @@ NBPTLineCont::addEdges2Keep(const OptionsCont& oc, std::set<std::string>& into) 
         }
     }
 }
+
+
 std::set<std::string>&
 NBPTLineCont::getServedPTStops() {
     return myServedPTStops;
@@ -411,7 +413,7 @@ NBPTLineCont::getCost(const NBEdgeCont& ec, SUMOAbstractRouter<NBEdge, NBVehicle
                       const NBPTStop* from, const NBPTStop* to, const NBVehicle* veh) {
     NBEdge* fromEdge = ec.getByID(from->getEdgeId());
     NBEdge* toEdge = ec.getByID(to->getEdgeId());
-    if (fromEdge == 0 || toEdge == 0) {
+    if (fromEdge == nullptr || toEdge == nullptr) {
         return std::numeric_limits<double>::max();
     }
     std::vector<const NBEdge*> route;

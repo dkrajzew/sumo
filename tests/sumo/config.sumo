@@ -73,6 +73,7 @@ state_12:state_12.00.xml
 binstate:state.sbx
 calibrator_log:calibrator.log.xml
 links:linkstate.xml
+railsignalblocks:railsignal_blocks.xml
 aggregated60Prefixed:pre_aggregated_60.xml
 tripinfosPrefix:pre_tripinfos.xml
 logPrefixed:pre_log.txt
@@ -92,6 +93,7 @@ output:answered [0-9]* queries{REPLACE answered (NUMBER) queries}
 output:--python-script
 output:--osg-view{LINES 2}
 output:movereminder-output{LINES 2}
+output:Simulation.*started with{REPLACE Simulation started with}
 calibrator_log:<!--{[->]}-->
 detector:<!--{[->]}-->
 detector2:<!--{[->]}-->
@@ -117,6 +119,7 @@ emissions:<!--{[->]}-->
 battery:<!--{[->]}-->
 chargingstations:<!--{[->]}-->
 links:<!--{[->]}-->
+railsignalblocks:<!--{[->]}-->
 vtk:<!--{[->]}-->
 vehroutes_ignore_arrival:<!--{[->]}-->
 vehroutes_ignore_arrival:arrival="[^"]*"{REPLACE arrival="<ignored>"}
@@ -152,6 +155,8 @@ errors:Could not find connection between
 errors:primary document entity.*{REPLACE primary document entity <path_to_file>}
 errors:(Datei oder Verzeichnis nicht gefunden){REPLACE (No such file or directory)}
 log:(Datei oder Verzeichnis nicht gefunden){REPLACE (No such file or directory)}
+log:Simulation.*started with{REPLACE Simulation started with}
+logPrefixed:Simulation.*started with{REPLACE Simulation started with}
 cfg:<movereminder{LINES 2}
 cfg:movereminder
 cfg:<python-script

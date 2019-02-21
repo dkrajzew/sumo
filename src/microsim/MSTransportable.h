@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -29,6 +29,7 @@
 #include <utils/geom/Position.h>
 #include <utils/geom/PositionVector.h>
 #include <utils/geom/Boundary.h>
+#include <utils/router/SUMOAbstractRouter.h>
 
 
 // ===========================================================================
@@ -60,7 +61,8 @@ public:
         WAITING = 1,
         MOVING_WITHOUT_VEHICLE = 2, // walking for persons, tranship for containers
         DRIVING = 3,
-        ACCESS = 4
+        ACCESS = 4,
+        TRIP = 5
     };
 
     /**
@@ -118,11 +120,14 @@ public:
         /// sets the walking speed (ignored in other stages)
         virtual void setSpeed(double) {};
 
+        /// get departure time of stage
+        SUMOTime getDeparted() const;
+
         /// logs end of the step
         void setDeparted(SUMOTime now);
 
         /// logs end of the step
-        virtual void setArrived(SUMOTime now);
+        virtual void setArrived(MSNet* net, MSTransportable* transportable, SUMOTime now);
 
         /// Whether the transportable waits for a vehicle of the line specified.
         virtual bool isWaitingFor(const std::string& line) const;
@@ -155,17 +160,21 @@ public:
         /// @brief get angle of the edge at a certain position
         double getEdgeAngle(const MSEdge* e, double at) const;
 
+        void setDestination(const MSEdge* newDestination, MSStoppingPlace* newDestStop);
+
+
         /** @brief Called on writing tripinfo output
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const = 0;
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const = 0;
 
         /** @brief Called on writing vehroute output
          * @param[in] os The stream to write the information into
+         * @param[in] withRouteLength whether route length shall be written
          * @exception IOError not yet implemented
          */
-        virtual void routeOutput(OutputDevice& os) const = 0;
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const = 0;
 
         /** @brief Called for writing the events output (begin of an action)
          * @param[in] os The stream to write the information into
@@ -208,6 +217,106 @@ public:
     };
 
     /**
+    * A "placeholder" stage storing routing info which will result in real stages when routed
+    */
+    class Stage_Trip : public Stage {
+    public:
+        /// constructor
+        Stage_Trip(const MSEdge* origin, const MSEdge* destination, MSStoppingPlace* toStop, const SUMOTime duration, const SVCPermissions modeSet,
+                   const std::string& vTypes, const double speed, const double walkFactor, const double departPosLat, const bool hasArrivalPos, const double arrivalPos);
+
+        /// destructor
+        virtual ~Stage_Trip();
+
+        const MSEdge* getEdge() const;
+
+        double getEdgePos(SUMOTime now) const;
+
+        Position getPosition(SUMOTime now) const;
+
+        double getAngle(SUMOTime now) const;
+
+        std::string getStageDescription() const {
+            return "trip";
+        }
+
+        std::string getStageSummary() const;
+
+        /// logs end of the step
+        virtual void setArrived(MSNet* net, MSTransportable* transportable, SUMOTime now);
+
+        /// change origin for parking area rerouting
+        void setOrigin(const MSEdge* origin) {
+            myOrigin = origin;
+        }
+
+        /// proceeds to the next step
+        virtual void proceed(MSNet* net, MSTransportable* transportable, SUMOTime now, Stage* previous);
+
+        /** @brief Called on writing tripinfo output
+        *
+        * @param[in] os The stream to write the information into
+        * @exception IOError not yet implemented
+        */
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const;
+
+        /** @brief Called on writing vehroute output
+        *
+        * @param[in] os The stream to write the information into
+        * @exception IOError not yet implemented
+        */
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
+
+        /** @brief Called for writing the events output
+        * @param[in] os The stream to write the information into
+        * @exception IOError not yet implemented
+        */
+        virtual void beginEventOutput(const MSTransportable& p, SUMOTime t, OutputDevice& os) const;
+
+        /** @brief Called for writing the events output (end of an action)
+        * @param[in] os The stream to write the information into
+        * @exception IOError not yet implemented
+        */
+        virtual void endEventOutput(const MSTransportable& p, SUMOTime t, OutputDevice& os) const;
+
+    private:
+        /// the origin edge
+        const MSEdge* myOrigin;
+
+        /// the time the trip should take (applies to only walking)
+        SUMOTime myDuration;
+
+        /// @brief The allowed modes of transportation
+        const SVCPermissions myModeSet;
+
+        /// @brief The possible vehicles to use
+        const std::string myVTypes;
+
+        /// @brief The walking speed
+        const double mySpeed;
+
+        /// @brief The factor to apply to walking durations
+        const double myWalkFactor;
+
+        /// @brief The depart position
+        double myDepartPos;
+
+        /// @brief The lateral depart position
+        const double myDepartPosLat;
+
+        /// @brief whether an arrivalPos was in the input
+        const bool myHaveArrivalPos;
+
+    private:
+        /// @brief Invalidated copy constructor.
+        Stage_Trip(const Stage_Trip&);
+
+        /// @brief Invalidated assignment operator.
+        Stage_Trip& operator=(const Stage_Trip&);
+
+    };
+
+    /**
     * A "real" stage performing a waiting over the specified time
     */
     class Stage_Waiting : public Stage {
@@ -245,14 +354,14 @@ public:
         * @param[in] os The stream to write the information into
         * @exception IOError not yet implemented
         */
-        virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const;
 
         /** @brief Called on writing vehroute output
         *
         * @param[in] os The stream to write the information into
         * @exception IOError not yet implemented
         */
-        virtual void routeOutput(OutputDevice& os) const;
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
 
         /** @brief Called for writing the events output
         * @param[in] os The stream to write the information into
@@ -332,12 +441,10 @@ public:
 
         ConstMSEdgeVector getEdges() const;
 
-        void setDestination(const MSEdge* newDestination, MSStoppingPlace* newDestStop);
-
         void setVehicle(SUMOVehicle* v);
 
         /// @brief marks arrival time and records driven distance
-        void setArrived(SUMOTime now);
+        void setArrived(MSNet* net, MSTransportable* transportable, SUMOTime now);
 
         /** @brief Called for writing the events output
         * @param[in] os The stream to write the information into
@@ -350,6 +457,10 @@ public:
         * @exception IOError not yet implemented
         */
         virtual void endEventOutput(const MSTransportable& p, SUMOTime t, OutputDevice& os) const;
+
+        const std::set<std::string>& getLines() const {
+            return myLines;
+        }
 
     protected:
         /// the lines  to choose from
@@ -502,14 +613,14 @@ public:
      * @param[in] os The stream to write the information into
      * @exception IOError not yet implemented
      */
-    virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const = 0;
+    virtual void tripInfoOutput(OutputDevice& os) const = 0;
 
     /** @brief Called on writing vehroute output
      *
      * @param[in] os The stream to write the information into
      * @exception IOError not yet implemented
      */
-    virtual void routeOutput(OutputDevice& os) const = 0;
+    virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const = 0;
 
     /// @brief Whether the transportable waits for a vehicle of the line specified.
     bool isWaitingFor(const std::string& line) const {
@@ -572,8 +683,12 @@ public:
     /// @brief return whether the person has reached the end of its plan
     bool hasArrived() const;
 
+    /// @brief return whether the transportable has started it's plan
+    bool hasDeparted() const;
+
     /// @brief adapt plan when the vehicle reroutes and now stops at replacement instead of orig
     void rerouteParkingArea(MSStoppingPlace* orig, MSStoppingPlace* replacement);
+
 
 protected:
     /// @brief the offset for computing positions when standing at an edge

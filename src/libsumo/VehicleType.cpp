@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -24,9 +24,9 @@
 #include <microsim/MSNet.h>
 #include <microsim/MSVehicleControl.h>
 #include <microsim/MSVehicleType.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include <utils/emissions/PollutantsInterface.h>
-#include <utils/xml/SUMOVehicleParserHelper.h>
+#include <utils/vehicle/SUMOVehicleParserHelper.h>
 #include "Helper.h"
 #include "VehicleType.h"
 
@@ -345,7 +345,7 @@ LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(VehicleType, VEHICLETYPE)
 MSVehicleType*
 VehicleType::getVType(std::string id) {
     MSVehicleType* t = MSNet::getInstance()->getVehicleControl().getVType(id);
-    if (t == 0) {
+    if (t == nullptr) {
         throw TraCIException("Vehicle type '" + id + "' is not known");
     }
     return t;
@@ -361,7 +361,7 @@ VehicleType::makeWrapper() {
 bool
 VehicleType::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

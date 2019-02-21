@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -158,18 +158,13 @@ private:
     /* @brief draw train with individual carriages. The number of carriages is
      * determined from defaultLength of carriages and vehicle length
      * passengerSeats are computed beginning at firstPassengerCarriage */
-    void drawAction_drawRailCarriages(const GUIVisualizationSettings& s, double defaultLength, double carriageGap,
-                                      int firstPassengerCarriage, bool asImage) const;
-    /// @}
-
-    /// @brief draws the given guiShape if it has distinct carriages/modules and returns true if so
-    bool drawAction_drawCarriageClass(const GUIVisualizationSettings& s, SUMOVehicleShape guiShape, bool asImage) const;
+    void drawAction_drawCarriageClass(const GUIVisualizationSettings& s, bool asImage) const;
 
     /* @brief return the previous lane in this vehicles route including internal lanes
      * @param[in] current The lane of which the predecessor should be returned
      * @param[in,out] routeIndex The index of the current or previous non-internal edge in the route
      */
-    MSLane* getPreviousLane(MSLane* current, int& furtherIndex) const;
+    MSLane* getPreviousLane(MSLane* current, int& routeIndex) const;
 
     /// @brief return the number of passengers
     int getNumPassengers() const;

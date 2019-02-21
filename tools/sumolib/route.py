@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -32,7 +32,7 @@ def _getMinPath(paths):
     return minPath
 
 
-def mapTrace(trace, net, delta, verbose=False, airDistFactor=2):
+def mapTrace(trace, net, delta, verbose=False, airDistFactor=2, fillGaps=False, gapPenalty=-1):
     """
     matching a list of 2D positions to consecutive edges in a network.
     The positions are assumed to be dense (i.e. covering each edge of the route) and in the correct order.
@@ -62,12 +62,17 @@ def mapTrace(trace, net, delta, verbose=False, airDistFactor=2):
                             baseDiff = lastBase + advance - path[-1].getLength() - base
                             extension = (edge,)
                         else:
-                            extension, cost = net.getShortestPath(path[-1], edge, airDistFactor * advance)
+                            extension = None
+                            if fillGaps:
+                                extension, cost = net.getShortestPath(path[-1], edge, airDistFactor * advance)
                             if extension is None:
                                 airLineDist = euclidean(
                                     path[-1].getToNode().getCoord(),
                                     edge.getFromNode().getCoord())
-                                baseDiff = lastBase + advance - path[-1].getLength() - base - airLineDist
+                                if gapPenalty < 0:
+                                    gapPenalty = airLineDist
+                                baseDiff = abs(lastBase + advance -
+                                               path[-1].getLength() - base - airLineDist) + gapPenalty
                                 extension = (edge,)
                             else:
                                 baseDiff = lastBase + advance - base - cost + path[-1].getLength()

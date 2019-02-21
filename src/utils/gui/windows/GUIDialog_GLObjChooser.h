@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -84,6 +84,9 @@ public:
     /// @brief Callback: The selected item shall be centered within the calling view
     long onCmdCenter(FXObject*, FXSelector, void*);
 
+    /// @brief Callback: The selected vehicle shall be tracked within the calling view
+    long onCmdTrack(FXObject*, FXSelector, void*);
+
     /// @brief Callback: The dialog shall be closed
     long onCmdClose(FXObject*, FXSelector, void*);
 
@@ -114,12 +117,18 @@ protected:
     /// update the list with the given ids
     void refreshList(const std::vector<GUIGlID>& ids);
 
+    /// @bbrief retrieve name for the given object
+    virtual std::string getObjectName(GUIGlObject* o) const;
+
 private:
     /// @brief The list that holds the ids
     FXList* myList;
 
     /// @brief The button that triggers centering on the select object
     FXButton* myCenterButton;
+
+    /// @brief The button that triggers tracking on the select vehicle
+    FXButton* myTrackButton;
 
     /// @brief The parent window
     GUIGlChildWindow* myParent;

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -79,7 +79,7 @@ GUITriggerBuilder::buildStoppingPlace(MSNet& net, std::string id, std::vector<st
     }
     if (!net.addStoppingPlace(element, myCurrentStop)) {
         delete myCurrentStop;
-        myCurrentStop = 0;
+        myCurrentStop = nullptr;
         throw InvalidArgument("Could not build " + toString(element) + " '" + id + "'; probably declared twice.");
     }
 }
@@ -91,9 +91,10 @@ GUITriggerBuilder::beginParkingArea(MSNet& net, const std::string& id,
                                     MSLane* lane,
                                     double frompos, double topos,
                                     unsigned int capacity,
-                                    double width, double length, double angle, const std::string& name) {
+                                    double width, double length, double angle, const std::string& name,
+                                    bool onRoad) {
     assert(myParkingArea == 0);
-    GUIParkingArea* stop = new GUIParkingArea(id, lines, *lane, frompos, topos, capacity, width, length, angle, name);
+    GUIParkingArea* stop = new GUIParkingArea(id, lines, *lane, frompos, topos, capacity, width, length, angle, name, onRoad);
     if (!net.addStoppingPlace(SUMO_TAG_PARKING_AREA, stop)) {
         delete stop;
         throw InvalidArgument("Could not build parking area '" + id + "'; probably declared twice.");
@@ -130,9 +131,9 @@ GUITriggerBuilder::buildCalibrator(MSNet& net, const std::string& id,
 
 void
 GUITriggerBuilder::endParkingArea() {
-    if (myParkingArea != 0) {
+    if (myParkingArea != nullptr) {
         static_cast<GUINet*>(MSNet::getInstance())->getVisualisationSpeedUp().addAdditionalGLObject(static_cast<GUIParkingArea*>(myParkingArea));
-        myParkingArea = 0;
+        myParkingArea = nullptr;
     } else {
         throw InvalidArgument("Could not end a parking area that is not opened.");
     }
@@ -141,9 +142,9 @@ GUITriggerBuilder::endParkingArea() {
 
 void
 GUITriggerBuilder::endStoppingPlace() {
-    if (myCurrentStop != 0) {
+    if (myCurrentStop != nullptr) {
         static_cast<GUINet*>(MSNet::getInstance())->getVisualisationSpeedUp().addAdditionalGLObject(dynamic_cast<GUIGlObject*>(myCurrentStop));
-        myCurrentStop = 0;
+        myCurrentStop = nullptr;
     } else {
         throw InvalidArgument("Could not end a stopping place that is not opened.");
     }

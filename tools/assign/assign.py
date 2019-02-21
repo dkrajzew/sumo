@@ -1,5 +1,5 @@
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2007-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2007-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -33,7 +33,7 @@ def doIncAssign(net, vehicles, verbose, iteration, odestimation, endVertices, st
     for end, endVertex in enumerate(endVertices):
         getlinkChoices = False
         if ((odestimation and matrixPshort[start][end] > 0.) or
-           (matrixPshort[start][end] > 1. or (assignSmallDemand and smallDemand[start][end] > 0.))):
+                (matrixPshort[start][end] > 1. or (assignSmallDemand and smallDemand[start][end] > 0.))):
             getlinkChoices = True
 
         if startVertex._id != endVertex._id and getlinkChoices:

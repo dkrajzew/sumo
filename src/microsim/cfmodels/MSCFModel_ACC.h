@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -37,6 +37,7 @@
 // ===========================================================================
 class MSVehicle;
 class MSVehicleType;
+class MSCFModel_CACC;
 
 // ===========================================================================
 // class definitions
@@ -79,6 +80,22 @@ public:
     */
     double stopSpeed(const MSVehicle* const veh, const double speed, double gap2pred) const;
 
+    /** @brief Returns the a gap such that the gap mode acceleration of the follower is zero
+        * @param[in] speed EGO's speed
+        * @param[in] leaderSpeed LEADER's speed
+        * @param[in] leaderMaxDecel LEADER's max. deceleration rate
+        */
+    double getSecureGap(const double speed, const double leaderSpeed, const double leaderMaxDecel) const;
+
+    /** @brief Computes the vehicle's acceptable speed at insertion
+     * @param[in] veh The vehicle (EGO)
+     * @param[in] speed The vehicle's speed
+     * @param[in] gap2pred The (netto) distance to the LEADER
+     * @param[in] predSpeed The speed of LEADER
+     * @return EGO's safe speed
+     */
+    double insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel) const;
+
 
     /** @brief Returns the maximum gap at which an interaction between both vehicles occurs
     *
@@ -109,13 +126,14 @@ public:
     */
     MSCFModel* duplicate(const MSVehicleType* vtype) const;
 
-    virtual MSCFModel::VehicleVariables* createVehicleVariables() const {
+    VehicleVariables* createVehicleVariables() const {
         ACCVehicleVariables* ret = new ACCVehicleVariables();
         ret->ACC_ControlMode = 0;
         ret->lastUpdateTime = 0;
         return ret;
     }
 
+    friend class MSCFModel_CACC;
 
 private:
     class ACCVehicleVariables : public MSCFModel::VehicleVariables {

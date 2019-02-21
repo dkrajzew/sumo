@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -41,6 +41,6 @@ for tlsID in net1._id2tls:
         print("   Checking program '%s'" % prog)
         prog = tls._programs[prog]
         for i, phase in enumerate(prog._phases):
-            if len(phase[0]) != noConnections:
+            if len(phase.state) != noConnections:
                 print("      Error: phase %s describes %s signals instead of %s." % (
-                    i, len(phase[0]), noConnections))
+                    i, len(phase.state), noConnections))

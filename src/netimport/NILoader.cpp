@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -33,7 +33,7 @@
 #include <utils/common/FileHelpers.h>
 #include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/geom/GeoConvHelper.h>
 #include <utils/xml/SUMOSAXHandler.h>
 #include <utils/xml/SUMOSAXReader.h>
@@ -48,6 +48,7 @@
 #include <netimport/NIXMLTrafficLightsHandler.h>
 #include <netimport/NIXMLTypesHandler.h>
 #include <netimport/NIXMLPTHandler.h>
+#include <netimport/NIXMLShapeHandler.h>
 #include <netimport/NIXMLConnectionsHandler.h>
 #include <netimport/NIImporter_DlrNavteq.h>
 #include <netimport/NIImporter_VISUM.h>
@@ -59,7 +60,7 @@
 #include <netimport/NIImporter_OpenDrive.h>
 #include <netimport/NIImporter_MATSim.h>
 #include <netimport/NIImporter_ITSUMO.h>
-#include "typemap.h"
+#include <netimport/typemap.h>
 #include "NILoader.h"
 
 // ===========================================================================
@@ -186,6 +187,12 @@ NILoader::loadXML(OptionsCont& oc) {
                     myNetBuilder.getPTStopCont(),
                     myNetBuilder.getPTLineCont()),
                 oc.getStringVector("ptline-files"), "public transport lines");
+
+    // load shapes for output formats that embed shape data
+    loadXMLType(new NIXMLShapeHandler(
+                    myNetBuilder.getShapeCont(),
+                    myNetBuilder.getEdgeCont()),
+                oc.getStringVector("polygon-files"), "polygon data");
 }
 
 void
@@ -213,7 +220,7 @@ NILoader::loadXMLType(SUMOSAXHandler* handler, const std::vector<std::string>& f
             PROGRESS_DONE_MESSAGE();
         }
     } catch (const XERCES_CPP_NAMESPACE::XMLException& toCatch) {
-        exceptMsg = TplConvert::_2str(toCatch.getMessage())
+        exceptMsg = StringUtils::transcode(toCatch.getMessage())
                     + "\n  The " + type + " could not be loaded from '" + handler->getFileName() + "'.";
     } catch (const ProcessError& toCatch) {
         exceptMsg =

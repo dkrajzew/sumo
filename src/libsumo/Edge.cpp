@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -22,7 +22,7 @@
 #include <microsim/MSTransportable.h>
 #include <microsim/MSVehicle.h>
 #include <libsumo/TraCIDefs.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include <utils/emissions/HelpersHarmonoise.h>
 #include "Edge.h"
 
@@ -310,6 +310,9 @@ Edge::setAllowedSVCPermissions(const std::string& id, int permissions) {
         lane->setPermissions(permissions, MSLane::CHANGE_PERMISSIONS_PERMANENT);
     }
     e->rebuildAllowedLanes();
+    for (MSEdge* const pred : e->getPredecessors()) {
+        pred->rebuildAllowedTargets();
+    }
 }
 
 
@@ -362,7 +365,7 @@ Edge::makeWrapper() {
 bool
 Edge::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

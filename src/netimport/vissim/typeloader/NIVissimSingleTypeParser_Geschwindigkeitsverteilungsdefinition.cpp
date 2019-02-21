@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -25,7 +25,7 @@
 #include <iostream>
 #include <utils/geom/Position.h>
 #include <utils/geom/PositionVector.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
 #include <utils/distribution/Distribution_Points.h>
 #include <utils/distribution/DistributionCont.h>
@@ -58,9 +58,9 @@ NIVissimSingleTypeParser_Geschwindigkeitsverteilungsdefinition::parse(std::istre
             tag = readEndSecure(from);
         }
         if (tag != "DATAEND") {
-            const double p1 = TplConvert::_2double(tag.c_str());
+            const double p1 = StringUtils::toDouble(tag);
             from >> tag;
-            const double p2 = TplConvert::_2double(tag.c_str());
+            const double p2 = StringUtils::toDouble(tag);
             points->add(p1, p2);
         }
     } while (tag != "DATAEND");

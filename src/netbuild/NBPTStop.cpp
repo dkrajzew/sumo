@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -74,7 +74,7 @@ NBPTStop::getPosition() const {
 
 
 void
-NBPTStop::computExtent(double center, double edgeLength) {
+NBPTStop::computeExtent(double center, double edgeLength) {
     myStartPos = MAX2(0.0, center - myPTStopLength / 2.);
     myEndPos = MIN2(center + myPTStopLength / 2., edgeLength);
 }
@@ -166,7 +166,7 @@ NBPTStop::getLength() const {
 bool
 NBPTStop::setEdgeId(std::string edgeId, NBEdgeCont& ec) {
     myEdgeId = edgeId;
-    return findLaneAndComputeBusStopExtend(ec);
+    return findLaneAndComputeBusStopExtent(ec);
 }
 
 
@@ -195,7 +195,7 @@ NBPTStop::setMyPTStopLength(double myPTStopLength) {
 
 
 bool
-NBPTStop::findLaneAndComputeBusStopExtend(NBEdgeCont& ec) {
+NBPTStop::findLaneAndComputeBusStopExtent(NBEdgeCont& ec) {
     NBEdge* edge = ec.getByID(myEdgeId);
     if (edge != nullptr) {
         int laneNr = -1;
@@ -209,8 +209,8 @@ NBPTStop::findLaneAndComputeBusStopExtend(NBEdgeCont& ec) {
         if (laneNr != -1) {
             myLaneId = edge->getLaneID(laneNr);
             const PositionVector& shape = edge->getLaneShape(laneNr);
-            double offset = shape.nearest_offset_to_point2D(getPosition(), true);
-            computExtent(offset, shape.length());
+            double offset = shape.nearest_offset_to_point2D(getPosition(), false);
+            computeExtent(offset, shape.length());
             return true;
         }
     }

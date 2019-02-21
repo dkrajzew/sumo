@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -62,14 +62,14 @@ void
 MSMeanData_Harmonoise::MSLaneMeanDataValues::addTo(MSMeanData::MeanDataValues& val) const {
     MSLaneMeanDataValues& v = (MSLaneMeanDataValues&) val;
     v.sampleSeconds += sampleSeconds;
-    v.meanNTemp += (double) pow(10., HelpersHarmonoise::sum(meanNTemp) / 10.);
+    v.meanNTemp += meanNTemp;
     v.travelledDistance += travelledDistance;
 }
 
 
 void
 MSMeanData_Harmonoise::MSLaneMeanDataValues::update() {
-    meanNTemp += (double) pow(10., HelpersHarmonoise::sum(currentTimeN) / 10.);
+    meanNTemp += currentTimeN;
     currentTimeN = 0;
 }
 

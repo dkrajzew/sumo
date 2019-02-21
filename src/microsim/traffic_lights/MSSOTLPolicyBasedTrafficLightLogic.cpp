@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2010-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2010-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,10 +20,10 @@
 
 MSSOTLPolicyBasedTrafficLightLogic::MSSOTLPolicyBasedTrafficLightLogic(
     MSTLLogicControl& tlcontrol, const std::string& id,
-    const std::string& subid, const Phases& phases, int step,
+    const std::string& programID, const TrafficLightType logicType, const Phases& phases, int step,
     SUMOTime delay, const std::map<std::string, std::string>& parameters,
     MSSOTLPolicy* policy) :
-    MSSOTLTrafficLightLogic(tlcontrol, id, subid, phases, step, delay,
+    MSSOTLTrafficLightLogic(tlcontrol, id, programID, logicType, phases, step, delay,
                             parameters), myPolicy(policy) {
 
     MsgHandler::getMessageInstance()->inform(
@@ -34,10 +34,10 @@ MSSOTLPolicyBasedTrafficLightLogic::MSSOTLPolicyBasedTrafficLightLogic(
 
 MSSOTLPolicyBasedTrafficLightLogic::MSSOTLPolicyBasedTrafficLightLogic(
     MSTLLogicControl& tlcontrol, const std::string& id,
-    const std::string& subid, const Phases& phases, int step,
+    const std::string& programID, const TrafficLightType logicType, const Phases& phases, int step,
     SUMOTime delay, const std::map<std::string, std::string>& parameters,
     MSSOTLPolicy* policy, MSSOTLSensors* sensors) :
-    MSSOTLTrafficLightLogic(tlcontrol, id, subid, phases, step, delay,
+    MSSOTLTrafficLightLogic(tlcontrol, id, programID, logicType, phases, step, delay,
                             parameters, sensors), myPolicy(policy) {
 }
 

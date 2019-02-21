@@ -39,7 +39,7 @@ public class Inductionloop {
 	 */
 
 	public static SumoCommand getIDList(){
-		return new SumoCommand(Constants.CMD_GET_INDUCTIONLOOP_VARIABLE, Constants.ID_LIST, "", Constants.RESPONSE_GET_INDUCTIONLOOP_VARIABLE, Constants.TYPE_STRINGLIST);
+		return new SumoCommand(Constants.CMD_GET_INDUCTIONLOOP_VARIABLE, Constants.TRACI_ID_LIST, "", Constants.RESPONSE_GET_INDUCTIONLOOP_VARIABLE, Constants.TYPE_STRINGLIST);
 	}
 	
 	
@@ -50,6 +50,20 @@ public class Inductionloop {
 
 	public static SumoCommand getIDCount(){
 		return new SumoCommand(Constants.CMD_GET_INDUCTIONLOOP_VARIABLE, Constants.ID_COUNT, "", Constants.RESPONSE_GET_INDUCTIONLOOP_VARIABLE, Constants.TYPE_INTEGER);
+	}
+
+	/**
+	 * Returns the chosen parameter
+	 *
+	 * @param personID a string personIDentifying the person
+	 *  @param param a string personIDentifying the parameter
+	 *  
+	 * @return the specific parameter
+	 */
+
+	public static SumoCommand getParameter(String loopID, String param){
+		Object[] array = new Object[]{param};
+		return new SumoCommand(Constants.CMD_GET_INDUCTIONLOOP_VARIABLE, Constants.VAR_PARAMETER, loopID, array, Constants.RESPONSE_GET_INDUCTIONLOOP_VARIABLE, Constants.TYPE_STRING);
 	}
 
 

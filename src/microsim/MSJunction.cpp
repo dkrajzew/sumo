@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -84,56 +84,5 @@ MSJunction::getNrOfIncomingLanes() const {
     return nr;
 }
 
-
-void
-MSJunction::passedJunction(const MSVehicle* vehicle) {
-    myLinkLeaders.erase(vehicle);
-#ifdef DEBUG_LINKLEADER
-    if DEBUG_COND {
-    std::cout << SIMTIME << " MSJunction::passedJunction " << getID() << " veh=" << vehicle->getID() << "\n";
-    }
-#endif
-}
-
-
-bool
-MSJunction::isLeader(const MSVehicle* ego, const MSVehicle* foe, bool updateLeader) {
-#ifdef DEBUG_LINKLEADER
-    if DEBUG_COND {
-    std::cout << SIMTIME << " MSJunction::isLeader " << getID()
-        << " ego=" << ego->getID()
-        << " foe=" << foe->getID()
-        << std::endl;
-    }
-#endif
-    if (foe->getLane()->getEdge().getToJunction() != this) {
-        // foe is already past the junction so is definitely a leader
-#ifdef DEBUG_LINKLEADER
-        if DEBUG_COND {
-        std::cout << "       foe (" << foe->getID() << ") is past the junction (leader)" << std::endl;
-        }
-#endif
-        return true;
-    }
-    if (myLinkLeaders.find(ego) == myLinkLeaders.end() || myLinkLeaders[ego].count(foe) == 0) {
-        // we are not yet the leader for foe, thus foe will be our leader
-        if (updateLeader) {
-            myLinkLeaders[foe].insert(ego);
-        }
-#ifdef DEBUG_LINKLEADER
-        if DEBUG_COND {
-        std::cout << "       foe (" << foe->getID() << ") is the leader!" << std::endl;
-        }
-#endif
-        return true;
-    } else {
-#ifdef DEBUG_LINKLEADER
-        if DEBUG_COND {
-        std::cout << "       ego (" << ego->getID() << ") is the leader!" << std::endl;
-        }
-#endif
-        return false;
-    }
-}
 /****************************************************************************/
 

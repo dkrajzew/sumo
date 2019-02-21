@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2014-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2014-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -103,18 +103,17 @@ def write_ped(f, index, options, depart):
         randomOrFixed(options.length),
         randomOrFixed(options.minGap),
         randomOrFixed(options.maxSpeed, 0.4), color))
-    f.write('    <person id="%s%s" type="%s%s" depart="%s">\n' %
-            (options.name, index, options.name, index, depart))
-    f.write('        <walk %s departPos="%s" arrivalPos="%s"/>\n' %
-            (edges, options.departPos, options.arrivalPos))
+    f.write('    <person id="%s%s" type="%s%s" depart="%s" departPos="%s">\n' %
+            (options.name, index, options.name, index, depart, options.departPos))
+    f.write('        <walk %s arrivalPos="%s"/>\n' %
+            (edges, options.arrivalPos))
     f.write('    </person>\n')
 
 
 def main():
     options = get_options()
     with open(options.output, 'w') as f:
-        sumolib.writeXMLHeader(
-            f, "$Id$", "routes")
+        sumolib.writeXMLHeader(f, "$Id$", "routes")  # noqa
         index = options.index
         for depart in range(options.begin, options.end):
             if random.random() < options.prob:

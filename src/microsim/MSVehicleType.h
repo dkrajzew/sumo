@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -554,6 +554,11 @@ public:
      *         compared with the value for the desired headway time.)
      */
     void check();
+
+protected:
+
+    // init further param values
+    void initParameters(); 
 
 private:
     /// @brief the parameter container

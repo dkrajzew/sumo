@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -41,11 +41,9 @@
 #include <utils/common/UtilExceptions.h>
 #include <utils/common/NamedObjectCont.h>
 #include <utils/common/NamedRTree.h>
-#include <utils/vehicle/SUMOAbstractRouter.h>
+#include <utils/router/SUMOAbstractRouter.h>
 #include <microsim/trigger/MSChargingStation.h>
 #include "MSJunction.h"
-#include "MSParkingArea.h"
-#include "MSStoppingPlace.h"
 
 
 // ===========================================================================
@@ -69,6 +67,7 @@ class ShapeContainer;
 class BinaryInputDevice;
 class MSEdgeWeightsStorage;
 class SUMOVehicle;
+class MSStoppingPlace;
 template<class E, class L, class N, class V>
 class IntermodalRouter;
 template<class E, class L, class N, class V>
@@ -100,6 +99,8 @@ public:
         SIMSTATE_CONNECTION_CLOSED,
         /// @brief An error occurred during the simulation step
         SIMSTATE_ERROR_IN_SIM,
+        /// @brief An external interrupt occured
+        SIMSTATE_INTERRUPTED,
         /// @brief The simulation had too many teleports
         SIMSTATE_TOO_MANY_TELEPORTS
     };
@@ -114,6 +115,12 @@ public:
      * @exception ProcessError If a network was not yet constructed
      */
     static MSNet* getInstance();
+
+    /// @brief Place for static initializations of simulation components (called after successful net build)
+    static void initStatic();
+
+    /// @brief Place for static initializations of simulation components (called after successful net build)
+    static void cleanupStatic();
 
 
     /** @brief Returns whether the network was already constructed
@@ -226,12 +233,18 @@ public:
     void loadRoutes();
 
 
+    /** @brief Writes performance output and running vehicle stats
+     *
+     * @param[in] start The step the simulation was started with
+     */
+    const std::string generateStatistics(SUMOTime start);
+
+
     /** @brief Closes the simulation (all files, connections, etc.)
      *
      * Writes also performance output
      *
      * @param[in] start The step the simulation was started with
-     * @todo What exceptions may occure?
      */
     void closeSimulation(SUMOTime start);
 
@@ -480,6 +493,11 @@ public:
     /// @brief creates a wrapper for the given logic (see GUINet)
     virtual void createTLWrapper(MSTrafficLightLogic*) {};
 
+    /// @brief return wheter the given logic (or rather it's wrapper) is selected in the GUI
+    virtual bool isSelected(const MSTrafficLightLogic*) const {
+        return false;
+    }
+
     /// @name Notification about vehicle state changes
     /// @{
 
@@ -617,6 +635,13 @@ public:
     /// @brief return whether a warning regarding the given object shall be issued
     bool warnOnce(const std::string& typeAndID);
 
+    void interrupt() {
+        myAmInterrupted = true;
+    }
+
+    bool isInterrupted() const {
+        return myAmInterrupted;
+    }
 
 protected:
     /// @brief check all lanes for elevation data
@@ -635,6 +660,9 @@ protected:
 
     /// @brief Maximum number of teleports.
     int myMaxTeleports;
+
+    /// @brief whether an interrupt occured
+    bool myAmInterrupted;
 
 
 
@@ -725,6 +753,9 @@ protected:
 
     /// @brief the network version
     double myVersion;
+
+    /// @brief end of loaded edgeData
+    SUMOTime myEdgeDataEndTime;
 
     /// @brief Dictionary of bus / container stops
     std::map<SumoXMLTag, NamedObjectCont<MSStoppingPlace*> > myStoppingPlaces;

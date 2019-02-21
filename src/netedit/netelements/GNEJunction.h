@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -22,9 +22,9 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
 #include "GNENetElement.h"
+#include <netbuild/NBNode.h>
 
 // ===========================================================================
 // class declarations
@@ -191,18 +191,6 @@ public:
     /// @name Function related with Generic Parameters
     /// @{
 
-    /// @brief add generic parameter
-    bool addGenericParameter(const std::string& key, const std::string& value);
-
-    /// @brief remove generic parameter
-    bool removeGenericParameter(const std::string& key);
-
-    /// @brief update generic parameter
-    bool updateGenericParameter(const std::string& oldKey, const std::string& newKey);
-
-    /// @brief update value generic parameter
-    bool updateGenericParameterValue(const std::string& key, const std::string& newValue);
-
     /// @brief return generic parameters in string format
     std::string getGenericParametersStr() const;
 
@@ -303,9 +291,6 @@ private:
 
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
     void setAttribute(SumoXMLAttr key, const std::string& value);
-
-    /// @brief method for check if mouse is over objects
-    void mouseOverObject(const GUIVisualizationSettings& s) const;
 
     /**@brief reposition the node at pos and informs the edges
     * @param[in] pos The new position

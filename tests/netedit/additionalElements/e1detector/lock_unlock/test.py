@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -23,7 +23,7 @@ sys.path.append(neteditTestRoot)
 import neteditTestFunctions as netedit  # noqa
 
 # Open netedit
-neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
+neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--gui-testing-debug-gl'])
 
 # go to additional mode
 netedit.additionalMode()
@@ -47,7 +47,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 350, 250)
 
 # block additional
-netedit.modifyBoolAttribute(11)
+netedit.modifyBoolAttribute(11, True)
 
 # change to move mode
 netedit.moveMode()
@@ -62,7 +62,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 350, 250)
 
 # unblock additional
-netedit.modifyBoolAttribute(11)
+netedit.modifyBoolAttribute(11, True)
 
 # change to move mode
 netedit.moveMode()

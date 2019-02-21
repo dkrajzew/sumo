@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -88,14 +88,14 @@ public:
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const;
 
         /** @brief Called on writing vehroute output
          *
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void routeOutput(OutputDevice& os) const;
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
     };
 
     /**
@@ -153,13 +153,13 @@ public:
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const;
 
         /** @brief Called on writing vehroute output
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void routeOutput(OutputDevice& os) const;
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
 
         /** @brief Called for writing the events output
          * @param[in] os The stream to write the information into
@@ -242,14 +242,15 @@ public:
     * @param[in] os The stream to write the information into
     * @exception IOError not yet implemented
     */
-    virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+    virtual void tripInfoOutput(OutputDevice& os) const;
 
     /** @brief Called on writing vehroute output
     *
     * @param[in] os The stream to write the information into
+    * @param[in] withRouteLength whether route length shall be written
     * @exception IOError not yet implemented
     */
-    virtual void routeOutput(OutputDevice& os) const;
+    virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
 
 private:
     /// @brief Invalidated copy constructor.

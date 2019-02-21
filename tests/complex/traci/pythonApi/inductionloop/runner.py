@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -29,7 +29,7 @@ else:
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
-for step in range(4):
+for step in range(3):
     print("step", step)
     traci.simulationStep()
 print("inductionloops", traci.inductionloop.getIDList())

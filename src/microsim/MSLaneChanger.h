@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -188,10 +188,11 @@ protected:
         const std::pair<MSVehicle* const, double>& neighFollow,
         const std::vector<MSVehicle::LaneQ>& preb) const;
 
-    ///  @brief start the lane change maneuver (and finish it instantly if gLaneChangeDuration == 0)
-    void startChange(MSVehicle* vehicle, ChangerIt& from, int direction);
+    /*  @brief start the lane change maneuver (and finish it instantly if gLaneChangeDuration == 0)
+     *  @return False when aborting the change due to being remote controlled*/
+    bool startChange(MSVehicle* vehicle, ChangerIt& from, int direction);
 
-    ///  @brief continue a lane change maneuver and return whether the midpoint was passed in this step (used if gLaneChangeDuration > 0)
+    ///  @brief continue a lane change maneuver and return whether the vehicle has completely moved onto the new lane (used if gLaneChangeDuration > 0)
     bool continueChange(MSVehicle* vehicle, ChangerIt& from);
 
     std::pair<MSVehicle* const, double> getRealFollower(const ChangerIt& target) const;
@@ -213,7 +214,7 @@ protected:
      */
     static void computeOvertakingTime(const MSVehicle* vehicle, const MSVehicle* leader, double gap, double& timeToOvertake, double& spaceToOvertake);
 
-    // @brief return leader vehicle that is to be overtaken  
+    // @brief return leader vehicle that is to be overtaken
     static std::pair<MSVehicle*, double> getColumnleader(MSVehicle* vehicle, std::pair<MSVehicle*, double> leader, double maxLookAhead = std::numeric_limits<double>::max());
 
     /// @brief return the next lane in conts beyond lane or nullptr

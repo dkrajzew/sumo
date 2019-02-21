@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -66,7 +66,7 @@ MSXMLRawOut::writeEdge(OutputDevice& of, const MSEdge& edge, SUMOTime timestep) 
     if (!dump) {
         if (MSGlobals::gUseMesoSim) {
             MESegment* seg = MSGlobals::gMesoNet->getSegmentForEdge(edge);
-            while (seg != 0) {
+            while (seg != nullptr) {
                 if (seg->getCarNumber() != 0) {
                     dump = true;
                     break;
@@ -91,7 +91,7 @@ MSXMLRawOut::writeEdge(OutputDevice& of, const MSEdge& edge, SUMOTime timestep) 
         if (dump) {
             if (MSGlobals::gUseMesoSim) {
                 MESegment* seg = MSGlobals::gMesoNet->getSegmentForEdge(edge);
-                while (seg != 0) {
+                while (seg != nullptr) {
                     seg->writeVehicles(of);
                     seg = seg->getNextSegment();
                 }
@@ -117,17 +117,11 @@ MSXMLRawOut::writeEdge(OutputDevice& of, const MSEdge& edge, SUMOTime timestep) 
 
 void
 MSXMLRawOut::writeLane(OutputDevice& of, const MSLane& lane) {
-    of.openTag("lane") << " id=\"" << lane.myID << "\"";
-    if (lane.getVehicleNumber() != 0) {
-        for (std::vector<MSVehicle*>::const_iterator veh = lane.myVehBuffer.begin();
-                veh != lane.myVehBuffer.end(); ++veh) {
-            writeVehicle(of, **veh);
-        }
-        for (MSLane::VehCont::const_iterator veh = lane.myVehicles.begin();
-                veh != lane.myVehicles.end(); ++veh) {
-            writeVehicle(of, **veh);
-        }
+    of.openTag("lane").writeAttr(SUMO_ATTR_ID, lane.getID());
+    for (const MSBaseVehicle* const veh : lane.getVehiclesSecure()) {
+        writeVehicle(of, *veh);
     }
+    lane.releaseVehicles();
     of.closeTag();
 }
 

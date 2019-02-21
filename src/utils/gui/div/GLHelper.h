@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -29,6 +29,12 @@
 #include <utility>
 #include <utils/common/RGBColor.h>
 #include <utils/geom/PositionVector.h>
+
+
+// ===========================================================================
+// class declarations
+// ===========================================================================
+struct GUIVisualizationTextSettings;
 
 
 // ===========================================================================
@@ -306,13 +312,22 @@ public:
                          int align = 0,
                          double width = -1);
 
+    static void drawTextSettings(
+        const GUIVisualizationTextSettings& settings,
+        const std::string& text, const Position& pos,
+        const double scale,
+        const double angle = 0,
+        const double layer = 2048); // GLO_MAX
+
     /// @brief draw Text box with given parameters
     static void drawTextBox(const std::string& text, const Position& pos,
                             const double layer, const double size,
                             const RGBColor& txtColor = RGBColor::BLACK,
                             const RGBColor& bgColor = RGBColor::WHITE,
                             const RGBColor& borderColor = RGBColor::BLACK,
-                            const double angle = 0);
+                            const double angle = 0,
+                            const double relBorder = 0.05,
+                            const double relMargin = 0.5);
 
     /// @brief draw text and the end of shape
     static void drawTextAtEnd(const std::string& text, const PositionVector& shape, double x, double size, RGBColor color);

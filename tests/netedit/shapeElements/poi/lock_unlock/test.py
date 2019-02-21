@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -38,10 +38,10 @@ netedit.leftClick(referencePosition, 100, 100)
 netedit.modifyShapeDefaultValue(3, "white")
 
 # Change parameter 6 with a valid value (To see icon)
-netedit.modifyAttribute(6, "10")
+netedit.modifyShapeDefaultValue(6, "10")
 
 # Change parameter 6 with a valid value (To see icon)
-netedit.modifyAttribute(7, "10")
+netedit.modifyShapeDefaultValue(7, "10")
 
 # change imgfile (valid)
 netedit.modifyShapeDefaultValue(8, "berlin_icon.ico")
@@ -56,13 +56,13 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 100, 100)
 
 # block POI
-netedit.modifyBoolAttribute(15)
+netedit.modifyBoolAttribute(12, True)
 
 # inspect second POI
 netedit.leftClick(referencePosition, 100, 350)
 
 # block POI
-netedit.modifyBoolAttribute(15)
+netedit.modifyBoolAttribute(12, True)
 
 # go to move mode
 netedit.moveMode()
@@ -80,13 +80,13 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 100, 100)
 
 # unblock POI
-netedit.modifyBoolAttribute(15)
+netedit.modifyBoolAttribute(12, True)
 
 # inspect first POI
 netedit.leftClick(referencePosition, 100, 350)
 
 # unblock POI
-netedit.modifyBoolAttribute(15)
+netedit.modifyBoolAttribute(12, True)
 
 # go to move mode
 netedit.moveMode()
@@ -102,7 +102,7 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save shapes
-netedit.saveShapes()
+netedit.saveAdditionals()
 
 # save network
 netedit.saveNetwork()

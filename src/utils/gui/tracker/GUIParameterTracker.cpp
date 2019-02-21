@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -63,10 +63,10 @@ FXIMPLEMENT(GUIParameterTracker, FXMainWindow, GUIParameterTrackerMap, ARRAYNUMB
 // ===========================================================================
 GUIParameterTracker::GUIParameterTracker(GUIMainWindow& app,
         const std::string& name)
-    : FXMainWindow(app.getApp(), "Tracker", NULL, NULL, DECOR_ALL, 20, 20, 300, 200),
+    : FXMainWindow(app.getApp(), "Tracker", nullptr, nullptr, DECOR_ALL, 20, 20, 300, 200),
       myApplication(&app) {
     buildToolBar();
-    app.addChild(this, true);
+    app.addChild(this);
     FXVerticalFrame* glcanvasFrame = new FXVerticalFrame(this, FRAME_SUNKEN | LAYOUT_SIDE_TOP | LAYOUT_FILL_X | LAYOUT_FILL_Y, 0, 0, 0, 0, 0, 0, 0, 0);
     myPanel = new GUIParameterTrackerPanel(glcanvasFrame, *myApplication, *this);
     setTitle(name.c_str());
@@ -77,11 +77,11 @@ GUIParameterTracker::GUIParameterTracker(GUIMainWindow& app,
 GUIParameterTracker::~GUIParameterTracker() {
     myApplication->removeChild(this);
     for (std::vector<TrackerValueDesc*>::iterator i1 = myTracked.begin(); i1 != myTracked.end(); i1++) {
-        delete(*i1);
+        delete (*i1);
     }
     // deleted by GUINet
     for (std::vector<GLObjectValuePassConnector<double>*>::iterator i2 = myValuePassers.begin(); i2 != myValuePassers.end(); i2++) {
-        delete(*i2);
+        delete (*i2);
     }
     delete myToolBarDrag;
     delete myToolBar;
@@ -97,7 +97,7 @@ GUIParameterTracker::create() {
 
 void
 GUIParameterTracker::buildToolBar() {
-    myToolBarDrag = new FXToolBarShell(this, GUIDesignToolBarShell3);
+    myToolBarDrag = new FXToolBarShell(this, GUIDesignToolBar);
     myToolBar = new FXToolBar(this, myToolBarDrag, LAYOUT_SIDE_TOP | LAYOUT_FILL_X | FRAME_RAISED);
     new FXToolBarGrip(myToolBar, myToolBar, FXToolBar::ID_TOOLBARGRIP, GUIDesignToolBarGrip);
     // save button
@@ -247,7 +247,7 @@ FXIMPLEMENT(GUIParameterTracker::GUIParameterTrackerPanel, FXGLCanvas, GUIParame
 GUIParameterTracker::GUIParameterTrackerPanel::GUIParameterTrackerPanel(
     FXComposite* c, GUIMainWindow& app,
     GUIParameterTracker& parent)
-    : FXGLCanvas(c, app.getGLVisual(), app.getBuildGLCanvas(), (FXObject*) 0, (FXSelector) 0, LAYOUT_SIDE_TOP | LAYOUT_FILL_X | LAYOUT_FILL_Y, 0, 0, 300, 200),
+    : FXGLCanvas(c, app.getGLVisual(), app.getBuildGLCanvas(), (FXObject*) nullptr, (FXSelector) 0, LAYOUT_SIDE_TOP | LAYOUT_FILL_X | LAYOUT_FILL_Y, 0, 0, 300, 200),
       myParent(&parent), myApplication(&app) {}
 
 

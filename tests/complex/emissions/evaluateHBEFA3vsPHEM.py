@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -29,27 +29,28 @@ hbefa = collections.defaultdict(lambda: collections.defaultdict(list))
 phem = collections.defaultdict(lambda: collections.defaultdict(list))
 maxVal = collections.defaultdict(float)
 for line in open('nefz_hbefa3/output.complex'):
-    l = line.split(":")
+    lh = line.split(":")
     if line[:7] == "Running":
         ec = line.split('/')[1][:-2]
-    elif len(l) > 1:
-        val = float(l[1])
-        hbefa[ec][l[0]].append(val)
-        maxVal[l[0]] = max(maxVal[l[0]], val)
-for line in open('nefz_phemlightV4/output.complex'):
-    l = line.split(":")
+    elif len(lh) > 1:
+        val = float(lh[1])
+        hbefa[ec][lh[0]].append(val)
+        maxVal[lh[0]] = max(maxVal[lh[0]], val)
+for line in open('nefz_phemlight/output.complex'):
+    lp = line.split(":")
     if line[:7] == "Running":
         ec = line.split('/')[1][:-2]
         if ec[:3] == "PKW":
             ec = "PC" + ec[3:]
         if ec[:3] == "LNF":
             ec = "LDV" + ec[3:ec.rfind("_")]
-    elif len(l) > 1:
-        val = float(l[1])
-        phem[ec][l[0]].append(val)
-        if ec in hbefa and len(hbefa[ec][l[0]]) < len(phem[ec][l[0]]):
-            hbefa[ec][l[0]].append(hbefa[ec][l[0]][0])
-        maxVal[l[0]] = max(maxVal[l[0]], val)
+    elif len(lp) > 1:
+        measure = lp[0]
+        val = float(lp[1])
+        phem[ec][measure].append(val)
+        if ec in hbefa and len(hbefa[ec][measure]) < len(phem[ec][measure]):
+            hbefa[ec][measure].append(hbefa[ec][measure][0])
+        maxVal[measure] = max(maxVal[measure], val)
 
 marker = {"PC_G_": "s", "PC_D_": "^", "LDV_G": "o", "LDV_D": "v"}
 # color = {"0": "k", "1": "r", "2": "y", "3": "g", "4": "m", "5": "b", "6": "c"}

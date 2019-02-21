@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -69,6 +69,8 @@ enum SUMOVehicleShape {
     SVS_PASSENGER_WAGON,
     /// @brief render as a van
     SVS_PASSENGER_VAN,
+    /// @brief automated car (with cruise controllers)
+    //SVS_PASSENGER_AUTOMATED,
     /// @brief render as a delivery vehicle
     SVS_DELIVERY,
     /// @brief render as a transport vehicle
@@ -193,6 +195,8 @@ enum SUMOVehicleClass {
     SVC_CUSTOM1 = 1 << 23,
     /// @brief is a user-defined type
     SVC_CUSTOM2 = 1 << 24,
+    /// @brief is an automated car (ACC/CACC capable)
+    SVC_AUTOMATED = 1 << 25,
     //@}
 
     /// @brief classes which drive on tracks

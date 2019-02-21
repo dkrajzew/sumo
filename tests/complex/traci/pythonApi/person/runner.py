@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -80,7 +80,9 @@ def check(personID):
     print("examining", personID)
     print("speed", traci.person.getSpeed(personID))
     print("pos", traci.person.getPosition(personID))
+    print("pos3D", traci.person.getPosition3D(personID))
     print("angle", traci.person.getAngle(personID))
+    print("slope", traci.person.getSlope(personID))
     print("road", traci.person.getRoadID(personID))
     print("type", traci.person.getTypeID(personID))
     print("lanePos", traci.person.getLanePosition(personID))

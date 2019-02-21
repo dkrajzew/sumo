@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -18,34 +18,14 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
-#include <string>
-#include <iostream>
-#include <utility>
-#include <utils/geom/PositionVector.h>
-#include <utils/common/RandHelper.h>
-#include <utils/common/SUMOVehicleClass.h>
-#include <utils/common/ToString.h>
-#include <utils/geom/GeomHelper.h>
-#include <utils/gui/windows/GUISUMOAbstractView.h>
-#include <utils/gui/windows/GUIAppEnum.h>
-#include <utils/gui/images/GUIIconSubSys.h>
-#include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
-#include <utils/gui/div/GLHelper.h>
-#include <utils/gui/windows/GUIAppEnum.h>
-#include <utils/gui/images/GUITexturesHelper.h>
-#include <utils/xml/SUMOSAXHandler.h>
-#include <netedit/GNEViewNet.h>
 #include <netedit/GNENet.h>
-#include <netedit/dialogs/GNECalibratorDialog.h>
-#include <netedit/changes/GNEChange_Attribute.h>
 #include <netedit/GNEUndoList.h>
+#include <netedit/GNEViewNet.h>
+#include <netedit/changes/GNEChange_Attribute.h>
+#include <netedit/demandelements/GNEDemandElement.h>
 
 #include "GNECalibratorFlow.h"
-#include "GNECalibratorVehicleType.h"
-#include "GNECalibratorRoute.h"
-#include "GNECalibrator.h"
 
 
 // ===========================================================================
@@ -54,19 +34,19 @@
 
 
 GNECalibratorFlow::GNECalibratorFlow(GNEAdditional* calibratorParent) :
-    GNEAdditional(calibratorParent, calibratorParent->getViewNet(), GLO_CALIBRATOR, SUMO_TAG_FLOW, "", false),
-    myVehicleType(calibratorParent->getViewNet()->getNet()->retrieveAdditional(SUMO_TAG_VTYPE, DEFAULT_VTYPE_ID)),
-    myRoute(calibratorParent->getViewNet()->getNet()->getAdditionalByType(SUMO_TAG_ROUTE).begin()->second) {
+    GNEAdditional(calibratorParent, calibratorParent->getViewNet(), GLO_CALIBRATOR, SUMO_TAG_CALIBRATORFLOW, "", false),
+    myVehicleType(calibratorParent->getViewNet()->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, DEFAULT_VTYPE_ID)),
+    myRoute(calibratorParent->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE).begin()->second) {
     // fill calibrator flows with default values
     setDefaultValues();
 }
 
 
-GNECalibratorFlow::GNECalibratorFlow(GNEAdditional* calibratorParent, GNEAdditional* vehicleType, GNEAdditional* route, const std::string& vehsPerHour, const std::string& speed,
+GNECalibratorFlow::GNECalibratorFlow(GNEAdditional* calibratorParent, GNEDemandElement* vehicleType, GNEDemandElement* route, const std::string& vehsPerHour, const std::string& speed,
                                      const RGBColor& color, const std::string& departLane, const std::string& departPos, const std::string& departSpeed, const std::string& arrivalLane,
                                      const std::string& arrivalPos, const std::string& arrivalSpeed, const std::string& line, int personNumber, int containerNumber, bool reroute,
                                      const std::string& departPosLat, const std::string& arrivalPosLat, double begin, double end) :
-    GNEAdditional(calibratorParent, calibratorParent->getViewNet(), GLO_CALIBRATOR, SUMO_TAG_FLOW, "", false),
+    GNEAdditional(calibratorParent, calibratorParent->getViewNet(), GLO_CALIBRATOR, SUMO_TAG_CALIBRATORFLOW, "", false),
     myVehicleType(vehicleType),
     myRoute(route),
     myVehsPerHour(vehsPerHour),
@@ -93,13 +73,13 @@ GNECalibratorFlow::~GNECalibratorFlow() {}
 
 
 void
-GNECalibratorFlow::moveGeometry(const Position&, const Position&) {
+GNECalibratorFlow::moveGeometry(const Position&) {
     // This additional cannot be moved
 }
 
 
 void
-GNECalibratorFlow::commitGeometryMoving(const Position&, GNEUndoList*) {
+GNECalibratorFlow::commitGeometryMoving(GNEUndoList*) {
     // This additional cannot be moved
 }
 
@@ -176,7 +156,7 @@ GNECalibratorFlow::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_GENERIC:
             return getGenericParametersStr();
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -208,10 +188,10 @@ GNECalibratorFlow::setAttribute(SumoXMLAttr key, const std::string& value, GNEUn
         case SUMO_ATTR_DEPARTPOS_LAT:
         case SUMO_ATTR_ARRIVALPOS_LAT:
         case GNE_ATTR_GENERIC:
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+            undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -222,7 +202,7 @@ GNECalibratorFlow::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_ID:
             return isValidAdditionalID(value);
         case SUMO_ATTR_TYPE:
-            return SUMOXMLDefinitions::isValidTypeID(value) && (myViewNet->getNet()->retrieveAdditional(SUMO_TAG_VTYPE, value, false) != nullptr);
+            return SUMOXMLDefinitions::isValidTypeID(value) && (myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, value, false) != nullptr);
         case SUMO_ATTR_ROUTE:
             return SUMOXMLDefinitions::isValidVehicleID(value) && (myViewNet->getNet()->retrieveAdditional(SUMO_TAG_ROUTE, value, false) != nullptr);
         case SUMO_ATTR_VEHSPERHOUR:
@@ -308,20 +288,20 @@ GNECalibratorFlow::isValid(SumoXMLAttr key, const std::string& value) {
         case GNE_ATTR_GENERIC:
             return isGenericParametersValid(value);
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
 
 std::string
 GNECalibratorFlow::getPopUpID() const {
-    return toString(getTag());
+    return getTagStr();
 }
 
 
 std::string
 GNECalibratorFlow::getHierarchyName() const {
-    return toString(getTag()) + ": " + getAttribute(SUMO_ATTR_BEGIN) + " -> " + getAttribute(SUMO_ATTR_END);
+    return getTagStr() + ": " + getAttribute(SUMO_ATTR_BEGIN) + " -> " + getAttribute(SUMO_ATTR_END);
 }
 
 // ===========================================================================
@@ -335,10 +315,10 @@ GNECalibratorFlow::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_TYPE:
-            myVehicleType = myViewNet->getNet()->retrieveAdditional(SUMO_TAG_VTYPE, value);
+            myVehicleType = myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, value);
             break;
         case SUMO_ATTR_ROUTE:
-            myRoute = myViewNet->getNet()->retrieveAdditional(SUMO_TAG_ROUTE, value);
+            myRoute = myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_ROUTE, value);
             break;
         case SUMO_ATTR_VEHSPERHOUR:
             myVehsPerHour = value;
@@ -395,7 +375,7 @@ GNECalibratorFlow::setAttribute(SumoXMLAttr key, const std::string& value) {
             setGenericParametersStr(value);
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 

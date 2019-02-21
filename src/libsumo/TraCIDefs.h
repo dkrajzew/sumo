@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -24,8 +24,8 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
-
+// we do not include config.h here, since we should be independent of a special sumo build
+#include <libsumo/TraCIConstants.h>
 #include <vector>
 #include <limits>
 #include <map>
@@ -38,12 +38,10 @@
 // ===========================================================================
 // global definitions
 // ===========================================================================
-#define DEFAULT_VIEW "View #0"
-#define PRECISION 2
 
 #define LIBSUMO_SUBSCRIPTION_API \
-static void subscribe(const std::string& objID, const std::vector<int>& vars = std::vector<int>(), double beginTime = INVALID_DOUBLE_VALUE, double endTime = INVALID_DOUBLE_VALUE); \
-static void subscribeContext(const std::string& objID, int domain, double range, const std::vector<int>& vars = std::vector<int>(), double beginTime = INVALID_DOUBLE_VALUE, double endTime = INVALID_DOUBLE_VALUE); \
+static void subscribe(const std::string& objID, const std::vector<int>& vars = std::vector<int>(), double beginTime = libsumo::INVALID_DOUBLE_VALUE, double endTime = libsumo::INVALID_DOUBLE_VALUE); \
+static void subscribeContext(const std::string& objID, int domain, double range, const std::vector<int>& vars = std::vector<int>(), double beginTime = libsumo::INVALID_DOUBLE_VALUE, double endTime = libsumo::INVALID_DOUBLE_VALUE); \
 static const SubscriptionResults getAllSubscriptionResults(); \
 static const TraCIResults getSubscriptionResults(const std::string& objID); \
 static const ContextSubscriptionResults getAllContextSubscriptionResults(); \
@@ -131,12 +129,14 @@ struct TraCIRoadPosition : TraCIResult {
     * @brief A color
     */
 struct TraCIColor : TraCIResult {
+    TraCIColor() : r(0), g(0), b(0), a(255) {}
+    TraCIColor(int r, int g, int b, int a = 255) : r(r), g(g), b(b), a(a) {}
     std::string getString() {
         std::ostringstream os;
         os << "TraCIColor(" << r << "," << g << "," << b << "," << a << ")";
         return os.str();
     }
-    unsigned char r, g, b, a;
+    int r, g, b, a;
 };
 
 /** @struct TraCIPositionVector
@@ -203,23 +203,33 @@ typedef std::map<std::string, SubscriptionResults> ContextSubscriptionResults;
 class TraCIPhase {
 public:
     TraCIPhase() {}
-    TraCIPhase(const double _duration, const double _duration1, const double _duration2, const std::string& _phase)
-        : duration(_duration), duration1(_duration1), duration2(_duration2), phase(_phase) {}
+    TraCIPhase(const double _duration, const std::string& _state, const double _minDur = libsumo::INVALID_DOUBLE_VALUE, const double _maxDur = libsumo::INVALID_DOUBLE_VALUE, const int _next = -1, const std::string& _name = "")
+        : duration(_duration), state(_state), minDur(_minDur), maxDur(_maxDur), next(_next), name(_name) {}
     ~TraCIPhase() {}
 
-    double duration, duration1, duration2;
-    std::string phase;
+    double duration;
+    std::string state;
+    double minDur, maxDur;
+    int next;
+    std::string name;
 };
+}
 
 
+#ifdef SWIG
+%template(TraCIPhaseVector) std::vector<libsumo::TraCIPhase>;
+#endif
+
+
+namespace libsumo {
 class TraCILogic {
 public:
     TraCILogic() {}
-    TraCILogic(const std::string& _subID, int _type, int _currentPhaseIndex, const std::vector<TraCIPhase>& _phases = std::vector<TraCIPhase>())
-        : subID(_subID), type(_type), currentPhaseIndex(_currentPhaseIndex), phases(_phases) {}
+    TraCILogic(const std::string& _programID, const int _type, const int _currentPhaseIndex)
+        : programID(_programID), type(_type), currentPhaseIndex(_currentPhaseIndex) {}
     ~TraCILogic() {}
 
-    std::string subID;
+    std::string programID;
     int type;
     int currentPhaseIndex;
     std::vector<TraCIPhase> phases;
@@ -324,16 +334,20 @@ public:
     TraCIStage(int _type) : type(_type), depart(-1) {}
     /// @brief The type of stage (walking, driving, ...)
     int type;
+    /// @brief The vehicle type when using a private car or bike
+    std::string vType;
     /// @brief The line or the id of the vehicle type
     std::string line;
     /// @brief The id of the destination stop
     std::string destStop;
     /// @brief The sequence of edges to travel
     std::vector<std::string> edges;
-    /// @brief duration of the stage
+    /// @brief duration of the stage in seconds
     double travelTime;
     /// @brief effort needed
     double cost;
+    /// @brief length in m
+    double length;
     /// @brief id of the intended vehicle for public transport ride
     std::string intended;
     /// @brief intended depart time for public transport ride or -1

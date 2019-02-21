@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -68,7 +68,7 @@ NIVissimConnection::NIVissimConnection(int id,
 
 NIVissimConnection::~NIVissimConnection() {
     for (NIVissimClosedLanesVector::iterator i = myClosedLanes.begin(); i != myClosedLanes.end(); i++) {
-        delete(*i);
+        delete (*i);
     }
     myClosedLanes.clear();
 }
@@ -90,7 +90,7 @@ NIVissimConnection*
 NIVissimConnection::dictionary(int id) {
     DictType::iterator i = myDict.find(id);
     if (i == myDict.end()) {
-        return 0;
+        return nullptr;
     }
     return (*i).second;
 }
@@ -211,13 +211,13 @@ int
 NIVissimConnection::buildEdgeConnections(NBEdgeCont& ec) {
     int unsetConnections = 0;
     // try to determine the connected edges
-    NBEdge* fromEdge = 0;
-    NBEdge* toEdge = 0;
+    NBEdge* fromEdge = nullptr;
+    NBEdge* toEdge = nullptr;
     NIVissimEdge* vissimFrom = NIVissimEdge::dictionary(getFromEdgeID());
     if (vissimFrom->wasWithinAJunction()) {
         // this edge was not built, try to get one that approaches it
         vissimFrom = vissimFrom->getBestIncoming();
-        if (vissimFrom != 0) {
+        if (vissimFrom != nullptr) {
             fromEdge = ec.retrievePossiblySplit(toString(vissimFrom->getID()), toString(getFromEdgeID()), true);
         }
     } else {
@@ -227,7 +227,7 @@ NIVissimConnection::buildEdgeConnections(NBEdgeCont& ec) {
     NIVissimEdge* vissimTo = NIVissimEdge::dictionary(getToEdgeID());
     if (vissimTo->wasWithinAJunction()) {
         vissimTo = vissimTo->getBestOutgoing();
-        if (vissimTo != 0) {
+        if (vissimTo != nullptr) {
             toEdge = ec.retrievePossiblySplit(toString(vissimTo->getID()), toString(getToEdgeID()), true);
         }
     } else {
@@ -239,7 +239,7 @@ NIVissimConnection::buildEdgeConnections(NBEdgeCont& ec) {
     NBEdge *fromEdge = ec.retrievePossiblySplit(toString(getFromEdgeID()), toString(getToEdgeID()), true);
     NBEdge *toEdge = ec.retrievePossiblySplit(toString(getToEdgeID()), toString(getFromEdgeID()), false);
     */
-    if (fromEdge == 0 || toEdge == 0) {
+    if (fromEdge == nullptr || toEdge == nullptr) {
         WRITE_WARNING("Could not build connection between '" + toString(getFromEdgeID()) + "' and '" + toString(getToEdgeID()) + "'.");
         return 1; // !!! actually not 1
     }

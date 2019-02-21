@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -32,7 +32,7 @@ netedit.additionalMode()
 netedit.changeAdditional("parkingArea")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(9, "reference center")
+netedit.modifyAdditionalDefaultValue(10, "reference center")
 
 # create parkingArea in mode "reference center"
 netedit.leftClick(referencePosition, 250, 250)
@@ -50,7 +50,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 350, 270)
 
 # block additional
-netedit.modifyBoolAttribute(13)
+netedit.modifyBoolAttribute(11, True)
 
 # change to move mode
 netedit.moveMode()
@@ -65,7 +65,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 350, 270)
 
 # unblock additional
-netedit.modifyBoolAttribute(13)
+netedit.modifyBoolAttribute(11, True)
 
 # change to move mode
 netedit.moveMode()

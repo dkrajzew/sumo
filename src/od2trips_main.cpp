@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -47,7 +47,7 @@
 #include <od/ODDistrictCont.h>
 #include <od/ODDistrictHandler.h>
 #include <od/ODMatrix.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/SUMOTime.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/common/FileHelpers.h>
@@ -222,6 +222,7 @@ checkOptions() {
         WRITE_ERROR(error);
         ok = false;
     }
+    ok &= SystemFrame::checkOptions();
     return ok;
 }
 

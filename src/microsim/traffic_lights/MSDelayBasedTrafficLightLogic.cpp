@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -30,7 +30,7 @@
 #include "MSDelayBasedTrafficLightLogic.h"
 #include <microsim/MSLane.h>
 #include <netload/NLDetectorBuilder.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 
 #define INVALID_POSITION std::numeric_limits<double>::max()
 
@@ -49,15 +49,15 @@ MSDelayBasedTrafficLightLogic::MSDelayBasedTrafficLightLogic(MSTLLogicControl& t
         int step, SUMOTime delay,
         const std::map<std::string, std::string>& parameter,
         const std::string& basePath) :
-    MSSimpleTrafficLightLogic(tlcontrol, id, programID, phases, step, delay, parameter) {
+    MSSimpleTrafficLightLogic(tlcontrol, id, programID, TLTYPE_DELAYBASED, phases, step, delay, parameter) {
 #ifdef DEBUG_TIMELOSS_CONTROL
     std::cout << "Building delay based tls logic '" << id << "'" << std::endl;
 #endif
-    myShowDetectors = TplConvert::_2bool(getParameter("show-detectors", "false").c_str());
-    myDetectionRange = TplConvert::_2double(getParameter("detectorRange", "-1.0").c_str());
-    myTimeLossThreshold = TplConvert::_2double(getParameter("minTimeloss", "1.0").c_str());
+    myShowDetectors = StringUtils::toBool(getParameter("show-detectors", "false"));
+    myDetectionRange = StringUtils::toDouble(getParameter("detectorRange", "-1.0"));
+    myTimeLossThreshold = StringUtils::toDouble(getParameter("minTimeloss", "1.0"));
     myFile = FileHelpers::checkForRelativity(getParameter("file", "NUL"), basePath);
-    myFreq = TIME2STEPS(TplConvert::_2double(getParameter("freq", "300").c_str()));
+    myFreq = TIME2STEPS(StringUtils::toDouble(getParameter("freq", "300")));
     myVehicleTypes = getParameter("vTypes", "");
 #ifdef DEBUG_TIMELOSS_CONTROL
     std::cout << "show-detectors: " << myShowDetectors

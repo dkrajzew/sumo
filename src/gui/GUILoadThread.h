@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -30,7 +30,7 @@
 #include <utils/common/MsgHandler.h>
 #include <utils/foxtools/FXSingleEventThread.h>
 #include <utils/foxtools/FXThreadEvent.h>
-#include <utils/foxtools/MFXEventQue.h>
+#include <utils/foxtools/FXSynchQue.h>
 
 
 // ===========================================================================
@@ -50,7 +50,7 @@ class GUIEvent;
 class GUILoadThread : public FXSingleEventThread {
 public:
     /// constructor
-    GUILoadThread(FXApp* app, GUIApplicationWindow* mw, MFXEventQue<GUIEvent*>& eq,
+    GUILoadThread(FXApp* app, GUIApplicationWindow* mw, FXSynchQue<GUIEvent*>& eq,
                   FXEX::FXThreadEvent& ev);
 
     /// destructor
@@ -76,7 +76,8 @@ protected:
      * application is informed about the loading */
     void submitEndAndCleanup(GUINet* net, const SUMOTime simStartTime, const SUMOTime simEndTime,
                              const std::vector<std::string>& guiSettingsFiles = std::vector<std::string>(),
-                             const bool osgView = false);
+                             const bool osgView = false,
+                             const bool viewportFromRegistry = false);
 
 protected:
     /// the parent window to inform about the loading
@@ -92,7 +93,7 @@ protected:
         Needed to be deleted from the handler later on */
     OutputDevice* myErrorRetriever, *myMessageRetriever, *myWarningRetriever;
 
-    MFXEventQue<GUIEvent*>& myEventQue;
+    FXSynchQue<GUIEvent*>& myEventQue;
 
     FXEX::FXThreadEvent& myEventThrow;
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -34,7 +34,6 @@
 #include <microsim/devices/MSDevice_Vehroutes.h>
 #include <utils/common/StringUtils.h>
 #include <utils/vehicle/SUMOVehicleParameter.h>
-#include <utils/common/AbstractMutex.h>
 #include <utils/geom/GeomHelper.h>
 #include <utils/gui/images/GUITexturesHelper.h>
 #include <utils/gui/windows/GUISUMOAbstractView.h>
@@ -186,7 +185,7 @@ GUIContainer::drawGL(const GUIVisualizationSettings& s) const {
     // set container color
     setColor(s);
     // scale
-    const double upscale = s.containerSize.getExaggeration(s);
+    const double upscale = s.containerSize.getExaggeration(s, this);
     glScaled(upscale, upscale, 1);
     switch (s.containerQuality) {
         case 0:
@@ -330,14 +329,14 @@ GUIContainer::getColorValue(int activeScheme) const {
 
 double
 GUIContainer::getEdgePos() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSContainer::getEdgePos();
 }
 
 
 Position
 GUIContainer::getPosition() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     if (getCurrentStageType() == WAITING && getEdge()->getPermissions() == SVC_SHIP) {
         MSLane* lane = getEdge()->getLanes().front();   //the most right lane of the water way
         PositionVector laneShape = lane->getShape();
@@ -349,21 +348,21 @@ GUIContainer::getPosition() const {
 
 double
 GUIContainer::getAngle() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSContainer::getAngle();
 }
 
 
 double
 GUIContainer::getWaitingSeconds() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSContainer::getWaitingSeconds();
 }
 
 
 double
 GUIContainer::getSpeed() const {
-    AbstractMutex::ScopedLocker locker(myLock);
+    FXMutexLock locker(myLock);
     return MSContainer::getSpeed();
 }
 
@@ -400,7 +399,7 @@ GUIContainer::drawAction_drawAsImage(const GUIVisualizationSettings& s) const {
         //}
         int textureID = GUITexturesHelper::getTextureID(file);
         if (textureID > 0) {
-            const double exaggeration = s.personSize.getExaggeration(s);
+            const double exaggeration = s.personSize.getExaggeration(s, this);
             const double halfLength = getVehicleType().getLength() / 2.0 * exaggeration;
             const double halfWidth = getVehicleType().getWidth() / 2.0 * exaggeration;
             GUITexturesHelper::drawTexturedBox(textureID, -halfWidth, -halfLength, halfWidth, halfLength);

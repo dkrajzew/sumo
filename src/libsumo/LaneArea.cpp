@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -27,7 +27,7 @@
 #include <microsim/output/MSDetectorControl.h>
 #include <microsim/output/MSE2Collector.h>
 #include <microsim/MSNet.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include "LaneArea.h"
 
 
@@ -124,7 +124,7 @@ LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(LaneArea, LANEAREA)
 MSE2Collector*
 LaneArea::getDetector(const std::string& id) {
     MSE2Collector* e2 = dynamic_cast<MSE2Collector*>(MSNet::getInstance()->getDetectorControl().getTypedDetectors(SUMO_TAG_LANE_AREA_DETECTOR).get(id));
-    if (e2 == 0) {
+    if (e2 == nullptr) {
         throw TraCIException("Lane area detector '" + id + "' is not known");
     }
     return e2;
@@ -140,7 +140,7 @@ LaneArea::makeWrapper() {
 bool
 LaneArea::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

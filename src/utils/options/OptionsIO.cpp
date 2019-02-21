@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -39,7 +39,7 @@
 #include "OptionsParser.h"
 #include <utils/common/FileHelpers.h>
 #include <utils/common/MsgHandler.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 
 // ===========================================================================
 // static member definitions
@@ -60,7 +60,7 @@ OptionsIO::setArgs(int argc, char** argv) {
 
 void
 OptionsIO::setArgs(const std::vector<std::string>& args) {
-    char* const app = myArgC > 0 ? myArgV[0] : 0;
+    char* const app = myArgC > 0 ? myArgV[0] : nullptr;
     myArgC = (int)args.size() + 1;
     char** argv = new char* [myArgC];
     argv[0] = app;
@@ -124,7 +124,7 @@ OptionsIO::loadConfiguration() {
             throw ProcessError("Could not load configuration '" + path + "'.");
         }
     } catch (const XERCES_CPP_NAMESPACE::XMLException& e) {
-        throw ProcessError("Could not load configuration '" + path + "':\n " + TplConvert::_2str(e.getMessage()));
+        throw ProcessError("Could not load configuration '" + path + "':\n " + StringUtils::transcode(e.getMessage()));
     }
     oc.relocateFiles(path);
     PROGRESS_DONE_MESSAGE();
@@ -149,7 +149,7 @@ OptionsIO::getRoot(const std::string& filename) {
             throw ProcessError("Could not load '" + filename + "'.");
         }
     } catch (const XERCES_CPP_NAMESPACE::XMLException& e) {
-        throw ProcessError("Could not load '" + filename + "':\n " + TplConvert::_2str(e.getMessage()));
+        throw ProcessError("Could not load '" + filename + "':\n " + StringUtils::transcode(e.getMessage()));
     }
     return handler.getItem();
 }

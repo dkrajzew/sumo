@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,14 +20,12 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/ToString.h>
-#include <utils/common/MsgHandler.h>
 #include <netedit/dialogs/GNEVariableSpeedSignDialog.h>
 #include <netedit/changes/GNEChange_Attribute.h>
 #include <netedit/GNEUndoList.h>
+#include <netedit/GNEViewNet.h>
 
 #include "GNEVariableSpeedSignStep.h"
-#include "GNEVariableSpeedSign.h"
 
 
 // ===========================================================================
@@ -64,13 +62,13 @@ GNEVariableSpeedSignStep::getTime() const {
 
 
 void
-GNEVariableSpeedSignStep::moveGeometry(const Position&, const Position&) {
+GNEVariableSpeedSignStep::moveGeometry(const Position&) {
     // This additional cannot be moved
 }
 
 
 void
-GNEVariableSpeedSignStep::commitGeometryMoving(const Position&, GNEUndoList*) {
+GNEVariableSpeedSignStep::commitGeometryMoving(GNEUndoList*) {
     // This additional cannot be moved
 }
 
@@ -113,7 +111,7 @@ GNEVariableSpeedSignStep::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_GENERIC:
             return getGenericParametersStr();
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -128,10 +126,10 @@ GNEVariableSpeedSignStep::setAttribute(SumoXMLAttr key, const std::string& value
         case SUMO_ATTR_TIME:
         case SUMO_ATTR_SPEED:
         case GNE_ATTR_GENERIC:
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+            undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -165,20 +163,20 @@ GNEVariableSpeedSignStep::isValid(SumoXMLAttr key, const std::string& value) {
         case GNE_ATTR_GENERIC:
             return isGenericParametersValid(value);
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
 
 std::string
 GNEVariableSpeedSignStep::getPopUpID() const {
-    return toString(getTag());
+    return getTagStr();
 }
 
 
 std::string
 GNEVariableSpeedSignStep::getHierarchyName() const {
-    return toString(getTag()) + ": " + getAttribute(SUMO_ATTR_TIME);
+    return getTagStr() + ": " + getAttribute(SUMO_ATTR_TIME);
 }
 
 // ===========================================================================
@@ -201,7 +199,7 @@ GNEVariableSpeedSignStep::setAttribute(SumoXMLAttr key, const std::string& value
             setGenericParametersStr(value);
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -55,7 +55,9 @@ class NIVissimEdge
 public:
     /// Constructor
     NIVissimEdge(int id, const std::string& name,
-                 const std::string& type, int noLanes, double zuschlag1,
+                 const std::string& type, 
+                 std::vector<double> laneWidths, 
+                 double zuschlag1,
                  double zuschlag2, double length,
                  const PositionVector& geom,
                  const NIVissimClosedLanesVector& clv);
@@ -256,6 +258,7 @@ private:
 
     /// The number of lanes the edge has
     int myNoLanes;
+    std::vector<double> myLaneWidths;
 
     /// Additional load values for this edge
     double myZuschlag1, myZuschlag2;

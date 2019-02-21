@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -42,12 +42,12 @@
 // ===========================================================================
 MSLeaderInfo::MSLeaderInfo(const MSLane* lane, const MSVehicle* ego, double latOffset) :
     myWidth(lane->getWidth()),
-    myVehicles(MAX2(1, int(ceil(myWidth / MSGlobals::gLateralResolution))), (MSVehicle*)0),
+    myVehicles(MAX2(1, int(ceil(myWidth / MSGlobals::gLateralResolution))), (MSVehicle*)nullptr),
     myFreeSublanes((int)myVehicles.size()),
     egoRightMost(-1),
     egoLeftMost(-1),
     myHasVehicles(false) {
-    if (ego != 0) {
+    if (ego != nullptr) {
         getSubLanes(ego, latOffset, egoRightMost, egoLeftMost);
         // filter out sublanes not of interest to ego
         myFreeSublanes -= egoRightMost;
@@ -61,7 +61,7 @@ MSLeaderInfo::~MSLeaderInfo() { }
 
 int
 MSLeaderInfo::addLeader(const MSVehicle* veh, bool beyond, double latOffset) {
-    if (veh == 0) {
+    if (veh == nullptr) {
         return myFreeSublanes;
     }
     if (myVehicles.size() == 1) {
@@ -93,7 +93,7 @@ MSLeaderInfo::addLeader(const MSVehicle* veh, bool beyond, double latOffset) {
 
 void
 MSLeaderInfo::clear() {
-    myVehicles.assign(myVehicles.size(), (MSVehicle*)0);
+    myVehicles.assign(myVehicles.size(), (MSVehicle*)nullptr);
     myFreeSublanes = (int)myVehicles.size();
     if (egoRightMost >= 0) {
         myFreeSublanes -= egoRightMost;
@@ -162,7 +162,7 @@ MSLeaderInfo::operator[](int sublane) const {
 std::string
 MSLeaderInfo::toString() const {
     std::ostringstream oss;
-    oss.setf(std::ios::fixed , std::ios::floatfield);
+    oss.setf(std::ios::fixed, std::ios::floatfield);
     oss << std::setprecision(2);
     for (int i = 0; i < (int)myVehicles.size(); ++i) {
         oss << Named::getIDSecure(myVehicles[i]);
@@ -200,10 +200,11 @@ MSLeaderDistanceInfo::MSLeaderDistanceInfo(const MSLane* lane, const MSVehicle* 
 
 
 MSLeaderDistanceInfo::MSLeaderDistanceInfo(const CLeaderDist& cLeaderDist, const MSLane* dummy) :
-    MSLeaderInfo(dummy, 0, 0),
+    MSLeaderInfo(dummy, nullptr, 0),
     myDistances(1, cLeaderDist.second) {
     assert(myVehicles.size() == 1);
     myVehicles[0] = cLeaderDist.first;
+    myHasVehicles = true;
 }
 
 MSLeaderDistanceInfo::~MSLeaderDistanceInfo() { }
@@ -214,7 +215,7 @@ MSLeaderDistanceInfo::addLeader(const MSVehicle* veh, double gap, double latOffs
     //if (SIMTIME == 31 && gDebugFlag1 && veh != 0 && veh->getID() == "cars.8") {
     //    std::cout << " BREAKPOINT\n";
     //}
-    if (veh == 0) {
+    if (veh == nullptr) {
         return myFreeSublanes;
     }
     if (myVehicles.size() == 1) {
@@ -268,7 +269,7 @@ MSLeaderDistanceInfo::operator[](int sublane) const {
 std::string
 MSLeaderDistanceInfo::toString() const {
     std::ostringstream oss;
-    oss.setf(std::ios::fixed , std::ios::floatfield);
+    oss.setf(std::ios::fixed, std::ios::floatfield);
     oss << std::setprecision(2);
     for (int i = 0; i < (int)myVehicles.size(); ++i) {
         oss << Named::getIDSecure(myVehicles[i]) << ":";
@@ -302,7 +303,7 @@ MSCriticalFollowerDistanceInfo::~MSCriticalFollowerDistanceInfo() { }
 
 int
 MSCriticalFollowerDistanceInfo::addFollower(const MSVehicle* veh, const MSVehicle* ego, double gap, double latOffset, int sublane) {
-    if (veh == 0) {
+    if (veh == nullptr) {
         return myFreeSublanes;
     }
     const double requiredGap = veh->getCarFollowModel().getSecureGap(veh->getSpeed(), ego->getSpeed(), ego->getCarFollowModel().getMaxDecel());
@@ -386,7 +387,7 @@ MSCriticalFollowerDistanceInfo::clear() {
 std::string
 MSCriticalFollowerDistanceInfo::toString() const {
     std::ostringstream oss;
-    oss.setf(std::ios::fixed , std::ios::floatfield);
+    oss.setf(std::ios::fixed, std::ios::floatfield);
     oss << std::setprecision(2);
     for (int i = 0; i < (int)myVehicles.size(); ++i) {
         oss << Named::getIDSecure(myVehicles[i]) << ":";

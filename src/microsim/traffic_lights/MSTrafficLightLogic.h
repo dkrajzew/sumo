@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -80,12 +80,15 @@ public:
      * @param[in] tlcontrol The tls control responsible for this tls
      * @param[in] id This tls' id
      * @param[in] programID This tls' sub-id (program id)
+     * @param[in] logicType This tls' type (static, actuated etc.)
      * @param[in] delay The time to wait before the first switch
+     * @param[in] parameters Additional parameters (especially for actuated logics)
      */
     MSTrafficLightLogic(MSTLLogicControl& tlcontrol,
                         const std::string& id,
                         const std::string& programID,
-                        SUMOTime delay,
+                        const TrafficLightType logicType,
+                        const SUMOTime delay,
                         const std::map<std::string, std::string>& parameters);
 
 
@@ -111,6 +114,9 @@ public:
      * @param[in] pos The link's index (signal group) within this program
      */
     virtual void addLink(MSLink* link, MSLane* lane, int pos);
+
+    /// @brief ignore pedestrian crossing index in mesosim
+    void ignoreLinkIndex(int pos);
 
 
     /** @brief Applies information about controlled links and lanes from the given logic
@@ -231,10 +237,12 @@ public:
      */
     virtual const MSPhaseDefinition& getPhase(int givenstep) const = 0;
 
-    /** @brief Returns the type of the logic as a string
+    /** @brief Returns the type of the logic
      * @return The type of the logic
      */
-    virtual const std::string getLogicType() const = 0;
+    TrafficLightType getLogicType() const {
+        return myLogicType;
+    }
     /// @}
 
 
@@ -330,6 +338,8 @@ public:
 
     /// @}
 
+    /// @brief whether this logic is selected in the GUI
+    bool isSelected() const;
 
 protected:
     /**
@@ -396,7 +406,10 @@ protected:
 
 protected:
     /// @brief The id of the logic
-    std::string myProgramID;
+    const std::string myProgramID;
+
+    /// @brief The type of the logic
+    const TrafficLightType myLogicType;
 
     /// @brief The list of LinkVectors; each vector contains the links that belong to the same link index
     LinkVectorVector myLinks;
@@ -418,6 +431,9 @@ protected:
 
     /// @brief An empty lane vector
     static const LaneVector myEmptyLaneVector;
+
+    /// @brief list of indices that are ignored in mesoscopic simulatino
+    std::set<int> myIgnoredIndices;
 
 private:
     /// @brief initialize optional meso penalties

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -166,7 +166,7 @@ NBTrafficLightLogicCont::computeSingleLogic(OptionsCont& oc, NBTrafficLightDefin
     const std::string& programID = def->getProgramID();
     // build program
     NBTrafficLightLogic* built = def->compute(oc);
-    if (built == 0) {
+    if (built == nullptr) {
         WRITE_WARNING("Could not build program '" + programID + "' for traffic light '" + id + "'");
         return false;
     }
@@ -180,7 +180,7 @@ NBTrafficLightLogicCont::computeSingleLogic(OptionsCont& oc, NBTrafficLightDefin
     }
     // and insert the result after computation
     // make sure we don't leak memory if computeSingleLogic is called externally
-    if (myComputed[id][programID] != 0) {
+    if (myComputed[id][programID] != nullptr) {
         delete myComputed[id][programID];
     }
     myComputed[id][programID] = built;
@@ -237,7 +237,7 @@ NBTrafficLightLogicCont::getDefinition(const std::string& id, const std::string&
             return i2->second;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 const NBTrafficLightLogicCont::Program2Def&
@@ -261,7 +261,7 @@ NBTrafficLightLogicCont::getLogic(const std::string& id, const std::string& prog
             return i2->second;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 

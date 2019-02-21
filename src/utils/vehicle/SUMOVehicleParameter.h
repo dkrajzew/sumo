@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -48,22 +48,25 @@ const int VEHPARS_VTYPE_SET = 2;
 const int VEHPARS_DEPARTLANE_SET = 2 << 1;
 const int VEHPARS_DEPARTPOS_SET = 2 << 2;
 const int VEHPARS_DEPARTSPEED_SET = 2 << 3;
-const int VEHPARS_PERIODNUM_SET = 2 << 4;
-const int VEHPARS_PERIODFREQ_SET = 2 << 5;
-const int VEHPARS_ROUTE_SET = 2 << 6;
-const int VEHPARS_ARRIVALLANE_SET = 2 << 7;
-const int VEHPARS_ARRIVALPOS_SET = 2 << 8;
-const int VEHPARS_ARRIVALSPEED_SET = 2 << 9;
-const int VEHPARS_LINE_SET = 2 << 10;
-const int VEHPARS_FROM_TAZ_SET = 2 << 11;
-const int VEHPARS_TO_TAZ_SET = 2 << 12;
-const int VEHPARS_FORCE_REROUTE = 2 << 13;
-const int VEHPARS_PERSON_CAPACITY_SET = 2 << 14;
-const int VEHPARS_PERSON_NUMBER_SET = 2 << 15;
-const int VEHPARS_CONTAINER_NUMBER_SET = 2 << 16;
-const int VEHPARS_DEPARTPOSLAT_SET = 2 << 17;
-const int VEHPARS_ARRIVALPOSLAT_SET = 2 << 18;
-const int VEHPARS_VIA_SET = 2 << 19;
+const int VEHPARS_END_SET = 2 << 4;
+const int VEHPARS_NUMBER_SET = 2 << 5;
+const int VEHPARS_PERIOD_SET = 2 << 6;
+const int VEHPARS_VPH_SET = 2 << 7;
+const int VEHPARS_PROB_SET = 2 << 8;
+const int VEHPARS_ROUTE_SET = 2 << 9;
+const int VEHPARS_ARRIVALLANE_SET = 2 << 10;
+const int VEHPARS_ARRIVALPOS_SET = 2 << 11;
+const int VEHPARS_ARRIVALSPEED_SET = 2 << 12;
+const int VEHPARS_LINE_SET = 2 << 13;
+const int VEHPARS_FROM_TAZ_SET = 2 << 14;
+const int VEHPARS_TO_TAZ_SET = 2 << 15;
+const int VEHPARS_FORCE_REROUTE = 2 << 16;
+const int VEHPARS_PERSON_CAPACITY_SET = 2 << 17;
+const int VEHPARS_PERSON_NUMBER_SET = 2 << 18;
+const int VEHPARS_CONTAINER_NUMBER_SET = 2 << 19;
+const int VEHPARS_DEPARTPOSLAT_SET = 2 << 20;
+const int VEHPARS_ARRIVALPOSLAT_SET = 2 << 21;
+const int VEHPARS_VIA_SET = 2 << 22;
 
 const int STOP_INDEX_END = -1;
 const int STOP_INDEX_FIT = -2;
@@ -452,8 +455,10 @@ public:
 
     /// @brief The vehicle's route id
     std::string routeid;
+
     /// @brief The vehicle's type id
     std::string vtypeid;
+
     /// @brief The vehicle's color, TraCI may change this
     mutable RGBColor color;
 
@@ -482,7 +487,6 @@ public:
     DepartSpeedDefinition departSpeedProcedure;
     /// @}
 
-
     /// @name Arrival definition
     /// @{
 
@@ -504,7 +508,6 @@ public:
     ArrivalSpeedDefinition arrivalSpeedProcedure;
     /// @}
 
-
     /// @name Repetition definition
     /// @{
 
@@ -519,7 +522,6 @@ public:
     /// @brief The time at which the flow ends (only needed when using repetitionProbability)
     SUMOTime repetitionEnd;
     /// @}
-
 
     /// @brief The vehicle's line (mainly for public transport)
     mutable std::string line;
@@ -592,6 +594,33 @@ public:
     /// @brief Information for the router which parameter were set, TraCI may modify this (whe changing color)
     mutable int parametersSet;
 
+protected:
+    /// @brief obtain depart parameter in string format
+    std::string getDepart() const;
+
+    /// @brief obtain depart lane parameter in string format
+    std::string getDepartLane() const;
+
+    /// @brief obtain depart pos parameter in string format
+    std::string getDepartPos() const;
+
+    /// @brief obtain depart pos lat parameter in string format
+    std::string getDepartPosLat() const;
+
+    /// @brief obtain depart speed parameter in string format
+    std::string getDepartSpeed() const;
+
+    /// @brief obtain arrival lane parameter in string format
+    std::string getArrivalLane() const;
+
+    /// @brief obtain arrival pos parameter in string format
+    std::string getArrivalPos() const;
+
+    /// @brief obtain arrival pos lat parameter in string format
+    std::string getArrivalPosLat() const;
+
+    /// @brief obtain arrival speed parameter in string format
+    std::string getArrivalSpeed() const;
 };
 
 #endif

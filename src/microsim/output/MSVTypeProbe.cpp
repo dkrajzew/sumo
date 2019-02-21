@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -68,7 +68,7 @@ MSVTypeProbe::execute(SUMOTime currentTime) {
                 Position pos = veh->getPosition();
                 myOutputDevice.openTag(SUMO_TAG_VEHICLE);
                 myOutputDevice.writeAttr(SUMO_ATTR_ID, veh->getID());
-                if (microVeh != 0) {
+                if (microVeh != nullptr) {
                     myOutputDevice.writeAttr(SUMO_ATTR_LANE, microVeh->getLane()->getID());
                 }
                 myOutputDevice.writeAttr(SUMO_ATTR_POSITION, veh->getPositionOnLane());

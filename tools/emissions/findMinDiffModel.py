@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2016-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2016-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -30,17 +30,17 @@ for refModel in sys.argv[2:]:
     findRef = False
     minRelDiff = None
     for line in open(emissionFile):
-        l = line.split(":")
+        ls = line.split(":")
         if line[:7] == "Running":
             model = line.split()[1][1:-1]
             if model == refModel:
                 findRef = True
         elif line[:7] == "Success":
             findRef = False
-        elif findRef and len(l) > 1:
-            refValue[l[0]] = float(l[1])
+        elif findRef and len(ls) > 1:
+            refValue[ls[0]] = float(ls[1])
     for line in open(emissionFile):
-        l = line.split(":")
+        ls = line.split(":")
         if line[:7] == "Running":
             model = line.split()[1][1:-1]
             relDiff = 0.
@@ -50,10 +50,10 @@ for refModel in sys.argv[2:]:
                 print(refModel, model, relDiff / len(minDiff), fuelDiff)
             if minRelDiff is None or relDiff < minRelDiff[0]:
                 minRelDiff = (relDiff, model)
-        elif model != refModel and len(l) > 1:
-            emission = l[0]
+        elif model != refModel and len(ls) > 1:
+            emission = ls[0]
             if emission != "length" and emission != "electricity":
-                diff = float(l[1]) - refValue[emission]
+                diff = float(ls[1]) - refValue[emission]
                 relDiff += abs(diff) / refValue[emission]
                 if emission == "fuel":
                     fuelDiff = abs(diff) / refValue[emission]

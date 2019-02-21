@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -164,7 +164,7 @@ PCLoaderArcView::load(const std::string& file, OptionsCont& oc, PCPolyContainer&
                     }
                     shape.push_back_noDoublePos(pos);
                 }
-                SUMOPolygon* poly = new SUMOPolygon(id, type, color, shape, false, fill, layer);
+                SUMOPolygon* poly = new SUMOPolygon(id, type, color, shape, false, fill, 1, layer);
                 if (toFill.add(poly)) {
                     parCont.push_back(poly);
                 }
@@ -181,7 +181,7 @@ PCLoaderArcView::load(const std::string& file, OptionsCont& oc, PCPolyContainer&
                     }
                     shape.push_back_noDoublePos(pos);
                 }
-                SUMOPolygon* poly = new SUMOPolygon(id, type, color, shape, false, fill, layer);
+                SUMOPolygon* poly = new SUMOPolygon(id, type, color, shape, false, fill, 1, layer);
                 if (toFill.add(poly)) {
                     parCont.push_back(poly);
                 }
@@ -217,7 +217,7 @@ PCLoaderArcView::load(const std::string& file, OptionsCont& oc, PCPolyContainer&
                         }
                         shape.push_back_noDoublePos(pos);
                     }
-                    SUMOPolygon* poly = new SUMOPolygon(tid, type, color, shape, false, fill, layer);
+                    SUMOPolygon* poly = new SUMOPolygon(tid, type, color, shape, false, fill, 1, layer);
                     if (toFill.add(poly)) {
                         parCont.push_back(poly);
                     }
@@ -238,7 +238,7 @@ PCLoaderArcView::load(const std::string& file, OptionsCont& oc, PCPolyContainer&
                         }
                         shape.push_back_noDoublePos(pos);
                     }
-                    SUMOPolygon* poly = new SUMOPolygon(tid, type, color, shape, false, fill, layer);
+                    SUMOPolygon* poly = new SUMOPolygon(tid, type, color, shape, false, fill, 1, layer);
                     if (toFill.add(poly)) {
                         parCont.push_back(poly);
                     }

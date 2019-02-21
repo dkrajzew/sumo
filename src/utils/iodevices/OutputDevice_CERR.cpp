@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -29,7 +29,7 @@
 // ===========================================================================
 // static member definitions
 // ===========================================================================
-OutputDevice* OutputDevice_CERR::myInstance = 0;
+OutputDevice* OutputDevice_CERR::myInstance = nullptr;
 
 
 // ===========================================================================
@@ -38,7 +38,7 @@ OutputDevice* OutputDevice_CERR::myInstance = 0;
 OutputDevice*
 OutputDevice_CERR::getDevice() {
     // check whether the device has already been aqcuired
-    if (myInstance == 0) {
+    if (myInstance == nullptr) {
         myInstance = new OutputDevice_CERR();
     }
     return myInstance;
@@ -54,7 +54,7 @@ OutputDevice_CERR::OutputDevice_CERR() {
 
 
 OutputDevice_CERR::~OutputDevice_CERR() {
-    myInstance = 0;
+    myInstance = nullptr;
 }
 
 

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -44,8 +44,9 @@
 //#define DEBUG_EMERGENCYDECEL
 //#define DEBUG_COND (true)
 #define DEBUG_COND (veh->isSelected())
+//#define DEBUG_COND (veh->getID() == "follower")
 //#define DEBUG_COND2 (SIMTIME == 176)
-//#define DEBUG_COND2 (gDebugFlag1)
+#define DEBUG_COND2 (gDebugFlag1)
 
 
 
@@ -192,6 +193,9 @@ MSCFModel::finalizeSpeed(MSVehicle* const veh, double vPos) const {
 vMax = MAX2(vMin, vMax);
     // apply further speed adaptations
     double vNext = patchSpeedBeforeLC(veh, vMin, vMax);
+#ifdef DEBUG_FINALIZE_SPEED
+    double vDawdle = vNext;
+#endif
     assert(vNext >= vMin);
     assert(vNext <= vMax);
     // apply lane-changing related speed adaptations
@@ -202,13 +206,14 @@ vMax = MAX2(vMin, vMax);
 #ifdef DEBUG_FINALIZE_SPEED
     if DEBUG_COND {
     std::cout << std::setprecision(gPrecision)
-        << "veh '" << veh->getID() << "' oldV=" << oldV
-        << " vMin=" << vMin
-        << " vMax=" << vMax
-        << " vPos" << vStop
-        << " vStop" << vStop
-        << " vNext=" << vNext
-        << "\n";
+                  << "veh '" << veh->getID() << "' oldV=" << oldV
+                  << " vPos" << vPos
+                  << " vMin=" << vMin
+                  << " vMax=" << vMax
+                  << " vStop=" << vStop
+                  << " vDawdle=" << vDawdle
+                  << " vNext=" << vNext
+                  << "\n";
     }
 #endif
     return vNext;
@@ -704,8 +709,7 @@ double
 MSCFModel::maximumSafeStopSpeed(double g /*gap*/, double v /*currentSpeed*/, bool onInsertion, double headway) const {
     double vsafe;
     if (MSGlobals::gSemiImplicitEulerUpdate) {
-        // XXX pass headway argument
-        vsafe = maximumSafeStopSpeedEuler(g);
+        vsafe = maximumSafeStopSpeedEuler(g, headway);
     } else {
         vsafe = maximumSafeStopSpeedBallistic(g, v, onInsertion, headway);
     }
@@ -756,9 +760,6 @@ MSCFModel::maximumSafeStopSpeedEuler(double gap, double headway) const {
     gap -= NUMERICAL_EPS; // lots of code relies on some slack XXX: it shouldn't...
     if (gap <= 0) {
         return 0;
-    } else if (gap <= ACCEL2SPEED(myDecel)) {
-        // workaround for #2310
-        return MIN2(ACCEL2SPEED(myDecel), DIST2SPEED(gap));
     }
     const double g = gap;
     const double b = ACCEL2SPEED(myDecel);
@@ -897,18 +898,19 @@ MSCFModel::maximumSafeFollowSpeed(double gap, double egoSpeed, double predSpeed,
             }
 #endif
 
-            const double safeDecel = EMERGENCY_DECEL_AMPLIFIER * calculateEmergencyDeceleration(gap, egoSpeed, predSpeed, predMaxDecel);
+            double safeDecel = EMERGENCY_DECEL_AMPLIFIER * calculateEmergencyDeceleration(gap, egoSpeed, predSpeed, predMaxDecel);
             // Don't be riskier than the usual method (myDecel <= safeDecel may occur, because a headway>0 is used above)
-            x = egoSpeed - ACCEL2SPEED(MAX2(safeDecel, myDecel));
+            safeDecel = MAX2(safeDecel, myDecel);
+            // don't brake harder than originally planned (possible due to euler/ballistic mismatch)
+            safeDecel = MIN2(safeDecel, origSafeDecel);
+            x = egoSpeed - ACCEL2SPEED(safeDecel);
             if (MSGlobals::gSemiImplicitEulerUpdate) {
                 x = MAX2(x, 0.);
             }
-            // don't brake harder than originally planned (possible due to euler/ballistic mismatch)
-            x = MIN2(origSafeDecel, x);
 
 #ifdef DEBUG_EMERGENCYDECEL
             if (DEBUG_COND2) {
-                std::cout << "     -> corrected emergency deceleration: " << safeDecel << std::endl;
+                std::cout << "     -> corrected emergency deceleration: " << safeDecel << " newVSafe=" << x << std::endl;
             }
 #endif
 
@@ -989,15 +991,15 @@ MSCFModel::applyHeadwayAndSpeedDifferencePerceptionErrors(const MSVehicle* const
     if (!veh->getDriverState()->debugLocked()) {
             veh->getDriverState()->lockDebug();
             std::cout << SIMTIME << " veh '" << veh->getID() << "' -> MSCFModel_Krauss::applyHeadwayAndSpeedDifferencePerceptionErrors()\n"
-            << "  speed=" << speed << " gap=" << gap << " leaderSpeed=" << predSpeed
-            << "\n  perceivedGap=" << perceivedGap << " perceivedLeaderSpeed=" << speed + perceivedSpeedDifference
-            << " perceivedSpeedDifference=" << perceivedSpeedDifference
-            << std::endl;
+                      << "  speed=" << speed << " gap=" << gap << " leaderSpeed=" << predSpeed
+                      << "\n  perceivedGap=" << perceivedGap << " perceivedLeaderSpeed=" << speed + perceivedSpeedDifference
+                      << " perceivedSpeedDifference=" << perceivedSpeedDifference
+                      << std::endl;
             const double exactFollowSpeed = followSpeed(veh, speed, gap, predSpeed, predMaxDecel);
             const double errorFollowSpeed = followSpeed(veh, speed, perceivedGap, speed + perceivedSpeedDifference, predMaxDecel);
             const double accelError = SPEED2ACCEL(errorFollowSpeed - exactFollowSpeed);
             std::cout << "  gapError=" << perceivedGap - gap << "  dvError=" << perceivedSpeedDifference - (predSpeed - speed)
-            << "\n  resulting accelError: " << accelError << std::endl;
+                      << "\n  resulting accelError: " << accelError << std::endl;
             veh->getDriverState()->unlockDebug();
         }
     }
@@ -1021,7 +1023,7 @@ MSCFModel::applyHeadwayPerceptionError(const MSVehicle* const veh, double speed,
     if (!veh->getDriverState()->debugLocked()) {
             veh->getDriverState()->lockDebug();
             std::cout << SIMTIME << " veh '" << veh->getID() << "' -> MSCFModel_Krauss::applyHeadwayPerceptionError()\n"
-            << "  speed=" << speed << " gap=" << gap << "\n  perceivedGap=" << perceivedGap << std::endl;
+                      << "  speed=" << speed << " gap=" << gap << "\n  perceivedGap=" << perceivedGap << std::endl;
             const double exactStopSpeed = stopSpeed(veh, speed, gap);
             const double errorStopSpeed = stopSpeed(veh, speed, perceivedGap);
             const double accelError = SPEED2ACCEL(errorStopSpeed - exactStopSpeed);

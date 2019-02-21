@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -33,12 +33,13 @@
 // member definitions
 // ===========================================================================
 SUMOPolygon::SUMOPolygon(const std::string& id, const std::string& type,
-                         const RGBColor& color, const PositionVector& shape, bool geo, bool fill,
+                         const RGBColor& color, const PositionVector& shape, bool geo, bool fill, double lineWidth,
                          double layer, double angle, const std::string& imgFile, bool relativePath) :
     Shape(id, type, color, layer, angle, imgFile, relativePath),
     myShape(shape),
     myGEO(geo),
-    myFill(fill) {
+    myFill(fill),
+    myLineWidth(lineWidth) {
 }
 
 
@@ -54,6 +55,9 @@ SUMOPolygon::writeXML(OutputDevice& out, bool geo) {
     }
     out.writeAttr(SUMO_ATTR_COLOR, getShapeColor());
     out.writeAttr(SUMO_ATTR_FILL,  getFill());
+    if (getLineWidth() != 1) {
+        out.writeAttr(SUMO_ATTR_LINEWIDTH, getLineWidth());
+    }
     out.writeAttr(SUMO_ATTR_LAYER, getShapeLayer());
     PositionVector shape = getShape();
     if (geo) {

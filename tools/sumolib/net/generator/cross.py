@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -13,13 +13,6 @@
 # @version $Id$
 
 from __future__ import absolute_import
-import os
-import sys
-sys.path.append(
-    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'tools'))
-sys.path.append(os.path.join(os.environ.get("SUMO_HOME", os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', '..')), 'tools'))
-
 from . import network  # noqa
 
 

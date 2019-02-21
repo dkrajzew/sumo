@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,7 +28,7 @@
 #include <vector>
 #include <libsumo/TraCIDefs.h>
 #include <libsumo/VehicleType.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 
 
 // ===========================================================================
@@ -51,6 +51,7 @@ class VariableWrapper;
  */
 namespace libsumo {
 class Vehicle {
+    friend class Helper;
 public:
     /// @name Value retrieval
     /// @{
@@ -105,6 +106,11 @@ public:
     static std::pair<int, int> getLaneChangeState(const std::string& vehicleID, int direction);
     static double getLastActionTime(const std::string& vehicleID);
     static std::string getParameter(const std::string& vehicleID, const std::string& key);
+    static std::map<const MSVehicle*, double> getNeighbors(const std::string& vehicleID, const int mode);
+    static std::map<const MSVehicle*, double> getRightFollowers(const std::string& vehicleID, bool blockingOnly=false);
+    static std::map<const MSVehicle*, double> getRightLeaders(const std::string& vehicleID, bool blockingOnly=false);
+    static std::map<const MSVehicle*, double> getLeftFollowers(const std::string& vehicleID, bool blockingOnly=false);
+    static std::map<const MSVehicle*, double> getLeftLeaders(const std::string& vehicleID, bool blockingOnly=false);
     static const MSVehicleType& getVehicleType(const std::string& vehicleID);
     /// @}
 
@@ -145,10 +151,13 @@ public:
 
     static void changeTarget(const std::string& vehicleID, const std::string& edgeID);
     static void changeLane(const std::string& vehicleID, int laneIndex, double duration);
-    static void changeLaneRelative(const std::string& vehicleID, int laneChange, double duration);
+    static void changeLaneRelative(const std::string& vehicleID, int indexOffset, double duration);
     static void changeSublane(const std::string& vehicleID, double latDist);
 
     static void slowDown(const std::string& vehicleID, double speed, double duration);
+    static void openGap(const std::string& vehicleID, double newTimeHeadway, double newSpaceHeadway, double duration, double changeRate, double maxDecel, const std::string& referenceVehID="");
+    static void deactivateGapControl(const std::string& vehicleID);
+    static void requestToC(const std::string& vehID, double leadTime);
     static void setSpeed(const std::string& vehicleID, double speed);
     static void setSpeedMode(const std::string& vehicleID, int speedMode);
     static void setLaneChangeMode(const std::string& vehicleID, int laneChangeMode);
@@ -186,9 +195,10 @@ public:
 
     static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
 
-private:
+protected:
     static MSVehicle* getVehicle(const std::string& id);
 
+private:
     static bool isVisible(const SUMOVehicle* veh);
 
     static bool isOnInit(const std::string& vehicleID);

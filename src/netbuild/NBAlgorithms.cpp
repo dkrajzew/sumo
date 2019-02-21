@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,7 +28,10 @@
 #include <algorithm>
 #include <utils/common/MsgHandler.h>
 #include <utils/common/ToString.h>
+#include <utils/options/OptionsCont.h>
 #include "NBEdge.h"
+#include "NBOwnTLDef.h"
+#include "NBTrafficLightLogicCont.h"
 #include "NBNodeCont.h"
 #include "NBTypeCont.h"
 #include "NBNode.h"
@@ -54,13 +57,18 @@ NBTurningDirectionsComputer::computeTurnDirectionsForNode(NBNode* node, bool war
     const std::vector<NBEdge*>& outgoing = node->getOutgoingEdges();
     // reset turning directions since this may be called multiple times
     for (std::vector<NBEdge*>::const_iterator k = incoming.begin(); k != incoming.end(); ++k) {
-        (*k)->setTurningDestination(0);
+        (*k)->setTurningDestination(nullptr);
     }
     std::vector<Combination> combinations;
     for (std::vector<NBEdge*>::const_iterator j = outgoing.begin(); j != outgoing.end(); ++j) {
         NBEdge* outedge = *j;
         for (std::vector<NBEdge*>::const_iterator k = incoming.begin(); k != incoming.end(); ++k) {
             NBEdge* e = *k;
+            if ((outedge->getPermissions() & e->getPermissions() & ~SVC_PEDESTRIAN) == 0
+                    && outedge->getPermissions() != SVC_PEDESTRIAN
+                    && e->getPermissions() != SVC_PEDESTRIAN) {
+                continue;
+            }
             // @todo: check whether NBHelpers::relAngle is properly defined and whether it should really be used, here
             const double signedAngle = NBHelpers::normRelAngle(e->getAngleAtNode(node), outedge->getAngleAtNode(node));
             if (signedAngle > 0 && signedAngle < 177 && e->getGeometry().back().distanceTo2D(outedge->getGeometry().front()) < POSITION_EPS) {
@@ -147,8 +155,8 @@ NBNodesEdgesSorter::swapWhenReversed(const NBNode* const n,
 // NBNodeTypeComputer
 // ---------------------------------------------------------------------------
 void
-NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc) {
-    validateRailCrossings(nc);
+NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tlc) {
+    validateRailCrossings(nc, tlc);
     for (std::map<std::string, NBNode*>::const_iterator i = nc.begin(); i != nc.end(); ++i) {
         NBNode* n = (*i).second;
         // the type may already be set from the data
@@ -205,7 +213,7 @@ NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc) {
 
 
 void
-NBNodeTypeComputer::validateRailCrossings(NBNodeCont& nc) {
+NBNodeTypeComputer::validateRailCrossings(NBNodeCont& nc, NBTrafficLightLogicCont& tlc) {
     for (std::map<std::string, NBNode*>::const_iterator i = nc.begin(); i != nc.end(); ++i) {
         NBNode* n = (*i).second;
         if (n->myType == NODETYPE_RAIL_CROSSING) {
@@ -233,7 +241,17 @@ NBNodeTypeComputer::validateRailCrossings(NBNodeCont& nc) {
                 n->myType = NODETYPE_PRIORITY;
             } else if (numNonRailwayNonPed > 2) {
                 // does not look like a rail crossing (roads in conflict). maybe a traffic light?
-                n->myType = NODETYPE_PRIORITY;
+                WRITE_WARNING("Converting invalid rail_crossing to traffic_light at junction '" + n->getID() + "'");
+                TrafficLightType type = SUMOXMLDefinitions::TrafficLightTypes.get(OptionsCont::getOptions().getString("tls.default-type"));
+                NBTrafficLightDefinition* tlDef = new NBOwnTLDef(n->getID(), n, 0, type);
+                n->myType = NODETYPE_TRAFFIC_LIGHT;
+                if (!tlc.insert(tlDef)) {
+                    // actually, nothing should fail here
+                    n->removeTrafficLight(tlDef);
+                    n->myType = NODETYPE_PRIORITY;
+                    delete tlDef;
+                    WRITE_WARNING("Could not allocate tls '" + n->getID() + "'.");
+                }
             }
         }
     }
@@ -241,7 +259,7 @@ NBNodeTypeComputer::validateRailCrossings(NBNodeCont& nc) {
 
 
 bool
-NBNodeTypeComputer::isRailwayNode(NBNode* n) {
+NBNodeTypeComputer::isRailwayNode(const NBNode* n) {
     int numRailway = 0;
     int numNonRailway = 0;
     for (NBEdge* e : n->getIncomingEdges()) {
@@ -259,26 +277,26 @@ NBNodeTypeComputer::isRailwayNode(NBNode* n) {
 // ---------------------------------------------------------------------------
 void
 NBEdgePriorityComputer::computeEdgePriorities(NBNodeCont& nc) {
-    for (std::map<std::string, NBNode*>::const_iterator i = nc.begin(); i != nc.end(); ++i) {
-        computeEdgePrioritiesSingleNode((*i).second);
-    }
-}
-
-
-void
-NBEdgePriorityComputer::computeEdgePrioritiesSingleNode(NBNode* node) {
-    // preset all junction's edge priorities to zero
-    for (EdgeVector::iterator j = node->myAllEdges.begin(); j != node->myAllEdges.end(); ++j) {
-        (*j)->setJunctionPriority(node, NBEdge::MINOR_ROAD);
-    }
-    node->markBentPriority(false);
-    // check if the junction is not a real junction
-    if (node->myIncomingEdges.size() == 1 && node->myOutgoingEdges.size() == 1) {
-        return;
-    }
-    // compute the priorities on junction when needed
-    if (node->getType() != NODETYPE_RIGHT_BEFORE_LEFT) {
-        setPriorityJunctionPriorities(*node);
+    for (const auto& node : nc) {
+        // preset all junction's edge priorities to zero
+        for (NBEdge* const edge : node.second->myAllEdges) {
+            edge->setJunctionPriority(node.second, NBEdge::MINOR_ROAD);
+        }
+        node.second->markBentPriority(false);
+        // check if the junction is not a real junction
+        if (node.second->myIncomingEdges.size() == 1 && node.second->myOutgoingEdges.size() == 1) {
+            continue;
+        }
+        // compute the priorities on junction when needed
+        if (node.second->getType() != NODETYPE_RIGHT_BEFORE_LEFT && node.second->getType() != NODETYPE_ALLWAY_STOP && node.second->getType() != NODETYPE_NOJUNCTION) {
+            if (node.second->getRightOfWay() == RIGHT_OF_WAY_EDGEPRIORITY) {
+                for (NBEdge* e : node.second->getIncomingEdges()) {
+                    e->setJunctionPriority(node.second, e->getPriority());
+                }
+            } else {
+                setPriorityJunctionPriorities(*node.second);
+            }
+        }
     }
 }
 
@@ -347,7 +365,7 @@ NBEdgePriorityComputer::setPriorityJunctionPriorities(NBNode& n) {
                 s->setJunctionPriority(&n, NBEdge::PRIORITY_ROAD);
             }
         }
-        markBestParallel(n, best1, 0);
+        markBestParallel(n, best1, nullptr);
         assert(bestOutgoing.size() != 0);
         // mark the best outgoing as the continuation
         sort(bestOutgoing.begin(), bestOutgoing.end(), NBContHelper::edge_similar_direction_sorter(best1));
@@ -368,8 +386,8 @@ NBEdgePriorityComputer::setPriorityJunctionPriorities(NBNode& n) {
     // This means, when several incoming roads have the same priority,
     //  we want a (any) straight connection to be more priorised than a turning
     double bestAngle = 0;
-    NBEdge* bestFirst = 0;
-    NBEdge* bestSecond = 0;
+    NBEdge* bestFirst = nullptr;
+    NBEdge* bestSecond = nullptr;
     bool hadBest = false;
     for (i = bestIncoming.begin(); i != bestIncoming.end(); ++i) {
         EdgeVector::iterator j;
@@ -407,13 +425,14 @@ NBEdgePriorityComputer::setPriorityJunctionPriorities(NBNode& n) {
     markBestParallel(n, bestFirst, bestSecond);
 }
 
+
 void
 NBEdgePriorityComputer::markBestParallel(const NBNode& n, NBEdge* bestFirst, NBEdge* bestSecond) {
     // edges running parallel to the main direction should also be prioritised
     const double a1 = bestFirst->getAngleAtNode(&n);
-    const double a2 = bestSecond == 0 ? a1 : bestSecond->getAngleAtNode(&n);
+    const double a2 = bestSecond == nullptr ? a1 : bestSecond->getAngleAtNode(&n);
     SVCPermissions p1 = bestFirst->getPermissions();
-    SVCPermissions p2 = bestSecond == 0 ? p1 : bestSecond->getPermissions();
+    SVCPermissions p2 = bestSecond == nullptr ? p1 : bestSecond->getPermissions();
     for (NBEdge* e : n.getIncomingEdges()) {
         // @note: this rule might also apply if there are common permissions but
         // then we would not further rules to resolve the priority between the best edge and its parallel edge
@@ -430,7 +449,7 @@ NBEdgePriorityComputer::markBestParallel(const NBNode& n, NBEdge* bestFirst, NBE
 NBEdge*
 NBEdgePriorityComputer::extractAndMarkFirst(NBNode& n, std::vector<NBEdge*>& s, int prio) {
     if (s.size() == 0) {
-        return 0;
+        return nullptr;
     }
     NBEdge* ret = s.front();
     s.erase(s.begin());

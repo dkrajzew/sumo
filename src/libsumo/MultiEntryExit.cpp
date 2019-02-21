@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -27,7 +27,7 @@
 #include <microsim/output/MSDetectorControl.h>
 #include <microsim/output/MSE2Collector.h>
 #include <microsim/MSNet.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include "MultiEntryExit.h"
 
 
@@ -87,7 +87,7 @@ LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(MultiEntryExit, MULTIENTRYEXIT)
 MSE3Collector*
 MultiEntryExit::getDetector(const std::string& id) {
     MSE3Collector* e3 = dynamic_cast<MSE3Collector*>(MSNet::getInstance()->getDetectorControl().getTypedDetectors(SUMO_TAG_ENTRY_EXIT_DETECTOR).get(id));
-    if (e3 == 0) {
+    if (e3 == nullptr) {
         throw TraCIException("Multi entry exit detector '" + id + "' is not known");
     }
     return e3;
@@ -103,7 +103,7 @@ MultiEntryExit::makeWrapper() {
 bool
 MultiEntryExit::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

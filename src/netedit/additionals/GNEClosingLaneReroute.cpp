@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,7 +20,6 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/ToString.h>
 #include "GNEClosingLaneReroute.h"
 #include <netedit/netelements/GNELane.h>
 #include <netedit/netelements/GNEEdge.h>
@@ -28,10 +27,8 @@
 #include <netedit/dialogs/GNERerouterIntervalDialog.h>
 
 #include <netedit/GNEUndoList.h>
-#include "GNERerouter.h"
 #include <netedit/GNEViewNet.h>
 #include <netedit/GNENet.h>
-#include "GNERerouterInterval.h"
 
 
 // ===========================================================================
@@ -57,13 +54,13 @@ GNEClosingLaneReroute::~GNEClosingLaneReroute() {}
 
 
 void
-GNEClosingLaneReroute::moveGeometry(const Position&, const Position&) {
+GNEClosingLaneReroute::moveGeometry(const Position&) {
     // This additional cannot be moved
 }
 
 
 void
-GNEClosingLaneReroute::commitGeometryMoving(const Position&, GNEUndoList*) {
+GNEClosingLaneReroute::commitGeometryMoving(GNEUndoList*) {
     // This additional cannot be moved
 }
 
@@ -108,7 +105,7 @@ GNEClosingLaneReroute::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_GENERIC:
             return getGenericParametersStr();
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -124,10 +121,10 @@ GNEClosingLaneReroute::setAttribute(SumoXMLAttr key, const std::string& value, G
         case SUMO_ATTR_ALLOW:
         case SUMO_ATTR_DISALLOW:
         case GNE_ATTR_GENERIC:
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+            undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -145,20 +142,20 @@ GNEClosingLaneReroute::isValid(SumoXMLAttr key, const std::string& value) {
         case GNE_ATTR_GENERIC:
             return isGenericParametersValid(value);
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
 
 std::string
 GNEClosingLaneReroute::getPopUpID() const {
-    return toString(getTag());
+    return getTagStr();
 }
 
 
 std::string
 GNEClosingLaneReroute::getHierarchyName() const {
-    return toString(getTag()) + ": " + myClosedLane->getID();
+    return getTagStr() + ": " + myClosedLane->getID();
 }
 
 // ===========================================================================
@@ -184,7 +181,7 @@ GNEClosingLaneReroute::setAttribute(SumoXMLAttr key, const std::string& value) {
             setGenericParametersStr(value);
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 

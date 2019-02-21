@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -43,8 +43,9 @@
 // ===========================================================================
 // debug flags
 // ===========================================================================
-#define DEBUG_ACC
-#define DEBUG_COND (veh->isSelected())
+//#define DEBUG_ACC
+//#define DEBUG_COND (true)
+//#define DEBUG_COND (veh->isSelected())
 
 
 // ===========================================================================
@@ -57,6 +58,15 @@
 #define DEFAULT_GC_GAIN_SPACE 0.23
 #define DEFAULT_CA_GAIN_SPACE 0.8
 #define DEFAULT_CA_GAIN_SPEED 0.23
+
+// ===========================================================================
+// thresholds
+// ===========================================================================
+#define GAP_THRESHOLD_SPEEDCTRL 120
+#define GAP_THRESHOLD_GAPCTRL 100
+
+
+
 
 // override followSpeed when deemed unsafe by the given margin (the value was selected to reduce the number of necessary interventions)
 #define DEFAULT_EMERGENCY_OVERRIDE_THRESHOLD 2.0
@@ -74,8 +84,7 @@ MSCFModel_ACC::MSCFModel_ACC(const MSVehicleType* vtype) :
     myGapControlGainSpeed(vtype->getParameter().getCFParam(SUMO_ATTR_GC_GAIN_SPEED, DEFAULT_GC_GAIN_SPEED)),
     myGapControlGainSpace(vtype->getParameter().getCFParam(SUMO_ATTR_GC_GAIN_SPACE, DEFAULT_GC_GAIN_SPACE)),
     myCollisionAvoidanceGainSpeed(vtype->getParameter().getCFParam(SUMO_ATTR_CA_GAIN_SPEED, DEFAULT_CA_GAIN_SPEED)),
-    myCollisionAvoidanceGainSpace(vtype->getParameter().getCFParam(SUMO_ATTR_CA_GAIN_SPACE, DEFAULT_CA_GAIN_SPACE)) 
-{
+    myCollisionAvoidanceGainSpace(vtype->getParameter().getCFParam(SUMO_ATTR_CA_GAIN_SPACE, DEFAULT_CA_GAIN_SPACE)) {
     // ACC does not drive very precise and often violates minGap
     myCollisionMinGapFactor = vtype->getParameter().getCFParam(SUMO_ATTR_COLLISION_MINGAP_FACTOR, 0.1);
 }
@@ -84,10 +93,10 @@ MSCFModel_ACC::~MSCFModel_ACC() {}
 
 
 double
-MSCFModel_ACC::followSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double /* predMaxDecel */, const MSVehicle* const pred) const {
+MSCFModel_ACC::followSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double predMaxDecel, const MSVehicle* const /*pred*/) const {
     const double desSpeed = MIN2(veh->getLane()->getSpeedLimit(), veh->getMaxSpeed());
     const double vACC = _v(veh, gap2pred, speed, predSpeed, desSpeed, true);
-    const double vSafe = maximumSafeFollowSpeed(gap2pred, speed, predSpeed, pred->getCarFollowModel().getMaxDecel());
+    const double vSafe = maximumSafeFollowSpeed(gap2pred, speed, predSpeed, predMaxDecel);
     if (vSafe + DEFAULT_EMERGENCY_OVERRIDE_THRESHOLD < vACC) {
         //ACCVehicleVariables* vars = (ACCVehicleVariables*)veh->getCarFollowVariables();
         //std::cout << SIMTIME << " veh=" << veh->getID() << " v=" << speed << " vL=" << predSpeed << " gap=" << gap2pred << " vACC=" << vACC << " vSafe=" << vSafe << " cm=" << vars->ACC_ControlMode << "\n";
@@ -103,6 +112,46 @@ MSCFModel_ACC::stopSpeed(const MSVehicle* const veh, const double speed, double 
     // Only relevant for the ballistic update: We give the argument headway=TS, to assure that
     // the stopping position is approached with a uniform deceleration also for tau!=TS.
     return MIN2(maximumSafeStopSpeed(gap, speed, false, veh->getActionStepLengthSecs()), maxNextSpeed(speed, veh));
+}
+
+
+double
+MSCFModel_ACC::getSecureGap(const double speed, const double leaderSpeed, const double /* leaderMaxDecel */) const {
+    // Accel in gap mode should vanish:
+    //      0 = myGapControlGainSpeed * (leaderSpeed - speed) + myGapControlGainSpace * (g - myHeadwayTime * speed);
+    // <=>  myGapControlGainSpace * g = - myGapControlGainSpeed * (leaderSpeed - speed) + myGapControlGainSpace * myHeadwayTime * speed;
+    // <=>  g = - myGapControlGainSpeed * (leaderSpeed - speed) / myGapControlGainSpace + myHeadwayTime * speed;
+    return myGapControlGainSpeed * (speed - leaderSpeed) / myGapControlGainSpace + myHeadwayTime * speed;
+}
+
+
+double
+MSCFModel_ACC::insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel) const {
+//#ifdef DEBUG_ACC
+//        std::cout << "MSCFModel_ACC::insertionFollowSpeed(), speed="<<speed<< std::endl;
+//#endif
+    // iterate to find a stationary value for
+    //    speed = followSpeed(v, speed, gap2pred, predSpeed, predMaxDecel, nullptr)
+    const int max_iter = 50;
+    int n_iter = 0;
+    const double tol = 0.1;
+    const double damping = 0.1;
+
+    double res = speed;
+    while (n_iter < max_iter) {
+        // proposed acceleration
+        const double a = SPEED2ACCEL(followSpeed(v, res, gap2pred, predSpeed, predMaxDecel, nullptr) - res);
+        res = res + damping*a;
+//#ifdef DEBUG_ACC
+//        std::cout << "   n_iter=" << n_iter << ", a=" << a << ", res=" << res << std::endl;
+//#endif
+        if (fabs(a) < tol) {
+            break;
+        } else {
+            n_iter++;
+        }
+    }
+    return res;
 }
 
 
@@ -122,16 +171,16 @@ double MSCFModel_ACC::accelGapControl(const MSVehicle* const veh, const double g
 
 #ifdef DEBUG_ACC
     if DEBUG_COND {
-        std::cout << "        applying gapControl" << std::endl;
-    }
+    std::cout << "        applying gapControl" << std::endl;
+}
 #endif
 
-    // Gap control law
-    double gclAccel = 0.0;
-    double desSpacing = myHeadwayTime * speed;
-    // The argument gap2pred does not consider minGap ->  substract minGap!!
-    // XXX: It does! (Leo)
-    double gap = gap2pred - veh->getVehicleType().getMinGap();
+// Gap control law
+double gclAccel = 0.0;
+double desSpacing = myHeadwayTime * speed;
+// The argument gap2pred does not consider minGap ->  substract minGap!!
+// XXX: It does! (Leo)
+double gap = gap2pred - veh->getVehicleType().getMinGap();
     double spacingErr = gap - desSpacing;
     double deltaVel = predSpeed - speed;
 
@@ -156,14 +205,14 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
                   const double predSpeed, const double desSpeed, const bool /* respectMinGap */) const {
 
     double accelACC = 0;
-    double gapLimit_SC = 120; // lower gap limit in meters to enable speed control law
-    double gapLimit_GC = 100; // upper gap limit in meters to enable gap control law
+    double gapLimit_SC = GAP_THRESHOLD_SPEEDCTRL; // lower gap limit in meters to enable speed control law
+    double gapLimit_GC = GAP_THRESHOLD_GAPCTRL; // upper gap limit in meters to enable gap control law
 
 #ifdef DEBUG_ACC
     if DEBUG_COND {
-        std::cout << SIMTIME << " MSCFModel_ACC::_v() for veh '" << veh->getID() << "'\n"
-            << "        gap=" << gap2pred << " speed="  << speed << " predSpeed=" << predSpeed
-            << " desSpeed=" << desSpeed << std::endl;
+    std::cout << SIMTIME << " MSCFModel_ACC::_v() for veh '" << veh->getID() << "'\n"
+                  << "        gap=" << gap2pred << " speed="  << speed << " predSpeed=" << predSpeed
+                  << " desSpeed=" << desSpeed << std::endl;
     }
 #endif
 
@@ -171,7 +220,7 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
     /* Velocity error */
     double vErr = speed - desSpeed;
     int setControlMode = 0;
-    ACCVehicleVariables* vars = (ACCVehicleVariables*)veh->getCarFollowVariables();
+    ACCVehicleVariables* vars = (ACCVehicleVariables*) veh->getCarFollowVariables();
     if (vars->lastUpdateTime != MSNet::getInstance()->getCurrentTimeStep()) {
         vars->lastUpdateTime = MSNet::getInstance()->getCurrentTimeStep();
         setControlMode = 1;
@@ -203,10 +252,10 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
 
 #ifdef DEBUG_ACC
             if DEBUG_COND {
-                std::cout << "        applying speedControl" << std::endl;
-            }
+            std::cout << "        applying speedControl" << std::endl;
+        }
 #endif
-            accelACC = accelSpeedControl(vErr);
+        accelACC = accelSpeedControl(vErr);
         } else {
             accelACC = accelGapControl(veh, gap2pred, speed, predSpeed, vErr);
         }
@@ -217,11 +266,11 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
 
 #ifdef DEBUG_ACC
     if DEBUG_COND {
-        std::cout << "        result: accel=" << accelACC << " newSpeed="  << newSpeed << std::endl;
-    }
+    std::cout << "        result: accel=" << accelACC << " newSpeed="  << newSpeed << std::endl;
+}
 #endif
 
-    return MAX2(0., newSpeed);
+return MAX2(0., newSpeed);
 }
 
 

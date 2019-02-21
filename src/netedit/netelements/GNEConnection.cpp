@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -21,17 +21,7 @@
 // ===========================================================================
 #include <config.h>
 
-#include <string>
-#include <iostream>
-#include <utility>
-#include <time.h>
 #include <utils/common/StringTokenizer.h>
-#include <utils/foxtools/MFXUtils.h>
-#include <utils/geom/PositionVector.h>
-#include <utils/geom/GeomConvHelper.h>
-#include <utils/gui/windows/GUIMainWindow.h>
-#include <utils/gui/windows/GUISUMOAbstractView.h>
-#include <utils/common/ToString.h>
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 #include <utils/gui/div/GLHelper.h>
@@ -42,7 +32,7 @@
 #include <netedit/GNENet.h>
 #include <netedit/GNEUndoList.h>
 #include <netedit/GNEViewNet.h>
-#include <netedit/GNEViewParent.h>
+#include <utils/options/OptionsCont.h>
 
 #include "GNEConnection.h"
 #include "GNEJunction.h"
@@ -66,7 +56,7 @@ GNEConnection::GNEConnection(GNELane* from, GNELane* to) :
     myFromLane(from),
     myToLane(to),
     myLinkState(LINKSTATE_TL_OFF_NOSIGNAL),
-    mySpecialColor(0),
+    mySpecialColor(nullptr),
     myShapeDeprecated(true) {
 }
 
@@ -277,10 +267,10 @@ GNEConnection::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     // build position copy entry
     buildPositionCopyEntry(ret, false);
     // create menu commands
-    FXMenuCommand* mcCustomShape = new FXMenuCommand(ret, "Set custom connection shape", 0, &parent, MID_GNE_CONNECTION_EDIT_SHAPE);
+    FXMenuCommand* mcCustomShape = new FXMenuCommand(ret, "Set custom connection shape", nullptr, &parent, MID_GNE_CONNECTION_EDIT_SHAPE);
     // check if menu commands has to be disabled
-    EditMode editMode = myNet->getViewNet()->getCurrentEditMode();
-    const bool wrongMode = (editMode == GNE_MODE_CONNECT || editMode == GNE_MODE_TLS || editMode == GNE_MODE_CREATE_EDGE);
+    NetworkEditMode editMode = myNet->getViewNet()->getEditModes().networkEditMode;
+    const bool wrongMode = (editMode == GNE_NMODE_CONNECT || editMode == GNE_NMODE_TLS || editMode == GNE_NMODE_CREATE_EDGE);
     if (wrongMode) {
         mcCustomShape->disable();
     }
@@ -299,7 +289,7 @@ GNEConnection::getCenteringBoundary() const {
 void
 GNEConnection::drawGL(const GUIVisualizationSettings& s) const {
     // Check if connection must be drawed
-    if (!myShapeDeprecated && myNet->getViewNet()->showConnections()) {
+    if (!myShapeDeprecated && (myNet->getViewNet()->getViewOptions().showConnections() || (myNet->getViewNet()->getEditModes().currentSupermode == GNE_SUPERMODE_DEMAND))) {
         // Push draw matrix 1
         glPushMatrix();
         // Push name
@@ -307,32 +297,37 @@ GNEConnection::drawGL(const GUIVisualizationSettings& s) const {
         // Traslate matrix
         glTranslated(0, 0, GLO_JUNCTION + 0.1); // must draw on top of junction
         // Set color
-        if (isAttributeCarrierSelected() && s.junctionColorer.getActive() != 1) {
+        if (drawUsingSelectColor()) {
             // override with special colors (unless the color scheme is based on selection)
-            GLHelper::setColor(GNENet::selectedConnectionColor);
-        } else if (mySpecialColor != 0) {
+            GLHelper::setColor(s.selectedConnectionColor);
+        } else if (mySpecialColor != nullptr) {
             GLHelper::setColor(*mySpecialColor);
         } else {
             // Set color depending of the link state
             GLHelper::setColor(GNEInternalLane::colorForLinksState(getLinkState()));
         }
         // draw connection checking whether it is not too small if isn't being drawn for selecting
-        if ((s.scale < 1.) && !s.drawForSelecting) {
-            // If it's small, dra a simple line
+        if ((s.scale < 5.) && !s.drawForSelecting) {
+            // If it's small, draw a simple line
             GLHelper::drawLine(myShape);
         } else {
             // draw a list of lines
-            GLHelper::drawBoxLines(myShape, myShapeRotations, myShapeLengths, 0.2);
+            const bool spreadSuperposed = s.scale >= 1 && s.spreadSuperposed && myFromLane->drawAsRailway(s) && getEdgeFrom()->getNBEdge()->isBidiRail();
+            PositionVector shape = myShape;
+            if (spreadSuperposed) {
+                shape.move2side(0.5);
+            }
+            GLHelper::drawBoxLines(shape, myShapeRotations, myShapeLengths, 0.2);
             glTranslated(0, 0, 0.1);
             GLHelper::setColor(GLHelper::getColor().changedBrightness(51));
             // check if internal junction marker has to be drawn
             if (myInternalJunctionMarker.size() > 0) {
                 GLHelper::drawLine(myInternalJunctionMarker);
             }
-        }
-        // check if dotted contour has to be drawn
-        if (!s.drawForSelecting && (myNet->getViewNet()->getACUnderCursor() == this)) {
-            GLHelper::drawShapeDottedContour(getType(), myShape, 0.25);
+            // check if dotted contour has to be drawn (not useful at high zoom)
+            if (!s.drawForSelecting && (myNet->getViewNet()->getDottedAC() == this)) {
+                GLHelper::drawShapeDottedContour(getType(), shape, 0.25);
+            }
         }
         // Pop name
         glPopName();
@@ -378,6 +373,12 @@ GNEConnection::getAttribute(SumoXMLAttr key) const {
             return toString(nbCon.tlLinkIndex);
         case SUMO_ATTR_SPEED:
             return toString(nbCon.speed);
+        case SUMO_ATTR_DIR:
+            return toString(getEdgeFrom()->getNBEdge()->getToNode()->getDirection(
+                        getEdgeFrom()->getNBEdge(), nbCon.toEdge, OptionsCont::getOptions().getBool("lefthand")));
+        case SUMO_ATTR_STATE:
+            return toString(getEdgeFrom()->getNBEdge()->getToNode()->getLinkState(
+                        getEdgeFrom()->getNBEdge(), nbCon.toEdge, nbCon.fromLane, nbCon.toLane, nbCon.mayDefinitelyPass, nbCon.tlID));
         case SUMO_ATTR_CUSTOMSHAPE:
             return toString(nbCon.customShape);
         case GNE_ATTR_SELECTED:
@@ -385,7 +386,7 @@ GNEConnection::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_GENERIC:
             return getGenericParametersStr();
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -407,7 +408,7 @@ GNEConnection::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoLi
         case GNE_ATTR_SELECTED:
         case GNE_ATTR_GENERIC:
             // no special handling
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+            undoList->p_add(new GNEChange_Attribute(this, myNet, key, value));
             break;
         case SUMO_ATTR_TLLINKINDEX:
             if (value != getAttribute(key)) {
@@ -418,7 +419,7 @@ GNEConnection::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoLi
                 for (NBTrafficLightDefinition* tlDef : defs) {
                     NBLoadedSUMOTLDef* sumoDef = dynamic_cast<NBLoadedSUMOTLDef*>(tlDef);
                     NBTrafficLightLogic* tllogic = sumoDef ? sumoDef->getLogic() : tlDef->compute(OptionsCont::getOptions());
-                    if (tllogic != 0) {
+                    if (tllogic != nullptr) {
                         NBLoadedSUMOTLDef* newDef = new NBLoadedSUMOTLDef(tlDef, tllogic);
                         newDef->addConnection(getEdgeFrom()->getNBEdge(), getEdgeTo()->getNBEdge(),
                                               getLaneFrom()->getIndex(), getLaneTo()->getIndex(), parse<int>(value), false);
@@ -435,8 +436,12 @@ GNEConnection::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoLi
                 undoList->p_end();
             }
             break;
+        case SUMO_ATTR_DIR:
+            throw InvalidArgument("Attribute of '" + toString(key) + "' cannot be modified");
+        case SUMO_ATTR_STATE:
+            throw InvalidArgument("Attribute of '" + toString(key) + "' cannot be modified");
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -473,62 +478,19 @@ GNEConnection::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_SPEED:
             return canParse<double>(value) && (parse<double>(value) > 0);
         case SUMO_ATTR_CUSTOMSHAPE: {
-            bool ok = true;
-            PositionVector shape = GeomConvHelper::parseShapeReporting(value, "user-supplied shape", 0, ok, true);
-            return ok;
+            // empty custom shapes are allowed
+            return canParse<PositionVector>(value);
         }
+        case SUMO_ATTR_STATE:
+            return false;
+        case SUMO_ATTR_DIR:
+            return false;
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
         case GNE_ATTR_GENERIC:
             return isGenericParametersValid(value);
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
-    }
-}
-
-
-bool
-GNEConnection::addGenericParameter(const std::string& key, const std::string& value) {
-    if (!getNBEdgeConnection().knowsParameter(key)) {
-        getNBEdgeConnection().setParameter(key, value);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
-bool
-GNEConnection::removeGenericParameter(const std::string& key) {
-    if (getNBEdgeConnection().knowsParameter(key)) {
-        getNBEdgeConnection().unsetParameter(key);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
-bool
-GNEConnection::updateGenericParameter(const std::string& oldKey, const std::string& newKey) {
-    if (getNBEdgeConnection().knowsParameter(oldKey) && !getNBEdgeConnection().knowsParameter(newKey)) {
-        std::string value = getNBEdgeConnection().getParameter(oldKey);
-        getNBEdgeConnection().unsetParameter(oldKey);
-        getNBEdgeConnection().setParameter(newKey, value);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
-bool
-GNEConnection::updateGenericParameterValue(const std::string& key, const std::string& newValue) {
-    if (getNBEdgeConnection().knowsParameter(key)) {
-        getNBEdgeConnection().setParameter(key, newValue);
-        return true;
-    } else {
-        return false;
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -609,14 +571,17 @@ GNEConnection::setAttribute(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_SPEED:
             nbCon.speed = parse<double>(value);
             break;
+        case SUMO_ATTR_STATE:
+            throw InvalidArgument("Attribute of '" + toString(key) + "' cannot be modified");
+        case SUMO_ATTR_DIR:
+            throw InvalidArgument("Attribute of '" + toString(key) + "' cannot be modified");
         case SUMO_ATTR_CUSTOMSHAPE: {
-            bool ok;
             const bool init = (myShape.size() == 0);
             if (!init) {
                 // first remove object from net grid
                 myNet->removeGLObjectFromGrid(this);
             }
-            nbCon.customShape = GeomConvHelper::parseShapeReporting(value, "user-supplied shape", 0, ok, true);
+            nbCon.customShape = parse<PositionVector>(value);
             if (!init) {
                 // add object into net again
                 myNet->addGLObjectIntoGrid(this);
@@ -634,16 +599,12 @@ GNEConnection::setAttribute(SumoXMLAttr key, const std::string& value) {
             setGenericParametersStr(value);
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
-    // After setting attribute always update Geometry
-    updateGeometry(true);
+    // Update Geometry after setting a new attribute (but avoided for certain attributes)
+    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
+        updateGeometry(true);
+    }
 }
-
-
-void
-GNEConnection::mouseOverObject(const GUIVisualizationSettings&) const {
-}
-
 
 /****************************************************************************/

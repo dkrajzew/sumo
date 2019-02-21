@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,7 +28,7 @@
 #include <string>
 #include <map>
 #include "SUMOVehicleClass.h"
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
 #include <utils/common/MsgHandler.h>
 #include <utils/common/StringTokenizer.h>
@@ -73,6 +73,7 @@ StringBijection<SUMOVehicleClass>::Entry sumoVehicleClassStringInitializer[] = {
     {"bicycle",           SVC_BICYCLE},
     {"pedestrian",        SVC_PEDESTRIAN},
     {"evehicle",          SVC_E_VEHICLE},
+    //{"automated",         SVC_AUTOMATED},
     {"ship",              SVC_SHIP},
     {"custom1",           SVC_CUSTOM1},
     {"custom2",           SVC_CUSTOM2}
@@ -250,6 +251,9 @@ invertPermissions(SVCPermissions permissions) {
 SVCPermissions
 parseVehicleClasses(const std::vector<std::string>& allowedS) {
     SVCPermissions result = 0;
+    if (std::find(allowedS.begin(), allowedS.end(), "all") != allowedS.end()) {
+        return SVCAll;
+    }
     for (std::vector<std::string>::const_iterator i = allowedS.begin(); i != allowedS.end(); ++i) {
         const SUMOVehicleClass vc = getVehicleClassID(*i);
         const std::string& realName = SumoVehicleClassStrings.getString(vc);
@@ -339,14 +343,14 @@ bool noVehicles(SVCPermissions permissions) {
 }
 
 std::map<SVCPermissions, double> parseStopOffsets(const SUMOSAXAttributes& attrs, bool& ok) {
-    const std::string vClasses = attrs.getOpt<std::string>(SUMO_ATTR_VCLASSES, 0, ok, "");
-    const std::string exceptions = attrs.getOpt<std::string>(SUMO_ATTR_EXCEPTIONS, 0, ok, "");
+    const std::string vClasses = attrs.getOpt<std::string>(SUMO_ATTR_VCLASSES, nullptr, ok, "");
+    const std::string exceptions = attrs.getOpt<std::string>(SUMO_ATTR_EXCEPTIONS, nullptr, ok, "");
     if (attrs.hasAttribute(SUMO_ATTR_VCLASSES) && attrs.hasAttribute(SUMO_ATTR_EXCEPTIONS)) {
         WRITE_ERROR("Simultaneous specification of vClasses and exceptions is not allowed!");
         ok = false;
         return std::map<SVCPermissions, double>();
     }
-    const double value = attrs.get<double>(SUMO_ATTR_VALUE, 0, ok);
+    const double value = attrs.get<double>(SUMO_ATTR_VALUE, nullptr, ok);
 
     int vClassBitset;
     if (attrs.hasAttribute(SUMO_ATTR_VCLASSES)) {

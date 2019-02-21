@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2011-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2011-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -15,6 +15,7 @@
 # @author  Jakob Erdmann
 # @author  Laura Bieker
 # @author  Daniel Krajzewicz
+# @author  Leonhard Luecken
 # @date    2011-03-09
 # @version $Id$
 
@@ -52,6 +53,19 @@ def _readLeader(result):
     if vehicleID:
         return vehicleID, dist
     return None
+
+
+def _readNeighbors(result):
+    """ result has structure:
+    byte(TYPE_COMPOUND) | length(neighList) | Per list entry: string(vehID) | double(dist)   
+    """
+    N = result.readInt()  # length of the vehicle list
+    neighs = []
+    for i in range(N):
+        vehID = result.readString()
+        dist = result.readDouble()
+        neighs.append((vehID, dist))
+    return neighs
 
 
 def _readNextTLS(result):
@@ -144,6 +158,7 @@ _RETURN_VALUE_FUNC = {tc.VAR_SPEED: Storage.readDouble,
                       tc.VAR_TAU: Storage.readDouble,
                       tc.VAR_BEST_LANES: _readBestLanes,
                       tc.VAR_LEADER: _readLeader,
+                      tc.VAR_NEIGHBORS: _readNeighbors,
                       tc.VAR_NEXT_TLS: _readNextTLS,
                       tc.VAR_NEXT_STOPS: _readNextStops,
                       tc.VAR_LANEPOSITION_LAT: Storage.readDouble,
@@ -191,7 +206,7 @@ class VehicleDomain(Domain):
         return self._getUniversal(tc.VAR_SPEED, vehID)
 
     def getAcceleration(self, vehID):
-        """getSpeed(string) -> double
+        """getAcceleration(string) -> double
 
         Returns the acceleration in m/s^2 of the named vehicle within the last step.
         """
@@ -629,6 +644,67 @@ class VehicleDomain(Domain):
         self._connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, dist)
         return _readLeader(self._connection._checkResult(tc.CMD_GET_VEHICLE_VARIABLE, tc.VAR_LEADER, vehID))
 
+    def getRightFollowers(self, vehID, blockingOnly=False):
+        """ bool -> list(pair(string, double))
+        Convenience method, see getNeighbors()
+        """
+        if blockingOnly:
+            mode = 5
+        else:
+            mode = 1
+        return self.getNeighbors(vehID, mode)
+
+    def getRightLeaders(self, vehID, blockingOnly=False):
+        """ bool -> list(pair(string, double))
+        Convenience method, see getNeighbors()
+        """
+        if blockingOnly:
+            mode = 7
+        else:
+            mode = 3
+        return self.getNeighbors(vehID, mode)
+
+    def getLeftFollowers(self, vehID, blockingOnly=False):
+        """ bool -> list(pair(string, double))
+        Convenience method, see getNeighbors()
+        """
+        if blockingOnly:
+            mode = 4
+        else:
+            mode = 0
+        return self.getNeighbors(vehID, mode)
+
+    def getLeftLeaders(self, vehID, blockingOnly=False):
+        """ bool -> list(pair(string, double))
+        Convenience method, see getNeighbors()
+        """
+        if blockingOnly:
+            mode = 6
+        else:
+            mode = 2
+        return self.getNeighbors(vehID, mode)
+
+    def getNeighbors(self, vehID, mode):
+        """ byte -> list(pair(string, double)) 
+
+        The parameter mode is a bitset (UBYTE), specifying the following:
+        bit 1: query lateral direction (left:0, right:1)
+        bit 2: query longitudinal direction (followers:0, leaders:1)
+        bit 3: blocking (return all:0, return only blockers:1)
+
+        The returned list contains pairs (ID, dist) for all lane change relevant neighboring leaders, resp. followers, 
+        along with their longitudinal distance to the ego vehicle (egoFront - egoMinGap to leaderBack, resp. 
+        followerFront - followerMinGap to egoBack. The value can be negative for overlapping neighs). 
+        For the non-sublane case, the lists will contain at most one entry.
+
+        Note: The exact set of blockers in case blocking==1 is not determined for the sublane model, 
+        but either all neighboring vehicles are returned (in case LCA_BLOCKED) or
+        none is returned (in case !LCA_BLOCKED).
+        """
+        self._connection._beginMessage(tc.CMD_GET_VEHICLE_VARIABLE, tc.VAR_NEIGHBORS, vehID, 2)
+        self._connection._string += struct.pack("!BB", tc.TYPE_UBYTE, mode)
+        return _readNeighbors(self._connection._checkResult(tc.CMD_GET_VEHICLE_VARIABLE, tc.VAR_NEIGHBORS, vehID))
+
     def getNextTLS(self, vehID):
         """getNextTLS(string) ->
 
@@ -856,7 +932,8 @@ class VehicleDomain(Domain):
                                                 tc.TYPE_DOUBLE, startPos, tc.TYPE_DOUBLE, until)
         self._connection._sendExact()
 
-    def setBusStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE, until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_DEFAULT):
+    def setBusStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE,
+                   until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_DEFAULT):
         """setBusStop(string, string, double, double, integer) -> None
 
         Adds or modifies a bus stop with the given parameters. The duration and the until attribute are
@@ -865,7 +942,8 @@ class VehicleDomain(Domain):
         self.setStop(vehID, stopID, duration=duration,
                      until=until, flags=flags | tc.STOP_BUS_STOP)
 
-    def setContainerStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE, until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_DEFAULT):
+    def setContainerStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE,
+                         until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_DEFAULT):
         """setContainerStop(string, string, double, double, integer) -> None
 
         Adds or modifies a container stop with the given parameters. The duration and the until attribute are
@@ -874,7 +952,8 @@ class VehicleDomain(Domain):
         self.setStop(vehID, stopID, duration=duration, until=until,
                      flags=flags | tc.STOP_CONTAINER_STOP)
 
-    def setChargingStationStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE, until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_DEFAULT):
+    def setChargingStationStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE,
+                               until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_DEFAULT):
         """setChargingStationStop(string, string, double, double, integer) -> None
 
         Adds or modifies a stop at a chargingStation with the given parameters. The duration and the until attribute are
@@ -883,7 +962,8 @@ class VehicleDomain(Domain):
         self.setStop(vehID, stopID, duration=duration, until=until,
                      flags=flags | tc.STOP_CHARGING_STATION)
 
-    def setParkingAreaStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE, until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_PARKING):
+    def setParkingAreaStop(self, vehID, stopID, duration=tc.INVALID_DOUBLE_VALUE,
+                           until=tc.INVALID_DOUBLE_VALUE, flags=tc.STOP_PARKING):
         """setParkingAreaStop(string, string, double, double, integer) -> None
 
         Adds or modifies a stop at a parkingArea with the given parameters. The duration and the until attribute are
@@ -906,7 +986,7 @@ class VehicleDomain(Domain):
         """changeLane(string, int, double) -> None
 
         Forces a lane change to the lane with the given index; if successful,
-        the lane will be chosen for the given amount of time (in ms).
+        the lane will be chosen for the given amount of time (in s).
         """
         if type(duration) is int and duration >= 1000:
             warnings.warn("API change now handles duration as floating point seconds", stacklevel=2)
@@ -916,22 +996,19 @@ class VehicleDomain(Domain):
             "!BiBBBd", tc.TYPE_COMPOUND, 2, tc.TYPE_BYTE, laneIndex, tc.TYPE_DOUBLE, duration)
         self._connection._sendExact()
 
-    def changeLaneRelative(self, vehID, left, duration):
-        """changeLane(string, int, int) -> None
+    def changeLaneRelative(self, vehID, indexOffset, duration):
+        """changeLaneRelative(string, int, double) -> None
 
         Forces a relative lane change; if successful,
-        the lane will be chosen for the given amount of time (in ms).
+        the lane will be chosen for the given amount of time (in s).
+        The indexOffset specifies the target lane relative to the vehicles current lane
         """
         if type(duration) is int and duration >= 1000:
             warnings.warn("API change now handles duration as floating point seconds", stacklevel=2)
-        if left > 0:
-            laneIndex = left
-        else:
-            laneIndex = 0
         self._connection._beginMessage(
             tc.CMD_SET_VEHICLE_VARIABLE, tc.CMD_CHANGELANE, vehID, 1 + 4 + 1 + 1 + 1 + 8 + 1 + 1)
         self._connection._string += struct.pack(
-            "!BiBBBdBB", tc.TYPE_COMPOUND, 3, tc.TYPE_BYTE, laneIndex, tc.TYPE_DOUBLE, duration, tc.TYPE_BYTE, 1)
+            "!BiBBBdBB", tc.TYPE_COMPOUND, 3, tc.TYPE_BYTE, indexOffset, tc.TYPE_DOUBLE, duration, tc.TYPE_BYTE, 1)
         self._connection._sendExact()
 
     def changeSublane(self, vehID, latDist):
@@ -956,6 +1033,52 @@ class VehicleDomain(Domain):
         self._connection._string += struct.pack(
             "!BiBdBd", tc.TYPE_COMPOUND, 2, tc.TYPE_DOUBLE, speed, tc.TYPE_DOUBLE, duration)
         self._connection._sendExact()
+
+    def openGap(self, vehID, newTimeHeadway, newSpaceHeadway, duration, changeRate, maxDecel=-1, referenceVehID=None):
+        """openGap(string, double, double, double, double, double, string) -> None
+
+        Changes the vehicle's desired time headway (cf-parameter tau) smoothly to the given new value
+        using the given change rate. Similarly, the given space headway is applied gradually
+        to achieve a minimal spatial gap.
+        The vehicle is commanded to keep the increased headway for
+        the given duration once its target value is attained. The maximal value for the
+        deceleration can be given to prevent harsh braking due to the change of tau. If maxDecel=-1, 
+        the limit determined by the CF model is used. 
+        A vehicle ID for a reference vehicle can optionally be given, otherwise, the gap is created with
+        respect to the current leader on the ego vehicle's current lane.
+        Note that this does only affect the following behavior regarding the current leader and does
+        not influence the gap acceptance during lane change, etc.
+        """
+        if type(duration) is int and duration >= 1000:
+            warnings.warn("API change now handles duration as floating point seconds", stacklevel=2)
+        nParams = 5
+        # compoundType, nParams, float params (2 newHeadways, duration, changeRate, maxDecel)
+        msgLength = 1 + 4 + (1 + 8) * nParams
+        if referenceVehID is not None:
+            nParams = 6
+            msgLength += 1 + 4 + len(referenceVehID)  # TYPE_STRING, len, referenceVehID
+        self._connection._beginMessage(tc.CMD_SET_VEHICLE_VARIABLE, tc.CMD_OPENGAP, vehID, msgLength)
+        self._connection._string += struct.pack("!BiBdBdBdBdBd", tc.TYPE_COMPOUND, nParams,
+                                                tc.TYPE_DOUBLE, newTimeHeadway, tc.TYPE_DOUBLE, newSpaceHeadway,
+                                                tc.TYPE_DOUBLE, duration, tc.TYPE_DOUBLE, changeRate,
+                                                tc.TYPE_DOUBLE, maxDecel)
+        if nParams == 6:
+            self._connection._packString(referenceVehID)
+        self._connection._sendExact()
+
+    def deactivateGapControl(self, vehID):
+        """deactivateGapControl(string) -> None
+
+        Deactivate the vehicle's gap control
+        """
+        self.openGap(vehID, -1, -1, -1, -1)
+
+    def requestToC(self, vehID, leadTime):
+        """ requestToC(string, double) -> None
+
+        Interface for triggering a transition of control for a vehicle equipped with a ToC device.
+        """
+        self.setParameter(vehID, "device.toc.requestToC", str(leadTime))
 
     def changeTarget(self, vehID, edgeID):
         """changeTarget(string, string) -> None
@@ -1109,7 +1232,7 @@ class VehicleDomain(Domain):
         times at the time of that call (even for subsequent simulation steps).
         """
         if currentTravelTimes:
-            time = self._connection.simulation.getCurrentTime()
+            time = self._connection.simulation.getTime()
             if time != self.LAST_TRAVEL_TIME_UPDATE:
                 self.LAST_TRAVEL_TIME_UPDATE = time
                 for edge in self._connection.edge.getIDList():
@@ -1379,7 +1502,7 @@ class VehicleDomain(Domain):
         """
         messageString = struct.pack("!Bi", tc.TYPE_COMPOUND, 14)
         if depart is None:
-            depart = str(self._connection.simulation.getCurrentTime() / 1000.)
+            depart = str(self._connection.simulation.getTime())
         for val in (routeID, typeID, depart, departLane, departPos, departSpeed,
                     arrivalLane, arrivalPos, arrivalSpeed, fromTaz, toTaz, line):
             messageString += struct.pack("!Bi",
@@ -1439,13 +1562,21 @@ class VehicleDomain(Domain):
         Domain.subscribeContext(
             self, objectID, domain, dist, varIDs, begin, end)
 
-    def addSubscriptionFilterLanes(self, lanes):
-        """addSubscriptionFilterLanes(list(integer)) -> None
+    def addSubscriptionFilterLanes(self, lanes, noOpposite=False, downstreamDist=None, upstreamDist=None):
+        """addSubscriptionFilterLanes(list(integer), bool, double, double) -> None
 
         Adds a lane-filter to the last modified vehicle context subscription (call it just after subscribing).
         lanes is a list of relative lane indices (-1 -> right neighboring lane of the ego, 0 -> ego lane, etc.)
+        noOpposite specifies whether vehicles on opposite direction lanes shall be returned
+        downstreamDist and upstreamDist specify the range of the search for surrounding vehicles along the road net.
         """
         self._connection._addSubscriptionFilter(tc.FILTER_TYPE_LANES, lanes)
+        if noOpposite:
+            self.addSubscriptionFilterNoOpposite()
+        if downstreamDist is not None:
+            self.addSubscriptionFilterDownstreamDistance(downstreamDist)
+        if upstreamDist is not None:
+            self.addSubscriptionFilterUpstreamDistance(upstreamDist)
 
     def addSubscriptionFilterNoOpposite(self):
         """addSubscriptionFilterNoOpposite() -> None
@@ -1471,28 +1602,65 @@ class VehicleDomain(Domain):
         """
         self._connection._addSubscriptionFilter(tc.FILTER_TYPE_UPSTREAM_DIST, dist)
 
-    def addSubscriptionFilterCFManeuver(self):
+    def addSubscriptionFilterCFManeuver(self, downstreamDist=None, upstreamDist=None):
         """addSubscriptionFilterCFManeuver() -> None
 
-        Restricts vehicles returned by the last modified vehicle context subscription to leader and follower of the ego
+        Restricts vehicles returned by the last modified vehicle context subscription to leader and follower of the ego.
+        downstreamDist and upstreamDist specify the range of the search for leader and follower along the road net.
         """
-        self._connection._addSubscriptionFilter(tc.FILTER_TYPE_CF_MANEUVER)
+        self.addSubscriptionFilterLeadFollow([0])
+        if downstreamDist is not None:
+            self.addSubscriptionFilterDownstreamDistance(downstreamDist)
+        if upstreamDist is not None:
+            self.addSubscriptionFilterUpstreamDistance(upstreamDist)
 
-    def addSubscriptionFilterLCManeuver(self):
+    def addSubscriptionFilterLCManeuver(self, direction, noOpposite=False, downstreamDist=None, upstreamDist=None):
+        """addSubscriptionFilterLCManeuver(int) -> None
+
+        Restricts vehicles returned by the last modified vehicle context subscription to neighbor and ego-lane leader
+        and follower of the ego.
+        direction - lane change direction (in {-1=right, 1=left})
+        noOpposite specifies whether vehicles on opposite direction lanes shall be returned
+        downstreamDist and upstreamDist specify the range of the search for leader and follower along the road net.
+        Combine with: distance filters; vClass/vType filter.
+        """
+        if direction is None:
+            # Using default: both directions
+            lanes = [-1, 0, 1]
+        elif not (direction == -1 or direction == 1):
+            warnings.warn("Ignoring lane change subscription filter " +
+                          "with non-neighboring lane offset direction=%s." % direction)
+            return
+        else:
+            lanes = [0, direction]
+        self.addSubscriptionFilterLeadFollow(lanes)
+        if noOpposite:
+            self.addSubscriptionFilterNoOpposite()
+        if downstreamDist is not None:
+            self.addSubscriptionFilterDownstreamDistance(downstreamDist)
+        if upstreamDist is not None:
+            self.addSubscriptionFilterUpstreamDistance(upstreamDist)
+
+    def addSubscriptionFilterLeadFollow(self, lanes):
         """addSubscriptionFilterLCManeuver() -> None
 
         Restricts vehicles returned by the last modified vehicle context subscription to neighbor and ego-lane leader
         and follower of the ego.
         Combine with: lanes-filter to restrict to one direction; distance filters; vClass/vType filter.
         """
-        self._connection._addSubscriptionFilter(tc.FILTER_TYPE_LC_MANEUVER)
+        self._connection._addSubscriptionFilter(tc.FILTER_TYPE_LEAD_FOLLOW)
+        self._connection._addSubscriptionFilter(tc.FILTER_TYPE_LANES, lanes)
 
-    def addSubscriptionFilterTurnManeuver(self):
-        """addSubscriptionFilterTurnManeuver() -> None
+    def addSubscriptionFilterTurn(self, downstreamDist=None, upstreamDist=None):
+        """addSubscriptionFilterTurn() -> None
 
         Restricts vehicles returned by the last modified vehicle context subscription to foes on an upcoming junction
         """
-        self._connection._addSubscriptionFilter(tc.FILTER_TYPE_TURN_MANEUVER)
+        self._connection._addSubscriptionFilter(tc.FILTER_TYPE_TURN)
+        if downstreamDist is not None:
+            self.addSubscriptionFilterDownstreamDistance(downstreamDist)
+        if upstreamDist is not None:
+            self.addSubscriptionFilterUpstreamDistance(upstreamDist)
 
     def addSubscriptionFilterVClass(self, vClasses):
         """addSubscriptionFilterVClass(list(String)) -> None

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -32,15 +32,15 @@ def step():
     return s
 
 
-traci.start([sumolib.checkBinary('sumo'), 
-    "-n", "input_net.net.xml",
-    "-r", "input_routes.rou.xml",
-    "--no-step-log",
-    "--fcd-output", "fcd.xml",
-    "--fcd-output.signals",
-    "--step-length", "0.2",
-    "--default.speeddev", "0",
-    ])
+traci.start([sumolib.checkBinary('sumo'),
+             "-n", "input_net.net.xml",
+             "-r", "input_routes.rou.xml",
+             "--no-step-log",
+             "--fcd-output", "fcd.xml",
+             "--fcd-output.signals",
+             "--step-length", "0.2",
+             "--default.speeddev", "0",
+             ])
 
 lead = "lead"
 follow = "follow"
@@ -51,7 +51,7 @@ tryChangeDuration = 5
 
 for i in range(10000):
     step()
-    dist = traci.vehicle.getLanePosition(lead)- traci.vehicle.getLanePosition(follow)
+    dist = traci.vehicle.getLanePosition(lead) - traci.vehicle.getLanePosition(follow)
     if dist < changeDist:
         print("requesting changeLane down for vehicle '%s' at time %s. Remaining distance: %s" %
               (follow, traci.simulation.getTime(), dist))

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -30,7 +30,7 @@
 #include <utils/options/OptionsCont.h>
 #include <utils/common/FileHelpers.h>
 #include <utils/common/RandHelper.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/vehicle/SUMOVTypeParameter.h>
 #include <microsim/cfmodels/MSCFModel_Rail.h>
 #include "MSNet.h"
@@ -45,7 +45,9 @@
 #include "cfmodels/MSCFModel_PWag2009.h"
 #include "cfmodels/MSCFModel_Wiedemann.h"
 #include "cfmodels/MSCFModel_ACC.h"
+#include "cfmodels/MSCFModel_CACC.h"
 #include "MSVehicleControl.h"
+#include "cfmodels/MSCFModel_CC.h"
 #include "MSVehicleType.h"
 
 
@@ -59,7 +61,7 @@ int MSVehicleType::myNextIndex = 0;
 // method definitions
 // ===========================================================================
 MSVehicleType::MSVehicleType(const SUMOVTypeParameter& parameter)
-    : myParameter(parameter), myWarnedActionStepLengthTauOnce(false), myIndex(myNextIndex++), myCarFollowModel(0), myOriginalType(0) {
+    : myParameter(parameter), myWarnedActionStepLengthTauOnce(false), myIndex(myNextIndex++), myCarFollowModel(nullptr), myOriginalType(nullptr) {
     assert(getLength() > 0);
     assert(getMaxSpeed() > 0);
 
@@ -85,7 +87,7 @@ MSVehicleType::computeChosenSpeedDeviation(std::mt19937* rng, const double minDe
 // ------------ Setter methods
 void
 MSVehicleType::setLength(const double& length) {
-    if (myOriginalType != 0 && length < 0) {
+    if (myOriginalType != nullptr && length < 0) {
         myParameter.length = myOriginalType->getLength();
     } else {
         myParameter.length = length;
@@ -96,7 +98,7 @@ MSVehicleType::setLength(const double& length) {
 
 void
 MSVehicleType::setHeight(const double& height) {
-    if (myOriginalType != 0 && height < 0) {
+    if (myOriginalType != nullptr && height < 0) {
         myParameter.height = myOriginalType->getHeight();
     } else {
         myParameter.height = height;
@@ -107,7 +109,7 @@ MSVehicleType::setHeight(const double& height) {
 
 void
 MSVehicleType::setMinGap(const double& minGap) {
-    if (myOriginalType != 0 && minGap < 0) {
+    if (myOriginalType != nullptr && minGap < 0) {
         myParameter.minGap = myOriginalType->getMinGap();
     } else {
         myParameter.minGap = minGap;
@@ -118,7 +120,7 @@ MSVehicleType::setMinGap(const double& minGap) {
 
 void
 MSVehicleType::setMinGapLat(const double& minGapLat) {
-    if (myOriginalType != 0 && minGapLat < 0) {
+    if (myOriginalType != nullptr && minGapLat < 0) {
         myParameter.minGapLat = myOriginalType->getMinGapLat();
     } else {
         myParameter.minGapLat = minGapLat;
@@ -129,7 +131,7 @@ MSVehicleType::setMinGapLat(const double& minGapLat) {
 
 void
 MSVehicleType::setMaxSpeed(const double& maxSpeed) {
-    if (myOriginalType != 0 && maxSpeed < 0) {
+    if (myOriginalType != nullptr && maxSpeed < 0) {
         myParameter.maxSpeed = myOriginalType->getMaxSpeed();
     } else {
         myParameter.maxSpeed = maxSpeed;
@@ -140,7 +142,7 @@ MSVehicleType::setMaxSpeed(const double& maxSpeed) {
 
 void
 MSVehicleType::setMaxSpeedLat(const double& maxSpeedLat) {
-    if (myOriginalType != 0 && maxSpeedLat < 0) {
+    if (myOriginalType != nullptr && maxSpeedLat < 0) {
         myParameter.maxSpeedLat = myOriginalType->getMaxSpeedLat();
     } else {
         myParameter.maxSpeedLat = maxSpeedLat;
@@ -164,7 +166,7 @@ MSVehicleType::setPreferredLateralAlignment(LateralAlignment latAlignment) {
 
 void
 MSVehicleType::setDefaultProbability(const double& prob) {
-    if (myOriginalType != 0 && prob < 0) {
+    if (myOriginalType != nullptr && prob < 0) {
         myParameter.defaultProbability = myOriginalType->getDefaultProbability();
     } else {
         myParameter.defaultProbability = prob;
@@ -175,7 +177,7 @@ MSVehicleType::setDefaultProbability(const double& prob) {
 
 void
 MSVehicleType::setSpeedFactor(const double& factor) {
-    if (myOriginalType != 0 && factor < 0) {
+    if (myOriginalType != nullptr && factor < 0) {
         myParameter.speedFactor.getParameter()[0] = myOriginalType->myParameter.speedFactor.getParameter()[0];
     } else {
         myParameter.speedFactor.getParameter()[0] = factor;
@@ -186,7 +188,7 @@ MSVehicleType::setSpeedFactor(const double& factor) {
 
 void
 MSVehicleType::setSpeedDeviation(const double& dev) {
-    if (myOriginalType != 0 && dev < 0) {
+    if (myOriginalType != nullptr && dev < 0) {
         myParameter.speedFactor.getParameter()[1] = myOriginalType->myParameter.speedFactor.getParameter()[1];
     } else {
         myParameter.speedFactor.getParameter()[1] = dev;
@@ -247,7 +249,7 @@ MSVehicleType::setColor(const RGBColor& color) {
 
 void
 MSVehicleType::setWidth(const double& width) {
-    if (myOriginalType != 0 && width < 0) {
+    if (myOriginalType != nullptr && width < 0) {
         myParameter.width = myOriginalType->getWidth();
     } else {
         myParameter.width = width;
@@ -257,7 +259,7 @@ MSVehicleType::setWidth(const double& width) {
 
 void
 MSVehicleType::setImpatience(const double impatience) {
-    if (myOriginalType != 0 && impatience < 0) {
+    if (myOriginalType != nullptr && impatience < 0) {
         myParameter.impatience = myOriginalType->getImpatience();
     } else {
         myParameter.impatience = impatience;
@@ -327,11 +329,19 @@ MSVehicleType::build(SUMOVTypeParameter& from) {
         case SUMO_TAG_CF_ACC:
             vtype->myCarFollowModel = new MSCFModel_ACC(vtype);
             break;
+        case SUMO_TAG_CF_CACC:
+            vtype->myCarFollowModel = new MSCFModel_CACC(vtype);
+            break;
+        case SUMO_TAG_CF_CC:
+            vtype->myCarFollowModel = new MSCFModel_CC(vtype);
+            break;
         case SUMO_TAG_CF_KRAUSS:
         default:
             vtype->myCarFollowModel = new MSCFModel_Krauss(vtype);
             break;
     }
+    // init further param values
+    vtype->initParameters();
     vtype->check();
     return vtype;
 }
@@ -361,7 +371,7 @@ MSVehicleType::duplicateType(const std::string& id, bool persistent) const {
 void
 MSVehicleType::check() {
     if (!myWarnedActionStepLengthTauOnce
-            && myParameter.wasSet(VTYPEPARS_ACTIONSTEPLENGTH_SET)
+            && myParameter.actionStepLength != DELTA_T
             && STEPS2TIME(myParameter.actionStepLength) > getCarFollowModel().getHeadwayTime()) {
         myWarnedActionStepLengthTauOnce = true;
         std::stringstream s;
@@ -374,7 +384,7 @@ MSVehicleType::check() {
 
 void
 MSVehicleType::setAccel(double accel) {
-    if (myOriginalType != 0 && accel < 0) {
+    if (myOriginalType != nullptr && accel < 0) {
         accel = myOriginalType->getCarFollowModel().getMaxAccel();
     }
     myCarFollowModel->setMaxAccel(accel);
@@ -383,7 +393,7 @@ MSVehicleType::setAccel(double accel) {
 
 void
 MSVehicleType::setDecel(double decel) {
-    if (myOriginalType != 0 && decel < 0) {
+    if (myOriginalType != nullptr && decel < 0) {
         decel = myOriginalType->getCarFollowModel().getMaxDecel();
     }
     myCarFollowModel->setMaxDecel(decel);
@@ -392,7 +402,7 @@ MSVehicleType::setDecel(double decel) {
 
 void
 MSVehicleType::setEmergencyDecel(double emergencyDecel) {
-    if (myOriginalType != 0 && emergencyDecel < 0) {
+    if (myOriginalType != nullptr && emergencyDecel < 0) {
         emergencyDecel = myOriginalType->getCarFollowModel().getEmergencyDecel();
     }
     myCarFollowModel->setEmergencyDecel(emergencyDecel);
@@ -401,7 +411,7 @@ MSVehicleType::setEmergencyDecel(double emergencyDecel) {
 
 void
 MSVehicleType::setApparentDecel(double apparentDecel) {
-    if (myOriginalType != 0 && apparentDecel < 0) {
+    if (myOriginalType != nullptr && apparentDecel < 0) {
         apparentDecel = myOriginalType->getCarFollowModel().getApparentDecel();
     }
     myCarFollowModel->setApparentDecel(apparentDecel);
@@ -410,7 +420,7 @@ MSVehicleType::setApparentDecel(double apparentDecel) {
 
 void
 MSVehicleType::setImperfection(double imperfection) {
-    if (myOriginalType != 0 && imperfection < 0) {
+    if (myOriginalType != nullptr && imperfection < 0) {
         imperfection = myOriginalType->getCarFollowModel().getImperfection();
     }
     myCarFollowModel->setImperfection(imperfection);
@@ -419,13 +429,56 @@ MSVehicleType::setImperfection(double imperfection) {
 
 void
 MSVehicleType::setTau(double tau) {
-    if (myOriginalType != 0 && tau < 0) {
+    if (myOriginalType != nullptr && tau < 0) {
         tau = myOriginalType->getCarFollowModel().getHeadwayTime();
     }
     myCarFollowModel->setHeadwayTime(tau);
     myParameter.cfParameter[SUMO_ATTR_TAU] = toString(tau);
 }
 
+
+void
+MSVehicleType::initParameters() {
+    if (myParameter.knowsParameter("carriageLength")) {
+        myParameter.carriageLength = StringUtils::toDouble(myParameter.getParameter("carriageLength"));
+    } else {
+        switch (myParameter.shape) {
+            case SVS_BUS_FLEXIBLE:
+                myParameter.carriageLength = 8.25; // 16.5 overall, 2 modules http://de.wikipedia.org/wiki/Ikarus_180
+                myParameter.carriageGap = 0;
+                break;
+            case SVS_RAIL:
+                myParameter.carriageLength = 24.5; // http://de.wikipedia.org/wiki/UIC-Y-Wagen_%28DR%29
+                break;
+            case SVS_RAIL_CAR:
+                myParameter.carriageLength = 16.85;  // 67.4m overall, 4 carriages http://de.wikipedia.org/wiki/DB-Baureihe_423
+                break;
+            case SVS_RAIL_CARGO:
+                myParameter.carriageLength = 13.86; // UIC 571-1 http://de.wikipedia.org/wiki/Flachwagen
+                break;
+            case SVS_TRUCK_SEMITRAILER:
+                myParameter.carriageLength = 13.5;
+                myParameter.locomotiveLength = 2.5;
+                myParameter.carriageGap = 0.5;
+                break;
+            case SVS_TRUCK_1TRAILER:
+                myParameter.carriageLength = 6.75;
+                myParameter.locomotiveLength = 2.5 + 6.75;
+                myParameter.carriageGap = 0.5;
+                break;
+            default:
+                break;
+        }
+    }
+    if (myParameter.knowsParameter("locomotiveLength")) {
+        myParameter.locomotiveLength = StringUtils::toDouble(myParameter.getParameter("locomotiveLength"));
+    } else if (myParameter.locomotiveLength <= 0) {
+        myParameter.locomotiveLength = myParameter.carriageLength;
+    }
+    if (myParameter.knowsParameter("carriageGap")) {
+        myParameter.carriageGap = StringUtils::toDouble(myParameter.getParameter("carriageGap"));
+    }
+}
 
 /****************************************************************************/
 

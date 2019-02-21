@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2011-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2011-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -110,7 +110,7 @@ MSInstantInductLoop::write(const char* state, double t, SUMOVehicle& veh, double
             "vehID", veh.getID()).writeAttr("speed", toString(speed)).writeAttr(
                 "length", toString(veh.getVehicleType().getLength())).writeAttr(
                     "type", veh.getVehicleType().getID());
-    if (add != 0) {
+    if (add != nullptr) {
         myOutputDevice.writeAttr(add, toString(addValue));
     }
     myOutputDevice.closeTag();

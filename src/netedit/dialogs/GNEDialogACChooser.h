@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -65,15 +65,19 @@ protected:
     /// FOX needs this
     GNEDialogACChooser() {}
 
-    void toggleSelection(int listIndex);
+    void toggleSelection(int listIndex) override;
+
+    /// @bbrief retrieve name for the given object (special case for TLS)
+    std::string getObjectName(GUIGlObject* o) const override;
 
 private:
-    /// brief get glID for every AC
-    std::vector<GUIGlID> getGLIds(const std::vector<GNEAttributeCarrier*>& ACs);
-
     /// @brief list of displayed ACs
     std::vector<GNEAttributeCarrier*> myACs;
     GNEViewParent* myViewParent;
+
+
+    /// @brief whether the current locator is for TLS
+    bool myLocateTLS;
 };
 
 

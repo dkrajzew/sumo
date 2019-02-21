@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -41,10 +41,10 @@
 // member method definitions
 // ===========================================================================
 MSSimpleTrafficLightLogic::MSSimpleTrafficLightLogic(MSTLLogicControl& tlcontrol,
-        const std::string& id, const std::string& subid, const Phases& phases,
+        const std::string& id, const std::string& programID, const TrafficLightType logicType, const Phases& phases,
         int step, SUMOTime delay,
         const std::map<std::string, std::string>& parameters) :
-    MSTrafficLightLogic(tlcontrol, id, subid, delay, parameters),
+    MSTrafficLightLogic(tlcontrol, id, programID, logicType, delay, parameters),
     myPhases(phases),
     myStep(step) {
     for (int i = 0; i < (int)myPhases.size(); i++) {
@@ -69,7 +69,11 @@ MSSimpleTrafficLightLogic::trySwitch() {
     }
 
     // increment the index
-    myStep++;
+    if (myPhases[myStep]->nextPhase >= 0) {
+        myStep = myPhases[myStep]->nextPhase;
+    } else {
+        myStep++;
+    }
     // if the last phase was reached ...
     if (myStep >= (int)myPhases.size()) {
         // ... set the index to the first phase

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -30,7 +30,6 @@
 #include <utility>
 #include <microsim/MSLane.h>
 #include <microsim/MSEdge.h>
-#include <utils/foxtools/MFXMutex.h>
 #include <utils/geom/Position.h>
 #include <utils/geom/PositionVector.h>
 #include <utils/gui/globjects/GUIGlObject.h>
@@ -127,11 +126,15 @@ public:
 
     /** the same as in MSLane, but locks the access for the visualisation
         first; the access will be granted at the end of this method */
-    bool executeMovements(SUMOTime t, std::vector<MSLane*>& into);
+    void setJunctionApproaches(const SUMOTime t);
 
     /** the same as in MSLane, but locks the access for the visualisation
         first; the access will be granted at the end of this method */
-    bool integrateNewVehicle(SUMOTime t);
+    void executeMovements(const SUMOTime t);
+
+    /** the same as in MSLane, but locks the access for the visualisation
+        first; the access will be granted at the end of this method */
+    void integrateNewVehicles();
     ///@}
 
 
@@ -217,7 +220,7 @@ public:
     void drawBikeMarkings() const;
 
     /// @brief direction indicators for lanes
-    void drawDirectionIndicators(double exaggeration) const;
+    void drawDirectionIndicators(double exaggeration, bool spreadSuperposed) const;
 
     /// @brief draw intersection positions of foe internal lanes with this one
     void debugDrawFoeIntersections() const;
@@ -249,10 +252,19 @@ public:
     }
 
     /// @brief gets the color value according to the current scheme index
-    double getColorValue(int activeScheme) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
     /// @brief whether this lane is selected in the GUI
     bool isSelected() const;
+
+    /* @brief sets the color according to the current scheme index and some lane function
+     * @param[in] id override active scheme when calling from meso gui
+     */
+    bool setFunctionalColor(const GUIColorer& c, RGBColor& col, int activeScheme = -1) const;
+
+    /// @brief whether to draw this lane as a railway
+    bool drawAsRailway(const GUIVisualizationSettings& s) const;
+
 
 protected:
     /// moves myTmpVehicles int myVehicles after a lane change procedure
@@ -295,17 +307,11 @@ private:
     /// @brief gets the scaling value according to the current scheme index
     double getScaleValue(int activeScheme) const;
 
-    /// @brief sets the color according to the current scheme index and some lane function
-    bool setFunctionalColor(int activeScheme, RGBColor& col) const;
-
     /// @brief sets multiple colors according to the current scheme index and some lane function
-    bool setMultiColor(const GUIColorer& c, RGBColor& col) const;
+    bool setMultiColor(const GUIVisualizationSettings& s, const GUIColorer& c, RGBColor& col) const;
 
     /// @brief sets the color according to the currente settings
     RGBColor setColor(const GUIVisualizationSettings& s) const;
-
-    /// @brief whether to draw this lane as a railway
-    bool drawAsRailway(const GUIVisualizationSettings& s) const;
 
     /// @brief whether to draw this lane as a waterway
     bool drawAsWaterway(const GUIVisualizationSettings& s) const;
@@ -340,7 +346,7 @@ private:
 
 private:
     /// The mutex used to avoid concurrent updates of the vehicle buffer
-    mutable MFXMutex myLock;
+    mutable FXMutex myLock;
 
     /// @brief special color to signify alternative coloring scheme
     static const RGBColor MESO_USE_LANE_COLOR;

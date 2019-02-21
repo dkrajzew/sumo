@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -25,7 +25,7 @@
 // ===========================================================================
 #include <config.h>
 
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 
 // ===========================================================================
@@ -44,7 +44,7 @@ class SUMOVehicle;
  *
  * @see MSDevice
  */
-class MSDevice_Tripinfo : public MSDevice {
+class MSDevice_Tripinfo : public MSVehicleDevice {
 public:
     /** @brief Build devices for the given vehicle, if needed
      *
@@ -56,7 +56,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
     /// @brief update tripinfo statistics
     void updateStatistics(SUMOTime timeLoss) const;
@@ -234,9 +234,7 @@ private:
     SUMOTime myMesoTimeLoss;
 
     /// @brief devices which may still need to produce output
-    typedef std::set<const MSDevice_Tripinfo*, ComparatorIdLess > DeviceSet;
-
-    static DeviceSet myPendingOutput;
+    static std::set<const MSDevice_Tripinfo*, ComparatorNumericalIdLess> myPendingOutput;
 
     /// @brief global tripinfo statistics
     static double myVehicleCount;

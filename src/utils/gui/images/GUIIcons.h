@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -36,9 +36,9 @@
 enum GUIIcon {
     /// @name general Interface icons
     /// @{
-    ICON_APP = 0,
-    ICON_DLR,
     ICON_SUMO,
+    ICON_SUMO_MINI,
+    ICON_SUMO_LOGO,
     ICON_EMPTY,
     ICON_OPEN_CONFIG,
     ICON_OPEN_NET,
@@ -61,7 +61,7 @@ enum GUIIcon {
     /// @name simulation view icons
     /// @{
     ICON_MICROVIEW,
-    ICON_LAGGRVIEW,
+    ICON_OSGVIEW,
     /// @}
 
     /// @name simulation view icons (other)
@@ -177,10 +177,12 @@ enum GUIIcon {
     ICON_UNDO,
     ICON_REDO,
     ICON_NETEDIT,
+    ICON_NETEDIT_MINI,
     ICON_LOCK,
     ICON_ADD,
     ICON_REMOVE,
-    ICON_NETEDITARROW,
+    ICON_NETEDITARROWLEFT,
+    ICON_NETEDITARROWRIGHT,
     /// @}
 
     /// @name lane icons
@@ -191,12 +193,19 @@ enum GUIIcon {
     ICON_LANEGREENVERGE,
     /// @}
 
-    /// @name netedit modes icons
+    /// @name netedit supermode icons
+    /// @{
+    ICON_SUPERMODENETWORK,
+    ICON_SUPERMODEDEMAND,
+    /// @}
+
+    /// @name NETEDIT Network modes icons
     /// @{
     ICON_MODEADDITIONAL,
     ICON_MODECONNECTION,
     ICON_MODECREATEEDGE,
     ICON_MODECROSSING,
+    ICON_MODETAZ,
     ICON_MODEDELETE,
     ICON_MODEINSPECT,
     ICON_MODEMOVE,
@@ -206,7 +215,14 @@ enum GUIIcon {
     ICON_MODEPROHIBITION,
     /// @}
 
-    /// @name netedit processing icons
+    /// @name NETEDIT Demand modes icons
+    /// @{
+    ICON_MODEROUTE,
+    ICON_MODEVEHICLE,
+    ICON_MODEVEHICLETYPE,
+    /// @}
+
+    /// @name NETEDIT processing icons
     /// @{
     ICON_CLEANJUNCTIONS,
     ICON_COMPUTEJUNCTIONS,
@@ -214,7 +230,7 @@ enum GUIIcon {
     ICON_OPTIONS,
     /// @}
 
-    /// @name netedit netElements icons
+    /// @name NETEDIT netElements icons
     /// @{
     ICON_JUNCTION,
     ICON_EDGE,
@@ -224,7 +240,7 @@ enum GUIIcon {
     ICON_CROSSING,
     /// @}
 
-    /// @name netedit additional icons
+    /// @name NETEDIT additional icons
     /// @{
     ICON_BUSSTOP,
     ICON_ACCESS,
@@ -250,13 +266,17 @@ enum GUIIcon {
     ICON_DESTPROBREROUTE,
     ICON_PARKINGZONEREROUTE,
     ICON_ROUTEPROBREROUTE,
+    ICON_TAZ,
+    ICON_TAZEDGE,
     /// @}
 
-    /// @name netedit routeElements icons
+    /// @name NETEDIT DemandElements icons
     /// @{
     ICON_FLOW,
     ICON_ROUTE,
     ICON_VTYPE,
+    ICON_VEHICLE,
+    ICON_TRIP,
     /// @}
 
     /// @name vehicle Class icons

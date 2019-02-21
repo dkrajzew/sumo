@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -45,6 +45,7 @@ class MSVehicle;
 class MSLink;
 class MSLane;
 class MSEdge;
+class MSJunctionLogic;
 
 typedef std::vector<MSEdge*> MSEdgeVector;
 typedef std::vector<const MSEdge*> ConstMSEdgeVector;
@@ -130,9 +131,10 @@ public:
     /// @brief erase vehicle from myLinkLeaders
     void passedJunction(const MSVehicle* vehicle);
 
-    /* @brief @return whether the foe vehicle is a leader for ego
-     * @note vehicles are added to myLinkLeaders when first seen as a foe */
-    bool isLeader(const MSVehicle* ego, const MSVehicle* foe, bool updateLeader);
+    // @brief return the underlying right-of-way and conflict matrix
+    virtual const MSJunctionLogic* getLogic() const {
+        return nullptr;
+    }
 
 protected:
     /// @brief Tye type of this junction
@@ -155,11 +157,6 @@ protected:
 
     /// @brief definition of the static dictionary type
     typedef std::map<std::string, MSJunction* > DictType;
-
-    /// @brief map from leader vehicle to follower vehicles
-    typedef std::map<const MSVehicle*, std::set<const MSVehicle*> > LeaderMap;
-    LeaderMap myLinkLeaders;
-
 
 private:
     /// @brief Invalidated copy constructor.

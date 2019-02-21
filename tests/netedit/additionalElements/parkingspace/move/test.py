@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -38,10 +38,10 @@ netedit.leftClick(referencePosition, 250, 250)
 netedit.changeAdditional("space")
 
 # select parent
-netedit.selectAdditionalChild(9, 0)
+netedit.selectAdditionalChild(8, 0)
 
 # create space
-netedit.leftClick(referencePosition, 250, 120)
+netedit.leftClick(referencePosition, 250, 105)
 
 # change to move mode
 netedit.moveMode()
@@ -50,13 +50,13 @@ netedit.moveMode()
 netedit.moveElement(referencePosition, 100, 20, 330, 40)
 
 # move space
-netedit.moveElement(referencePosition, 330, 20, 400, 40)
+netedit.moveElement(referencePosition, 330, 40, 400, 40)
 
 # move space
-netedit.moveElement(referencePosition, 400, 20, 400, 220)
+netedit.moveElement(referencePosition, 400, 40, 400, 220)
 
 # move space
-netedit.moveElement(referencePosition, 400, 200, 100, 200)
+netedit.moveElement(referencePosition, 400, 220, 100, 200)
 
 # Check undos and redos
 netedit.undo(referencePosition, 6)

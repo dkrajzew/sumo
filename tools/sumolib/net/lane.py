@@ -1,5 +1,5 @@
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2011-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2011-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -211,6 +211,13 @@ class Lane:
         candidates = reduce(lambda x, y: x + y, [cons for e, cons in self._edge.getIncoming().items()], [])
         return [c.getFromLane() for c in candidates if self == c.getToLane()]
 
+    def getConnection(self, toLane):
+        """Returns the connection to the given target lane or None"""
+        for conn in self._outgoing:
+            if conn.getToLane() == toLane:
+                return conn
+        return None
+
     def allows(self, vClass):
         """true if this lane allows the given vehicle class"""
         return vClass in self._allowed
@@ -226,3 +233,6 @@ class Lane:
 
     def getParam(self, key, default=None):
         return self._params.get(key, default)
+
+    def getParams(self):
+        return self._params

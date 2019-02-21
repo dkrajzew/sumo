@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -65,7 +65,7 @@ GUIDialog_Options::GUIDialog_Options(FXWindow* parent,  const char* titleName, i
     new FXStatusBar(this, GUIDesignStatusBar);
     FXVerticalFrame* contentFrame = new FXVerticalFrame(this, GUIDesignContentsFrame);
 
-    FXTabBook* tabbook = new FXTabBook(contentFrame, 0, 0, GUIDesignTabBook);
+    FXTabBook* tabbook = new FXTabBook(contentFrame, nullptr, 0, GUIDesignTabBook);
 
     for (auto it_topic : oc.getSubTopics()) {
         if (it_topic == "Configuration") {

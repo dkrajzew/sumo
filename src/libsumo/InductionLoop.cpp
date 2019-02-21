@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,7 +28,7 @@
 #include <microsim/output/MSInductLoop.h>
 #include <microsim/MSNet.h>
 #include <libsumo/TraCIDefs.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include "InductionLoop.h"
 
 
@@ -126,7 +126,7 @@ InductionLoop::getVehicleData(const std::string& detID) {
 MSInductLoop*
 InductionLoop::getDetector(const std::string& id) {
     MSInductLoop* il = dynamic_cast<MSInductLoop*>(MSNet::getInstance()->getDetectorControl().getTypedDetectors(SUMO_TAG_INDUCTION_LOOP).get(id));
-    if (il == 0) {
+    if (il == nullptr) {
         throw TraCIException("Induction loop '" + id + "' is not known");
     }
     return il;
@@ -166,7 +166,7 @@ InductionLoop::makeWrapper() {
 bool
 InductionLoop::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

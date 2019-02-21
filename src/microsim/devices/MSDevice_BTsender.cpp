@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -21,7 +21,7 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/vehicle/SUMOVehicle.h>
@@ -53,7 +53,7 @@ MSDevice_BTsender::insertOptions(OptionsCont& oc) {
 
 
 void
-MSDevice_BTsender::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) {
+MSDevice_BTsender::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     if (equippedByDefaultAssignmentOptions(OptionsCont::getOptions(), "btsender", v, false)) {
         MSDevice_BTsender* device = new MSDevice_BTsender(v, "btsender_" + v.getID());
         into.push_back(device);
@@ -73,7 +73,7 @@ MSDevice_BTsender::cleanup() {
 // MSDevice_BTsender-methods
 // ---------------------------------------------------------------------------
 MSDevice_BTsender::MSDevice_BTsender(SUMOVehicle& holder, const std::string& id)
-    : MSDevice(holder, id) {
+    : MSVehicleDevice(holder, id) {
 }
 
 

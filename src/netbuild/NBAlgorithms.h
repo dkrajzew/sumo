@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -205,15 +205,15 @@ public:
     /** @brief Computes node types
      * @param[in] nc The container of nodes to loop along
      */
-    static void computeNodeTypes(NBNodeCont& nc);
+    static void computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tlc);
 
     /** @brief Checks rail_crossing for validity
      * @param[in] nc The container of nodes to loop along
      */
-    static void validateRailCrossings(NBNodeCont& nc);
+    static void validateRailCrossings(NBNodeCont& nc, NBTrafficLightLogicCont& tlc);
 
     /// @brief whether the given node only has rail edges
-    static bool isRailwayNode(NBNode* n);
+    static bool isRailwayNode(const NBNode* n);
 };
 
 
@@ -230,11 +230,6 @@ public:
      * @param[in] nc The container of nodes to loop along
      */
     static void computeEdgePriorities(NBNodeCont& nc);
-
-    /** @brief Computes edge priorities within a single node
-     * @param[in] node the single node
-     */
-    static void computeEdgePrioritiesSingleNode(NBNode* node);
 
 private:
     /** @brief Sets the priorites in case of a priority junction

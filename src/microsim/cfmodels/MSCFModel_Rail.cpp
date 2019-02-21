@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -61,7 +61,7 @@ MSCFModel_Rail::MSCFModel_Rail(const MSVehicleType* vtype) :
     }
     myTrainParams.decl = vtype->getParameter().getCFParam(SUMO_ATTR_DECEL, myTrainParams.decl);
     setMaxDecel(myTrainParams.decl);
-    setEmergencyDecel(myTrainParams.decl);
+    setEmergencyDecel(vtype->getParameter().getCFParam(SUMO_ATTR_EMERGENCYDECEL, myTrainParams.decl + 0.3));
     // update type parameters so they are shown correctly in the gui (if defaults from trainType are used)
     const_cast<MSVehicleType*>(vtype)->setMaxSpeed(myTrainParams.vmax);
     const_cast<MSVehicleType*>(vtype)->setLength(myTrainParams.length);
@@ -141,15 +141,18 @@ double MSCFModel_Rail::maxNextSpeed(double speed, const MSVehicle* const veh) co
 
 double MSCFModel_Rail::minNextSpeed(double speed, const MSVehicle* const veh) const {
 
-    double slope = veh->getSlope();
-    double gr = myTrainParams.weight * G * sin(DEG2RAD(slope)); //kN
-    double res = getInterpolatedValueFromLookUpMap(speed, &(myTrainParams.resistance)); // kN
-    double totalRes = res + gr; //kN
-
-
-    double a = myTrainParams.decl + totalRes / myTrainParams.rotWeight;
-
-    return speed - a * DELTA_T / 1000.;
+    const double slope = veh->getSlope();
+    const double gr = myTrainParams.weight * G * sin(DEG2RAD(slope)); //kN
+    const double res = getInterpolatedValueFromLookUpMap(speed, &(myTrainParams.resistance)); // kN
+    const double totalRes = res + gr; //kN
+    const double a = myTrainParams.decl + totalRes / myTrainParams.rotWeight;
+    const double vMin = speed - a * DELTA_T / 1000.;
+    if (MSGlobals::gSemiImplicitEulerUpdate) {
+        return MAX2(vMin, 0.);
+    } else {
+        // NOTE: ballistic update allows for negative speeds to indicate a stop within the next timestep
+        return vMin;
+    }
 
 }
 

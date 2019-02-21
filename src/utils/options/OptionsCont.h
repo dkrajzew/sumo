@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -485,6 +485,18 @@ public:
      * @exception InvalidArgument If the option does not exist or is not a int-vector-option
      */
     const IntVector& getIntVector(const std::string& name) const;
+
+    /** @brief Returns the list of double-value of the named option (only for Option_FloatVector)
+     *
+     * This method returns the float-vector-value of an existing float-vector-option.
+     * If the named option does not exist or is not a float-vector-option, an
+     *  InvalidArgument is thrown.
+     *
+     * @param[in] name The name of the option to return the float-vector-value of
+     * @return The float-vector-value of the named, existing float-vector-option
+     * @exception InvalidArgument If the option does not exist or is not a float-vector-option
+     */
+    const FloatVector& getFloatVector(const std::string& name) const;
 
 
     /** @brief Returns the list of string-vector-value of the named option (only for Option_String)

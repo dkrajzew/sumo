@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -23,7 +23,7 @@
 #include <config.h>
 
 #include <iostream>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/VectorHelper.h>
 #include <utils/geom/PositionVector.h>
 #include "../NIImporter_Vissim.h"
@@ -88,7 +88,7 @@ NIVissimSingleTypeParser_Streckendefinition::parse(std::istream& from) {
         geom.push_back_noDoublePos(getPosition(from));
         tag = myRead(from);
         try {
-            TplConvert::_2double(tag.c_str());
+            StringUtils::toDouble(tag);
             tag = myRead(from);
         } catch (NumberFormatException&) {}
     }
@@ -111,7 +111,7 @@ NIVissimSingleTypeParser_Streckendefinition::parse(std::istream& from) {
             tag = myRead(from);
             tag = myRead(from);
             while (tag != "DATAEND" && tag != "spur" && tag != "keinspurwechsel") {
-                int classes = TplConvert::_2int(tag.c_str());
+                int classes = StringUtils::toInt(tag);
                 assignedVehicles.push_back(classes);
                 tag = readEndSecure(from);
             }
@@ -122,7 +122,7 @@ NIVissimSingleTypeParser_Streckendefinition::parse(std::istream& from) {
             tag = readEndSecure(from);
         }
     }
-    NIVissimEdge* e = new NIVissimEdge(id, name, type, noLanes,
+    NIVissimEdge* e = new NIVissimEdge(id, name, type, std::vector<double>(noLanes, NBEdge::UNSPECIFIED_WIDTH),
                                        zuschlag1, zuschlag2, length, geom, clv);
     if (!NIVissimEdge::dictionary(id, e)) {
         return false;

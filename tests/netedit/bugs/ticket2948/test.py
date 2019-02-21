@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -57,13 +57,13 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 400, 150)
 
 # Set all Junctions as traffic lighs
-netedit.modifyAttribute(0, "traffic_light")
+netedit.modifyAttribute(0, "traffic_light", False)
 
 # inspect set of edges
 netedit.leftClick(referencePosition, 480, 160)
 
 # change all speed of edges
-netedit.modifyAttribute(0, "20")
+netedit.modifyAttribute(0, "20", False)
 
 # rebuild network
 netedit.rebuildNetwork()

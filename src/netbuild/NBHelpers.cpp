@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -33,7 +33,7 @@
 #include <utils/common/StringUtils.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/common/MsgHandler.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/geom/Position.h>
 #include <utils/geom/GeomHelper.h>
 #include "NBNode.h"
@@ -46,11 +46,11 @@
 double
 NBHelpers::relAngle(double angle1, double angle2) {
     angle2 -= angle1;
-    if (angle2 > 180) {
-        angle2 = (360 - angle2) * -1;
+    while (angle2 > 180.) {
+        angle2 -= 360.;
     }
-    while (angle2 < -180) {
-        angle2 = 360 + angle2;
+    while (angle2 < -180.) {
+        angle2 += 360.;
     }
     return angle2;
 }
@@ -127,7 +127,7 @@ NBHelpers::interpretLaneID(const std::string& lane_id, std::string& edge_id, int
     edge_id = lane_id.substr(0, sep_index);
     std::string index_string = lane_id.substr(sep_index + 1);
     try {
-        index = TplConvert::_2int(index_string.c_str());
+        index = StringUtils::toInt(index_string);
     } catch (NumberFormatException&) {
         WRITE_ERROR("Invalid lane index '" + index_string + "' for lane '" + lane_id + "'.");
     }

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2007-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2007-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -79,13 +79,13 @@ void SAXWeightsHandler::myStartElement(int element,
     switch (element) {
         case SUMO_TAG_INTERVAL: {
             bool ok = true;
-            myCurrentTimeBeg = STEPS2TIME(attrs.getSUMOTimeReporting(SUMO_ATTR_BEGIN, 0, ok));
-            myCurrentTimeEnd = STEPS2TIME(attrs.getSUMOTimeReporting(SUMO_ATTR_END, 0, ok));
+            myCurrentTimeBeg = STEPS2TIME(attrs.getSUMOTimeReporting(SUMO_ATTR_BEGIN, nullptr, ok));
+            myCurrentTimeEnd = STEPS2TIME(attrs.getSUMOTimeReporting(SUMO_ATTR_END, nullptr, ok));
         }
         break;
         case SUMO_TAG_EDGE: {
             bool ok = true;
-            myCurrentEdgeID = attrs.getOpt<std::string>(SUMO_ATTR_ID, 0, ok, "");
+            myCurrentEdgeID = attrs.getOpt<std::string>(SUMO_ATTR_ID, nullptr, ok, "");
             tryParse(attrs, true);
         }
         break;

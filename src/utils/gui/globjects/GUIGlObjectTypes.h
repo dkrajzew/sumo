@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -52,8 +52,6 @@ enum GUIGlObjectType {
     GLO_CROSSING = 5,
     /// @brief a connection
     GLO_CONNECTION = 6,
-    /// @brief a prohibition
-    GLO_PROHIBITION = 7,
     /// @brief a tl-logic
     GLO_TLLOGIC = 8,
     /// @brief reserved GLO type to pack all additionals
@@ -96,6 +94,8 @@ enum GUIGlObjectType {
     GLO_VAPORIZER = 118,
     /// @brief a Acces
     GLO_ACCESS = 119,
+    /// @brief a TAZ
+    GLO_TAZ = 120,
     /// @brief reserved GLO type to pack shapes
     GLO_SHAPE = 200,
     /// @brief a polygon
@@ -104,12 +104,20 @@ enum GUIGlObjectType {
     GLO_POI = 202,
     /// @brief reserved GLO type to pack all RouteElments
     GLO_ROUTEELEMENT = 300,
-    /// @brief a vehicles
-    GLO_VEHICLE = 301,
+    /// @brief a route
+    GLO_ROUTE = 301,
+    /// @brief a vehicle
+    GLO_VEHICLE = 302,
+    /// @brief a vehicle type
+    GLO_VTYPE = 303,
+    /// @brief a flow
+    GLO_FLOW = 304,
+    /// @brief a trip
+    GLO_TRIP = 305,
     /// @brief a person
-    GLO_PERSON = 302,
+    GLO_PERSON = 306,
     /// @brief a container
-    GLO_CONTAINER = 303,
+    GLO_CONTAINER = 307,
     /// @brief empty max
     GLO_MAX = 2048
 };

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -34,7 +34,7 @@
 #include "OutputDevice_CERR.h"
 #include "OutputDevice_Network.h"
 #include "PlainXMLFormatter.h"
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/UtilExceptions.h>
 #include <utils/common/FileHelpers.h>
 #include <utils/common/ToString.h>
@@ -58,7 +58,7 @@ OutputDevice::getDevice(const std::string& name) {
         return *myOutputDevices[name];
     }
     // build the device
-    OutputDevice* dev = 0;
+    OutputDevice* dev = nullptr;
     // check whether the device shall print to stdout
     if (name == "stdout") {
         dev = OutputDevice_COUT::getDevice();
@@ -66,7 +66,7 @@ OutputDevice::getDevice(const std::string& name) {
         dev = OutputDevice_CERR::getDevice();
     } else if (FileHelpers::isSocket(name)) {
         try {
-            int port = TplConvert::_2int(name.substr(name.find(":") + 1).c_str());
+            int port = StringUtils::toInt(name.substr(name.find(":") + 1));
             dev = new OutputDevice_Network(name.substr(0, name.find(":")), port);
         } catch (NumberFormatException&) {
             throw IOError("Given port number '" + name.substr(name.find(":") + 1) + "' is not numeric.");
@@ -165,7 +165,7 @@ OutputDevice::realString(const double v, const int precision) {
     if (v < pow(10., -precision)) {
         oss.setf(std::ios::scientific, std::ios::floatfield);
     } else {
-        oss.setf(std::ios::fixed , std::ios::floatfield);    // use decimal format
+        oss.setf(std::ios::fixed, std::ios::floatfield);     // use decimal format
         oss.setf(std::ios::showpoint);    // print decimal point
         oss << std::setprecision(precision);
     }

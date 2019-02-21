@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -26,7 +26,7 @@
 #include <vector>
 #include <libsumo/TraCIDefs.h>
 #include <libsumo/VehicleType.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 
 
 // ===========================================================================
@@ -63,6 +63,7 @@ public:
     static std::vector<std::string> getEdges(const std::string& personID, int nextStageIndex = 0);
     static std::string getParameter(const std::string& routeID, const std::string& param);
     static double getAngle(const std::string& personID);
+    static double getSlope(const std::string& personID);
     static double getLanePosition(const std::string& personID);
 
     LIBSUMO_VEHICLE_TYPE_GETTER

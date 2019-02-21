@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -38,10 +38,10 @@ netedit.leftClick(referencePosition, 100, 100)
 netedit.modifyShapeDefaultValue(3, "white")
 
 # Change parameter 6 with a valid value
-netedit.modifyAttribute(6, "10")
+netedit.modifyShapeDefaultValue(6, "10")
 
 # Change parameter 6 with a valid value
-netedit.modifyAttribute(7, "10")
+netedit.modifyShapeDefaultValue(7, "10")
 
 # change imgfile (valid)
 netedit.modifyShapeDefaultValue(8, "berlin_icon.ico")
@@ -63,7 +63,7 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveShapes()
+netedit.saveAdditionals()
 
 # save network
 netedit.saveNetwork()

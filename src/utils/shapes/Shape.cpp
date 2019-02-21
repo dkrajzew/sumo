@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -30,6 +30,7 @@
 // ===========================================================================
 const std::string Shape::DEFAULT_TYPE = "";
 const double Shape::DEFAULT_LAYER = 128;
+const double Shape::DEFAULT_LINEWIDTH = 1;
 const double Shape::DEFAULT_LAYER_POI = (double)GLO_POI;
 const double Shape::DEFAULT_ANGLE = 0;
 const std::string Shape::DEFAULT_IMG_FILE = "";

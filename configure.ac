@@ -99,10 +99,7 @@ dnl Make sure we are on architecture that supports SIMD
    AC_DEFINE([NOMINMAX], [1], [Including windows.h gives errors otherwise (cygwin)])
    ;;
    *-darwin*)
-   CPPFLAGS="$CPPFLAGS -I/opt/local/include"
-   export CPPFLAGS
-   LDFLAGS="$LDFLAGS -L/opt/local/lib"
-   export LDFLAGS
+   AM_CPPFLAGS="-I/opt/X11/include -I/opt/local/include -I/usr/local/include $AM_CPPFLAGS"
    ;;
 esac
 
@@ -281,7 +278,7 @@ if test x"$with_fox_config" != xno; then
         ac_disabled="$ac_disabled GUI"
     else
         FOX_CFLAGS="`$FOX_CONFIG --cflags`"
-        FOX_LDFLAGS="`$FOX_CONFIG --libs`"
+        FOX_LDFLAGS="`$FOX_CONFIG --libs` -L/opt/X11/lib"
         AC_SUBST([FOX_LDFLAGS])
 
         save_cppflags=$CPPFLAGS
@@ -454,6 +451,7 @@ src/microsim/Makefile
 src/microsim/actions/Makefile
 src/microsim/cfmodels/Makefile
 src/microsim/devices/Makefile
+src/microsim/engine/Makefile
 src/microsim/lcmodels/Makefile
 src/microsim/logging/Makefile
 src/microsim/output/Makefile
@@ -467,6 +465,7 @@ src/netedit/changes/Makefile
 src/netedit/dialogs/Makefile
 src/netedit/frames/Makefile
 src/netedit/netelements/Makefile
+src/netedit/demandelements/Makefile
 src/netedit/Makefile
 src/mesogui/Makefile 
 src/mesosim/Makefile 
@@ -499,12 +498,15 @@ src/utils/gui/div/Makefile
 src/utils/gui/events/Makefile
 src/utils/gui/globjects/Makefile
 src/utils/gui/images/Makefile
+src/utils/gui/cursors/Makefile
+src/utils/gui/shortcuts/Makefile
 src/utils/gui/settings/Makefile
 src/utils/gui/tracker/Makefile
 src/utils/gui/windows/Makefile
 src/utils/importio/Makefile
 src/utils/iodevices/Makefile
 src/utils/options/Makefile
+src/utils/router/Makefile
 src/utils/shapes/Makefile
 src/utils/traci/Makefile
 src/utils/vehicle/Makefile

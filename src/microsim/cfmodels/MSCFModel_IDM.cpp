@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -38,8 +38,7 @@ MSCFModel_IDM::MSCFModel_IDM(const MSVehicleType* vtype, bool idmm) :
     myAdaptationFactor(idmm ? vtype->getParameter().getCFParam(SUMO_ATTR_CF_IDMM_ADAPT_FACTOR, 1.8) : 1.0),
     myAdaptationTime(idmm ? vtype->getParameter().getCFParam(SUMO_ATTR_CF_IDMM_ADAPT_TIME, 600.0) : 0.0),
     myIterations(MAX2(1, int(TS / vtype->getParameter().getCFParam(SUMO_ATTR_CF_IDM_STEPPING, .25) + .5))),
-    myTwoSqrtAccelDecel(double(2 * sqrt(myAccel * myDecel))) 
-{
+    myTwoSqrtAccelDecel(double(2 * sqrt(myAccel * myDecel))) {
     // IDM does not drive very precise and may violate minGap on occasion
     myCollisionMinGapFactor = vtype->getParameter().getCFParam(SUMO_ATTR_COLLISION_MINGAP_FACTOR, 0.5);
 }
@@ -68,15 +67,25 @@ MSCFModel_IDM::followSpeed(const MSVehicle* const veh, double speed, double gap2
 
 
 double
+MSCFModel_IDM::insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel) const {
+    return followSpeed(v, speed, gap2pred, predSpeed, predMaxDecel);
+}
+
+
+double
 MSCFModel_IDM::stopSpeed(const MSVehicle* const veh, const double speed, double gap) const {
     if (gap < 0.01) {
         return 0;
     }
-    double result = _v(veh, gap, speed, 0, veh->getLane()->getVehicleMaxSpeed(veh), false);
-    if (gap > 0 && speed < NUMERICAL_EPS) {
+    double result = _v(veh, gap, speed, 0, veh->getLane()->getVehicleMaxSpeed(veh));
+    if (gap > 0 && speed < NUMERICAL_EPS && result < NUMERICAL_EPS) {
         // ensure that stops can be reached:
-        result = maximumSafeStopSpeed(gap, speed, false, 0);
+        //std::cout << " switching to krauss: " << veh->getID() << " gap=" << gap << " speed=" << speed << " res1=" << result << " res2=" << maximumSafeStopSpeed(gap, speed, false, veh->getActionStepLengthSecs())<< "\n";
+        result = maximumSafeStopSpeed(gap, speed, false, veh->getActionStepLengthSecs());
     }
+    //if (result * TS > gap) {
+    //    std::cout << "Maximum stop speed exceeded for gap=" << gap << " result=" << result << " veh=" << veh->getID() << " speed=" << speed << " t=" << SIMTIME << "\n";
+    //}
     return result;
 }
 
@@ -95,7 +104,7 @@ MSCFModel_IDM::interactionGap(const MSVehicle* const veh, double vL) const {
     return MAX2(gap, SPEED2DIST(vNext));
 }
 
-double 
+double
 MSCFModel_IDM::getSecureGap(const double speed, const double leaderSpeed, const double /*leaderMaxDecel*/) const {
     const double delta_v = speed - leaderSpeed;
     return MAX2(0.0, speed * myHeadwayTime + speed * delta_v / myTwoSqrtAccelDecel);

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -29,10 +29,9 @@ import sys
 import os
 
 if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
+    sys.path.append(os.path.join(os.environ['SUMO_HOME'], 'tools'))
 else:
-    sys.exit("please declare environment variable 'SUMO_HOME'")
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import sumolib  # noqa
 from sumolib.miscutils import getFreeSocketPort  # noqa
@@ -119,7 +118,7 @@ def load(args):
 
 def simulationStep(step=0):
     """
-    Make a simulation step and simulate up to the given millisecond in sim time.
+    Make a simulation step and simulate up to the given second in sim time.
     If the given value is 0 or absent, exactly one step is performed.
     Values smaller than or equal to the current sim time result in no action.
     """

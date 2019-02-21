@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -39,28 +39,21 @@ TraCIServerAPI_Junction::processGet(TraCIServer& server, tcpip::Storage& inputSt
                                     tcpip::Storage& outputStorage) {
     const int variable = inputStorage.readUnsignedByte();
     const std::string id = inputStorage.readString();
-    server.initWrapper(RESPONSE_GET_JUNCTION_VARIABLE, variable, id);
+    server.initWrapper(libsumo::RESPONSE_GET_JUNCTION_VARIABLE, variable, id);
     try {
         if (!libsumo::Junction::handleVariable(id, variable, &server)) {
             switch (variable) {
-                case VAR_SHAPE: {
-                    server.getWrapperStorage().writeUnsignedByte(TYPE_POLYGON);
-                    const libsumo::TraCIPositionVector shp = libsumo::Junction::getShape(id);
-                    server.getWrapperStorage().writeUnsignedByte(MIN2(255, (int)shp.size()));
-                    for (int iPoint = 0; iPoint < MIN2(255, (int)shp.size()); ++iPoint) {
-                        server.getWrapperStorage().writeDouble(shp[iPoint].x);
-                        server.getWrapperStorage().writeDouble(shp[iPoint].y);
-                    }
+                case libsumo::VAR_SHAPE:
+                    server.writePositionVector(server.getWrapperStorage(), libsumo::Junction::getShape(id));
                     break;
-                }
                 default:
-                    return server.writeErrorStatusCmd(CMD_GET_JUNCTION_VARIABLE, "Get Junction Variable: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
+                    return server.writeErrorStatusCmd(libsumo::CMD_GET_JUNCTION_VARIABLE, "Get Junction Variable: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
             }
         }
     } catch (libsumo::TraCIException& e) {
-        return server.writeErrorStatusCmd(CMD_GET_JUNCTION_VARIABLE, e.what(), outputStorage);
+        return server.writeErrorStatusCmd(libsumo::CMD_GET_JUNCTION_VARIABLE, e.what(), outputStorage);
     }
-    server.writeStatusCmd(CMD_GET_JUNCTION_VARIABLE, RTYPE_OK, "", outputStorage);
+    server.writeStatusCmd(libsumo::CMD_GET_JUNCTION_VARIABLE, libsumo::RTYPE_OK, "", outputStorage);
     server.writeResponseWithLength(outputStorage, server.getWrapperStorage());
     return true;
 }

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -22,7 +22,7 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/StringUtils.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
@@ -57,7 +57,7 @@ MSDevice_FCD::insertOptions(OptionsCont& oc) {
 
 
 void
-MSDevice_FCD::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) {
+MSDevice_FCD::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     OptionsCont& oc = OptionsCont::getOptions();
     if (equippedByDefaultAssignmentOptions(oc, "fcd", v, oc.isSet("fcd-output"))) {
         MSDevice_FCD* device = new MSDevice_FCD(v, "fcd_" + v.getID());
@@ -73,7 +73,7 @@ MSDevice_FCD::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) 
 // MSDevice_FCD-methods
 // ---------------------------------------------------------------------------
 MSDevice_FCD::MSDevice_FCD(SUMOVehicle& holder, const std::string& id) :
-    MSDevice(holder, id) {
+    MSVehicleDevice(holder, id) {
 }
 
 

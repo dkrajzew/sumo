@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -37,22 +37,22 @@ netedit.inspectMode()
 
 # select first left edge and change their junction
 netedit.leftClick(referencePosition, 180, 200)
-netedit.modifyAttribute(1, "B")
+netedit.modifyAttribute(1, "B", True)
 netedit.rebuildNetwork()
 
 # select second left edge and change their junction
 netedit.leftClick(referencePosition, 180, 250)
-netedit.modifyAttribute(2, "A")
+netedit.modifyAttribute(2, "A", True)
 netedit.rebuildNetwork()
 
 # select first right edge and change their junction
 netedit.leftClick(referencePosition, 450, 200)
-netedit.modifyAttribute(2, "B")
+netedit.modifyAttribute(2, "B", True)
 netedit.rebuildNetwork()
 
 # select second right edge and change their junction
 netedit.leftClick(referencePosition, 450, 250)
-netedit.modifyAttribute(1, "A")
+netedit.modifyAttribute(1, "A", True)
 netedit.rebuildNetwork()
 
 # Check undo redo

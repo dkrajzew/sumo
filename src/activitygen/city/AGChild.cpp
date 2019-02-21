@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2010-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2010-2019 German Aerospace Center (DLR) and others.
 // activitygen module
 // Copyright 2010 TUM (Technische Universitaet Muenchen, http://www.tum.de/)
 // This program and the accompanying materials
@@ -44,7 +44,7 @@ AGChild::print() const {
 
 bool
 AGChild::setSchool(AGSchool* school) {
-    if (school == NULL) {
+    if (school == nullptr) {
         return false;
     }
     bool enoughPlace = school->addNewChild();
@@ -57,7 +57,7 @@ AGChild::setSchool(AGSchool* school) {
 bool
 AGChild::allocateASchool(std::list<AGSchool>* schools, AGPosition housePos) {
     double minDist = std::numeric_limits<double>::infinity();
-    AGSchool* sch = NULL;
+    AGSchool* sch = nullptr;
     if (schools->size() == 0) {
         return false;
     }
@@ -74,17 +74,17 @@ AGChild::allocateASchool(std::list<AGSchool>* schools, AGPosition housePos) {
 
 bool
 AGChild::leaveSchool() {
-    if (school != NULL)
+    if (school != nullptr)
         if (!school->removeChild()) {
             return false;
         }
-    school = NULL;
+    school = nullptr;
     return true;
 }
 
 bool
 AGChild::haveASchool() const {
-    return (school != NULL);
+    return (school != nullptr);
 }
 
 AGPosition

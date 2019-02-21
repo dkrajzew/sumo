@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,11 +28,11 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+#include <fx.h>
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 #include <utils/gui/windows/GUIMainWindow.h>
 #include <utils/gui/windows/GUISUMOAbstractView.h>
 #include <utils/geom/GeomHelper.h>
-#include <utils/foxtools/MFXMutex.h>
 #include <utils/gui/div/GUIParameterTableWindow.h>
 #include <utils/gui/div/GLHelper.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
@@ -153,7 +153,7 @@ GUIEdge::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
         buildShowParamsPopupEntry(ret);
     }
     MESegment* segment = getSegmentAtPosition(parent.getPositionInformation());
-    new FXMenuCommand(ret, ("segment: " + toString(segment->getIndex())).c_str(), 0, 0, 0);
+    new FXMenuCommand(ret, ("segment: " + toString(segment->getIndex())).c_str(), nullptr, nullptr, 0);
     buildPositionCopyEntry(ret, false);
     return ret;
 }
@@ -162,7 +162,7 @@ GUIEdge::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
 GUIParameterTableWindow*
 GUIEdge::getParameterWindow(GUIMainWindow& app,
                             GUISUMOAbstractView& parent) {
-    GUIParameterTableWindow* ret = 0;
+    GUIParameterTableWindow* ret = nullptr;
     ret = new GUIParameterTableWindow(app, *this, 19);
     // add edge items
     ret->mkItem("length [m]", false, (*myLanes)[0]->getLength());
@@ -216,12 +216,12 @@ GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
             setColor(s);
         }
         GUILane* l = dynamic_cast<GUILane*>(*i);
-        if (l != 0) {
+        if (l != nullptr) {
             l->drawGL(s);
         }
     }
     if (MSGlobals::gUseMesoSim) {
-        if (s.scale * s.vehicleSize.getExaggeration(s) > s.vehicleSize.minSize) {
+        if (s.scale * s.vehicleSize.getExaggeration(s, nullptr) > s.vehicleSize.minSize) {
             drawMesoVehicles(s);
         }
     }
@@ -231,13 +231,24 @@ GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
     const bool drawInternalEdgeName = s.internalEdgeName.show && myFunction == EDGEFUNC_INTERNAL;
     const bool drawCwaEdgeName = s.cwaEdgeName.show && (myFunction == EDGEFUNC_CROSSING || myFunction == EDGEFUNC_WALKINGAREA);
     const bool drawStreetName = s.streetName.show && myStreetName != "";
-    if (drawEdgeName || drawInternalEdgeName || drawCwaEdgeName || drawStreetName) {
+    const bool drawEdgeValue = s.edgeValue.show && (myFunction == EDGEFUNC_NORMAL
+                               || (myFunction == EDGEFUNC_INTERNAL && !s.drawJunctionShape)
+                               || ((myFunction == EDGEFUNC_CROSSING || myFunction == EDGEFUNC_WALKINGAREA) && s.drawCrossingsAndWalkingareas));
+    if (drawEdgeName || drawInternalEdgeName || drawCwaEdgeName || drawStreetName || drawEdgeValue) {
         GUILane* lane1 = dynamic_cast<GUILane*>((*myLanes)[0]);
         GUILane* lane2 = dynamic_cast<GUILane*>((*myLanes).back());
-        if (lane1 != 0 && lane2 != 0) {
+        if (lane1 != nullptr && lane2 != nullptr) {
+            const bool spreadSuperposed = s.spreadSuperposed && getBidiEdge() != nullptr && lane2->drawAsRailway(s);
             Position p = lane1->getShape().positionAtOffset(lane1->getShape().length() / (double) 2.);
             p.add(lane2->getShape().positionAtOffset(lane2->getShape().length() / (double) 2.));
             p.mul(.5);
+            if (spreadSuperposed) {
+                // move name to the right of the edge and towards its beginning
+                const double dist = 0.6 * s.edgeName.scaledSize(s.scale);
+                const double shiftA = lane1->getShape().rotationAtOffset(lane1->getShape().length() / (double) 2.) - DEG2RAD(135);
+                Position shift(dist * cos(shiftA), dist * sin(shiftA));
+                p.add(shift);
+            }
             double angle = s.getTextAngle(lane1->getShape().rotationDegreeAtOffset(lane1->getShape().length() / (double) 2.) + 90);
             if (drawEdgeName) {
                 drawName(p, s.scale, s.edgeName, angle);
@@ -247,21 +258,28 @@ GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
                 drawName(p, s.scale, s.cwaEdgeName, angle);
             }
             if (drawStreetName) {
-                GLHelper::drawText(getStreetName(), p, GLO_MAX,
-                                   s.streetName.scaledSize(s.scale), s.streetName.color, angle);
+                GLHelper::drawTextSettings(s.streetName, getStreetName(), p, s.scale, angle);
+            }
+            if (drawEdgeValue) {
+                const int activeScheme = s.getLaneEdgeMode();
+                // use value of leftmost lane to hopefully avoid sidewalks, bikelanes etc
+                double value = (MSGlobals::gUseMesoSim
+                                ? getColorValue(s, activeScheme)
+                                : lane2->getColorValue(s, activeScheme));
+                GLHelper::drawTextSettings(s.edgeValue, toString(value), p, s.scale, angle);
             }
         }
     }
-    if (s.scale * s.personSize.getExaggeration(s) > s.personSize.minSize) {
-        AbstractMutex::ScopedLocker locker(myLock);
+    if (s.scale * s.personSize.getExaggeration(s, nullptr) > s.personSize.minSize) {
+        FXMutexLock locker(myLock);
         for (std::set<MSTransportable*>::const_iterator i = myPersons.begin(); i != myPersons.end(); ++i) {
             GUIPerson* person = dynamic_cast<GUIPerson*>(*i);
             assert(person != 0);
             person->drawGL(s);
         }
     }
-    if (s.scale * s.containerSize.getExaggeration(s) > s.containerSize.minSize) {
-        AbstractMutex::ScopedLocker locker(myLock);
+    if (s.scale * s.containerSize.getExaggeration(s, nullptr) > s.containerSize.minSize) {
+        FXMutexLock locker(myLock);
         for (std::set<MSTransportable*>::const_iterator i = myContainers.begin(); i != myContainers.end(); ++i) {
             GUIContainer* container = dynamic_cast<GUIContainer*>(*i);
             assert(container != 0);
@@ -274,10 +292,10 @@ GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
 void
 GUIEdge::drawMesoVehicles(const GUIVisualizationSettings& s) const {
     GUIMEVehicleControl* vehicleControl = GUINet::getGUIInstance()->getGUIMEVehicleControl();
-    if (vehicleControl != 0) {
+    if (vehicleControl != nullptr) {
         // draw the meso vehicles
         vehicleControl->secureVehicles();
-        AbstractMutex::ScopedLocker locker(myLock);
+        FXMutexLock locker(myLock);
         int laneIndex = 0;
         MESegment::Queue queue;
         for (std::vector<MSLane*>::const_iterator msl = myLanes->begin(); msl != myLanes->end(); ++msl, ++laneIndex) {
@@ -285,7 +303,7 @@ GUIEdge::drawMesoVehicles(const GUIVisualizationSettings& s) const {
             // go through the vehicles
             double segmentOffset = 0; // offset at start of current segment
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 const double length = segment->getLength();
                 if (laneIndex < segment->numQueues()) {
                     // make a copy so we don't have to worry about synchronization
@@ -323,7 +341,7 @@ GUIEdge::drawMesoVehicles(const GUIVisualizationSettings& s) const {
 int
 GUIEdge::getVehicleNo() const {
     int vehNo = 0;
-    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != 0; segment = segment->getNextSegment()) {
+    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != nullptr; segment = segment->getNextSegment()) {
         vehNo += segment->getCarNumber();
     }
     return (int)vehNo;
@@ -334,7 +352,7 @@ std::string
 GUIEdge::getVehicleIDs() const {
     std::string result = " ";
     std::vector<const MEVehicle*> vehs;
-    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != 0; segment = segment->getNextSegment()) {
+    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != nullptr; segment = segment->getNextSegment()) {
         std::vector<const MEVehicle*> segmentVehs = segment->getVehicles();
         vehs.insert(vehs.end(), segmentVehs.begin(), segmentVehs.end());
     }
@@ -348,7 +366,7 @@ GUIEdge::getVehicleIDs() const {
 double
 GUIEdge::getFlow() const {
     double flow = 0;
-    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != 0; segment = segment->getNextSegment()) {
+    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != nullptr; segment = segment->getNextSegment()) {
         flow += (double) segment->getCarNumber() * segment->getMeanSpeed();
     }
     return 3600 * flow / (*myLanes)[0]->getLength();
@@ -358,7 +376,7 @@ GUIEdge::getFlow() const {
 double
 GUIEdge::getBruttoOccupancy() const {
     double occ = 0;
-    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != 0; segment = segment->getNextSegment()) {
+    for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this); segment != nullptr; segment = segment->getNextSegment()) {
         occ += segment->getBruttoOccupancy();
     }
     return occ / (*myLanes)[0]->getLength() / (double)(myLanes->size());
@@ -381,24 +399,31 @@ void
 GUIEdge::setColor(const GUIVisualizationSettings& s) const {
     myMesoColor = RGBColor(0, 0, 0); // default background color when using multiColor
     const GUIColorer& c = s.edgeColorer;
-    if (!setFunctionalColor(c.getActive()) && !setMultiColor(c)) {
-        myMesoColor = c.getScheme().getColor(getColorValue(c.getActive()));
+    if (!setFunctionalColor(c) && !setMultiColor(c)) {
+        myMesoColor = c.getScheme().getColor(getColorValue(s, c.getActive()));
     }
 }
 
 
 bool
-GUIEdge::setFunctionalColor(int activeScheme) const {
+GUIEdge::setFunctionalColor(const GUIColorer& c) const {
+    const int activeScheme = c.getActive();
+    int activeMicroScheme = -1;
     switch (activeScheme) {
-        case 9: {
-            const PositionVector& shape = getLanes()[0]->getShape();
-            double hue = GeomHelper::naviDegree(shape.beginEndAngle()); // [0-360]
-            myMesoColor = RGBColor::fromHSV(hue, 1., 1.);
-            return true;
-        }
+        case 0:
+            activeMicroScheme = 0; // color uniform
+            break;
+        case 9:
+            activeMicroScheme = 18; // color by angle
+            break;
+        case 17:
+            activeMicroScheme = 30; // color by TAZ
+            break;
         default:
             return false;
     }
+    GUILane* guiLane = static_cast<GUILane*>(getLanes()[0]);
+    return guiLane->setFunctionalColor(c, myMesoColor, activeMicroScheme);
 }
 
 
@@ -409,38 +434,38 @@ GUIEdge::setMultiColor(const GUIColorer& c) const {
     switch (activeScheme) {
         case 10: // alternating segments
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 mySegmentColors.push_back(c.getScheme().getColor(segment->getIndex() % 2));
             }
             //std::cout << getID() << " scheme=" << c.getScheme().getName() << " schemeCols=" << c.getScheme().getColors().size() << " thresh=" << toString(c.getScheme().getThresholds()) << " segmentColors=" << mySegmentColors.size() << " [0]=" << mySegmentColors[0] << " [1]=" << mySegmentColors[1] <<  "\n";
             return true;
         case 11: // by segment jammed state
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 mySegmentColors.push_back(c.getScheme().getColor(segment->free() ? 0 : 1));
             }
             return true;
         case 12: // by segment occupancy
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 mySegmentColors.push_back(c.getScheme().getColor(segment->getRelativeOccupancy()));
             }
             return true;
         case 13: // by segment speed
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 mySegmentColors.push_back(c.getScheme().getColor(segment->getMeanSpeed()));
             }
             return true;
         case 14: // by segment flow
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 mySegmentColors.push_back(c.getScheme().getColor(3600 * segment->getCarNumber() * segment->getMeanSpeed() / segment->getLength()));
             }
             return true;
         case 15: // by segment relative speed
             for (MESegment* segment = MSGlobals::gMesoNet->getSegmentForEdge(*this);
-                    segment != 0; segment = segment->getNextSegment()) {
+                    segment != nullptr; segment = segment->getNextSegment()) {
                 mySegmentColors.push_back(c.getScheme().getColor(segment->getMeanSpeed() / getAllowedSpeed()));
             }
             return true;
@@ -451,7 +476,7 @@ GUIEdge::setMultiColor(const GUIColorer& c) const {
 
 
 double
-GUIEdge::getColorValue(int activeScheme) const {
+GUIEdge::getColorValue(const GUIVisualizationSettings& /*s*/, int activeScheme) const {
     switch (activeScheme) {
         case 1:
             return gSelected.isSelected(getType(), getGlID());
@@ -518,6 +543,9 @@ GUIEdge::closeTraffic(const GUILane* lane) {
         }
     }
     rebuildAllowedLanes();
+    for (MSEdge* const pred : getPredecessors()) {
+        pred->rebuildAllowedTargets();
+    }
 }
 
 

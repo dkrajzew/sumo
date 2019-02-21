@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -31,6 +31,7 @@
 #include <utils/geom/GeoConvHelper.h>
 #include <utils/common/Parameterised.h>
 #include <netbuild/NBLoadedSUMOTLDef.h>
+#include "NIXMLTypesHandler.h"
 
 
 // ===========================================================================
@@ -83,11 +84,8 @@ protected:
      */
     NIImporter_SUMO(NBNetBuilder& nb);
 
-
     /// @brief Destructor
     ~NIImporter_SUMO();
-
-
 
     /// @name inherited from GenericSAXHandler
     //@{
@@ -329,6 +327,9 @@ private:
     /// @brief The node container to fill
     NBTrafficLightLogicCont& myTLLCont;
 
+    /// @brief The handler for parsing edge types and restrictions
+    NIXMLTypesHandler myTypesHandler;
+
     /// @brief The currently parsed edge's definition (to add loaded lanes to)
     EdgeAttrs* myCurrentEdge;
 
@@ -373,6 +374,10 @@ private:
 
     /// @brief whether turning speed was limited in the network
     double myLimitTurnSpeed;
+
+    /// @brief whether foe-relationships where checked at lane-level
+    bool myCheckLaneFoesAll;
+    bool myCheckLaneFoesRoundabout;
 
     /// @brief loaded roundabout edges
     std::vector<std::vector<std::string> > myRoundabouts;

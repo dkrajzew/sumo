@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -32,13 +32,13 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 100, 230)
 
 # Change parameter lengt
-netedit.modifyAttribute(12, "25")
+netedit.modifyAttribute(12, "25", False)
 
 # inspect edge
 netedit.leftClick(referencePosition, 100, 370)
 
 # Change parameter lengt
-netedit.modifyAttribute(12, "25")
+netedit.modifyAttribute(12, "25", False)
 
 # recompute
 netedit.rebuildNetwork()

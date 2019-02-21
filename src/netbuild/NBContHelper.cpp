@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -72,7 +72,7 @@ NBContHelper::findConnectingEdge(const EdgeVector& edges,
             return *i;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -120,7 +120,6 @@ NBContHelper::node_with_outgoing_finder::operator()(const NBNode* const n) const
 }
 
 
-
 /* -------------------------------------------------------------------------
  * methods from edge_with_destination_finder
  * ----------------------------------------------------------------------- */
@@ -133,12 +132,13 @@ NBContHelper::edge_with_destination_finder::operator()(NBEdge* e) const {
     return e->getToNode() == myDestinationNode;
 }
 
+
 /* -------------------------------------------------------------------------
  * methods from relative_outgoing_edge_sorter
  * ----------------------------------------------------------------------- */
 int
 NBContHelper::relative_outgoing_edge_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
-    if (e1 == 0 || e2 == 0) {
+    if (e1 == nullptr || e2 == nullptr) {
         return -1;
     }
     double relAngle1 = NBHelpers::normRelAngle(
@@ -165,62 +165,11 @@ NBContHelper::relative_outgoing_edge_sorter::operator()(NBEdge* e1, NBEdge* e2) 
 
 
 /* -------------------------------------------------------------------------
- * methods from straightness_sorter
- * ----------------------------------------------------------------------- */
-int
-NBContHelper::straightness_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
-    if (e1 == 0 || e2 == 0) {
-        return -1;
-    }
-    double relAngle1 = NBHelpers::normRelAngle(
-                           myReferenceAngle, myRefIncoming ? e1->getShapeStartAngle() : e1->getShapeEndAngle());
-    double relAngle2 = NBHelpers::normRelAngle(
-                           myReferenceAngle, myRefIncoming ? e2->getShapeStartAngle() : e2->getShapeEndAngle());
-    const int geomIndex = myRefIncoming ? 0 : -1;
-
-    //std::cout << " e1=" << e1->getID() << " e2=" << e2->getID() << " refA=" << myReferenceAngle << " initially a1=" << relAngle1 << " a2=" << relAngle2 << "\n";
-    const double e1Length = e1->getGeometry().length2D();
-    const double e2Length = e2->getGeometry().length2D();
-    const double maxLookAhead = MAX2(e1Length, e2Length);
-    double lookAhead = MIN2(maxLookAhead, 2 * NBEdge::ANGLE_LOOKAHEAD);
-    while (fabs(relAngle1 - relAngle2) < 3.0) {
-        // look at further geometry segments to resolve ambiguity
-        const double offset1 = myRefIncoming ? lookAhead : e1Length - lookAhead;
-        const double offset2 = myRefIncoming ? lookAhead : e2Length - lookAhead;
-        const Position referencePos1 = e1->getGeometry().positionAtOffset2D(offset1);
-        const Position referencePos2 = e2->getGeometry().positionAtOffset2D(offset2);
-
-        relAngle1 = NBHelpers::normRelAngle(myReferenceAngle, GeomHelper::legacyDegree(
-                                                e1->getGeometry()[geomIndex].angleTo2D(referencePos1), true));
-        relAngle2 = NBHelpers::normRelAngle(myReferenceAngle, GeomHelper::legacyDegree(
-                                                e2->getGeometry()[geomIndex].angleTo2D(referencePos2), true));
-
-        if (lookAhead > maxLookAhead) {
-            break;
-        }
-        lookAhead *= 2;
-    }
-    if (fabs(relAngle1 - relAngle2) < 3.0) {
-        // use angle to end of reference edge as tiebraker
-        relAngle1 = NBHelpers::normRelAngle(myReferenceAngle, GeomHelper::legacyDegree(
-                                                myReferencePos.angleTo2D(e1->getLaneShape(0)[geomIndex]), true));
-        relAngle2 = NBHelpers::normRelAngle(myReferenceAngle, GeomHelper::legacyDegree(
-                                                myReferencePos.angleTo2D(e2->getLaneShape(0)[geomIndex]), true));
-        //std::cout << "  tiebraker refPos=" << myReferencePos << " abs1="
-        //    << GeomHelper::legacyDegree(myReferencePos.angleTo2D(e1->getLaneShape(0).front()), true)
-        //    << " abs2=" << GeomHelper::legacyDegree(myReferencePos.angleTo2D(e2->getLaneShape(0).front()), true) <<  "\n";
-    }
-    //std::cout << " e1=" << e1->getID() << " e2=" << e2->getID() << " a1=" << relAngle1 << " a2=" << relAngle2 << "\n";
-    return fabs(relAngle1) < fabs(relAngle2);
-}
-
-
-/* -------------------------------------------------------------------------
  * methods from relative_incoming_edge_sorter
  * ----------------------------------------------------------------------- */
 int
 NBContHelper::relative_incoming_edge_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
-    if (e1 == 0 || e2 == 0) {
+    if (e1 == nullptr || e2 == nullptr) {
         return -1;
     }
     double relAngle1 = NBHelpers::normRelAngle(
@@ -256,8 +205,6 @@ operator<<(std::ostream& os, const EdgeVector& ev) {
     }
     return os;
 }
-
-
 
 
 double

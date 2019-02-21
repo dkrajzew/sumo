@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,39 +20,28 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
-
-#include <iostream>
-#include <ctime>
-#include <utils/xml/XMLSubSys.h>
-#include <utils/gui/events/GUIEvent_Message.h>
-#include <utils/gui/windows/GUIAppEnum.h>
-#include <utils/gui/globjects/GUIGlObjectStorage.h>
-#include <utils/common/RandHelper.h>
-#include <utils/common/UtilExceptions.h>
-#include <utils/common/MsgHandler.h>
-#include <utils/common/MsgRetrievingFunction.h>
-#include <utils/common/SystemFrame.h>
-#include <utils/options/OptionsCont.h>
-#include <utils/options/Option.h>
-#include <utils/options/OptionsIO.h>
-#include <utils/geom/GeoConvHelper.h>
 #include <netbuild/NBFrame.h>
-#include <netimport/NILoader.h>
+#include <netbuild/NBNetBuilder.h>
 #include <netimport/NIFrame.h>
+#include <netimport/NILoader.h>
 #include <netwrite/NWFrame.h>
-#include <netbuild/NBFrame.h>
-#include <netedit/additionals/GNEAdditionalHandler.h>
+#include <utils/common/MsgRetrievingFunction.h>
+#include <utils/common/RandHelper.h>
+#include <utils/common/SystemFrame.h>
+#include <utils/gui/events/GUIEvent_Message.h>
+#include <utils/options/OptionsCont.h>
+#include <utils/options/OptionsIO.h>
+#include <utils/xml/XMLSubSys.h>
 
+#include "GNEEvent_NetworkLoaded.h"
 #include "GNELoadThread.h"
 #include "GNENet.h"
-#include "GNEEvent_NetworkLoaded.h"
 
 
 // ===========================================================================
 // member method definitions
 // ===========================================================================
-GNELoadThread::GNELoadThread(FXApp* app, MFXInterThreadEventClient* mw, MFXEventQue<GUIEvent*>& eq, FXEX::FXThreadEvent& ev) :
+GNELoadThread::GNELoadThread(FXApp* app, MFXInterThreadEventClient* mw, FXSynchQue<GUIEvent*>& eq, FXEX::FXThreadEvent& ev) :
     FXSingleEventThread(app, mw), myParent(mw), myEventQue(eq),
     myEventThrow(ev) {
     myDebugRetriever = new MsgRetrievingFunction<GNELoadThread>(this, &GNELoadThread::retrieveMessage, MsgHandler::MT_DEBUG);
@@ -82,14 +71,16 @@ GNELoadThread::run() {
     MsgHandler::getErrorInstance()->addRetriever(myErrorRetriever);
     MsgHandler::getWarningInstance()->addRetriever(myWarningRetriever);
 
-    GNENet* net = 0;
+    GNENet* net = nullptr;
 
     // try to load the given configuration
     OptionsCont& oc = OptionsCont::getOptions();
-    oc.clear();
-    if (!initOptions()) {
-        submitEndAndCleanup(net);
-        return 0;
+    if (myFile != "" || oc.getString("sumo-net-file") != "") {
+        oc.clear();
+        if (!initOptions()) {
+            submitEndAndCleanup(net);
+            return 0;
+        }
     }
     MsgHandler::initOutputOptions();
     if (!(NIFrame::checkOptions() &&
@@ -170,7 +161,7 @@ GNELoadThread::run() {
             WRITE_ERROR("Failed to build network.");
             delete net;
             delete netBuilder;
-            net = 0;
+            net = nullptr;
         } catch (std::exception& e) {
             WRITE_ERROR(e.what());
 #ifdef _DEBUG
@@ -178,7 +169,7 @@ GNELoadThread::run() {
 #endif
             delete net;
             delete netBuilder;
-            net = 0;
+            net = nullptr;
         }
     }
     // only a single setting file is supported
@@ -198,7 +189,7 @@ GNELoadThread::submitEndAndCleanup(GNENet* net, const std::string& guiSettingsFi
     MsgHandler::getMessageInstance()->removeRetriever(myMessageRetriever);
     // inform parent about the process
     GUIEvent* e = new GNEEvent_NetworkLoaded(net, myFile, guiSettingsFile, viewportFromRegistry);
-    myEventQue.add(e);
+    myEventQue.push_back(e);
     myEventThrow.signal();
 }
 
@@ -226,21 +217,24 @@ GNELoadThread::fillOptions(OptionsCont& oc) {
     oc.addOptionSubTopic("Formats");
     oc.addOptionSubTopic("Netedit");
     oc.addOptionSubTopic("Visualisation");
+    oc.addOptionSubTopic("Time");
 
     oc.doRegister("new", new Option_Bool(false)); // !!!
     oc.addDescription("new", "Input", "Start with a new network");
 
-    oc.doRegister("sumo-additionals-file", 'a', new Option_String());
-    oc.addDescription("sumo-additionals-file", "Netedit", "file in which additionals are loaded");
+    oc.doRegister("additional-files", 'a', new Option_FileName());
+    oc.addSynonyme("additional-files", "additional");
+    oc.addDescription("additional-files", "Netedit", "Load additional and shapes descriptions from FILE(s)");
 
     oc.doRegister("additionals-output", new Option_String());
     oc.addDescription("additionals-output", "Netedit", "file in which additionals must be saved");
 
-    oc.doRegister("sumo-shapes-file", new Option_String());
-    oc.addDescription("sumo-shapes-file", "Netedit", "file in which shapes are loaded");
+    oc.doRegister("route-files", 'r', new Option_FileName());
+    oc.addSynonyme("route-files", "routes");
+    oc.addDescription("route-files", "Netedit", "Load demand elements descriptions from FILE(s)");
 
-    oc.doRegister("shapes-output", new Option_String());
-    oc.addDescription("shapes-output", "Netedit", "file in which shapes must be saved");
+    oc.doRegister("demandelements-output", new Option_String());
+    oc.addDescription("demandelements-output", "Netedit", "file in which demand elements must be saved");
 
     oc.doRegister("TLSPrograms-output", new Option_String());
     oc.addDescription("TLSPrograms-output", "Netedit", "file in which TLS Programs must be saved");
@@ -271,6 +265,16 @@ GNELoadThread::fillOptions(OptionsCont& oc) {
 
     oc.doRegister("gui-testing-debug-gl", new Option_Bool(false));
     oc.addDescription("gui-testing-debug-gl", "Visualisation", "Enable output messages during GUI-Testing specific of gl functions");
+
+    // register the simulation settings (needed for GNERouteHandler)
+    oc.doRegister("begin", new Option_String("0", "TIME"));
+    oc.addDescription("begin", "Time", "Defines the begin time in seconds; The simulation starts at this time");
+
+    oc.doRegister("end", new Option_String("-1", "TIME"));
+    oc.addDescription("end", "Time", "Defines the end time in seconds; The simulation ends at this time");
+
+    oc.doRegister("default.action-step-length", new Option_Float(0.0));
+    oc.addDescription("default.action-step-length", "Processing", "Length of the default interval length between action points for the car-following and lane-change models (in seconds). If not specified, the simulation step-length is used per default. Vehicle- or VType-specific settings override the default. Must be a multiple of the simulation step-length.");
 
     SystemFrame::addReportOptions(oc); // this subtopic is filled here, too
 
@@ -328,7 +332,7 @@ GNELoadThread::loadConfigOrNet(const std::string& file, bool isNet, bool useStar
     myFile = file;
     myLoadNet = isNet;
     if (myFile != "" && !useStartupOptions) {
-        OptionsIO::setArgs(0, 0);
+        OptionsIO::setArgs(0, nullptr);
     }
     myNewNet = newNet;
     start();
@@ -338,9 +342,9 @@ GNELoadThread::loadConfigOrNet(const std::string& file, bool isNet, bool useStar
 void
 GNELoadThread::retrieveMessage(const MsgHandler::MsgType type, const std::string& msg) {
     GUIEvent* e = new GUIEvent_Message(type, msg);
-    myEventQue.add(e);
+    myEventQue.push_back(e);
     myEventThrow.signal();
 }
 
-/****************************************************************************/
 
+/****************************************************************************/

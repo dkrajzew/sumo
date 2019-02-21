@@ -1,5 +1,5 @@
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -167,5 +167,5 @@ class Demand:
         # aeh, implicitly setting --no-warnings is not nice, is it?; and the
         # need to dump generated vtypes to a temporary file as well
         subprocess.call([duarouter, "-v", "-n", netName, "-t", fdo.name, "-o", routesName,
-                        "--no-warnings", "--additional-files", "vtypes.add.xml", "--vtype-output", "tmp.add.xml"])
+                         "--no-warnings", "--additional-files", "vtypes.add.xml", "--vtype-output", "tmp.add.xml"])
         os.remove(fdo.name)

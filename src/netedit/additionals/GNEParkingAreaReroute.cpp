@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,17 +20,13 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/ToString.h>
 #include <netedit/dialogs/GNERerouterIntervalDialog.h>
 #include <netedit/changes/GNEChange_Attribute.h>
 
-#include "GNEParkingArea.h"
 #include "GNEParkingAreaReroute.h"
 #include <netedit/GNEUndoList.h>
-#include "GNERerouter.h"
 #include <netedit/GNEViewNet.h>
 #include <netedit/GNENet.h>
-#include "GNERerouterInterval.h"
 
 // ===========================================================================
 // member method definitions
@@ -56,13 +52,13 @@ GNEParkingAreaReroute::~GNEParkingAreaReroute() {}
 
 
 void
-GNEParkingAreaReroute::moveGeometry(const Position&, const Position&) {
+GNEParkingAreaReroute::moveGeometry(const Position&) {
     // This additional cannot be moved
 }
 
 
 void
-GNEParkingAreaReroute::commitGeometryMoving(const Position&, GNEUndoList*) {
+GNEParkingAreaReroute::commitGeometryMoving(GNEUndoList*) {
     // This additional cannot be moved
 }
 
@@ -107,7 +103,7 @@ GNEParkingAreaReroute::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_GENERIC:
             return getGenericParametersStr();
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -123,10 +119,10 @@ GNEParkingAreaReroute::setAttribute(SumoXMLAttr key, const std::string& value, G
         case SUMO_ATTR_PROB:
         case SUMO_ATTR_VISIBLE:
         case GNE_ATTR_GENERIC:
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+            undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -145,20 +141,20 @@ GNEParkingAreaReroute::isValid(SumoXMLAttr key, const std::string& value) {
         case GNE_ATTR_GENERIC:
             return isGenericParametersValid(value);
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
 
 std::string
 GNEParkingAreaReroute::getPopUpID() const {
-    return toString(getTag());
+    return getTagStr();
 }
 
 
 std::string
 GNEParkingAreaReroute::getHierarchyName() const {
-    return toString(getTag()) + ": " + getSecondAdditionalParent()->getID();
+    return getTagStr() + ": " + getSecondAdditionalParent()->getID();
 }
 
 // ===========================================================================
@@ -184,7 +180,7 @@ GNEParkingAreaReroute::setAttribute(SumoXMLAttr key, const std::string& value) {
             setGenericParametersStr(value);
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 

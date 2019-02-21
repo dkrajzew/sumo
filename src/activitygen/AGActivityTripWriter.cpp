@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // activitygen module
 // Copyright 2010 TUM (Technische Universitaet Muenchen, http://www.tum.de/)
 // This program and the accompanying materials
@@ -59,7 +59,7 @@ AGActivityTripWriter::addTrip(const AGTrip& trip) {
     myTripOutput.openTag(SUMO_TAG_TRIP)
     .writeAttr(SUMO_ATTR_ID, trip.getVehicleName())
     .writeAttr(SUMO_ATTR_TYPE, trip.getType())
-    .writeAttr(SUMO_ATTR_DEPART, time)
+    .writeAttr(SUMO_ATTR_DEPART, time2string(TIME2STEPS(time)))
     .writeAttr(SUMO_ATTR_DEPARTPOS, trip.getDep().getPosition())
     .writeAttr(SUMO_ATTR_ARRIVALPOS, trip.getArr().getPosition())
     .writeAttr(SUMO_ATTR_ARRIVALSPEED, 0.)

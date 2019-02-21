@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -33,7 +33,7 @@
 #include <utils/xml/SUMOSAXHandler.h>
 #include <utils/xml/SUMOXMLDefinitions.h>
 #include <utils/common/MsgHandler.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/options/OptionsCont.h>
@@ -56,8 +56,8 @@ NIXMLNodesHandler::NIXMLNodesHandler(NBNodeCont& nc,
     myOptions(options),
     myNodeCont(nc),
     myTLLogicCont(tlc),
-    myLocation(0),
-    myLastParameterised(0) {
+    myLocation(nullptr),
+    myLastParameterised(nullptr) {
 }
 
 
@@ -86,9 +86,9 @@ NIXMLNodesHandler::myStartElement(int element,
             deleteNode(attrs);
             break;
         case SUMO_TAG_PARAM:
-            if (myLastParameterised != 0) {
+            if (myLastParameterised != nullptr) {
                 bool ok = true;
-                const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, 0, ok);
+                const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, nullptr, ok);
                 // circumventing empty string test
                 const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
                 myLastParameterised->setParameter(key, val);
@@ -103,7 +103,7 @@ void
 NIXMLNodesHandler::myEndElement(int element) {
     switch (element) {
         case SUMO_TAG_NODE:
-            myLastParameterised = 0;
+            myLastParameterised = nullptr;
             break;
         default:
             break;
@@ -115,7 +115,7 @@ void
 NIXMLNodesHandler::addNode(const SUMOSAXAttributes& attrs) {
     bool ok = true;
     // get the id, report a warning if not given or empty...
-    myID = attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+    myID = attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
     if (!ok) {
         return;
     }
@@ -124,7 +124,7 @@ NIXMLNodesHandler::addNode(const SUMOSAXAttributes& attrs) {
     bool xOk = false;
     bool yOk = false;
     bool needConversion = true;
-    if (node != 0) {
+    if (node != nullptr) {
         myPosition = node->getPosition();
         xOk = yOk = true;
         needConversion = false;
@@ -151,7 +151,7 @@ NIXMLNodesHandler::addNode(const SUMOSAXAttributes& attrs) {
     } else {
         WRITE_ERROR("Missing position (at node ID='" + myID + "').");
     }
-    bool updateEdgeGeometries = node != 0 && myPosition != node->getPosition();
+    bool updateEdgeGeometries = node != nullptr && myPosition != node->getPosition();
     // check whether the y-axis shall be flipped
     if (myOptions.getBool("flip-y-axis")) {
         myPosition.mul(1.0, -1.0);
@@ -168,7 +168,7 @@ NIXMLNodesHandler::processNodeType(const SUMOSAXAttributes& attrs, NBNode* node,
     bool ok = true;
     // get the type
     SumoXMLNodeType type = NODETYPE_UNKNOWN;
-    if (node != 0) {
+    if (node != nullptr) {
         type = node->getType();
     }
     std::string typeS = attrs.getOpt<std::string>(SUMO_ATTR_TYPE, nodeID.c_str(), ok, "");
@@ -182,7 +182,7 @@ NIXMLNodesHandler::processNodeType(const SUMOSAXAttributes& attrs, NBNode* node,
     }
     std::set<NBTrafficLightDefinition*> oldTLS;
     // check whether a prior node shall be modified
-    if (node == 0) {
+    if (node == nullptr) {
         node = new NBNode(nodeID, position, type);
         if (!nc.insert(node)) {
             throw ProcessError("Could not insert node though checked this before (id='" + nodeID + "').");
@@ -207,6 +207,9 @@ NIXMLNodesHandler::processNodeType(const SUMOSAXAttributes& attrs, NBNode* node,
     PositionVector shape;
     if (attrs.hasAttribute(SUMO_ATTR_SHAPE)) {
         shape = attrs.getOpt<PositionVector>(SUMO_ATTR_SHAPE, nodeID.c_str(), ok, PositionVector());
+        if (!NBNetBuilder::transformCoordinates(shape)) {
+            WRITE_ERROR("Unable to project node shape at node '" + node->getID() + "'.");
+        }
         if (shape.size() > 2) {
             shape.closePolygon();
         }
@@ -220,6 +223,11 @@ NIXMLNodesHandler::processNodeType(const SUMOSAXAttributes& attrs, NBNode* node,
     if (attrs.hasAttribute(SUMO_ATTR_KEEP_CLEAR)) {
         node->setKeepClear(attrs.get<bool>(SUMO_ATTR_KEEP_CLEAR, nodeID.c_str(), ok));
     }
+
+    // set optional right-of-way hint
+    if (attrs.hasAttribute(SUMO_ATTR_RIGHT_OF_WAY)) {
+        node->setRightOfWay(attrs.getRightOfWay(ok));
+    }
     return node;
 }
 
@@ -228,12 +236,12 @@ void
 NIXMLNodesHandler::deleteNode(const SUMOSAXAttributes& attrs) {
     bool ok = true;
     // get the id, report a warning if not given or empty...
-    myID = attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+    myID = attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
     if (!ok) {
         return;
     }
     NBNode* node = myNodeCont.retrieve(myID);
-    if (node == 0) {
+    if (node == nullptr) {
         WRITE_WARNING("Ignoring tag '" + toString(SUMO_TAG_DELETE) + "' for unknown node '" +
                       myID + "'");
         return;
@@ -246,10 +254,26 @@ NIXMLNodesHandler::deleteNode(const SUMOSAXAttributes& attrs) {
 void
 NIXMLNodesHandler::addJoinCluster(const SUMOSAXAttributes& attrs) {
     bool ok = true;
-    const std::string clusterString = attrs.get<std::string>(SUMO_ATTR_NODES, 0, ok);
-    const std::vector<std::string> ids = StringTokenizer(clusterString).getVector();
+    const std::string clusterString = attrs.get<std::string>(SUMO_ATTR_NODES, nullptr, ok);
+    std::vector<std::string> ids = StringTokenizer(clusterString).getVector();
+    std::sort(ids.begin(), ids.end());
+
+    myID = attrs.getOpt<std::string>(SUMO_ATTR_ID, nullptr, ok, "cluster_" + joinToString(ids, "_"));
+
+    Position myPosition = Position::INVALID;
+    if (attrs.hasAttribute(SUMO_ATTR_X)) {
+        myPosition.setx(attrs.get<double>(SUMO_ATTR_X, myID.c_str(), ok));
+    }
+    if (attrs.hasAttribute(SUMO_ATTR_Y)) {
+        myPosition.sety(attrs.get<double>(SUMO_ATTR_Y, myID.c_str(), ok));
+    }
+    if (attrs.hasAttribute(SUMO_ATTR_Z)) {
+        myPosition.setz(attrs.get<double>(SUMO_ATTR_Z, myID.c_str(), ok));
+    }
+
+    NBNode* node = processNodeType(attrs, nullptr, myID, myPosition, false, myNodeCont, myTLLogicCont);
     if (ok) {
-        myNodeCont.addCluster2Join(std::set<std::string>(ids.begin(), ids.end()));
+        myNodeCont.addCluster2Join(std::set<std::string>(ids.begin(), ids.end()), node);
     }
 }
 
@@ -258,7 +282,7 @@ void
 NIXMLNodesHandler::addJoinExclusion(const SUMOSAXAttributes& attrs) {
     bool ok = true;
     const std::vector<std::string> ids = StringTokenizer(
-            attrs.get<std::string>(SUMO_ATTR_NODES, 0, ok)).getVector();
+            attrs.get<std::string>(SUMO_ATTR_NODES, nullptr, ok)).getVector();
     if (ok) {
         myNodeCont.addJoinExclusion(ids);
     }
@@ -283,8 +307,8 @@ NIXMLNodesHandler::processTrafficLightDefinitions(const SUMOSAXAttributes& attrs
         oldTlID = oldDef->getID();
         oldTypeS = toString(oldDef->getType());
     }
-    std::string tlID = attrs.getOpt<std::string>(SUMO_ATTR_TLID, 0, ok, oldTlID);
-    std::string typeS = attrs.getOpt<std::string>(SUMO_ATTR_TLTYPE, 0, ok, oldTypeS);
+    std::string tlID = attrs.getOpt<std::string>(SUMO_ATTR_TLID, nullptr, ok, oldTlID);
+    std::string typeS = attrs.getOpt<std::string>(SUMO_ATTR_TLTYPE, nullptr, ok, oldTypeS);
     if (tlID != oldTlID || typeS != oldTypeS) {
         currentNode->removeTrafficLights();
     }
@@ -320,8 +344,7 @@ NIXMLNodesHandler::processTrafficLightDefinitions(const SUMOSAXAttributes& attrs
         tlDefs.insert(tlDef);
     }
     // process inner edges which shall be controlled
-    std::vector<std::string> controlledInner;
-    SUMOSAXAttributes::parseStringVector(attrs.getOpt<std::string>(SUMO_ATTR_CONTROLLED_INNER, 0, ok, ""), controlledInner);
+    const std::vector<std::string>& controlledInner = attrs.getOptStringVector(SUMO_ATTR_CONTROLLED_INNER, nullptr, ok);
     if (controlledInner.size() != 0) {
         for (std::set<NBTrafficLightDefinition*>::iterator it = tlDefs.begin(); it != tlDefs.end(); it++) {
             (*it)->addControlledInnerEdges(controlledInner);

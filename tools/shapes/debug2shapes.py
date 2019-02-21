@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2010-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2010-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -19,7 +19,7 @@ from __future__ import print_function
 import sys
 from collections import defaultdict
 
-COLORS = ["red", "green", "blue", "yellow", "cyan", "magenta"]
+COLORS = ["red", "green", "blue", "yellow", "cyan", "magenta", "orange"]
 
 outfile = sys.argv[1]
 shapesParts = sys.argv[2].split()

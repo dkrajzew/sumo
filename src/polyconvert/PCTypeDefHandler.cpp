@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -52,7 +52,7 @@ PCTypeDefHandler::myStartElement(int element,
     if (element == SUMO_TAG_POLYTYPE) {
         bool ok = true;
         // get the id, report an error if not given or empty...
-        std::string id = attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+        std::string id = attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
         if (!ok) {
             return;
         }

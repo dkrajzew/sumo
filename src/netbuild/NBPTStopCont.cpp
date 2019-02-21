@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -59,7 +59,7 @@ NBPTStopCont::get(std::string id) {
 void
 NBPTStopCont::localizePTStops(NBEdgeCont& cont) {
     std::vector<NBPTStop*> reverseStops;
-    //frst pass localize pt stop at correct side of the street; create stop for opposite side if needed
+    //first pass localize pt stop at correct side of the street; create stop for opposite side if needed
     for (auto& myPTStop : myPTStops) {
 
         NBPTStop* stop = myPTStop.second;
@@ -67,7 +67,7 @@ NBPTStopCont::localizePTStops(NBEdgeCont& cont) {
         bool multipleStopPositions = stop->getIsMultipleStopPositions();
         bool platformsDefined = !stop->getPlatformCands().empty();
         if (!platformsDefined) {
-            //create pt stop for reverse edge if edge exist
+            //create pt stop for reverse edge if edge exists
             NBPTStop* reverseStop = getReverseStop(stop, cont);
             if (reverseStop != nullptr) {
                 reverseStops.push_back(reverseStop);
@@ -97,7 +97,7 @@ void NBPTStopCont::assignLanes(NBEdgeCont& cont) {
     for (auto i = myPTStops.begin(); i != myPTStops.end();) {
         NBPTStop* stop = i->second;
 
-        if (!stop->findLaneAndComputeBusStopExtend(cont)) {
+        if (!stop->findLaneAndComputeBusStopExtent(cont)) {
             WRITE_WARNING("Could not find corresponding edge or compatible lane for pt stop: " + i->second->getName()
                           + ". Thus, it will be removed!");
             EdgeVector edgeVector = cont.getGeneratedFrom((*i).second->getOrigEdgeId());
@@ -117,7 +117,7 @@ NBPTStopCont::generateBidiStops(NBEdgeCont& ec) {
     for (auto i = myPTStops.begin(); i != myPTStops.end(); i++) {
         NBPTStop* stop = i->second;
         NBEdge* edge = ec.getByID(stop->getEdgeId());
-        if (edge != 0 && edge->isBidiRail()) {
+        if (edge != nullptr && edge->isBidiRail()) {
             NBEdge* bidiEdge = edge->getTurnDestination(true);
             assert(bidiEdge != 0);
             const std::string id = getReverseID(stop->getID());
@@ -136,7 +136,7 @@ NBPTStopCont::generateBidiStops(NBEdgeCont& ec) {
                                               stop->getLength(),
                                               stop->getName(),
                                               stop->getPermissions());
-            if (bidiStop->findLaneAndComputeBusStopExtend(ec)) {
+            if (bidiStop->findLaneAndComputeBusStopExtent(ec)) {
                 toAdd.push_back(bidiStop);
                 stop->setBidiStop(bidiStop);
                 bidiStop->setBidiStop(stop);
@@ -292,7 +292,7 @@ NBPTStopCont::getReverseEdge(NBEdge* edge) {
             }
         }
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -365,7 +365,7 @@ NBPTStopCont::findAccessEdgesForRailStops(NBEdgeCont& cont, double maxRadius, in
         const std::string& stopEdgeID = ptStop.second->getEdgeId();
         NBEdge* stopEdge = cont.getByID(stopEdgeID);
         //std::cout << "findAccessEdgesForRailStops edge=" << stopEdgeID << " exists=" << (stopEdge != 0) << "\n";
-        if (stopEdge != 0 && (stopEdge->getPermissions() & SVC_PEDESTRIAN) == 0) {
+        if (stopEdge != nullptr && (stopEdge->getPermissions() & SVC_PEDESTRIAN) == 0) {
             //if (stopEdge != 0 && isRailway(stopEdge->getPermissions())) {
             std::set<std::string> ids;
             Named::StoringVisitor visitor(ids);

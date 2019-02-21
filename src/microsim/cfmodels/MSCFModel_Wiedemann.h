@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -92,7 +92,7 @@ public:
      * @todo evaluate signature
      * @see MSCFModel::interactionGap
      */
-    double interactionGap(const MSVehicle* const , double vL) const;
+    double interactionGap(const MSVehicle* const, double vL) const;
 
 
     /** @brief Returns the model's name
@@ -162,10 +162,6 @@ private:
     /// @brief free-flow distance in m
     static const double D_MAX;
     /// @}
-
-    /// @brief vsafe from krauss since Wiedemann is deficient at approaching
-    // standing obstacles (see MSCFModel_Krauss::_vsafe)
-    double krauss_vsafe(double gap, double predSpeed) const;
 
 private:
     /// @brief Invalidated assignment operator

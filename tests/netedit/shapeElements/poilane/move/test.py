@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -31,39 +31,33 @@ netedit.shapeMode()
 # go to shape mode
 netedit.changeShape("poiLane")
 
-# create poi
-netedit.leftClick(referencePosition, 100, 100)
-
-# change color to white (To see icon)
-netedit.modifyShapeDefaultValue(3, "white")
-
-# Change parameter 6 with a valid value
-netedit.modifyAttribute(6, "10")
-
-# Change parameter 6 with a valid value
-netedit.modifyAttribute(7, "10")
-
-# change imgfile (valid)
-netedit.modifyShapeDefaultValue(8, "berlin_icon.ico")
-
-# create poi
-netedit.leftClick(referencePosition, 100, 350)
+# create poiLane
+netedit.leftClick(referencePosition, 150, 215)
 
 # go to move mode
 netedit.moveMode()
 
-# move first POILane to left down
-netedit.moveElement(referencePosition, -80, 55, 200, 60)
+# move first POILane to right
+netedit.moveElement(referencePosition, -20, 215, 200, 215)
 
-# move second POILane to left up
-netedit.moveElement(referencePosition, -80, 400, 200, 300)
+# move first POILane to left
+netedit.moveElement(referencePosition, 200, 215, 0, 215)
+
+# move first POILane to left
+netedit.moveElement(referencePosition, 0, 215, -180, 215)
+
+# move first POILane to left
+netedit.moveElement(referencePosition, -120, 215, 600, 215)
+
+# move first POILane to left
+netedit.moveElement(referencePosition, 540, 215, 300, 215)
 
 # Check undo redo
-netedit.undo(referencePosition, 2)
-netedit.redo(referencePosition, 2)
+netedit.undo(referencePosition, 5)
+netedit.redo(referencePosition, 5)
 
 # save shapes
-netedit.saveShapes()
+netedit.saveAdditionals()
 
 # save network
 netedit.saveNetwork()

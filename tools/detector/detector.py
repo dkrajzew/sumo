@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2007-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2007-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -108,8 +108,8 @@ class DetectorGroupData:
                 self.timeline.append([0, 0])
             else:
                 sys.stderr.write(("Gap in data for group=%s. Or data interval is higher than aggregation interval " +
-                                 "(i=%s, time=%s, begin=%s, lastTime=%s)\n") % (
-                                     self.ids, self.interval, time, self.begin, len(self.timeline) * self.interval))
+                                  "(i=%s, time=%s, begin=%s, lastTime=%s)\n") % (
+                    self.ids, self.interval, time, self.begin, len(self.timeline) * self.interval))
                 while len(self.timeline) < index:
                     self.timeline.append([None, None])
                 self.timeline.append([0, 0])
@@ -117,8 +117,8 @@ class DetectorGroupData:
             # new entry
             if time % self.interval != 0 and time > self.interval:
                 sys.stderr.write(("Aggregation interval is not a multiple of data interval for group=%s (i=%s " +
-                                 "time=%s begin=%s)\n") % (
-                                     self.ids, self.interval, time, self.begin))
+                                  "time=%s begin=%s)\n") % (
+                    self.ids, self.interval, time, self.begin))
             self.timeline.append([0, 0])
         oldFlow, oldSpeed = self.timeline[index]
         newFlow = oldFlow + flow

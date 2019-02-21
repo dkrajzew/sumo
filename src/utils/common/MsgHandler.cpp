@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -27,25 +27,26 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#ifdef HAVE_FOX
+#include <fx.h>
+#endif
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/common/UtilExceptions.h>
-
 #include "MsgHandler.h"
-#include "AbstractMutex.h"
 
 
 // ===========================================================================
 // static member variables
 // ===========================================================================
 
-MsgHandler* MsgHandler::myDebugInstance = 0;
-MsgHandler* MsgHandler::myGLDebugInstance = 0;
-MsgHandler* MsgHandler::myErrorInstance = 0;
-MsgHandler* MsgHandler::myWarningInstance = 0;
-MsgHandler* MsgHandler::myMessageInstance = 0;
+MsgHandler::Factory MsgHandler::myFactory = nullptr;
+MsgHandler* MsgHandler::myDebugInstance = nullptr;
+MsgHandler* MsgHandler::myGLDebugInstance = nullptr;
+MsgHandler* MsgHandler::myErrorInstance = nullptr;
+MsgHandler* MsgHandler::myWarningInstance = nullptr;
+MsgHandler* MsgHandler::myMessageInstance = nullptr;
 bool MsgHandler::myAmProcessingProcess = false;
-AbstractMutex* MsgHandler::myLock = 0;
 bool MsgHandler::myWriteDebugMessages(false);
 bool MsgHandler::myWriteDebugGLMessages(false);
 
@@ -56,8 +57,12 @@ bool MsgHandler::myWriteDebugGLMessages(false);
 
 MsgHandler*
 MsgHandler::getMessageInstance() {
-    if (myMessageInstance == 0) {
-        myMessageInstance = new MsgHandler(MT_MESSAGE);
+    if (myMessageInstance == nullptr) {
+        if (myFactory == nullptr) {
+            myMessageInstance = new MsgHandler(MT_MESSAGE);
+        } else {
+            myMessageInstance = myFactory(MT_MESSAGE);
+        }
     }
     return myMessageInstance;
 }
@@ -65,7 +70,7 @@ MsgHandler::getMessageInstance() {
 
 MsgHandler*
 MsgHandler::getWarningInstance() {
-    if (myWarningInstance == 0) {
+    if (myWarningInstance == nullptr) {
         myWarningInstance = new MsgHandler(MT_WARNING);
     }
     return myWarningInstance;
@@ -74,7 +79,7 @@ MsgHandler::getWarningInstance() {
 
 MsgHandler*
 MsgHandler::getErrorInstance() {
-    if (myErrorInstance == 0) {
+    if (myErrorInstance == nullptr) {
         myErrorInstance = new MsgHandler(MT_ERROR);
     }
     return myErrorInstance;
@@ -83,7 +88,7 @@ MsgHandler::getErrorInstance() {
 
 MsgHandler*
 MsgHandler::getDebugInstance() {
-    if (myDebugInstance == 0) {
+    if (myDebugInstance == nullptr) {
         myDebugInstance = new MsgHandler(MT_DEBUG);
     }
     return myDebugInstance;
@@ -92,7 +97,7 @@ MsgHandler::getDebugInstance() {
 
 MsgHandler*
 MsgHandler::getGLDebugInstance() {
-    if (myGLDebugInstance == 0) {
+    if (myGLDebugInstance == nullptr) {
         myGLDebugInstance = new MsgHandler(MT_GLDEBUG);
     }
     return myGLDebugInstance;
@@ -111,9 +116,6 @@ MsgHandler::enableDebugGLMessages(bool enable) {
 
 void
 MsgHandler::inform(std::string msg, bool addType) {
-    if (myLock != 0) {
-        myLock->lock();
-    }
     // beautify progress output
     if (myAmProcessingProcess) {
         myAmProcessingProcess = false;
@@ -126,17 +128,11 @@ MsgHandler::inform(std::string msg, bool addType) {
     }
     // set the information that something occurred
     myWasInformed = true;
-    if (myLock != 0) {
-        myLock->unlock();
-    }
 }
 
 
 void
 MsgHandler::beginProcessMsg(std::string msg, bool addType) {
-    if (myLock != 0) {
-        myLock->lock();
-    }
     msg = build(msg, addType);
     // inform all other receivers
     for (auto i : myRetrievers) {
@@ -145,17 +141,11 @@ MsgHandler::beginProcessMsg(std::string msg, bool addType) {
     }
     // set the information that something occurred
     myWasInformed = true;
-    if (myLock != 0) {
-        myLock->unlock();
-    }
 }
 
 
 void
 MsgHandler::endProcessMsg(std::string msg) {
-    if (myLock != 0) {
-        myLock->lock();
-    }
     // inform all other receivers
     for (auto i : myRetrievers) {
         i->inform(msg);
@@ -163,56 +153,35 @@ MsgHandler::endProcessMsg(std::string msg) {
     // set the information that something occurred
     myWasInformed = true;
     myAmProcessingProcess = false;
-    if (myLock != 0) {
-        myLock->unlock();
-    }
 }
 
 
 void
 MsgHandler::clear() {
-    if (myLock != 0) {
-        myLock->lock();
-    }
     myWasInformed = false;
-    if (myLock != 0) {
-        myLock->unlock();
-    }
 }
 
 
 void
 MsgHandler::addRetriever(OutputDevice* retriever) {
-    if (myLock != 0) {
-        myLock->lock();
-    }
     if (!isRetriever(retriever)) {
         myRetrievers.push_back(retriever);
-    }
-    if (myLock != 0) {
-        myLock->unlock();
     }
 }
 
 
 void
 MsgHandler::removeRetriever(OutputDevice* retriever) {
-    if (myLock != 0) {
-        myLock->lock();
-    }
-    RetrieverVector::iterator i = find(myRetrievers.begin(), myRetrievers.end(), retriever);
+    std::vector<OutputDevice*>::iterator i = find(myRetrievers.begin(), myRetrievers.end(), retriever);
     if (i != myRetrievers.end()) {
         myRetrievers.erase(i);
-    }
-    if (myLock != 0) {
-        myLock->unlock();
     }
 }
 
 
 bool
 MsgHandler::isRetriever(OutputDevice* retriever) const {
-    return find(myRetrievers.begin(), myRetrievers.end(), retriever) != myRetrievers.end();
+    return std::find(myRetrievers.begin(), myRetrievers.end(), retriever) != myRetrievers.end();
 }
 
 
@@ -270,22 +239,16 @@ MsgHandler::initOutputOptions() {
 
 void
 MsgHandler::cleanupOnEnd() {
-    if (myLock != 0) {
-        myLock->lock();
-    }
     delete myMessageInstance;
-    myMessageInstance = 0;
+    myMessageInstance = nullptr;
     delete myWarningInstance;
-    myWarningInstance = 0;
+    myWarningInstance = nullptr;
     delete myErrorInstance;
-    myErrorInstance = 0;
+    myErrorInstance = nullptr;
     delete myDebugInstance;
-    myDebugInstance = 0;
+    myDebugInstance = nullptr;
     delete myGLDebugInstance;
-    myGLDebugInstance = 0;
-    if (myLock != 0) {
-        myLock->unlock();
-    }
+    myGLDebugInstance = nullptr;
 }
 
 
@@ -309,11 +272,4 @@ MsgHandler::wasInformed() const {
 }
 
 
-void
-MsgHandler::assignLock(AbstractMutex* lock) {
-    assert(myLock == 0);
-    myLock = lock;
-}
-
 /****************************************************************************/
-

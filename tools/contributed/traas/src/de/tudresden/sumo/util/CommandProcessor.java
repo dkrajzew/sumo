@@ -30,7 +30,6 @@ import java.util.LinkedList;
 import de.tudresden.sumo.config.Constants;
 import de.tudresden.sumo.subscription.Subscription;
 import de.tudresden.ws.container.SumoBestLanes;
-import de.tudresden.ws.container.SumoBoundingBox;
 import de.tudresden.ws.container.SumoColor;
 import de.tudresden.ws.container.SumoGeometry;
 import de.tudresden.ws.container.SumoLeader;
@@ -44,9 +43,11 @@ import de.tudresden.ws.container.SumoPrimitive;
 import de.tudresden.ws.container.SumoStopFlags;
 import de.tudresden.ws.container.SumoStringList;
 import de.tudresden.ws.container.SumoTLSProgram;
+import de.tudresden.ws.container.SumoVehicleData;
 import de.uniluebeck.itm.tcpip.Storage;
 import de.tudresden.ws.container.SumoTLSPhase;
 import de.tudresden.ws.container.SumoTLSController;
+import de.tudresden.ws.container.SumoStage;
 
 /**
  * 
@@ -71,6 +72,10 @@ public class CommandProcessor extends Query{
 	
 	public synchronized void do_SimulationStep(double targetTime) throws IOException {
 		doSimulationStep(targetTime);
+	}
+
+	public synchronized void do_setOrder(int index) throws IOException {
+		doSetOrder(index);
 	}
 	
 	public static SumoObject read(int type, Storage s){
@@ -98,15 +103,6 @@ public class CommandProcessor extends Query{
 			}
 			output = ssl;
 		
-		}else if(type == Constants.TYPE_BOUNDINGBOX){
-			
-			double min_x = s.readDouble();
-			double min_y = s.readDouble();
-			double max_x = s.readDouble();
-			double max_y = s.readDouble();
-			
-			output = new SumoBoundingBox(min_x, min_y, max_x, max_y);
-			
 		}else if(type == Constants.VAR_STOPSTATE){
 			
 			short s0 = s.readByte();
@@ -332,8 +328,7 @@ public class CommandProcessor extends Query{
 			
 			output = sg;
 		
-		}
-		else if(type == Constants.TYPE_COLOR){
+		} else if(type == Constants.TYPE_COLOR){
 			
 			int r = s.readUnsignedByte();
 			int g = s.readUnsignedByte();
@@ -341,7 +336,7 @@ public class CommandProcessor extends Query{
 			int a = s.readUnsignedByte();
 			
 			output = new SumoColor(r, g, b, a);
-		
+
 		}else if(type == Constants.TYPE_UBYTE){
 			output = new SumoPrimitive(s.readUnsignedByte());
 		}
@@ -379,15 +374,6 @@ public class CommandProcessor extends Query{
 			}
 			output = ssl;
 		
-		}else if(sc.output_type == Constants.TYPE_BOUNDINGBOX){
-			
-			double min_x = resp.content().readDouble();
-			double min_y = resp.content().readDouble();
-			double max_x = resp.content().readDouble();
-			double max_y = resp.content().readDouble();
-			
-			output = new SumoBoundingBox(min_x, min_y, max_x, max_y);
-			
 		}else if(sc.input2 == Constants.VAR_STOPSTATE){
 			short s = resp.content().readByte();
 			SumoStopFlags sf = new SumoStopFlags((byte) s);
@@ -604,56 +590,48 @@ public class CommandProcessor extends Query{
 				}
 			
 				output = sl;
+
+            }else if(sc.input2 == Constants.LAST_STEP_VEHICLE_DATA){
+
+                resp.content().readUnsignedByte();
+                resp.content().readInt();
+
+                SumoVehicleData vehData  = new SumoVehicleData();
+
+                int numItems = resp.content().readInt();
+                for(int i=0; i<numItems; i++){
+
+                    resp.content().readUnsignedByte();
+                    String vehID = resp.content().readStringASCII();
+
+                    resp.content().readUnsignedByte();
+                    double length = resp.content().readDouble();
+
+                    resp.content().readUnsignedByte();
+                    double entryTime = resp.content().readDouble();
+
+                    resp.content().readUnsignedByte();
+                    double leaveTime = resp.content().readDouble();
+
+                    resp.content().readUnsignedByte();
+                    String typeID = resp.content().readStringASCII();
+
+                    vehData.add(vehID, length, entryTime, leaveTime, typeID);
+                }
+                output = vehData;
 				
 			}else if(sc.input2 == Constants.FIND_ROUTE){
 				
-				resp.content().readInt();
-				resp.content().readUnsignedByte();
-				resp.content().readInt();
-				resp.content().readUnsignedByte();
-				
-				resp.content().readStringASCII();
-				resp.content().readUnsignedByte();
-				resp.content().readStringASCII();
-				resp.content().readUnsignedByte();
-				
-				SumoStringList ssl = new SumoStringList();
-				int size = resp.content().readInt();
-				for(int i=0; i<size; i++){
-					ssl.add(resp.content().readStringASCII());
-				}
-				
-				resp.content().readDouble();
-				output = ssl;
+				output = readStage(resp.content());
 				
 			}else if(sc.input2 == Constants.FIND_INTERMODAL_ROUTE){
 				
-				LinkedList<SumoStringList> ll = new LinkedList<SumoStringList>();
+				LinkedList<SumoStage> ll = new LinkedList<SumoStage>();
 				int l = resp.content().readInt();
-				System.out.println("l: " + l);
-				
 				for(int i1=0; i1<l; i1++) {
-				
-					resp.content().readInt();
-					resp.content().readUnsignedByte();
-					resp.content().readInt();
-					resp.content().readUnsignedByte();
-					
-					resp.content().readStringASCII();
-					resp.content().readUnsignedByte();
-					resp.content().readStringASCII();
-					resp.content().readUnsignedByte();
-					
-					SumoStringList ssl = new SumoStringList();
-					int size = resp.content().readInt();
-					for(int i=0; i<size; i++){
-						ssl.add(resp.content().readStringASCII());
-					}
-					
-					resp.content().readDouble();
-					ll.add(ssl);
+                    resp.content().readUnsignedByte(); // type compound
+                    ll.add(readStage(resp.content()));
 				}
-				
 				output = ll;
 					
 			}else{
@@ -717,5 +695,42 @@ public class CommandProcessor extends Query{
 		return respObjectID;
 	}
 
+    public static SumoStage readStage(Storage content){
+        SumoStage result = new SumoStage();
+        content.readInt(); // Component (13)
+        content.readUnsignedByte();
+        result.type = content.readInt();
+
+        int b2 = content.readUnsignedByte();
+        result.vType = content.readStringASCII();
+        content.readUnsignedByte();
+        result.line = content.readStringASCII();
+        content.readUnsignedByte();
+        result.destStop = content.readStringASCII();
+        content.readUnsignedByte();
+
+        int size = content.readInt(); // number of edges
+        for(int i=0; i<size; i++){
+            result.edges.add(content.readStringASCII());
+        }
+
+        content.readUnsignedByte();
+        result.travelTime = content.readDouble();
+        content.readUnsignedByte();
+        result.cost = content.readDouble();
+        content.readUnsignedByte();
+        result.length = content.readDouble();
+        content.readUnsignedByte();
+        result.intended = content.readStringASCII();
+        content.readUnsignedByte();
+        result.depart = content.readDouble();
+        content.readUnsignedByte();
+        result.departPos = content.readDouble();
+        content.readUnsignedByte();
+        result.arrivalPos = content.readDouble();
+        content.readUnsignedByte();
+        result.description = content.readStringASCII();
+        return result;
+    }
 	
 }

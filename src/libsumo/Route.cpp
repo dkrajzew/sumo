@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -28,7 +28,7 @@
 #include <microsim/MSNet.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSRoute.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include "Helper.h"
 #include "Route.h"
 
@@ -89,13 +89,13 @@ Route::add(const std::string& routeID, const std::vector<std::string>& edgeIDs) 
     }
     for (std::vector<std::string>::const_iterator ei = edgeIDs.begin(); ei != edgeIDs.end(); ++ei) {
         MSEdge* edge = MSEdge::dictionary(*ei);
-        if (edge == 0) {
+        if (edge == nullptr) {
             throw TraCIException("Unknown edge '" + *ei + "' in route.");
         }
         edges.push_back(edge);
     }
     const std::vector<SUMOVehicleParameter::Stop> stops;
-    if (!MSRoute::dictionary(routeID, new MSRoute(routeID, edges, true, 0, stops))) {
+    if (!MSRoute::dictionary(routeID, new MSRoute(routeID, edges, true, nullptr, stops))) {
         throw TraCIException("Could not add route.");
     }
 }
@@ -107,7 +107,7 @@ LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(Route, ROUTE)
 const MSRoute*
 Route::getRoute(const std::string& id) {
     const MSRoute* r = MSRoute::dictionary(id);
-    if (r == 0) {
+    if (r == nullptr) {
         throw TraCIException("Route '" + id + "' is not known");
     }
     return r;
@@ -123,7 +123,7 @@ Route::makeWrapper() {
 bool
 Route::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

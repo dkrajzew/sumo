@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -23,7 +23,7 @@
 #include <config.h>
 
 #include <iostream>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
 #include "../NIImporter_Vissim.h"
 #include "../tempstructs/NIVissimVehicleType.h"
@@ -66,15 +66,15 @@ NIVissimSingleTypeParser_Fahrzeugtypdefinition::parse(std::istream& from) {
                 color = (*i).second;
             } else {
                 int r, g, b;
-                r = TplConvert::_2int(colorName.c_str());
+                r = StringUtils::toInt(colorName);
                 if (!(from >> g)) {
-                    throw NumberFormatException();
+                    throw NumberFormatException("");
                 }
                 if (!(from >> b)) {
-                    throw NumberFormatException();
+                    throw NumberFormatException("");
                 }
                 if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
-                    throw NumberFormatException();
+                    throw NumberFormatException("");
                 }
                 color = RGBColor((unsigned char)r, (unsigned char)g, (unsigned char)b, 255);
             }

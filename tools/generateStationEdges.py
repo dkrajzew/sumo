@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -45,15 +45,15 @@ def main(options):
     l2 = options.length / 2
     with open(options.outfile + ".edg.xml", 'w') as out_e:
         with open(options.outfile + ".nod.xml", 'w') as out_n:
-            sumolib.writeXMLHeader(out_e, "$Id$")
-            sumolib.writeXMLHeader(out_n, "$Id$")
+            sumolib.writeXMLHeader(out_e, "$Id$")  # noqa
+            sumolib.writeXMLHeader(out_n, "$Id$")  # noqa
             out_e.write('<edges>\n')
             out_n.write('<nodes>\n')
             for stop in sumolib.xml.parse(options.stopfile, 'busStop', heterogeneous=True):
                 edge_id = stop.id + "_access"
                 x, y = sumolib.geomhelper.positionAtShapeOffset(
-                        net.getLane(stop.lane).getShape(),
-                        (float(stop.startPos) + float(stop.endPos)) / 2)
+                    net.getLane(stop.lane).getShape(),
+                    (float(stop.startPos) + float(stop.endPos)) / 2)
                 from_id = edge_id + '_from'
                 to_id = edge_id + '_to'
                 out_n.write('    <node id="%s" x="%s" y="%s"/>\n' % (from_id, x - l2, y))

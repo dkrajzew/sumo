@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -21,11 +21,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
-
-#include <utils/common/UtilExceptions.h>
-#include <utils/xml/SUMOXMLDefinitions.h>
-#include <utils/common/RGBColor.h>
 
 #include "GNEAdditional.h"
 
@@ -35,8 +30,6 @@
 
 class GNECalibrator;
 class GNECalibratorDialog;
-class GNECalibratorVehicleType;
-class GNECalibratorRoute;
 
 // ===========================================================================
 // class definitions
@@ -52,7 +45,7 @@ public:
     GNECalibratorFlow(GNEAdditional* calibratorParent);
 
     /// @brief parameter constructor
-    GNECalibratorFlow(GNEAdditional* calibratorParent, GNEAdditional* vehicleType, GNEAdditional* route, const std::string& vehsPerHour, const std::string& speed,
+    GNECalibratorFlow(GNEAdditional* calibratorParent, GNEDemandElement* vehicleType, GNEDemandElement* route, const std::string& vehsPerHour, const std::string& speed,
                       const RGBColor& color, const std::string& departLane, const std::string& departPos, const std::string& departSpeed, const std::string& arrivalLane,
                       const std::string& arrivalPos, const std::string& arrivalSpeed, const std::string& line, int personNumber, int containerNumber, bool reroute,
                       const std::string& departPosLat, const std::string& arrivalPosLat, double begin, double end);
@@ -63,16 +56,14 @@ public:
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
-     * @param[in] newPosition new position of geometry
-     * @note should't be called in drawGL(...) functions to avoid smoothness issues
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
      */
-    void moveGeometry(const Position& oldPos, const Position& offset);
+    void moveGeometry(const Position& offset);
 
     /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-     * @param[in] oldPos the old position of additional
      * @param[in] undoList The undoList on which to register changes
      */
-    void commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList);
+    void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
     void updateGeometry(bool updateGrid);
@@ -127,10 +118,10 @@ public:
 
 protected:
     /// @brief type of flow
-    GNEAdditional* myVehicleType;
+    GNEDemandElement* myVehicleType;
 
     /// @brief route in which this flow is used
-    GNEAdditional* myRoute;
+    GNEDemandElement* myRoute;
 
     /// @brief flows per hour (String instead float because can be empty)
     std::string myVehsPerHour;

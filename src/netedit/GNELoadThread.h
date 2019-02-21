@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -24,17 +24,15 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/SUMOTime.h>
-#include <utils/foxtools/FXSingleEventThread.h>
-#include <utils/foxtools/FXThreadEvent.h>
-#include <utils/foxtools/MFXEventQue.h>
 #include <utils/common/MsgHandler.h>
+#include <utils/foxtools/FXSingleEventThread.h>
+#include <utils/foxtools/FXSynchQue.h>
+#include <utils/foxtools/MFXInterThreadEventClient.h>
 
 
 // ===========================================================================
 // class declarations
 // ===========================================================================
-class MFXInterThreadEventClient;
 class GNENet;
 class GUIEvent;
 
@@ -48,7 +46,7 @@ class GUIEvent;
 class GNELoadThread : public FXSingleEventThread {
 public:
     /// @brief constructor
-    GNELoadThread(FXApp* app, MFXInterThreadEventClient* mw, MFXEventQue<GUIEvent*>& eq,
+    GNELoadThread(FXApp* app, MFXInterThreadEventClient* mw, FXSynchQue<GUIEvent*>& eq,
                   FXEX::FXThreadEvent& ev);
 
     /// @brief destructor
@@ -95,7 +93,7 @@ protected:
     OutputDevice* myErrorRetriever, *myMessageRetriever, *myWarningRetriever, *myDebugRetriever, *myGLDebugRetriever;
 
     /// @brief event Queue
-    MFXEventQue<GUIEvent*>& myEventQue;
+    FXSynchQue<GUIEvent*>& myEventQue;
 
     /// @brief event throw
     FXEX::FXThreadEvent& myEventThrow;

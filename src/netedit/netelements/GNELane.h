@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -190,18 +190,6 @@ public:
     /// @name Function related with Generic Parameters
     /// @{
 
-    /// @brief add generic parameter
-    bool addGenericParameter(const std::string& key, const std::string& value);
-
-    /// @brief remove generic parameter
-    bool removeGenericParameter(const std::string& key);
-
-    /// @brief update generic parameter
-    bool updateGenericParameter(const std::string& oldKey, const std::string& newKey);
-
-    /// @brief update value generic parameter
-    bool updateGenericParameterValue(const std::string& key, const std::string& newValue);
-
     /// @brief return generic parameters in string format
     std::string getGenericParametersStr() const;
 
@@ -216,13 +204,20 @@ public:
     /* @brief method for setting the special color of the lane
      * @param[in] color Pointer to new special color
      */
-    void setSpecialColor(const RGBColor* Color2);
+    void setSpecialColor(const RGBColor* Color2, double colorValue = std::numeric_limits<double>::max());
 
     /// @brief return value for lane coloring according to the given scheme
-    double getColorValue(int activeScheme) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
-    /// @brief remove lane of Additional Parent
+    /// @brief remove lane of demand parent
     void removeLaneOfAdditionalParents(GNEUndoList* undoList, bool allowEmpty);
+
+    /// @brief remove lane of demand parent
+    void removeLaneOfDemandElementParents(GNEUndoList* undoList, bool allowEmpty);
+
+    /// @brief whether to draw this lane as a railway
+    bool drawAsRailway(const GUIVisualizationSettings& s) const;
+
 
 protected:
     /// @brief FOX needs this
@@ -257,6 +252,8 @@ protected:
 
     /// @brief optional special color
     const RGBColor* mySpecialColor;
+    /// @brief optional value that corresponds to which the special color corresponds
+    double mySpecialColorValue;
 
     /// @brief The color of the shape parts (cached)
     mutable std::vector<RGBColor> myShapeColors;
@@ -264,9 +261,6 @@ protected:
 private:
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);
-
-    /// @brief method for check if mouse is over objects
-    void mouseOverObject(const GUIVisualizationSettings& s) const;
 
     /// @brief draw lane markings
     void drawMarkings(const GUIVisualizationSettings& s, double scale) const;
@@ -291,9 +285,6 @@ private:
 
     /// @brief sets multiple colors according to the current scheme index and some lane function
     bool setMultiColor(const GUIColorer& c) const;
-
-    /// @brief whether to draw this lane as a railway
-    bool drawAsRailway(const GUIVisualizationSettings& s) const;
 
     /// @brief whether to draw this lane as a waterways
     bool drawAsWaterway(const GUIVisualizationSettings& s) const;

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2011-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2011-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -47,6 +47,13 @@ NGFrame::fillOptions() {
     oc.addDescription("turn-lanes", "Processing", "Generate INT left-turn lanes");
     oc.doRegister("turn-lanes.length", new Option_Float(20));
     oc.addDescription("turn-lanes.length", "Processing", "Set the length of generated turning lanes to FLOAT");
+
+    oc.doRegister("perturb-x", new Option_String("0"));
+    oc.addDescription("perturb-x", "Processing", "Apply random spatial pertubation in x direction according the the given distribution");
+    oc.doRegister("perturb-y", new Option_String("0"));
+    oc.addDescription("perturb-y", "Processing", "Apply random spatial pertubation in y direction according the the given distribution");
+    oc.doRegister("perturb-z", new Option_String("0"));
+    oc.addDescription("perturb-z", "Processing", "Apply random spatial pertubation in z direction according the the given distribution");
 
 
     //  register grid-net options

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -23,17 +23,15 @@
 // ===========================================================================
 #include <config.h>
 
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fx.h>
-#include <utils/foxtools/MFXEventQue.h>
+#include <utils/common/SUMOTime.h>
+#include <utils/foxtools/FXSynchQue.h>
 #include <utils/foxtools/FXThreadEvent.h>
 #include <utils/foxtools/MFXInterThreadEventClient.h>
-#include <utils/shapes/ShapeHandler.h>
-#include <utils/gui/windows/GUIMainWindow.h>
-#include <utils/gui/windows/GUISUMOAbstractView.h>
+#include <utils/geom/Position.h>
 #include <utils/gui/div/GUIMessageWindow.h>
+#include <utils/gui/windows/GUIMainWindow.h>
+#include <utils/shapes/ShapeHandler.h>
+
 
 // ===========================================================================
 // class declarations
@@ -43,8 +41,6 @@ class GNEUndoList;
 class GNENet;
 class GNEViewNet;
 class GUIEvent;
-class GUIParameterTracker;
-class GUIParameterTableWindow;
 
 
 // ===========================================================================
@@ -65,35 +61,55 @@ class GNEApplicationWindow : public GUIMainWindow, public MFXInterThreadEventCli
     FXDECLARE(GNEApplicationWindow)
 
 public:
-    /**
-    * @class GNEShapeHandler
-    * @brief The XML-Handler for shapes loading network loading
-    *
-    * This subclasses ShapeHandler with netbuild specific function
-    */
-    class GNEShapeHandler : public ShapeHandler {
-    public:
-        /**@brief Constructor
-        * @param[in] file file with the shapes
-        * @param[in] net network in which add shapes
-        */
-        GNEShapeHandler(const std::string& file, GNENet* net);
+    /// @brief struct for griped toolbars
+    struct ToolbarsGrip {
 
-        /// @brief Destructor
-        ~GNEShapeHandler();
+        /// @brief constructor
+        ToolbarsGrip(GNEApplicationWindow* GNEApp);
 
-        /**@brief get lane position
-        * @param[in] poi poi ID
-        * @param[in] laneID lane ID
-        * @param[in] SlanePos position in the lane
-        */
-        Position getLanePos(const std::string& poiID, const std::string& laneID, double lanePos, double lanePosLat);
+        /// @brief build menu toolbar grips
+        void buildMenuToolbarsGrip();
+
+        /// @brief build toolbars grips
+        void buildViewParentToolbarsGrips();
+
+        /// @brief build toolbars grips
+        void destroyParentToolbarsGrips();
+
+        /// @brief The application menu bar (for file, edit, processing...)
+        FXMenuBar* menu;
+
+        /// @brief The application menu bar for supermodes (network and demand)
+        FXMenuBar* superModes;
+
+        /// @brief The application menu bar for navigation (zoom, coloring...)
+        FXMenuBar* navigation;
+
+        /// @brief The application menu bar (for select, inspect...)
+        FXMenuBar* modes;
+
+        /// @brief The application menu bar for mode options (show connections, select edges...)
+        FXMenuBar* modeOptions;
 
     private:
-        /// @brief pointer of the net
-        GNENet* myNet;
-    };
+        /// @brief pointer to current GNEApplicationWindow
+        GNEApplicationWindow* myGNEApp;
 
+        /// @brief menu bar drag (for file, edit, processing...)
+        FXToolBarShell* myToolBarShellMenu;
+
+        /// @brief menu bar drag for modes (network and demand)
+        FXToolBarShell* myToolBarShellSuperModes;
+
+        /// @brief menu bar drag for navigation (Zoom, coloring...)
+        FXToolBarShell* myToolBarShellNavigation;
+
+        /// @brief menu bar drag for modes (select, inspect, delete...)
+        FXToolBarShell* myToolBarShellModes;
+
+        /// @brief menu bar drag for mode options(show connections, select edges...)
+        FXToolBarShell* myToolBarShellModeOptions;
+    };
 
     /**@brief Constructor
      * @param[in] a The FOX application
@@ -102,13 +118,10 @@ public:
     GNEApplicationWindow(FXApp* a, const std::string& configPattern);
 
     /// @brief Destructor
-    virtual ~GNEApplicationWindow();
+    ~GNEApplicationWindow();
 
     /// @brief Creates the main window (required by FOX)
-    virtual void create();
-
-    /// @brief detaches the tool/menu bar
-    virtual void detach();
+    void create();
 
     /// @brief load net on startup
     void loadOptionOnStartup();
@@ -119,34 +132,25 @@ public:
     /// @brief set text of the statusBar
     void setStatusBarText(const std::string& statusBarText);
 
-    /// @brief set additionals file
-    void setAdditionalsFile(const std::string& additionalsFile);
-
-    /// @brief set shapes file
-    void setShapesFile(const std::string& shapesFile);
-
-    /// @brief set TLS Programs file
-    void setTLSProgramsFile(const std::string& TLSProgramsFile);
-
     /// @brief enable save additionals
     void enableSaveAdditionalsMenu();
 
     /// @brief disable save additionals
     void disableSaveAdditionalsMenu();
 
-    /// @brief enable save shapes
-    void enableSaveShapesMenu();
-
-    /// @brief disable save shapes
-    void disableSaveShapesMenu();
-
     /// @brief enable save TLS Programs
     void enableSaveTLSProgramsMenu();
+
+    /// @brief enable save demand elements
+    void enableSaveDemandElementsMenu();
+
+    /// @brief disable save demand elements
+    void disableSaveDemandElementsMenu();
 
     /// @name Inter-thread event handling
     /// @{
     /// @brief called when an event occurred
-    virtual void eventOccurred();
+    void eventOccurred();
 
     /// @brief handle event of type Network loaded
     void handleEvent_NetworkLoaded(GUIEvent* e);
@@ -169,14 +173,14 @@ public:
     /// @brief called when the command/FXCall open foreign is executed
     long onCmdOpenForeign(FXObject*, FXSelector, void*);
 
-    /// @brief called when the command/FXCall open shapes is executed
-    long onCmdOpenShapes(FXObject*, FXSelector, void*);
-
     /// @brief called when the command/FXCall open additionals is executed
     long onCmdOpenAdditionals(FXObject*, FXSelector, void*);
 
     /// @brief called when the command/FXCall open additionals is executed
     long onCmdOpenTLSPrograms(FXObject*, FXSelector, void*);
+
+    /// @brief called when the command/FXCall open demand is executed
+    long onCmdOpenDemandElements(FXObject*, FXSelector, void*);
 
     /// @brief called when the command/FXCall reload is executed
     long onCmdReload(FXObject*, FXSelector, void*);
@@ -211,6 +215,12 @@ public:
     /// @brief called when the command/FXCall save TLSPrograms as is executed
     long onCmdSaveTLSProgramsAs(FXObject*, FXSelector, void*);
 
+    /// @brief called when the command/FXCall save demand elements is executed
+    long onCmdSaveDemandElements(FXObject*, FXSelector, void*);
+
+    /// @brief called when the command/FXCall save demand elements as is executed
+    long onCmdSaveDemandElementsAs(FXObject*, FXSelector, void*);
+
     /// @brief called when the update/FXCall save network is executed
     long onUpdSaveNetwork(FXObject*, FXSelector, void*);
 
@@ -229,12 +239,6 @@ public:
     /// @brief called when the command/FXCall save joined is executed
     long onCmdSaveJoined(FXObject*, FXSelector, void*);
 
-    /// @brief called when the command/FXCall save shapes is executed
-    long onCmdSaveShapes(FXObject*, FXSelector, void*);
-
-    /// @brief called when the command/FXCall save shapes as is executed
-    long onCmdSaveShapesAs(FXObject*, FXSelector, void*);
-
     /// @brief called when a key is pressed
     long onKeyPress(FXObject* o, FXSelector sel, void* data);
 
@@ -249,17 +253,8 @@ public:
     /// @brief called when the command/FXCall edit chosen is executed
     long onCmdEditChosen(FXObject*, FXSelector, void*);
 
-    /// @brief Opens the application settings menu
-    long onCmdAppSettings(FXObject*, FXSelector, void*);
-
-    /// @brief called when the command/FXCall toogle gaming mode is executed
-    long onCmdGaming(FXObject*, FXSelector, void*);
-
     /// @brief called when the command/FXCall show about dialog is executed
     long onCmdAbout(FXObject*, FXSelector, void*);
-
-    /// @brief called when the command/FXCall new view is executed
-    long onCmdNewView(FXObject*, FXSelector, void*);
 
     /// @brief called when the command/FXCall on update open executed
     long onUpdOpen(FXObject*, FXSelector, void*);
@@ -272,6 +267,9 @@ public:
 
     /// @brief called when the command/FXCall clipboard request is executed
     long onClipboardRequest(FXObject* sender, FXSelector sel, void* ptr);
+
+    /// @brief called if the user hits an edit-supermode hotkey
+    long onCmdSetSuperMode(FXObject* sender, FXSelector sel, void* ptr);
 
     /// @brief called if the user hits an edit-mode hotkey
     long onCmdSetMode(FXObject* sender, FXSelector sel, void* ptr);
@@ -294,6 +292,21 @@ public:
     /// @brief called if the user press key combination Ctrl + G to toogle grid
     long onCmdToogleGrid(FXObject*, FXSelector, void*);
 
+    /// @brief called if the user press key combination Ctrl + Shift + C to toogle show connections
+    long onCmdToogleShowConnections(FXObject*, FXSelector, void*);
+
+    /// @brief called if the user press key combination Ctrl + Shift + H to toogle elevation
+    long onCmdToogleElevation(FXObject*, FXSelector, void*);
+
+    /// @brief called if the user press key combination Ctrl + Shift + I to toogle select edges
+    long onCmdToogleSelectEdges(FXObject*, FXSelector, void*);
+
+    /// @brief called if the user press key combination Ctrl + Shift + J to toogle chain mode
+    long onCmdToogleChain(FXObject*, FXSelector, void*);
+
+    /// @brief called if the user press key combination Ctrl + Shift + K to toogle two way
+    long onCmdToogleTwoWay(FXObject*, FXSelector, void*);
+
     /// @brief called if the user selects help->Documentation
     long onCmdHelp(FXObject* sender, FXSelector sel, void* ptr);
 
@@ -314,15 +327,25 @@ public:
 
     /// @brief called if the user selects Processing->Configure Options
     long onCmdOptions(FXObject*, FXSelector, void*);
+
+    /// @brief called when user press Ctrl+Z
+    long onCmdUndo(FXObject*, FXSelector, void*);
+
+    // @brief called when user press Ctrl+Y
+    long onCmdRedo(FXObject*, FXSelector, void*);
     /// @}
 
-    /// @brief get build OpenGL Canvas
+    /// @name inherited from GUIMainWindow
+    /// @{
+    /// @brief get build OpenGL Canvas (due NETEDIT only uses a single View, it always return nullptr)
     FXGLCanvas* getBuildGLCanvas() const;
 
     /// @brief get current simulation time (pure virtual but we don't need it)
     SUMOTime getCurrentSimTime() const;
+
     /// @brief get current tracker interval (pure virtual but we don't need it)
     double getTrackerInterval() const;
+    /// @}
 
     /// @brief get default cursor
     FXCursor* getDefaultCursor();
@@ -330,33 +353,30 @@ public:
     /// @brief get pointer to undoList
     GNEUndoList* getUndoList();
 
+    /// @brief get ToolbarsGrip
+    ToolbarsGrip& getToolbarsGrip();
+
     /// @brief update control contents after undo/redo or recompute
     void updateControls();
 
+    /// @brief update FXMenuCommands
+    void updateSuperModeMenuCommands(int supermode);
+
 protected:
     /// @brief FOX needs this for static members
-    GNEApplicationWindow() {}
-
-    /// @brief Builds the menu bar
-    virtual void fillMenuBar();
-
-    /// @brief the name of the simulation
-    std::string myName;
+    GNEApplicationWindow();
 
     /// @brief the thread that loads the network
     GNELoadThread* myLoadThread;
-
-    /// @brief The current view number
-    int myViewNumber;
 
     /// @brief information whether the gui is currently loading and the load-options shall be greyed out
     bool myAmLoading;
 
     /// @brief the submenus
     FXMenuPane* myFileMenu,
-                *myFileMenuShapes,
                 *myFileMenuAdditionals,
                 *myFileMenuTLS,
+                *myFileMenuDemandElements,
                 *myEditMenu,
                 *myProcessingMenu,
                 *myLocatorMenu,
@@ -369,34 +389,11 @@ protected:
     /// @brief The splitter that divides the main window into view and the log window
     FXSplitter* myMainSplitter;
 
-    /// @brief for some menu detaching fun
-    FXToolBarShell* myToolBarDrag1, *myToolBarDrag2, *myToolBarDrag3,
-                    *myToolBarDrag4, *myToolBarDrag5,
-                    *myMenuBarDrag;
-
     /// @brief List of got requests
-    MFXEventQue<GUIEvent*> myEvents;
-
-    /// @brief The menu used for the MDI-windows
-    FXMDIMenu* myMDIMenu;
-
-    /// @brief The application menu bar
-    FXMenuBar* myMenuBar;
-
-    /// @brief The application tool bar
-    FXToolBar* myToolBar1, *myToolBar2, *myToolBar3, *myToolBar4, *myToolBar5;
+    FXSynchQue<GUIEvent*> myEvents;
 
     /// @brief io-event with the load-thread
     FXEX::FXThreadEvent myLoadThreadEvent;
-
-    /// @brief List of recent config files
-    FXRecentFiles myRecentConfigs;
-
-    /// @brief List of recent nets
-    FXRecentFiles myRecentNets;
-
-    /// @brief Input file pattern
-    std::string myConfigPattern;
 
     /// @brief check if had dependent build
     bool hadDependentBuild;
@@ -407,33 +404,185 @@ protected:
     /// @brief the one and only undo list
     GNEUndoList* myUndoList;
 
+    /// @brief Input file pattern
+    std::string myConfigPattern;
+
+private:
+    /// @brief struct for menu bar file
+    struct MenuBarFile {
+
+        /// @brief constructor
+        MenuBarFile(GNEApplicationWindow* GNEApp);
+
+        /// @brief build recent files
+        void buildRecentFiles(FXMenuPane* fileMenu);
+
+        /// @brief filename for load/save additionals
+        std::string myAdditionalsFile;
+
+        /// @brief filename for load/save TLS Programs
+        std::string myTLSProgramsFile;
+
+        /// @brief filename for load/save demand elemetns
+        std::string myDemandElementsFile;
+
+        /// @brief List of recent config files
+        FXRecentFiles myRecentConfigs;
+
+        /// @brief List of recent nets
+        FXRecentFiles myRecentNets;
+
+    private:
+        /// @brief pointer to current GNEApplicationWindow
+        GNEApplicationWindow* myGNEApp;
+    };
+
+    /// @brief struct for File menu commands
+    struct FileMenuCommands {
+
+        /// @brief constructor
+        FileMenuCommands(GNEApplicationWindow* GNEApp);
+
+        /// @brief build menu commands
+        void buildFileMenuCommands(FXMenuPane* editMenu);
+
+        /// @brief FXMenuCommand for enable or disable save additionals
+        FXMenuCommand* saveAdditionals;
+
+        /// @brief FXMenuCommand for enable or disable save additionals As
+        FXMenuCommand* saveAdditionalsAs;
+
+        /// @brief FXMenuCommand for enable or disable save additionals
+        FXMenuCommand* saveTLSPrograms;
+
+        /// @brief FXMenuCommand for enable or disable save demand elements
+        FXMenuCommand* saveDemandElements;
+
+        /// @brief FXMenuCommand for enable or disable save demand elements as
+        FXMenuCommand* saveDemandElementsAs;
+
+    private:
+        /// @brief pointer to current GNEApplicationWindows
+        GNEApplicationWindow* myGNEApp;
+    };
+
+    /// @brief struct for network menu commands
+    struct NetworkMenuCommands {
+
+        /// @brief constructor
+        NetworkMenuCommands(GNEApplicationWindow* GNEApp);
+
+        /// @brief build menu commands
+        void buildNetworkMenuCommands(FXMenuPane* editMenu);
+
+        /// @brief show all menu commands
+        void showNetworkMenuCommands();
+
+        /// @brief hide all menu commands
+        void hideNetworkMenuCommands();
+
+        /// @brief menu command for create edge
+        FXMenuCommand* createEdgeMode;
+
+        /// @brief menu command for move mode
+        FXMenuCommand* moveMode;
+
+        /// @brief menu command for delete mode
+        FXMenuCommand* deleteMode;
+
+        /// @brief menu command for inspect mode
+        FXMenuCommand* inspectMode;
+
+        /// @brief menu command for select mode
+        FXMenuCommand* selectMode;
+
+        /// @brief menu command for connect mode
+        FXMenuCommand* connectMode;
+
+        /// @brief menu command for prohibition mode
+        FXMenuCommand* prohibitionMode;
+
+        /// @brief menu command for TLS Mode
+        FXMenuCommand* TLSMode;
+
+        /// @brief menu command for additional mode
+        FXMenuCommand* additionalMode;
+
+        /// @brief menu command for crossing mode
+        FXMenuCommand* crossingMode;
+
+        /// @brief menu command for TAZ mode
+        FXMenuCommand* TAZMode;
+
+        /// @brief menu command for shape mode
+        FXMenuCommand* shapeMode;
+
+    private:
+        /// @brief pointer to current GNEApplicationWindows
+        GNEApplicationWindow* myGNEApp;
+
+        /// @brief separator between sets of FXMenuCommand
+        FXMenuSeparator* myHorizontalSeparator;
+    };
+
+    /// @brief struct for Demand menu commands
+    struct DemandMenuCommands {
+
+        /// @brief constructor
+        DemandMenuCommands(GNEApplicationWindow* GNEApp);
+
+        /// @brief build menu commands
+        void buildDemandMenuCommands(FXMenuPane* editMenu);
+
+        /// @brief show all menu commands
+        void showDemandMenuCommands();
+
+        /// @brief hide all menu commands
+        void hideDemandMenuCommands();
+
+        /// @brief menu command for route mode
+        FXMenuCommand* routeMode;
+
+        /// @brief menu command for vehicle mode
+        FXMenuCommand* vehicleMode;
+
+        /// @brief menu command for vehicle type mode
+        FXMenuCommand* vehicleTypeMode;
+
+    private:
+        /// @brief pointer to current GNEApplicationWindows
+        GNEApplicationWindow* myGNEApp;
+
+        /// @brief separator between sets of FXMenuCommand
+        FXMenuSeparator* myHorizontalSeparator;
+    };
+
+    /// @brief Toolbars Grip
+    ToolbarsGrip myToolbarsGrip;
+
+    /// @brief MenuBarFile
+    MenuBarFile myMenuBarFile;
+
+    /// @brief File Menu Commands
+    FileMenuCommands myFileMenuCommands;
+
+    /// @brief Network Menu Commands
+    NetworkMenuCommands myNetworkMenuCommands;
+
+    /// @brief Demand Menu Commands
+    DemandMenuCommands myDemandMenuCommands;
+
+    /// @brief pointer to current view net
+    GNEViewNet* myViewNet;
+
     /// @brief the prefix for the window title
     const FXString myTitlePrefix;
 
-    /// @brief filename for load/save additionals
-    std::string myAdditionalsFile;
+    /// @brief The menu used for the MDI-windows
+    FXMDIMenu* myMDIMenu;
 
-    /// @brief filename for load/save shapes
-    std::string myShapesFile;
-
-    /// @brief filename for load/save TLS Programs
-    std::string myTLSProgramsFile;
-
-private:
-    /// @brief FXMenuCommand for enable or disable save additionals
-    FXMenuCommand* mySaveAdditionalsMenuCommand;
-
-    /// @brief FXMenuCommand for enable or disable save additionals As
-    FXMenuCommand* mySaveAdditionalsMenuCommandAs;
-
-    /// @brief FXMenuCommand for enable or disable save shapes
-    FXMenuCommand* mySaveShapesMenuCommand;
-
-    /// @brief FXMenuCommand for enable or disable save shapes
-    FXMenuCommand* mySaveShapesMenuCommandAs;
-
-    /// @brief FXMenuCommand for enable or disable save additionals
-    FXMenuCommand* mySaveTLSProgramsMenuCommand;
+    /// @brief Builds the menu bar
+    void fillMenuBar();
 
     /// @brief starts to load a netimport configuration or a network */
     void loadConfigOrNet(const std::string file, bool isNet, bool isReload = false, bool useStartupOptions = false, bool newNet = false);
@@ -441,20 +590,11 @@ private:
     /// @brief this method closes all windows and deletes the current simulation */
     void closeAllWindows();
 
-    /// @brief opens a new simulation display
-    GUISUMOAbstractView* openNewView();
-
-    /// @brief convenience method
-    GNEViewNet* getView();
-
     /// @brief warns about unsaved changes and gives the user the option to abort
     bool continueWithUnsavedChanges();
 
     /// @brief warns about unsaved changes in additionals and gives the user the option to abort
     bool continueWithUnsavedAdditionalChanges();
-
-    /// @brief warns about unsaved changes in shapes  and gives the user the option to abort
-    bool continueWithUnsavedShapeChanges();
 };
 
 

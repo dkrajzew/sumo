@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -27,7 +27,7 @@
 #include <config.h>
 
 #include <queue>
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 #include <utils/iodevices/OutputDevice_File.h>
 #include <utils/geom/Position.h>
@@ -53,7 +53,7 @@ class SUMOVehicle;
 
 class MSCrossSection;
 
-class MSDevice_SSM : public MSDevice {
+class MSDevice_SSM : public MSVehicleDevice {
 
 private:
     /// All currently existing SSM devices
@@ -302,7 +302,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
 
     /** @brief returns all currently existing SSM devices

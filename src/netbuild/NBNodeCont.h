@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -135,7 +135,7 @@ public:
     /** @brief add ids of nodes which shall be joined into a single node
      * @param[in] cluster The cluster to add
      */
-    void addCluster2Join(std::set<std::string> cluster);
+    void addCluster2Join(std::set<std::string> cluster, NBNode* node);
 
     /// @brief Joins loaded junction clusters (see NIXMLNodesHandler)
     int joinLoadedClusters(NBDistrictCont& dc, NBEdgeCont& ec, NBTrafficLightLogicCont& tlc);
@@ -247,8 +247,11 @@ public:
     /// divides the incoming lanes on outgoing lanes
     void computeLanes2Lanes();
 
-    /// build the list of outgoing edges and lanes
+    /// @brief build the list of outgoing edges and lanes
     void computeLogics(const NBEdgeCont& ec, OptionsCont& oc);
+
+    /// @brief compute right-of-way logic for all lane-to-lane connections
+    void computeLogics2(const NBEdgeCont& ec, OptionsCont& oc);
 
     /// @brief Returns the number of nodes stored in this container
     int size() const {
@@ -326,6 +329,7 @@ private:
 
     /// @brief joins the given node clusters
     void joinNodeClusters(NodeClusters clusters, NBDistrictCont& dc, NBEdgeCont& ec, NBTrafficLightLogicCont& tlc);
+    void joinNodeCluster(NodeSet clusters, NBDistrictCont& dc, NBEdgeCont& ec, NBTrafficLightLogicCont& tlc, NBNode* predefined = nullptr);
 
     /// @}
 
@@ -333,9 +337,16 @@ private:
     /// @{
     /** @brief Returns whethe the given node cluster should be controlled by a tls
      * @param[in] c The node cluster
+     * @param[in] laneSpeedThreshold threshold for determining whether a node or cluster should be tls controlled
      * @return Whether this node cluster shall be controlled by a tls
      */
-    bool shouldBeTLSControlled(const NodeSet& c) const;
+    bool shouldBeTLSControlled(const NodeSet& c, double laneSpeedThreshold) const;
+
+    /// @brief check wheter the set of nodes only contains pedestrian crossings
+    bool onlyCrossings(const NodeSet& c) const; 
+
+    /// @brief check wheter the set of nodes contains traffic lights with custom id
+    bool customTLID(const NodeSet& c) const; 
     /// @}
 
 
@@ -356,7 +367,7 @@ private:
     std::set<std::string> myJoinExclusions;
 
     /// @brief loaded sets of node ids to join (cleared after use)
-    std::vector<std::set<std::string> > myClusters2Join;
+    std::vector<std::pair<std::set<std::string>, NBNode*> > myClusters2Join;
 
     /// @brief sets of node ids which were joined
     std::vector<std::set<std::string> > myJoinedClusters;

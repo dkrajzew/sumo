@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -41,7 +41,7 @@
 // static initialisation methods
 // ---------------------------------------------------------------------------
 MSDevice_Transportable*
-MSDevice_Transportable::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into, const bool isContainer) {
+MSDevice_Transportable::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into, const bool isContainer) {
     MSDevice_Transportable* device = new MSDevice_Transportable(v, isContainer ? "container_" + v.getID() : "person_" + v.getID(), isContainer);
     into.push_back(device);
     return device;
@@ -52,7 +52,7 @@ MSDevice_Transportable::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice
 // MSDevice_Transportable-methods
 // ---------------------------------------------------------------------------
 MSDevice_Transportable::MSDevice_Transportable(SUMOVehicle& holder, const std::string& id, const bool isContainer)
-    : MSDevice(holder, id), myAmContainer(isContainer), myTransportables(), myStopped(holder.isStopped()) {
+    : MSVehicleDevice(holder, id), myAmContainer(isContainer), myTransportables(), myStopped(holder.isStopped()) {
 }
 
 

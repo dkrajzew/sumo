@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -45,7 +45,7 @@ MEInductLoop::MEInductLoop(const std::string& id,
                            const std::string& vTypes) :
     MSDetectorFileOutput(id, vTypes), mySegment(s),
     myPosition(positionInMeters),
-    myMeanData(0, mySegment->getLength(), false, 0) {
+    myMeanData(nullptr, mySegment->getLength(), false, nullptr) {
     myMeanData.setDescription("inductionLoop_" + id);
     s->addDetector(&myMeanData);
 }

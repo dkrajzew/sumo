@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2017-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2017-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -29,7 +29,7 @@
 #include <utils/shapes/ShapeContainer.h>
 #include <microsim/MSNet.h>
 #include <microsim/MSJunctionControl.h>
-#include <traci-server/TraCIConstants.h>
+#include <libsumo/TraCIConstants.h>
 #include "Helper.h"
 #include "Junction.h"
 
@@ -74,7 +74,7 @@ Junction::getShape(const std::string& junctionID) {
 MSJunction*
 Junction::getJunction(const std::string& id) {
     MSJunction* j = MSNet::getInstance()->getJunctionControl().get(id);
-    if (j == 0) {
+    if (j == nullptr) {
         throw TraCIException("Junction '" + id + "' is not known");
     }
     return j;
@@ -112,7 +112,7 @@ Junction::makeWrapper() {
 bool
 Junction::handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper) {
     switch (variable) {
-        case ID_LIST:
+        case TRACI_ID_LIST:
             return wrapper->wrapStringList(objID, variable, getIDList());
         case ID_COUNT:
             return wrapper->wrapInt(objID, variable, getIDCount());

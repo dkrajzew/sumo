@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2012-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2012-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -54,7 +54,7 @@ MSEmissionExport::write(OutputDevice& of, SUMOTime timestep, int precision) {
             of.writeAttr("PMx", emiss.PMx).writeAttr("fuel", emiss.fuel).writeAttr("electricity", emiss.electricity);
             of.writeAttr("noise", HelpersHarmonoise::computeNoise(veh->getVehicleType().getEmissionClass(), veh->getSpeed(), veh->getAcceleration()));
             of.writeAttr("route", veh->getRoute().getID()).writeAttr("type", fclass);
-            if (microVeh != 0) {
+            if (microVeh != nullptr) {
                 of.writeAttr("waiting", microVeh->getWaitingSeconds());
                 of.writeAttr("lane", microVeh->getLane()->getID());
             }

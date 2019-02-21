@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2003-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2003-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -56,34 +56,34 @@ FXIMPLEMENT(FXBaseObject, FXObject, FXBaseObjectMap, ARRAYNUMBER(FXBaseObjectMap
 
 // ctor
 FXBaseObject::FXBaseObject(FXObject* tgt, FXSelector sel) : FXObject() {
-    data = NULL;
+    data = nullptr;
     target = tgt;
     message = sel;
     flags = 0;
     app = FXApp::instance();
-    if (app == NULL) {
+    if (app == nullptr) {
         fxerror("%s: Cannot create object without FXApp object\n", getClassName());
     }
 }
 
 // ctor
 FXBaseObject::FXBaseObject(FXApp* a, FXObject* tgt, FXSelector sel) : FXObject() {
-    data = NULL;
+    data = nullptr;
     target = tgt;
     message = sel;
     flags = 0;
     app = a;
-    if (app == NULL) {
+    if (app == nullptr) {
         app = FXApp::instance();
     }
-    if (app == NULL) {
+    if (app == nullptr) {
         fxerror("%s: Cannot create object without FXApp object\n", getClassName());
     }
 }
 
 // free up all resources
 FXBaseObject::~FXBaseObject() {
-    if (data != NULL && data != (void*) - 1) {
+    if (data != nullptr && data != (void*) - 1) {
         fxerror("%s::~%s - user data is not NULL prior to destruction\n", getClassName(), getClassName());
     }
     app = (FXApp*) - 1;
@@ -146,9 +146,9 @@ long FXBaseObject::onCmdDisable(FXObject*, FXSelector, void*) {
 // handle update event
 long FXBaseObject::onUpdate(FXObject* sender, FXSelector, void*) {
     if (flags & FLAG_ENABLED) {
-        sender->handle(this, FXSEL(SEL_UPDATE, FXWindow::ID_ENABLE), NULL);
+        sender->handle(this, FXSEL(SEL_UPDATE, FXWindow::ID_ENABLE), nullptr);
     } else {
-        sender->handle(this, FXSEL(SEL_UPDATE, FXWindow::ID_DISABLE), NULL);
+        sender->handle(this, FXSEL(SEL_UPDATE, FXWindow::ID_DISABLE), nullptr);
     }
     return 1;
 }

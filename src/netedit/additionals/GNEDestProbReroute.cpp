@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -20,7 +20,6 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/common/ToString.h>
 #include <netedit/dialogs/GNERerouterIntervalDialog.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/changes/GNEChange_Attribute.h>
@@ -29,8 +28,6 @@
 #include <netedit/GNEUndoList.h>
 
 #include "GNEDestProbReroute.h"
-#include "GNERerouter.h"
-#include "GNERerouterInterval.h"
 
 // ===========================================================================
 // member method definitions
@@ -55,13 +52,13 @@ GNEDestProbReroute::~GNEDestProbReroute() {}
 
 
 void
-GNEDestProbReroute::moveGeometry(const Position&, const Position&) {
+GNEDestProbReroute::moveGeometry(const Position&) {
     // This additional cannot be moved
 }
 
 
 void
-GNEDestProbReroute::commitGeometryMoving(const Position&, GNEUndoList*) {
+GNEDestProbReroute::commitGeometryMoving(GNEUndoList*) {
     // This additional cannot be moved
 }
 
@@ -103,7 +100,7 @@ GNEDestProbReroute::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_GENERIC:
             return getGenericParametersStr();
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -118,10 +115,10 @@ GNEDestProbReroute::setAttribute(SumoXMLAttr key, const std::string& value, GNEU
         case SUMO_ATTR_EDGE:
         case SUMO_ATTR_PROB:
         case GNE_ATTR_GENERIC:
-            undoList->p_add(new GNEChange_Attribute(this, key, value));
+            undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -138,20 +135,20 @@ GNEDestProbReroute::isValid(SumoXMLAttr key, const std::string& value) {
         case GNE_ATTR_GENERIC:
             return isGenericParametersValid(value);
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
 
 std::string
 GNEDestProbReroute::getPopUpID() const {
-    return toString(getTag());
+    return getTagStr();
 }
 
 
 std::string
 GNEDestProbReroute::getHierarchyName() const {
-    return toString(getTag()) + ": " + myNewEdgeDestination->getID();
+    return getTagStr() + ": " + myNewEdgeDestination->getID();
 }
 
 // ===========================================================================
@@ -174,7 +171,7 @@ GNEDestProbReroute::setAttribute(SumoXMLAttr key, const std::string& value) {
             setGenericParametersStr(value);
             break;
         default:
-            throw InvalidArgument(toString(getTag()) + " doesn't have an attribute of type '" + toString(key) + "'");
+            throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 

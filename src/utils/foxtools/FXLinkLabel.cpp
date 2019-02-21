@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2006-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2006-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -34,7 +34,7 @@
 FXint
 FXLinkLabel::fxexecute(FXString link) {
 #ifdef WIN32
-    return (int)ShellExecute(NULL, "open", link.text(), NULL, NULL, SW_SHOWNORMAL) > 32;
+    return (int)ShellExecute(nullptr, "open", link.text(), nullptr, nullptr, SW_SHOWNORMAL) > 32;
 #else
     FXString ext = FXPath::extension(link);
     FXString list;

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -21,7 +21,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
 #include "GNEAdditional.h"
 
@@ -53,6 +52,36 @@ public:
     /// @brief Destructor
     ~GNEStoppingPlace();
 
+    /// @name members and functions relative to write additionals into XML
+    /// @{
+    /// @brief check if current additional is valid to be writed into XML
+    bool isAdditionalValid() const;
+
+    /// @brief return a string with the current additional problem
+    std::string getAdditionalProblem() const;
+
+    /// @brief fix additional problem
+    void fixAdditionalProblem();
+    /// @}
+
+    /**@brief check if the position of an stoppingPlace over a lane is valid (without modifications)
+    * @param[in] startPosStr Start position of stoppingPlace in string format
+    * @param[in] endPosStr End position of stoppingPlace in string format
+    * @param[in] laneLength Length of the lane
+    * @param[in] friendlyPos Attribute of stoppingPlace
+    * @return true if the stoppingPlace position is valid, false in otherweise
+    */
+    static bool checkStoppinPlacePosition(const std::string& startPosStr, const std::string& endPosStr, const double laneLength, const bool friendlyPos);
+
+    /**@brief check if the position of an stoppingPlace over a la can be fixed
+    * @param[in] startPosStr Start position of stoppingPlace in string format (note: it can be modified)
+    * @param[in] endPosStr End position of stoppingPlace in string format (note: it can be modified)
+    * @param[in] laneLength Length of the lane in which stopping place is placed
+    * @param[in] friendlyPos boolean attribute of stoppingPlace
+    * @return true if the stoppingPlace position was sucesfully fixed, false in other case
+    */
+    static bool fixStoppinPlacePosition(std::string& startPosStr, std::string& endPosStr, const double laneLength, const bool friendlyPos);
+
     /// @brief get Lane
     GNELane* getLane() const;
 
@@ -62,22 +91,17 @@ public:
     /// @brief get end Position
     double getEndPosition() const;
 
-    /// @brief check if Position of stoppingPlace are fixed
-    bool areStoppingPlacesPositionsFixed() const;
-
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
-     * @param[in] newPosition new position of geometry
-     * @note should't be called in drawGL(...) functions to avoid smoothness issues
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
      */
-    void moveGeometry(const Position& oldPos, const Position& offset);
+    void moveGeometry(const Position& offset);
 
     /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-     * @param[in] oldPos the old position of additional
      * @param[in] undoList The undoList on which to register changes
      */
-    void commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList);
+    void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
     virtual void updateGeometry(bool updateGrid) = 0;
@@ -144,9 +168,6 @@ protected:
     /// @brief The position of the sign
     Position mySignPos;
 
-    /// @brief set geometry common to all stopping places
-    void setStoppingPlaceGeometry(double movingToSide);
-
     /// @brief circle width resolution for all stopping places
     static const double myCircleWidth;
 
@@ -158,6 +179,15 @@ protected:
 
     /// @brief text inner circle width resolution for all stopping places
     static const double myCircleInText;
+
+    /// @brief set geometry common to all stopping places
+    void setStoppingPlaceGeometry(double movingToSide);
+
+    /// @brief get start position over lane that is applicable to the shape
+    double getStartGeometryPositionOverLane() const;
+
+    /// @brief get end position over lane that is applicable to the shape
+    double getEndGeometryPositionOverLane() const;
 
 private:
     /// @brief set attribute after validation

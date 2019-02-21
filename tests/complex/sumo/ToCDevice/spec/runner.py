@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -49,6 +49,7 @@ def printToCParams(vehID, only_dynamic=False):
     automatedType = traci.vehicle.getParameter(vehID, "device.toc.automatedType")
     responseTime = traci.vehicle.getParameter(vehID, "device.toc.responseTime")
     recoveryRate = traci.vehicle.getParameter(vehID, "device.toc.recoveryRate")
+    lcAbstinence = traci.vehicle.getParameter(vehID, "device.toc.lcAbstinence")
     initialAwareness = traci.vehicle.getParameter(vehID, "device.toc.initialAwareness")
     mrmDecel = traci.vehicle.getParameter(vehID, "device.toc.mrmDecel")
     currentAwareness = traci.vehicle.getParameter(vehID, "device.toc.currentAwareness")
@@ -64,6 +65,7 @@ def printToCParams(vehID, only_dynamic=False):
         print("  automatedType = %s" % automatedType)
         print("  responseTime = %s" % responseTime)
         print("  recoveryRate = %s" % recoveryRate)
+        print("  lcAbstinence = %s" % lcAbstinence)
         print("  initialAwareness = %s" % initialAwareness)
         print("  mrmDecel = %s" % mrmDecel)
         print("Dynamic parameters:")

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -96,19 +96,55 @@ GUIPointOfInterest::getCenteringBoundary() const {
 
 void
 GUIPointOfInterest::drawGL(const GUIVisualizationSettings& s) const {
-    const double exaggeration = s.poiSize.getExaggeration(s);
     // first clear vertices
     myPOIVertices.clear();
-    // only continue if scale is valid
-    if (s.scale * (1.3 / 3.0) *exaggeration < s.poiSize.minSize) {
-        return;
+    // check if POI can be drawn
+    if (checkDraw(s)) {
+        // push name (needed for getGUIGlObjectsUnderCursor(...)
+        glPushName(getGlID());
+        // draw inner polygon
+        drawInnerPOI(s, false);
+        // pop name
+        glPopName();
     }
-    glPushName(getGlID());
+}
+
+
+void
+GUIPointOfInterest::setColor(const GUIVisualizationSettings& s, bool disableSelectionColor) const {
+    const GUIColorer& c = s.poiColorer;
+    const int active = c.getActive();
+    if (s.netedit && active != 1 && gSelected.isSelected(GLO_POI, getGlID()) && disableSelectionColor) {
+        // override with special colors (unless the color scheme is based on selection)
+        GLHelper::setColor(RGBColor(0, 0, 204));
+    } else if (active == 0) {
+        GLHelper::setColor(getShapeColor());
+    } else if (active == 1) {
+        GLHelper::setColor(c.getScheme().getColor(gSelected.isSelected(GLO_POI, getGlID())));
+    } else {
+        GLHelper::setColor(c.getScheme().getColor(0));
+    }
+}
+
+
+bool
+GUIPointOfInterest::checkDraw(const GUIVisualizationSettings& s) const {
+    // only continue if scale is valid
+    if (s.scale * (1.3 / 3.0) *s.poiSize.getExaggeration(s, this) < s.poiSize.minSize) {
+        return false;
+    }
+    return true;
+}
+
+
+void
+GUIPointOfInterest::drawInnerPOI(const GUIVisualizationSettings& s, bool disableSelectionColor) const {
+    const double exaggeration = s.poiSize.getExaggeration(s, this);
     glPushMatrix();
-    setColor(s);
+    setColor(s, disableSelectionColor);
     glTranslated(x(), y(), getShapeLayer());
     glRotated(-getShapeNaviDegree(), 0, 0, 1);
-
+    // check if has to be drawn as a circle or with an image
     if (getShapeImgFile() != DEFAULT_IMG_FILE) {
         int textureID = GUITexturesHelper::getTextureID(getShapeImgFile());
         if (textureID > 0) {
@@ -130,27 +166,9 @@ GUIPointOfInterest::drawGL(const GUIVisualizationSettings& s) const {
         const Position namePos = *this;
         drawName(namePos, s.scale, s.poiName, s.angle);
         if (s.poiType.show) {
-            GLHelper::drawText(getShapeType(), namePos + Position(0, -0.6 * s.poiType.size / s.scale),
-                               GLO_MAX, s.poiType.size / s.scale, s.poiType.color);
+            const Position p = namePos + Position(0, -0.6 * s.poiType.size / s.scale);
+            GLHelper::drawTextSettings(s.poiType, getShapeType(), p, s.scale, s.angle);
         }
-    }
-    glPopName();
-}
-
-
-void
-GUIPointOfInterest::setColor(const GUIVisualizationSettings& s) const {
-    const GUIColorer& c = s.poiColorer;
-    const int active = c.getActive();
-    if (s.netedit && active != 1 && gSelected.isSelected(GLO_POI, getGlID())) {
-        // override with special colors (unless the color scheme is based on selection)
-        GLHelper::setColor(RGBColor(0, 0, 204));
-    } else if (active == 0) {
-        GLHelper::setColor(getShapeColor());
-    } else if (active == 1) {
-        GLHelper::setColor(c.getScheme().getColor(gSelected.isSelected(GLO_POI, getGlID())));
-    } else {
-        GLHelper::setColor(c.getScheme().getColor(0));
     }
 }
 

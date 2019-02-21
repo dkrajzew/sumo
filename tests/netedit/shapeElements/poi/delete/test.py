@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -41,14 +41,14 @@ netedit.deleteMode()
 netedit.leftClick(referencePosition, 150, 50)
 
 # delete first stacked loaded POI (Second stacked must stay)
-netedit.leftClick(referencePosition, 200, 50)
+netedit.leftClick(referencePosition, 200, 58)
 
 # Check undos and redos
 netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveShapes()
+netedit.saveAdditionals()
 
 # save network
 netedit.saveNetwork()

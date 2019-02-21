@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -25,7 +25,7 @@
 #include <config.h>
 
 #include "NINavTeqHelper.h"
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/MsgHandler.h>
 #include <utils/common/UtilExceptions.h>
 #include <netbuild/NBEdge.h>
@@ -37,7 +37,7 @@
 double
 NINavTeqHelper::getSpeed(const std::string& id, const std::string& speedClassS) {
     try {
-        int speedClass = TplConvert::_2int(speedClassS.c_str());
+        int speedClass = StringUtils::toInt(speedClassS);
         switch (speedClass) {
             case -1:
                 return (double) 1.0 / (double) 3.6;
@@ -69,7 +69,7 @@ NINavTeqHelper::getSpeed(const std::string& id, const std::string& speedClassS) 
 int
 NINavTeqHelper::getLaneNumber(const std::string& id, const std::string& laneNoS, double speed) {
     try {
-        int nolanes = TplConvert::_2int(laneNoS.c_str());
+        int nolanes = StringUtils::toInt(laneNoS);
         if (nolanes < 0) {
             return 1;
         } else if (nolanes / 10 > 0) {

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2011-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2011-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -133,8 +133,8 @@ private:
     /// @brief The RTree for spatial queries
     TRIANGLE_RTREE_QUAL myRTree;
 
-    /// @brief raster height information in m
-    int16_t* myRaster;
+    /// @brief raster height information in m for all loaded files
+    std::vector<std::pair<Boundary, int16_t*> > myRasters;
 
     /// @brief dimensions of one pixel in raster data
     Position mySizeOfPixel;

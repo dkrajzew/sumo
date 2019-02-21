@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2017-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2017-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -155,7 +155,7 @@ catchup="connected_pCatchup" catchupFollower="connected_pCatchupFollower" />
                           "connected_pCatchup", "connected_pCatchupFollower"]
         registeredPlatoonVTypes = list(
             set(reduce(lambda x, y: x + y, [[orig] + list(mapped.values())
-                       for orig, mapped in cfg.PLATOON_VTYPES.items()])))
+                                            for orig, mapped in cfg.PLATOON_VTYPES.items()])))
         expectedVTypes.sort()
         registeredPlatoonVTypes.sort()
         self.assertListEqual(expectedVTypes, registeredPlatoonVTypes)
@@ -173,7 +173,7 @@ catchup="connected_pCatchup" catchupFollower="connected_pCatchupFollower" />
                           "connected_pCatchup", "connected_pCatchupFollower"]
         registeredPlatoonVTypes = list(
             set(reduce(lambda x, y: x + y, [[orig] + list(mapped.values())
-                       for orig, mapped in cfg.PLATOON_VTYPES.items()])))
+                                            for orig, mapped in cfg.PLATOON_VTYPES.items()])))
         expectedVTypes.sort()
         registeredPlatoonVTypes.sort()
         self.assertListEqual(expectedVTypes, registeredPlatoonVTypes)

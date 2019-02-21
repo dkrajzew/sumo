@@ -1,5 +1,5 @@
-Eclipse SUMO netconvert Version 0b587be
- Copyright (C) 2001-2018 German Aerospace Center (DLR) and others; http://sumo.dlr.de
+Eclipse SUMO netconvert Version v1_0_1+0645-93703db
+ Copyright (C) 2001-2019 German Aerospace Center (DLR) and others; http://sumo.dlr.de
 Network importer / builder for the microscopic, multi-modal traffic simulation
   SUMO.
 
@@ -22,6 +22,8 @@ Input Options:
   -t, --type-files FILE                Read XML-type defs from FILE
   --ptstop-files FILE                  Reads public transport stops from FILE
   --ptline-files FILE                  Reads public transport lines from FILE
+  --polygon-files FILE                 Reads polygons from FILE for embedding
+                                         in network where applicable
   --shapefile-prefix FILE              Read shapefiles (ArcView, Tiger, ...)
                                          from files starting with 'FILE'
   --dlr-navteq-prefix FILE             Read converted Navteq GDF data
@@ -80,6 +82,9 @@ Output Options:
                                          any line
   --parking-output FILE                Writes parking areas to FILE
   --railway.topology.output FILE       Analyse topology of the railway network
+  --polygon-output FILE                Write shapes that are embedded in the
+                                         network input and that are not
+                                         supported by polyconvert (OpenDRIVE)
   --opendrive-output.straight-threshold FLOAT  Builds parameterized curves
                                          whenever the angular change  between
                                          straight segments exceeds FLOAT degrees
@@ -107,6 +112,7 @@ Processing Options:
   --construction-date STR              Use YYYY-MM-DD date to determine the
                                          readiness of features under
                                          construction
+  --flatten                            Remove all z-data
   --plain.extend-edge-shape            If edge shapes do not end at the node
                                          positions, extend them
   --numerical-ids                      Remaps alphanumerical IDs of nodes and
@@ -146,12 +152,12 @@ Processing Options:
   --geometry.check-overlap.vertical-threshold FLOAT  Ignore overlapping edges
                                          if they are separated vertically by the
                                          given threshold.
-  --geometry.max-grade FLOAT           Warn about edge geometries with a grade
-                                         in % above FLOAT. The threshold applies
-                                         to roads with a speed limit of 50km/h
-                                         and is scaled according to road speed.
   --geometry.avoid-overlap             Modify edge geometries to avoid overlap
                                          at junctions
+  --geometry.max-grade FLOAT           Warn about edge geometries with a grade
+                                         in % above FLOAT.
+  --geometry.max-grade.fix             Smooth edge edge geometries with a grade
+                                         in above the warning threshold.
   --offset.disable-normalization       Turn off normalizing node positions
   --offset.x FLOAT                     Adds FLOAT to net x-positions
   --offset.y FLOAT                     Adds FLOAT to net y-positions
@@ -185,6 +191,9 @@ Building Defaults Options:
                                          by default
   --default.junctions.radius FLOAT     The default turning radius of
                                          intersections
+  --default.right-of-way STR           The default algorithm for computing
+                                         right of way rules ('default',
+                                         'edgePriority')
 
 TLS Building Options:
   --tls.discard-loaded                 Does not instatiate traffic lights
@@ -198,6 +207,8 @@ TLS Building Options:
   --tls.unset STR                      Interprets STR as list of junctions to
                                          be not controlled by TLS
   --tls.guess                          Turns on TLS guessing
+  --tls.guess.threshold FLOAT          Sets minimum value for the sum of all
+                                         incoming lane speeds when guessing TLS
   --tls.taz-nodes                      Sets district nodes as tls-controlled
   --tls-guess.joining                  Includes node clusters into guess
   --tls.join                           Tries to cluster tls-controlled nodes
@@ -244,6 +255,10 @@ TLS Building Options:
                                          quarter-phase
   --tls.default-type STR               TLSs with unspecified type will use STR
                                          as their algorithm
+  --tls.layout STR                     Set phase layout four grouping opposite
+                                         directions or grouping all movements
+                                         for one incoming edge ['opposites',
+                                         'incoming']
   --tls.min-dur INT                    Default minimum phase duration for
                                          traffic lights with variable phase
                                          length
@@ -311,6 +326,8 @@ Junctions Options:
   --no-turnarounds                     Disables building turnarounds
   --no-turnarounds.tls                 Disables building turnarounds at
                                          tls-controlled junctions
+  --no-turnarounds.geometry            Disables building turnarounds at
+                                         geometry-like junctions
   --no-turnarounds.except-deadend      Disables building turnarounds except at
                                          dead end junctions
   --no-left-connections                Disables building connections to left

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -26,7 +26,7 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/foxtools/MFXMutex.h>
+#include <fx.h>
 #include <microsim/output/MSInductLoop.h>
 #include <utils/geom/Position.h>
 #include "GUIDetectorWrapper.h"
@@ -87,6 +87,9 @@ public:
      */
     std::vector<VehicleData> collectVehiclesOnDet(SUMOTime t, bool leaveTime = false) const;
 
+
+    /// @brief sets special caller for myWrapper
+    void setSpecialColor(const RGBColor* color); 
 
 protected:
     /// @name Methods that add and remove vehicles from internal container
@@ -174,6 +177,10 @@ public:
         /// @brief Returns the detector itself
         GUIInductLoop& getLoop();
 
+        /// @brief set (outline) color for extra visualiaztion
+        void setSpecialColor(const RGBColor* color) {
+            mySpecialColor = color;
+        }
 
     private:
         /// @brief The wrapped detector
@@ -191,6 +198,9 @@ public:
         /// @brief The position on the lane
         double myPosition;
 
+        /// @brief color for extra visualization
+        const RGBColor* mySpecialColor;
+
     private:
         /// @brief Invalidated copy constructor.
         MyWrapper(const MyWrapper&);
@@ -200,9 +210,13 @@ public:
 
     };
 
+private:
+
+    /// @brief the glObject wrapper for this induction loop
+    MyWrapper* myWrapper;
 
     /// @brief Mutex preventing parallel read/write access to internal MSInductLoop state
-    mutable MFXMutex myLock;
+    mutable FXMutex myLock;
 
 };
 

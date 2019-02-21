@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -181,7 +181,15 @@ public:
 
     /** @brief Returns the list of still pending stop edges
      */
-    const ConstMSEdgeVector getStopEdges() const;
+    const ConstMSEdgeVector getStopEdges(double& firstPos, double& lastPos) const;
+
+    /// @brief return list of route indices for the remaining stops
+    std::vector<int> getStopIndices() const;
+
+    /// @brief get distance for coming to a stop (used for rerouting checks)
+    double getBrakeGap() const {
+        return 0;
+    }
 
     /** @brief replace the current parking area stop with a new stop with merge duration
      */

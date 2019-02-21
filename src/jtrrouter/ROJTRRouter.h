@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -24,7 +24,7 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/vehicle/SUMOAbstractRouter.h>
+#include <utils/router/SUMOAbstractRouter.h>
 #include <router/RORoutable.h>
 
 
@@ -77,7 +77,7 @@ public:
      * @param[filled] into The list of edges to store the route into
      */
     bool compute(const ROEdge* from, const ROEdge* to, const ROVehicle* const vehicle,
-                 SUMOTime time, ConstROEdgeVector& into);
+                 SUMOTime time, ConstROEdgeVector& into, bool silent = false);
 
 
     /** @brief Recomputes the costs of a route

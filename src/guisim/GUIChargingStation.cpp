@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -53,9 +53,9 @@
 // ===========================================================================
 // method definitions
 // ===========================================================================
-GUIChargingStation::GUIChargingStation(const std::string& id, MSLane& lane, double frompos, double topos,  
-        const std::string& name,
-        double chargingPower, double efficiency, bool chargeInTransit, double chargeDelay) :
+GUIChargingStation::GUIChargingStation(const std::string& id, MSLane& lane, double frompos, double topos,
+                                       const std::string& name,
+                                       double chargingPower, double efficiency, bool chargeInTransit, double chargeDelay) :
     MSChargingStation(id, lane, frompos, topos, name, chargingPower, efficiency, chargeInTransit, chargeDelay),
     GUIGlObject_AbstractAdd(GLO_CHARGING_STATION, id) {
     myFGShape = lane.getShape();
@@ -143,7 +143,7 @@ GUIChargingStation::drawGL(const GUIVisualizationSettings& s) const {
     } else {
         GLHelper::setColor(s.SUMO_color_chargingStation);
     }
-    const double exaggeration = s.addSize.getExaggeration(s);
+    const double exaggeration = s.addSize.getExaggeration(s, this);
     GLHelper::drawBoxLines(myFGShape, myFGShapeRotations, myFGShapeLengths, exaggeration);
 
     // draw details unless zoomed out to far
@@ -180,11 +180,11 @@ GUIChargingStation::drawGL(const GUIVisualizationSettings& s) const {
 
     }
     if (s.addFullName.show && getMyName() != "") {
-        GLHelper::drawText(getMyName(), myFGSignPos, GLO_MAX - getType(), s.addFullName.scaledSize(s.scale), s.addFullName.color, s.getTextAngle(myFGSignRot));
+        GLHelper::drawTextSettings(s.addFullName, getMyName(), myFGSignPos, s.scale, s.getTextAngle(myFGSignRot), GLO_MAX - getType());
     }
     glPopMatrix();
     glPopName();
-    drawName(getCenteringBoundary().getCenter(), s.scale, s.addName);
+    drawName(getCenteringBoundary().getCenter(), s.scale, s.addName, s.angle);
 }
 
 /****************************************************************************/

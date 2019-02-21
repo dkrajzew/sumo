@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -86,22 +86,12 @@ public:
      *  but may also be transposed in full when there is not enough space.
      */
     class ApproachingDivider : public Bresenham::BresenhamCallBack {
-    private:
-        /// @brief The list of edges that approach the current edge
-        EdgeVector* myApproaching;
-
-        /// @brief The approached current edge
-        NBEdge* myCurrentOutgoing;
-
-        /// @brief The available lanes to which connections shall be built
-        std::vector<int> myAvailableLanes;
-
     public:
         /**@brief Constructor
          * @param[in] approaching The list of the edges that approach the outgoing edge
          * @param[in] currentOutgoing The outgoing edge
          */
-        ApproachingDivider(EdgeVector* approaching, NBEdge* currentOutgoing);
+        ApproachingDivider(const EdgeVector& approaching, NBEdge* currentOutgoing);
 
         /// @brief Destructor
         ~ApproachingDivider();
@@ -116,6 +106,20 @@ public:
 
         /// @brief the method that spreads the wished number of lanes from the the lane given by the bresenham-call to both left and right
         std::deque<int>* spread(const std::vector<int>& approachingLanes, int dest) const;
+
+    private:
+        /// @brief The list of edges that approach the current edge
+        const EdgeVector& myApproaching;
+
+        /// @brief The approached current edge
+        NBEdge* myCurrentOutgoing;
+
+        /// @brief The available lanes to which connections shall be built
+        std::vector<int> myAvailableLanes;
+
+    private:
+        /// @brief Invalidated assignment operator.
+        ApproachingDivider& operator=(const ApproachingDivider&) = delete;
 
     };
 
@@ -208,6 +212,7 @@ public:
     static const int AVOID_WIDE_RIGHT_TURN;
     static const int AVOID_WIDE_LEFT_TURN;
     static const int FOUR_CONTROL_POINTS;
+
 public:
     /**@brief Constructor
      * @param[in] id The id of the node
@@ -275,6 +280,11 @@ public:
     /// @brief Returns the keepClear flag
     bool getKeepClear() const {
         return myKeepClear;
+    }
+
+    /// @brief Returns hint on how to compute right of way
+    RightOfWay getRightOfWay() const {
+        return myRightOfWay;
     }
     /// @}
 
@@ -351,8 +361,14 @@ public:
     /// @brief computes the node's type, logic and traffic light
     void computeLogic(const NBEdgeCont& ec, OptionsCont& oc);
 
+    /// @brief compute right-of-way logic for all lane-to-lane connections
+    void computeLogic2(bool checkLaneFoes);
+
     /// @brief writes the XML-representation of the logic as a bitset-logic XML representation
-    bool writeLogic(OutputDevice& into, const bool checkLaneFoes) const;
+    bool writeLogic(OutputDevice& into) const;
+
+    const std::string getFoes(int linkIndex) const;
+    const std::string getResponse(int linkIndex) const;
 
     /// @brief Returns something like the most unused direction Should only be used to add source or sink nodes
     Position getEmptyDir() const;
@@ -490,6 +506,11 @@ public:
         myKeepClear = keepClear;
     }
 
+    /// @brief set method for computing right-of-way
+    void setRightOfWay(RightOfWay rightOfWay) {
+        myRightOfWay = rightOfWay;
+    }
+
     /// @brief return whether the shape was set by the user
     bool hasCustomShape() const {
         return myHaveCustomPoly;
@@ -606,6 +627,7 @@ public:
 
     /// @brief whether this is structurally similar to a geometry node
     bool geometryLike() const;
+    bool geometryLike(const EdgeVector& incoming, const EdgeVector& outgoing) const;
 
     /// @brief update the type of this node as a roundabout
     void setRoundabout();
@@ -731,14 +753,14 @@ public:
     bool isConstantWidthTransition() const;
 
     /// @brief return list of unique endpoint coordinates of all edges at this node
-    std::vector<Position> getEndPoints() const;
+    std::vector<std::pair<Position, std::string> > getEndPoints() const;
 
 private:
     /// @brief sets the priorites in case of a priority junction
     void setPriorityJunctionPriorities();
 
     /// @brief returns a list of edges which are connected to the given outgoing edge
-    EdgeVector* getEdgesThatApproach(NBEdge* currentOutgoing);
+    void getEdgesThatApproach(NBEdge* currentOutgoing, EdgeVector& approaching);
 
     /// @brief replace incoming connections prohibitions
     void replaceInConnectionProhibitions(NBEdge* which, NBEdge* by, int whichLaneOff, int byLaneOff);
@@ -760,6 +782,10 @@ private:
 
     /// @brief displace lane shapes to account for change in lane width at this node
     void displaceShapeAtWidthChange(const NBEdge* from, const NBEdge::Connection& con, PositionVector& fromShape, PositionVector& toShape) const;
+
+    /// @brief returns whether sub is a subset of super
+    static bool includes(const std::set<NBEdge*, ComparatorIdLess>& super,
+                         const std::set<const NBEdge*, ComparatorIdLess>& sub);
 
 private:
     /// @brief The position the node lies at
@@ -809,6 +835,9 @@ private:
 
     /// @brief whether the junction area must be kept clear
     bool myKeepClear;
+
+    /// @brief how to compute right of way for this node
+    RightOfWay myRightOfWay;
 
     /// @brief whether to discard all pedestrian crossings
     bool myDiscardAllCrossings;

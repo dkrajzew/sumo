@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2013-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2013-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -43,7 +43,7 @@ PHEMCEPHandler::PHEMCEPHandler() {
 PHEMCEPHandler::~PHEMCEPHandler() {
     std::map<SUMOEmissionClass, PHEMCEP*>::iterator iter = _ceps.begin();
     while (iter != _ceps.end()) {
-        delete(iter->second);
+        delete (iter->second);
         iter++;
     } // end while
     _ceps.clear();
@@ -95,10 +95,10 @@ PHEMCEPHandler::Load(SUMOEmissionClass emissionClass, const std::string& emissio
     //std::string phemPath = oc.getString("phemlight-path") + "/";
     std::vector<std::string> phemPath;
     phemPath.push_back(oc.getString("phemlight-path") + "/");
-    if (getenv("PHEMLIGHT_PATH") != 0) {
+    if (getenv("PHEMLIGHT_PATH") != nullptr) {
         phemPath.push_back(std::string(getenv("PHEMLIGHT_PATH")) + "/");
     }
-    if (getenv("SUMO_HOME") != 0) {
+    if (getenv("SUMO_HOME") != nullptr) {
         phemPath.push_back(std::string(getenv("SUMO_HOME")) + "/data/emissions/PHEMlight/");
     }
     if (!ReadVehicleFile(phemPath, emissionClassIdentifier,
@@ -174,7 +174,7 @@ PHEMCEP*
 PHEMCEPHandler::GetCep(SUMOEmissionClass emissionClass) {
     // check if Cep has been loaded
     if (_ceps.find(emissionClass) == _ceps.end()) {
-        return 0;
+        return nullptr;
     } // end if
 
     return _ceps[emissionClass];

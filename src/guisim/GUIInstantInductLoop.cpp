@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2003-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2003-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -101,7 +101,7 @@ GUIInstantInductLoop::MyWrapper::drawGL(const GUIVisualizationSettings& s) const
     glPushName(getGlID());
     double width = (double) 2.0 * s.scale;
     glLineWidth(1.0);
-    const double exaggeration = s.addSize.getExaggeration(s);
+    const double exaggeration = s.addSize.getExaggeration(s, this);
     // shape
     glColor3d(1, 0, 1);
     glPushMatrix();

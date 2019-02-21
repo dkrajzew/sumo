@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -61,11 +61,6 @@ enum GUIEventType {
      * @note The reason and the time step are stored within the event
     */
     EVENT_SIMULATION_ENDED,
-
-    /**@brief Send when a screenshot is requested;
-     * @brief View and file name are stored within the event
-     */
-    EVENT_SCREENSHOT,
 
     /// @brief End of events list; use this to define new
     EVENT_END

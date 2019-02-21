@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -52,7 +52,7 @@ public:
 
     /** @brief Returns the number of lanes computed from the given capacity
      *
-     * Returns the esimtaed number of lanes by returning the given capacity
+     * Returns the estimated number of lanes by returning the given capacity
      *  divided by the norming divider given in the constructor.
      *
      * @param[in] capacity The capacity to convert

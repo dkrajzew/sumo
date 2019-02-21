@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -34,6 +34,7 @@
 class GNEAttributeCarrier;
 class GNENetElement;
 class GNEAdditional;
+class GNEDemandElement;
 class GNEShape;
 class GNENet;
 
@@ -48,41 +49,29 @@ class GNEChange_Attribute : public GNEChange {
     FXDECLARE_ABSTRACT(GNEChange_Attribute)
 
 public:
-    /**@brief Constructor for NetElements
+    /**@brief Constructor
      * @param[in] ac The attribute-carrier to be modified
+     * @param[in] net Net in which AC is saved
      * @param[in] key The attribute key
      * @param[in] value The new value
-     * @param[in] testingMode flag to indicate if netedit is running in testing mode
      */
-    GNEChange_Attribute(GNENetElement* netElement,
+    GNEChange_Attribute(GNEAttributeCarrier* ac,
+                        GNENet* net,
                         const SumoXMLAttr key,
                         const std::string& value,
                         bool customOrigValue = false,
                         const std::string& origValue = "");
 
-    /**@brief Constructor for Additionals
+    /**@brief Constructor used for disjoint attributes
      * @param[in] ac The attribute-carrier to be modified
-     * @param[in] key The attribute key
-     * @param[in] value The new value
-     * @param[in] testingMode flag to indicate if netedit is running in testing mode
+     * @param[in] net Net in which AC is saved
+     * @param[in] oldParametersSet The old ParameterSet
+     * @param[in] newParametersSet The new ParameterSet
      */
-    GNEChange_Attribute(GNEAdditional* additional,
-                        const SumoXMLAttr key,
-                        const std::string& value,
-                        bool customOrigValue = false,
-                        const std::string& origValue = "");
-
-    /**@brief Constructor for Shapes
-     * @param[in] ac The attribute-carrier to be modified
-     * @param[in] key The attribute key
-     * @param[in] value The new value
-     * @param[in] testingMode flag to indicate if netedit is running in testing mode
-     */
-    GNEChange_Attribute(GNEShape* shape,
-                        const SumoXMLAttr key,
-                        const std::string& value,
-                        bool customOrigValue = false,
-                        const std::string& origValue = "");
+    GNEChange_Attribute(GNEAttributeCarrier* ac,
+                        GNENet* net,
+                        const int oldParametersSet,
+                        const int newParametersSet);
 
     /// @brief Destructor
     ~GNEChange_Attribute();
@@ -111,26 +100,20 @@ private:
      */
     GNEAttributeCarrier* myAC;
 
-    /// @brief The attribute name
-    SumoXMLAttr myKey;
+    /// @brief The attribute name (or the original attribute if we're editing a disjoint attribute)
+    const SumoXMLAttr myKey;
 
     /// @brief the original value
-    std::string myOrigValue;
+    const std::string myOrigValue;
 
     /// @brief the original value
-    std::string myNewValue;
+    const std::string myNewValue;
 
-    /// @brief pointer to Net (used to simplify code)
-    GNENet* myNet;
+    /// @brief old parameter set (used for disjoint attributes)
+    const int myOldParametersSet;
 
-    /// @brief used if AC is an net element
-    GNENetElement* myNetElement;
-
-    /// @brief used if AC is an additional element
-    GNEAdditional* myAdditional;
-
-    /// @brief used if AC is a shape element
-    GNEShape* myShape;
+    /// @brief new parameter set (used for disjoint attributes)
+    const int myNewParametersSet;
 };
 
 #endif

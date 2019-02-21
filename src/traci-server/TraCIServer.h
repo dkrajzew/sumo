@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -47,9 +47,9 @@
 #include <utils/options/OptionsCont.h>
 #include <microsim/MSNet.h>
 #include <microsim/traffic_lights/MSTrafficLightLogic.h>
+#include <libsumo/TraCIConstants.h>
 #include <libsumo/Subscription.h>
 #include <libsumo/TraCIDefs.h>
-#include "TraCIConstants.h"
 #include "TraCIServerAPI_Lane.h"
 
 
@@ -156,6 +156,8 @@ public:
     }
 
     void writeResponseWithLength(tcpip::Storage& outputStorage, tcpip::Storage& tempMsg);
+
+    void writePositionVector(tcpip::Storage& outputStorage, const libsumo::TraCIPositionVector& shape);
 
 
     /// @name Helpers for reading and checking values
@@ -413,11 +415,13 @@ private:
     void addSubscriptionFilterNoOpposite();
     void addSubscriptionFilterDownstreamDistance(double dist);
     void addSubscriptionFilterUpstreamDistance(double dist);
-    void addSubscriptionFilterCFManeuver();
-    void addSubscriptionFilterLCManeuver();
-    void addSubscriptionFilterTurnManeuver();
+    void addSubscriptionFilterLeadFollow();
+    // TODO: for libsumo, implement convenience definitions present in python client:
+    //    void addSubscriptionFilterCF();
+    //    void addSubscriptionFilterLC(int direction);
+    void addSubscriptionFilterTurn();
     void addSubscriptionFilterVClass(SVCPermissions vClasses);
-    void addSubscriptionFilterVType(std::vector<std::string> vTypes);
+    void addSubscriptionFilterVType(std::set<std::string> vTypes);
     bool isVehicleToVehicleContextSubscription(const libsumo::Subscription& s);
 
     bool findObjectShape(int domain, const std::string& id, PositionVector& shape);

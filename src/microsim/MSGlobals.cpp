@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2003-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2003-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -65,5 +65,11 @@ double MSGlobals::gDefaultEmergencyDecel(-1); // default for unitTest
 bool MSGlobals::gUnitTests(false);
 
 bool MSGlobals::gComputeLC;
+
+int MSGlobals::gNumSimThreads;
+
+double MSGlobals::gEmergencyDecelWarningThreshold(1);
+
+double MSGlobals::gMinorPenalty(0);
 /****************************************************************************/
 

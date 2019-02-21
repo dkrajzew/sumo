@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2014-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2014-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -73,7 +73,7 @@ def convert(vehRoutes, routeOut, odOut, interval):
                             orig, dest, total))
                         for idx, (amount, ttSum) in routeMap.iteritems():
                             od.write(('                <routeCost routeId="%s" amount="%s" ' +
-                                     'averageTraveltime="%s"/>\n') % (idx, amount, int(1000. * ttSum / amount)))
+                                      'averageTraveltime="%s"/>\n') % (idx, amount, int(1000. * ttSum / amount)))
                             total += amount
                         od.write('            </odPair>\n')
                     od.write('        </timeSlice>\n')

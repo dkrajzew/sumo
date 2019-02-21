@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -106,7 +106,8 @@ try:
 except traci.TraCIException as e:
     if traci.isLibsumo():
         print(e, file=sys.stderr)
-print("getParameter charginStation.totalEnergyCharged", traci.simulation.getParameter("cs1", "chargingStation.totalEnergyCharged"))
+print("getParameter charginStation.totalEnergyCharged",
+      traci.simulation.getParameter("cs1", "chargingStation.totalEnergyCharged"))
 print("getParameter chargingStation.name", traci.simulation.getParameter("cs1", "chargingStation.name"))
 
 print("getParameter parkingArea.capacity", traci.simulation.getParameter("pa1", "parkingArea.capacity"))

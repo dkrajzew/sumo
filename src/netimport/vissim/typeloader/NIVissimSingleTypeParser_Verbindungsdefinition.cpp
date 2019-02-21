@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -24,7 +24,7 @@
 
 #include <iostream>
 #include <utils/geom/PositionVector.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include "../NIImporter_Vissim.h"
 #include "../tempstructs/NIVissimConnection.h"
 #include "NIVissimSingleTypeParser_Verbindungsdefinition.h"
@@ -63,12 +63,12 @@ NIVissimSingleTypeParser_Verbindungsdefinition::parse(std::istream& from) {
         if (y != "nach") {
             geom.push_back_noDoublePos(
                 Position(
-                    TplConvert::_2double(x.c_str()),
-                    TplConvert::_2double(y.c_str())
+                    StringUtils::toDouble(x),
+                    StringUtils::toDouble(y)
                 ));
             tag = myRead(from);
             try {
-                TplConvert::_2double(tag.c_str());
+                StringUtils::toDouble(tag);
                 tag = myRead(from);
             } catch (NumberFormatException&) {}
         } else {
@@ -115,7 +115,7 @@ NIVissimSingleTypeParser_Verbindungsdefinition::parse(std::istream& from) {
     if (tag == "fahrzeugklassen") {
         tag = readEndSecure(from);
         while (tag != "DATAEND" && tag != "sperrung" && tag != "auswertung") {
-            int classes = TplConvert::_2int(tag.c_str());
+            int classes = StringUtils::toInt(tag);
             assignedVehicles.push_back(classes);
             tag = readEndSecure(from, "auswertung");
         }
@@ -142,7 +142,7 @@ NIVissimSingleTypeParser_Verbindungsdefinition::parse(std::istream& from) {
                     tag = myRead(from);
                 }
                 while (tag != "DATAEND" && tag != "spur" && tag != "keinspurwechsel") {
-                    int classes = TplConvert::_2int(tag.c_str());
+                    int classes = StringUtils::toInt(tag);
                     assignedVehicles.push_back(classes);
                     tag = readEndSecure(from);
                 }

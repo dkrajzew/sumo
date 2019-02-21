@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -134,7 +134,8 @@ private:
      */
     static void writeLane(OutputDevice& into, const std::string& lID,
                           double speed, SVCPermissions permissions, SVCPermissions preferred,
-                          double endOffset, std::map<SVCPermissions, double> stopOffsets, double width, PositionVector shape,
+                          double startOffset, double endOffset,
+                          std::map<SVCPermissions, double> stopOffsets, double width, PositionVector shape,
                           const Parameterised* params, double length, int index,
                           const std::string& oppositeID, bool accelRamp = false,
                           bool customShape = false);
@@ -143,9 +144,8 @@ private:
     /** @brief Writes a junction (<junction ...)
      * @param[in] into The device to write the edge into
      * @param[in] n The junction/node to write
-     * @param[in] checkLaneFoes Whether laneConflicts shall be checked at this junction
      */
-    static void writeJunction(OutputDevice& into, const NBNode& n, const bool checkLaneFoes);
+    static void writeJunction(OutputDevice& into, const NBNode& n);
 
 
     /** @brief Writes internal junctions (<junction with id[0]==':' ...) of the given node

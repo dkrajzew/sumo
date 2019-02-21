@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2009-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -149,9 +149,9 @@ class TlLogic(sumolib.net.TLSProgram):
                             if tlIndex not in self._tlIndexToSignalGroup:
                                 self._signalGroups[sgID].addConnection(connIn, connOut, tlIndex)
                                 self._tlIndexToSignalGroup[tlIndex] = sgID
-                            else:
+                            elif self._tlIndexToSignalGroup[tlIndex] != sgID:
                                 print(("Error: linkIndex %d already bound to signal group %s. " +
-                                      "Cannot assign it to signal group %s.") % (
+                                       "Cannot assign it to signal group %s.") % (
                                       tlIndex, self._tlIndexToSignalGroup[tlIndex], sgID))
                                 sys.exit(-1)
 

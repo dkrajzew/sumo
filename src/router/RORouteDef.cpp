@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -26,7 +26,7 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
 #include <utils/common/Named.h>
 #include <utils/common/StringUtils.h>
@@ -36,8 +36,8 @@
 #include <utils/options/OptionsCont.h>
 #include "ROEdge.h"
 #include "RORoute.h"
-#include <utils/vehicle/SUMOAbstractRouter.h>
-#include <utils/vehicle/RouteCostCalculator.h>
+#include <utils/router/SUMOAbstractRouter.h>
+#include <utils/router/RouteCostCalculator.h>
 #include "RORouteDef.h"
 #include "ROVehicle.h"
 
@@ -52,7 +52,7 @@ bool RORouteDef::myUsingJTRR(false);
 RORouteDef::RORouteDef(const std::string& id, const int lastUsed,
                        const bool tryRepair, const bool mayBeDisconnected) :
     Named(StringUtils::convertUmlaute(id)),
-    myPrecomputed(0), myLastUsed(lastUsed), myTryRepair(tryRepair), myMayBeDisconnected(mayBeDisconnected) {
+    myPrecomputed(nullptr), myLastUsed(lastUsed), myTryRepair(tryRepair), myMayBeDisconnected(mayBeDisconnected) {
 }
 
 
@@ -83,7 +83,7 @@ RORouteDef::addAlternativeDef(const RORouteDef* alt) {
 RORoute*
 RORouteDef::buildCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
                               SUMOTime begin, const ROVehicle& veh) const {
-    if (myPrecomputed == 0) {
+    if (myPrecomputed == nullptr) {
         preComputeCurrentRoute(router, begin, veh);
     }
     return myPrecomputed;
@@ -113,7 +113,9 @@ RORouteDef::preComputeCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router
                    myAlternatives[0]->getLast()->getID() + "'.");
         return;
     }
-    if (myTryRepair || myUsingJTRR) {
+    const bool skipTripRouting = (oc.exists("write-trips") && oc.getBool("write-trips") 
+            && RouteCostCalculator<RORoute, ROEdge, ROVehicle>::getCalculator().skipRouteCalculation());
+    if ((myTryRepair && !skipTripRouting) || myUsingJTRR) {
         ConstROEdgeVector newEdges;
         if (repairCurrentRoute(router, begin, veh, myAlternatives[0]->getEdgeVector(), newEdges)) {
             if (myAlternatives[0]->getEdgeVector() != newEdges) {
@@ -121,7 +123,7 @@ RORouteDef::preComputeCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router
                     WRITE_WARNING("Repaired route of vehicle '" + veh.getID() + "'.");
                 }
                 myNewRoute = true;
-                RGBColor* col = myAlternatives[0]->getColor() != 0 ? new RGBColor(*myAlternatives[0]->getColor()) : 0;
+                RGBColor* col = myAlternatives[0]->getColor() != nullptr ? new RGBColor(*myAlternatives[0]->getColor()) : nullptr;
                 myPrecomputed = new RORoute(myID, 0, myAlternatives[0]->getProbability(), newEdges, col, myAlternatives[0]->getStops());
             } else {
                 myPrecomputed = myAlternatives[0];
@@ -150,7 +152,7 @@ RORouteDef::preComputeCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router
         if (cheapest >= 0) {
             myPrecomputed = myAlternatives[cheapest];
         } else {
-            RGBColor* col = myAlternatives[0]->getColor() != 0 ? new RGBColor(*myAlternatives[0]->getColor()) : 0;
+            RGBColor* col = myAlternatives[0]->getColor() != nullptr ? new RGBColor(*myAlternatives[0]->getColor()) : nullptr;
             myPrecomputed = new RORoute(myID, 0, 1, edges, col, myAlternatives[0]->getStops());
             myNewRoute = true;
         }
@@ -168,7 +170,7 @@ RORouteDef::repairCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
     if (initialSize == 1) {
         if (myUsingJTRR) {
             /// only ROJTRRouter is supposed to handle this type of input
-            router.compute(oldEdges.front(), 0, &veh, begin, newEdges);
+            router.compute(oldEdges.front(), nullptr, &veh, begin, newEdges);
         } else {
             newEdges = oldEdges;
         }
@@ -371,7 +373,7 @@ RORouteDef*
 RORouteDef::copyOrigDest(const std::string& id) const {
     RORouteDef* result = new RORouteDef(id, 0, true, true);
     RORoute* route = myAlternatives[0];
-    RGBColor* col = route->getColor() != 0 ? new RGBColor(*route->getColor()) : 0;
+    RGBColor* col = route->getColor() != nullptr ? new RGBColor(*route->getColor()) : nullptr;
     ConstROEdgeVector edges;
     edges.push_back(route->getFirst());
     edges.push_back(route->getLast());
@@ -385,7 +387,7 @@ RORouteDef::copy(const std::string& id, const SUMOTime stopOffset) const {
     RORouteDef* result = new RORouteDef(id, 0, myTryRepair, myMayBeDisconnected);
     for (std::vector<RORoute*>::const_iterator i = myAlternatives.begin(); i != myAlternatives.end(); i++) {
         RORoute* route = *i;
-        RGBColor* col = route->getColor() != 0 ? new RGBColor(*route->getColor()) : 0;
+        RGBColor* col = route->getColor() != nullptr ? new RGBColor(*route->getColor()) : nullptr;
         RORoute* newRoute = new RORoute(id, 0, 1, route->getEdgeVector(), col, route->getStops());
         newRoute->addStopOffset(stopOffset);
         result->addLoadedAlternative(newRoute);

@@ -33,6 +33,7 @@ sumo_SOURCES = sumo_main.cpp
 sumo_LDADD   = ./netload/libnetload.a \
 ./microsim/libmicrosim.a \
 ./microsim/cfmodels/libmicrosimcfmodels.a \
+./microsim/engine/libmicrosimengine.a \
 ./microsim/lcmodels/libmicrosimlcmodels.a \
 ./microsim/devices/libmicrosimdevs.a \
 ./microsim/output/libmicrosimoutput.a \
@@ -61,6 +62,7 @@ netconvert_LDADD   = ./netimport/libnetimport.a \
 ./netimport/vissim/tempstructs/libvissimtmpstr.a \
 ./netwrite/libnetwrite.a \
 ./netbuild/libnetbuild.a \
+./utils/shapes/libshapes.a \
 ./foreign/eulerspiral/libeulerspiral.a \
 $(COMMON_LIBS) \
 $(XERCES_LDFLAGS) $(GDAL_LDFLAGS) $(PROJ_LDFLAGS)
@@ -78,6 +80,8 @@ sumo_gui_LDADD =  ./gui/libgui.a \
 ./utils/gui/div/libguiutilsdiv.a \
 ./utils/gui/settings/libguiutilssettings.a \
 ./utils/gui/images/libguiutilsimages.a \
+./utils/gui/cursors/libguiutilscursors.a \
+./utils/gui/shortcuts/libguiutilsshortcuts.a \
 ./utils/gui/tracker/libguiutilstracker.a \
 ./utils/foxtools/libfoxtools.a \
 ./mesogui/libmesogui.a \
@@ -102,4 +106,4 @@ $(VERSION_H): ../.git
 	../tools/build/version.py $(CURDIR)
 endif
 
-EXTRA_DIST = config.h config.h.in $(VERSION_H) guisim.rc
+EXTRA_DIST = config.h.in $(VERSION_H) sumo-gui.rc

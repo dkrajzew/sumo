@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -57,11 +57,11 @@ RandHelper::insertRandOptions() {
 
 void
 RandHelper::initRand(std::mt19937* which, const bool random, const int seed) {
-    if (which == 0) {
+    if (which == nullptr) {
         which = &myRandomNumberGenerator;
     }
     if (random) {
-        which->seed((unsigned long)time(0));
+        which->seed((unsigned long)time(nullptr));
     } else {
         which->seed(seed);
     }

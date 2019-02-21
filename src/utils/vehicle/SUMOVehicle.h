@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -29,7 +29,7 @@
 #include <typeinfo>
 #include <utils/common/SUMOTime.h>
 #include <utils/common/Named.h>
-#include <utils/vehicle/SUMOAbstractRouter.h>
+#include <utils/router/SUMOAbstractRouter.h>
 #include <utils/vehicle/SUMOVehicleParameter.h>
 #include <utils/iodevices/OutputDevice.h>
 
@@ -41,7 +41,7 @@ class MSVehicleType;
 class MSRoute;
 class MSEdge;
 class MSLane;
-class MSDevice;
+class MSVehicleDevice;
 class MSPerson;
 class MSTransportable;
 class MSParkingArea;
@@ -59,6 +59,7 @@ typedef std::vector<const MSEdge*> ConstMSEdgeVector;
  */
 class SUMOVehicle {
 public:
+    typedef long long int NumericalID;
 
     // XXX: This definition was introduced to make the MSVehicle's previousSpeed
     //      available in the context of MSMoveReminder::notifyMove(). Another solution
@@ -156,7 +157,7 @@ public:
      * @param[in] removeStops Whether stops should be removed if they do not fit onto the new route
      * @return Whether the new route was accepted
      */
-    virtual bool replaceRouteEdges(ConstMSEdgeVector& edges, const std::string& info, bool onInit = false, bool check = false, bool removeStops = true) = 0;
+    virtual bool replaceRouteEdges(ConstMSEdgeVector& edges, double cost, double savings, const std::string& info, bool onInit = false, bool check = false, bool removeStops = true) = 0;
 
     /// Replaces the current route by the given one
     virtual bool replaceRoute(const MSRoute* route, const std::string& info, bool onInit = false, int offset = 0, bool addStops = true, bool removeStops = true) = 0;
@@ -170,7 +171,7 @@ public:
      * @param[in] router The router to use
      * @see replaceRoute
      */
-    virtual void reroute(SUMOTime t, const std::string& info, SUMOAbstractRouter<MSEdge, SUMOVehicle>& router, const bool onInit = false, const bool withTaz = false) = 0;
+    virtual void reroute(SUMOTime t, const std::string& info, SUMOAbstractRouter<MSEdge, SUMOVehicle>& router, const bool onInit = false, const bool withTaz = false, const bool silent = false) = 0;
 
     /** @brief Validates the current or given route
      * @param[out] msg Description why the route is not valid (if it is the case)
@@ -281,7 +282,7 @@ public:
     /** @brief Returns this vehicle's devices
      * @return This vehicle's devices
      */
-    virtual const std::vector<MSDevice*>& getDevices() const = 0;
+    virtual const std::vector<MSVehicleDevice*>& getDevices() const = 0;
 
     /** @brief Adds a person to this vehicle
      *
@@ -332,6 +333,9 @@ public:
     virtual bool addStop(const SUMOVehicleParameter::Stop& stopPar, std::string& errorMsg, SUMOTime untilOffset = 0, bool collision = false,
                          ConstMSEdgeVector::const_iterator* searchStart = 0) = 0;
 
+    /// @brief return list of route indices for the remaining stops
+    virtual std::vector<int> getStopIndices() const = 0;
+
 
     /**
     * returns the next imminent stop in the stop queue
@@ -363,7 +367,7 @@ public:
     virtual bool isStoppedInRange(double pos) const = 0;
 
     /// @brief Returns a device of the given type if it exists or 0
-    virtual MSDevice* getDevice(const std::type_info& type) const = 0;
+    virtual MSVehicleDevice* getDevice(const std::type_info& type) const = 0;
 
 
     virtual double getChosenSpeedFactor() const = 0;
@@ -376,11 +380,23 @@ public:
 
     virtual SUMOTime getDepartDelay() const = 0;
 
+    /// @brief get distance for coming to a stop (used for rerouting checks)
+    virtual double getBrakeGap() const = 0;
+
     /// @brief Returns this vehicles impatience
     virtual double getImpatience() const = 0;
 
     /// @brief whether this vehicle is selected in the GUI
     virtual bool isSelected() const = 0;
+
+    /** @brief Returns the associated RNG for this vehicle
+    * @return The vehicle's associated RNG
+    */
+    virtual std::mt19937* getRNG() const = 0;
+
+    /// @brief return the numerical ID which is only for internal usage
+    //  (especially fast comparison in maps which need vehicles as keys)
+    virtual NumericalID getNumericalID() const = 0;
 
     /// @name state io
     //@{

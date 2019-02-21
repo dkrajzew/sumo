@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -23,18 +23,9 @@
 #include <config.h>
 
 #include <fx.h>
-#include <netbuild/NBEdge.h>
-#include <netbuild/NBTrafficLightLogic.h>
-#include <utils/gui/div/GUISelectedStorage.h>
-#include <utils/xml/SUMOSAXHandler.h>
-#include <utils/xml/SUMOXMLDefinitions.h>
 #include <netedit/GNEAttributeCarrier.h>
-
-// ===========================================================================
-// class declarations
-// ===========================================================================
-class GNEViewNet;
-class GNEUndoList;
+#include <utils/geom/PositionVector.h>
+#include <netedit/GNEViewNetHelper.h>
 
 // ===========================================================================
 // class definitions
@@ -47,6 +38,243 @@ class GNEUndoList;
 class GNEFrame : public FXVerticalFrame {
 
 public:
+
+    // ===========================================================================
+    // class ItemSelector
+    // ===========================================================================
+
+    class ItemSelector : protected FXGroupBox {
+        /// @brief FOX-declaration
+        FXDECLARE(GNEFrame::ItemSelector)
+
+    public:
+        /// @brief constructor
+        ItemSelector(GNEFrame* frameParent, GNEAttributeCarrier::TagType type, bool onlyDrawables = true);
+
+        /// @brief destructor
+        ~ItemSelector();
+
+        /// @brief get current type tag
+        const GNEAttributeCarrier::TagProperties& getCurrentTagProperties() const;
+
+        /// @brief set current type manually
+        void setCurrentTypeTag(SumoXMLTag typeTag);
+
+        /// @brief due myCurrentTagProperties is a Reference, we need to refresh it when frameParent is show
+        void refreshTagProperties();
+
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when the user select another element in ComboBox
+        long onCmdSelectItem(FXObject*, FXSelector, void*);
+        /// @}
+
+    protected:
+        /// @brief FOX needs this
+        ItemSelector() {}
+
+    private:
+        /// @brief pointer to Frame Parent
+        GNEFrame* myFrameParent;
+
+        /// @brief comboBox with the list of elements type
+        FXComboBox* myTypeMatchBox;
+
+        /// @brief current tag properties
+        GNEAttributeCarrier::TagProperties myCurrentTagProperties;
+
+        /// @brief list of tags that will be shown in Match Box
+        std::vector<SumoXMLTag> myListOfTags;
+
+        /// @brief dummy tag properties used if user select an invalid tag
+        GNEAttributeCarrier::TagProperties myInvalidTagProperty;
+    };
+
+    // ===========================================================================
+    // class ACAttributes
+    // ===========================================================================
+
+    class ACAttributes : protected FXGroupBox {
+        /// @brief FOX-declaration
+        FXDECLARE(GNEFrame::ACAttributes)
+
+        // declare friend class
+        friend class Row;
+
+    public:
+        /// @brief constructor
+        ACAttributes(GNEFrame* frameParent);
+
+        /// @brief destructor
+        ~ACAttributes();
+
+        /// @brief show ACAttributes modul
+        void showACAttributesModul(const GNEAttributeCarrier::TagProperties& myTagProperties, bool includeExtendedAttributes);
+
+        /// @brief hide group box
+        void hideACAttributesModul();
+
+        /// @brief get attributes and their values
+        std::map<SumoXMLAttr, std::string> getAttributesAndValues(bool includeAll) const;
+
+        /// @brief check if parameters of attributes are valid
+        bool areValuesValid() const;
+
+        /// @brief show warning message with information about non-valid attributes
+        void showWarningMessage(std::string extra = "") const;
+
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when help button is pressed
+        long onCmdHelp(FXObject*, FXSelector, void*);
+        /// @}
+
+        // ===========================================================================
+        // class Row
+        // ===========================================================================
+
+        class Row : public FXHorizontalFrame {
+            /// @brief FOX-declaration
+            FXDECLARE(GNEFrame::ACAttributes::Row)
+
+        public:
+            /// @brief constructor
+            Row(ACAttributes* ACAttributesParent);
+
+            /// @brief destructor
+            ~Row();
+
+            /// @brief show name and value of attribute of type string
+            void showParameter(const GNEAttributeCarrier::AttributeProperties& attrProperties);
+
+            /// @brief hide all parameters
+            void hideParameter();
+
+            /// @brief return Attr
+            const GNEAttributeCarrier::AttributeProperties &getAttrProperties() const;
+
+            /// @brief return value
+            std::string getValue() const;
+
+            /// @brief return status of radio button
+            bool getRadioButtonCheck() const;
+
+            /// @brief enable or disable radio button for disjoint attributes
+            void setRadioButtonCheck(bool value);
+
+            /// @brief check if row is enabled
+            bool isRowEnabled() const;
+
+            /// @brief returns a empty string if current value is valid, a string with information about invalid value in other case
+            const std::string& isAttributeValid() const;
+
+            /// @brief get ACAttributes parent
+            ACAttributes* getACAttributesParent() const;
+
+            /// @name FOX-callbacks
+            /// @{
+            /// @brief called when user set the value of an attribute of type int/float/string
+            long onCmdSetAttribute(FXObject*, FXSelector, void*);
+
+            /// @brief called when user change the value of myBoolCheckButton
+            long onCmdSetBooleanAttribute(FXObject*, FXSelector, void*);
+
+            /// @brief called when user press the "Color" button
+            long onCmdSetColorAttribute(FXObject*, FXSelector, void*);
+
+            /// @brief called when user press a radio button
+            long onCmdSelectRadioButton(FXObject*, FXSelector, void*);
+            /// @}
+
+        protected:
+            /// @brief FOX needs this
+            Row() {}
+
+        private:
+            /// @brief pointer to ACAttributes
+            ACAttributes* myACAttributesParent;
+
+            /// @brief attribute properties
+            GNEAttributeCarrier::AttributeProperties myAttrProperties;
+
+            /// @brief lael with the name of the parameter
+            FXLabel* myLabel;
+
+            /// @brief textField to modify the default value of int/float/string parameters
+            FXTextField* myTextFieldInt;
+
+            /// @brief textField to modify the default value of real/times parameters
+            FXTextField* myTextFieldReal;
+
+            /// @brief textField to modify the default value of string parameters
+            FXTextField* myTextFieldStrings;
+
+            /// @brief check button to enable/disable the value of boolean parameters
+            FXCheckButton* myBoolCheckButton;
+
+            /// @brief Button for open color editor
+            FXButton* myColorEditor;
+
+            /// @brief Radio button for disjoint attributes
+            FXRadioButton* myRadioButton;
+
+            /// @brief string which indicates the reason due current value is invalid
+            std::string myInvalidValue;
+        };
+
+        /// @brief update disjoint attributes
+        void updateDisjointAttributes(Row *row);
+
+    protected:
+        /// @brief FOX needs this
+        ACAttributes() {};
+
+    private:
+        /// @brief pointer to Polygon Frame Parent
+        GNEFrame* myFrameParent;
+
+        /// @brief current edited Tag Properties
+        GNEAttributeCarrier::TagProperties myTagProperties;
+
+        /// @brief vector with the ACAttribute Rows
+        std::vector<Row*> myRows;
+    };
+
+    // ===========================================================================
+    // class ACAttributesExtended
+    // ===========================================================================
+
+    class ACAttributesExtended : protected FXGroupBox {
+        /// @brief FOX-declaration
+        FXDECLARE(GNEFrame::ACAttributesExtended)
+
+    public:
+        /// @brief constructor
+        ACAttributesExtended(GNEFrame* frameParent);
+
+        /// @brief destructor
+        ~ACAttributesExtended();
+
+        /// @brief show ACAttributesExtended modul
+        void showACAttributesExtendedModul();
+
+        /// @brief hide group box
+        void hideACAttributesExtendedModul();
+
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when open dialog button is clicked
+        long onCmdOpenDialog(FXObject*, FXSelector, void*);
+        /// @}
+
+    protected:
+        /// @brief FOX needs this
+        ACAttributesExtended() {};
+
+    private:
+        /// @brief pointer to Polygon Frame Parent
+        GNEFrame* myFrameParent;
+    };
 
     // ===========================================================================
     // class ACHierarchy
@@ -101,8 +329,10 @@ public:
         void showAttributeCarrierChilds(GNEAttributeCarrier* AC, FXTreeItem* itemParent);
 
         /// @brief add item into list
-        FXTreeItem* addACIntoList(GNEAttributeCarrier* AC, FXTreeItem* itemParent);
+        FXTreeItem* addListItem(GNEAttributeCarrier* AC, FXTreeItem* itemParent = nullptr, std::string prefix = "", std::string sufix = "");
 
+        /// @brief add item into list
+        FXTreeItem* addListItem(FXTreeItem* itemParent, const std::string &text, FXIcon* icon, bool expanded);
     private:
         /// @brief Frame Parent
         GNEFrame* myFrameParent;
@@ -167,6 +397,9 @@ public:
         GenericParametersEditor() {}
 
     private:
+        /// @brief pointer to inspector frame parent
+        GNEFrame* myFrameParent;
+
         /// @brief edited Attribute Carrier
         GNEAttributeCarrier* myAC;
 
@@ -176,14 +409,190 @@ public:
         /// @brief pointer to current vector of generic parameters
         std::vector<std::pair<std::string, std::string> >* myGenericParameters;
 
-        /// @brief pointer to inspector frame parent
-        GNEFrame* myFrameParent;
-
         /// @brief text field for write generic parameter
         FXTextField* myTextFieldGenericParameter;
 
         /// @brief button for add generic parameter
         FXButton* myEditGenericParameterButton;
+    };
+
+    // ===========================================================================
+    // class DrawingShape
+    // ===========================================================================
+
+    class DrawingShape : private FXGroupBox {
+        /// @brief FOX-declaration
+        FXDECLARE(GNEFrame::DrawingShape)
+
+    public:
+        /// @brief constructor
+        DrawingShape(GNEFrame* frameParent);
+
+        /// @brief destructor
+        ~DrawingShape();
+
+        /// @brief show Drawing mode
+        void showDrawingShape();
+
+        /// @brief hide Drawing mode
+        void hideDrawingShape();
+
+        /// @brief start drawing
+        void startDrawing();
+
+        /// @brief stop drawing and check if shape can be created
+        void stopDrawing();
+
+        /// @brief abort drawing
+        void abortDrawing();
+
+        /// @brief add new point to temporal shape
+        void addNewPoint(const Position& P);
+
+        /// @brief remove last added point
+        void removeLastPoint();
+
+        /// @brief get Temporal shape
+        const PositionVector& getTemporalShape() const;
+
+        /// @brief return true if currently a shape is drawed
+        bool isDrawing() const;
+
+        /// @brief enable or disable delete last created point
+        void setDeleteLastCreatedPoint(bool value);
+
+        /// @brief get flag delete last created point
+        bool getDeleteLastCreatedPoint();
+
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when the user press start drawing button
+        long onCmdStartDrawing(FXObject*, FXSelector, void*);
+
+        /// @brief Called when the user press stop drawing button
+        long onCmdStopDrawing(FXObject*, FXSelector, void*);
+
+        /// @brief Called when the user press abort drawing button
+        long onCmdAbortDrawing(FXObject*, FXSelector, void*);
+        /// @}
+
+    protected:
+        /// @brief FOX needs this
+        DrawingShape() {}
+
+    private:
+        /// @brief pointer to frame parent
+        GNEFrame* myFrameParent;
+
+        /// @brief flag to enable/disable delete point mode
+        bool myDeleteLastCreatedPoint;
+
+        /// @brief current drawed shape
+        PositionVector myTemporalShapeShape;
+
+        /// @brief button for start drawing
+        FXButton* myStartDrawingButton;
+
+        /// @brief button for stop drawing
+        FXButton* myStopDrawingButton;
+
+        /// @brief button for abort drawing
+        FXButton* myAbortDrawingButton;
+
+        /// @brief Label with information
+        FXLabel* myInformationLabel;
+    };
+
+    // ===========================================================================
+    // class NeteditAttributes
+    // ===========================================================================
+
+    class NeteditAttributes : protected FXGroupBox {
+        /// @brief FOX-declaration
+        FXDECLARE(GNEFrame::NeteditAttributes)
+
+    public:
+        /// @brief constructor
+        NeteditAttributes(GNEFrame* frameParent);
+
+        /// @brief destructor
+        ~NeteditAttributes();
+
+        /// @brief show Netedit attributes modul
+        void showNeteditAttributesModul(const GNEAttributeCarrier::TagProperties& tagValue);
+
+        /// @brief hide Netedit attributes modul
+        void hideNeteditAttributesModul();
+
+        /// @brief fill valuesMap with netedit attributes
+        bool getNeteditAttributesAndValues(std::map<SumoXMLAttr, std::string>& valuesMap, GNELane* lane) const;
+
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when user changes some element of NeteditAttributes
+        long onCmdSetNeteditAttribute(FXObject*, FXSelector, void*);
+
+        /// @brief Called when user press the help button
+        long onCmdHelp(FXObject*, FXSelector, void*);
+        /// @}
+
+    protected:
+        /// @brief FOX needs this
+        NeteditAttributes() {}
+
+    private:
+        /// @brief list of the reference points
+        enum AdditionalReferencePoint {
+            GNE_ADDITIONALREFERENCEPOINT_LEFT,
+            GNE_ADDITIONALREFERENCEPOINT_RIGHT,
+            GNE_ADDITIONALREFERENCEPOINT_CENTER,
+            GNE_ADDITIONALREFERENCEPOINT_INVALID
+        };
+
+        /// @brief obtain the Start position values of StoppingPlaces and E2 detector over the lane
+        double setStartPosition(double positionOfTheMouseOverLane, double lengthOfAdditional) const;
+
+        /// @brief obtain the End position values of StoppingPlaces and E2 detector over the lane
+        double setEndPosition(double positionOfTheMouseOverLane, double lengthOfAdditional) const;
+
+        /// @brief pointer to frame parent
+        GNEFrame* myFrameParent;
+
+        /// @brief match box with the list of reference points
+        FXComboBox* myReferencePointMatchBox;
+
+        /// @brief Label for length
+        FXLabel* myLengthLabel;
+
+        /// @brief textField for length
+        FXTextField* myLengthTextField;
+
+        /// @brief Label for block movement
+        FXLabel* myBlockMovementLabel;
+
+        /// @brief checkBox for block movement
+        FXCheckButton* myBlockMovementCheckButton;
+
+        /// @brief Label for block shape
+        FXLabel* myBlockShapeLabel;
+
+        /// @brief checkBox for block shape
+        FXCheckButton* myBlockShapeCheckButton;
+
+        /// @brief Label for open/close polygon
+        FXLabel* myClosePolygonLabel;
+
+        /// @brief checkbox to enable/disable closing polygon
+        FXCheckButton* myCloseShapeCheckButton;
+
+        /// @brief Button for help about the reference point
+        FXButton* helpReferencePoint;
+
+        /// @brief Flag to check if current length is valid
+        bool myCurrentLengthValid;
+
+        /// @brief actual additional reference point selected in the match Box
+        AdditionalReferencePoint myActualAdditionalReferencePoint;
     };
 
     /**@brief Constructor
@@ -225,8 +634,32 @@ protected:
     /// @brief FOX needs this
     GNEFrame() {}
 
+    /**@brief build a shaped element using the drawed shape (can be reimplemented in frame childs)
+     * return true if was sucesfully created
+     * @note called when user stop drawing shape
+     */
+    virtual bool buildShape();
+
+    /// @brief enable moduls depending of item selected in ItemSelector (can be reimplemented in frame childs)
+    virtual void enableModuls(const GNEAttributeCarrier::TagProperties& tagProperties);
+
+    /// @brief disable moduls if element selected in itemSelector isn't valid (can be reimplemented in frame childs)
+    virtual void disableModuls();
+
+    /// @brief open ACAttributes extended dialog (can be reimplemented in frame childs)
+    virtual void openACAttributesExtendedDialog();
+
     /// @brief Open help attributes dialog
-    void openHelpAttributesDialog(SumoXMLTag tag) const;
+    void openHelpAttributesDialog(const GNEAttributeCarrier::TagProperties& tagProperties) const;
+
+    /// @brief get edge candidate color
+    const RGBColor& getEdgeCandidateColor() const;
+
+    /// @brief get selected color
+    const RGBColor& getEdgeCandidateSelectedColor() const;
+    
+    /// @brief get predefinedTagsMML
+    const std::map<int, std::string> &getPredefinedTagsMML() const;
 
     /// @brief View Net for changes
     GNEViewNet* myViewNet;
@@ -247,11 +680,20 @@ private:
     /// @brief scroll windows that holds the content frame
     FXScrollWindow* myScrollWindowsContents;
 
-    /// @brief Font for the Header
-    FXFont* myFrameHeaderFont;
+    /// @brief static Font for the Header (it's common for all headers, then create only one time)
+    static FXFont* myFrameHeaderFont;
 
     /// @brief the label for the frame's header
     FXLabel* myFrameHeaderLabel;
+
+    /// @brief edge candidate color (used by some modulds to mark edges)
+    RGBColor myEdgeCandidateColor;
+
+    /// @brief selected edge candidate color (used by some modulds to selected mark edges)
+    RGBColor myEdgeCandidateSelectedColor;
+
+    /// @brief Map of attribute ids to their (readable) string-representation (needed for SUMOSAXAttributesImpl_Cached)
+    std::map<int, std::string> myPredefinedTagsMML;
 
     /// @brief Invalidated copy constructor.
     GNEFrame(const GNEFrame&) = delete;

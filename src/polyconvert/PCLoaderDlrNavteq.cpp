@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -32,7 +32,7 @@
 #include <utils/common/UtilExceptions.h>
 #include <utils/common/MsgHandler.h>
 #include <utils/common/StringUtils.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/ToString.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/common/FileHelpers.h>
@@ -203,8 +203,8 @@ PCLoaderDlrNavteq::loadPolyFile(const std::string& file,
             std::string xpos = values[index];
             std::string ypos = values[index + 1];
             index += 2;
-            double x = TplConvert::_2double(xpos.c_str());
-            double y = TplConvert::_2double(ypos.c_str());
+            double x = StringUtils::toDouble(xpos);
+            double y = StringUtils::toDouble(ypos);
             Position pos(x, y);
             if (!GeoConvHelper::getProcessing().x2cartesian(pos)) {
                 WRITE_WARNING("Unable to project coordinates for polygon '" + id + "'.");
@@ -246,7 +246,7 @@ PCLoaderDlrNavteq::loadPolyFile(const std::string& file,
             color = c;
         }
         if (!discard) {
-            SUMOPolygon* poly = new SUMOPolygon(name, type, color, vec, false, fill, layer);
+            SUMOPolygon* poly = new SUMOPolygon(name, type, color, vec, false, fill, 1, layer);
             toFill.add(poly);
         }
         vec.clear();

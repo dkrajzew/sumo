@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -85,6 +85,8 @@ NIFrame::fillOptions() {
     oc.addDescription("ptstop-files", "Input", "Reads public transport stops from FILE");
     oc.doRegister("ptline-files", new Option_FileName());
     oc.addDescription("ptline-files", "Input", "Reads public transport lines from FILE");
+    oc.doRegister("polygon-files", new Option_FileName());
+    oc.addDescription("polygon-files", "Input", "Reads polygons from FILE for embedding in network where applicable");
 
     oc.doRegister("shapefile-prefix", new Option_FileName());
     oc.addSynonyme("shapefile-prefix", "shapefile");
@@ -152,6 +154,8 @@ NIFrame::fillOptions() {
     oc.doRegister("construction-date", new Option_String());
     oc.addDescription("construction-date", "Processing", "Use YYYY-MM-DD date to determine the readiness of features under construction");
 
+    oc.doRegister("flatten", new Option_Bool(false));
+    oc.addDescription("flatten", "Processing", "Remove all z-data");
 
     // register xml options
     oc.doRegister("plain.extend-edge-shape", new Option_Bool(false));
@@ -347,10 +351,14 @@ NIFrame::checkOptions() {
             // changed default since we wish to preserve the network as far as possible
             oc.set("offset.disable-normalization", "true");
         }
+        if (oc.isWriteable("geometry.max-grade.fix")) {
+            // changed default since we wish to preserve the network as far as possible
+            oc.set("geometry.max-grade.fix", "false");
+        }
     }
     if (!oc.isSet("type-files")) {
         const char* sumoPath = std::getenv("SUMO_HOME");
-        if (sumoPath == 0) {
+        if (sumoPath == nullptr) {
             WRITE_WARNING("Environment variable SUMO_HOME is not set, using built in type maps.");
         } else {
             const std::string path = sumoPath + std::string("/data/typemap/");
@@ -370,6 +378,10 @@ NIFrame::checkOptions() {
         if (oc.isDefault("rectangular-lane-cut")) {
             // a better interpretation of imported geometries
             oc.set("rectangular-lane-cut", "true");
+        }
+        if (oc.isDefault("opendrive.advance-stopline") && oc.getBool("opendrive.internal-shapes")) {
+            // avoid mismatch between edge shapes and and internal edge shapes
+            oc.set("opendrive.advance-stopline", "0");
         }
     }
     return ok;

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -34,7 +34,7 @@
 // method definitions
 // ===========================================================================
 OutputDevice_File::OutputDevice_File(const std::string& fullName, const bool binary)
-    : OutputDevice(binary, 0, fullName), myFileStream(0) {
+    : OutputDevice(binary, 0, fullName), myFileStream(nullptr) {
 #ifdef WIN32
     if (fullName == "/dev/null") {
         myFileStream = new std::ofstream("NUL");

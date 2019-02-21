@@ -7,10 +7,12 @@ NGRandomNetBuilder.h NGRandomNetBuilder.cpp
 netgenerate_LDADD   = \
 ../netwrite/libnetwrite.a \
 ../netbuild/libnetbuild.a \
+../utils/shapes/libshapes.a \
 ../utils/geom/libgeom.a \
 ../utils/options/liboptions.a \
 ../utils/xml/libxml.a \
 ../utils/common/libcommon.a \
+../utils/distribution/libdistribution.a \
 ../utils/importio/libimportio.a \
 ../utils/iodevices/libiodevices.a \
 ../foreign/tcpip/libtcpip.a \

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-# Copyright (C) 2008-2018 German Aerospace Center (DLR) and others.
+# Copyright (C) 2008-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v2.0
 # which accompanies this distribution, and is available at
@@ -176,7 +176,7 @@ traci.vehicle.setParameter(vehID, "foo", "bar")
 traci.vehicle.setParameter(vehID, "laneChangeModel.lcStrategic", "2.0")
 traci.vehicle.setSignals(vehID, 12)
 traci.vehicle.setRoutingMode(vehID, traci.constants.ROUTING_MODE_AGGREGATED)
-traci.vehicle.setStop(vehID, "2fi", pos=50.0, laneIndex=0, duration=2, flags=1)
+traci.vehicle.setStop(vehID, "2fi", pos=55.0, laneIndex=0, duration=2, flags=1)
 sys.stderr.flush()
 
 check(vehID)
@@ -436,18 +436,18 @@ except traci.TraCIException as e:
 for i in range(10):
     step()
     print(('%s speed="%s" consumed="%s" charged="%s" cap="%s" maxCap="%s" station="%s" mass=%s emissionClass=%s ' +
-          'electricityConsumption=%s') % (
-            electricVeh,
-            traci.vehicle.getSpeed(electricVeh),
-            traci.vehicle.getParameter(electricVeh, "device.battery.energyConsumed"),
-            traci.vehicle.getParameter(electricVeh, "device.battery.energyCharged"),
-            traci.vehicle.getParameter(electricVeh, "device.battery.actualBatteryCapacity"),
-            traci.vehicle.getParameter(electricVeh, "device.battery.maximumBatteryCapacity"),
-            traci.vehicle.getParameter(electricVeh, "device.battery.chargingStationId"),
-            traci.vehicle.getParameter(electricVeh, "device.battery.vehicleMass"),
-            traci.vehicle.getEmissionClass(electricVeh),
-            traci.vehicle.getElectricityConsumption(electricVeh),
-            ))
+           'electricityConsumption=%s') % (
+        electricVeh,
+        traci.vehicle.getSpeed(electricVeh),
+        traci.vehicle.getParameter(electricVeh, "device.battery.energyConsumed"),
+        traci.vehicle.getParameter(electricVeh, "device.battery.energyCharged"),
+        traci.vehicle.getParameter(electricVeh, "device.battery.actualBatteryCapacity"),
+        traci.vehicle.getParameter(electricVeh, "device.battery.maximumBatteryCapacity"),
+        traci.vehicle.getParameter(electricVeh, "device.battery.chargingStationId"),
+        traci.vehicle.getParameter(electricVeh, "device.battery.vehicleMass"),
+        traci.vehicle.getEmissionClass(electricVeh),
+        traci.vehicle.getElectricityConsumption(electricVeh),
+    ))
 # test for adding a trip
 traci.route.add("trip2", ["3si", "4si"])
 traci.vehicle.add("triptest2", "trip2", typeID="reroutingType")

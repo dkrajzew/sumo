@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2002-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2002-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -36,10 +36,10 @@
 #include <utils/common/MsgHandler.h>
 #include <utils/common/UtilExceptions.h>
 #include <utils/common/ToString.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/geom/GeoConvHelper.h>
 #include <utils/iodevices/OutputDevice.h>
-#include <utils/xml/SUMOVehicleParserHelper.h>
+#include <utils/vehicle/SUMOVehicleParserHelper.h>
 #include <microsim/MSBaseVehicle.h>
 #include <microsim/MSJunction.h>
 #include <microsim/MSRoute.h>
@@ -185,6 +185,9 @@ MSFrame::fillOptions() {
     oc.addSynonyme("vehroute-output.dua", "vehroutes.dua");
     oc.addDescription("vehroute-output.dua", "Output", "Write the output in the duarouter alternatives style");
 
+    oc.doRegister("vehroute-output.cost", new Option_Bool(false));
+    oc.addDescription("vehroute-output.cost", "Output", "Write costs for all routes");
+
     oc.doRegister("vehroute-output.intended-depart", new Option_Bool(false));
     oc.addSynonyme("vehroute-output.intended-depart", "vehroutes.intended-depart");
     oc.addDescription("vehroute-output.intended-depart", "Output", "Write the output with the intended instead of the real departure time");
@@ -201,6 +204,9 @@ MSFrame::fillOptions() {
 
     oc.doRegister("link-output", new Option_FileName());
     oc.addDescription("link-output", "Output", "Save links states into FILE");
+    
+    oc.doRegister("railsignal-block-output", new Option_FileName());
+    oc.addDescription("railsignal-block-output", "Output", "Save railsignal-blocks into FILE");
 
     oc.doRegister("bt-output", new Option_FileName());
     oc.addDescription("bt-output", "Output", "Save bluetooth visibilities into FILE (in conjunction with device.btreceiver and device.btsender)");
@@ -247,6 +253,9 @@ MSFrame::fillOptions() {
 
     oc.doRegister("step-method.ballistic", new Option_Bool(false));
     oc.addDescription("step-method.ballistic", "Processing", "Whether to use ballistic method for the positional update of vehicles (default is a semi-implicit Euler method).");
+
+    oc.doRegister("threads", new Option_Integer(1));
+    oc.addDescription("threads", "Processing", "Defines the number of threads for parallel simulation");
 
     oc.doRegister("lateral-resolution", new Option_Float(-1));
     oc.addDescription("lateral-resolution", "Processing", "Defines the resolution in m when handling lateral positioning within a lane (with -1 all vehicles drive at the center of their lane");
@@ -318,6 +327,9 @@ MSFrame::fillOptions() {
     oc.doRegister("tls.all-off", new Option_Bool(false));
     oc.addDescription("tls.all-off", "Processing", "Switches off all traffic lights.");
 
+    oc.doRegister("tls.actuated.show-detectors", new Option_Bool(false));
+    oc.addDescription("tls.actuated.show-detectors", "Processing", "Sets default visibility for actuation detectors");
+
     oc.doRegister("time-to-impatience", new Option_String("300", "TIME"));
     oc.addDescription("time-to-impatience", "Processing", "Specify how long a vehicle may wait until impatience grows from 0 to 1, defaults to 300, non-positive values disable impatience growth");
 
@@ -333,6 +345,9 @@ MSFrame::fillOptions() {
 
     oc.doRegister("default.emergencydecel", new Option_String("default"));
     oc.addDescription("default.emergencydecel", "Processing", "Select default emergencyDecel value among ('decel', 'default', FLOAT) which sets the value either to the same as the deceleration value, a vClass-class specific default or the given FLOAT in m/s^2");
+
+    oc.doRegister("emergencydecel.warning-threshold", new Option_Float(1));
+    oc.addDescription("emergencydecel.warning-threshold", "Processing", "Sets the fraction of emergency decel capability that must be used to trigger a warning.");
 
     // pedestrian model
     oc.doRegister("pedestrian.model", new Option_String("striping"));
@@ -356,6 +371,8 @@ MSFrame::fillOptions() {
                       "Select among routing algorithms ['dijkstra', 'astar', 'CH', 'CHWrapper']");
     oc.doRegister("weights.random-factor", new Option_Float(1.));
     oc.addDescription("weights.random-factor", "Routing", "Edge weights for routing are dynamically disturbed by a random factor drawn uniformly from [1,FLOAT)");
+    oc.doRegister("weights.minor-penalty", new Option_Float(1.5));
+    oc.addDescription("weights.minor-penalty", "Routing", "Apply the given time penalty when computing minimum routing costs for minor-link internal lanes");
 
     oc.doRegister("astar.all-distances", new Option_FileName());
     oc.addDescription("astar.all-distances", "Routing", "Initialize lookup table for astar from the given file (generated by marouter --all-pairs-output)");
@@ -436,6 +453,9 @@ MSFrame::fillOptions() {
 
     // add rand options
     RandHelper::insertRandOptions();
+    oc.doRegister("thread-rngs", new Option_Integer(64));
+    oc.addDescription("thread-rngs", "Random Number",
+                      "Number of pre-allocated random number generators to ensure repeatable multi-threaded simulations (should be at least the number of threads for repeatable simulations).");
 
     // add GUI options
     // the reason that we include them in vanilla sumo as well is to make reusing config files easy
@@ -452,11 +472,20 @@ MSFrame::fillOptions() {
     oc.doRegister("start", 'S', new Option_Bool(false));
     oc.addDescription("start", "GUI Only", "Start the simulation after loading");
 
+    oc.doRegister("breakpoints", new Option_String());
+    oc.addDescription("breakpoints", "GUI Only", "Use TIME[] as times when the simulation should halt");
+
+    oc.doRegister("edgedata-files", new Option_FileName());
+    oc.addDescription("edgedata-files", "GUI Only", "Load edge/lane weights for visualization from FILE");
+
     oc.doRegister("demo", 'D', new Option_Bool(false));
     oc.addDescription("demo", "GUI Only", "Restart the simulation after ending (demo mode)");
 
     oc.doRegister("disable-textures", 'T', new Option_Bool(false));
     oc.addDescription("disable-textures", "GUI Only", "Do not load background pictures");
+
+    oc.doRegister("registry-viewport", new Option_Bool(false));
+    oc.addDescription("registry-viewport", "GUI Only", "Load current viewport from registry");
 
     oc.doRegister("window-size", new Option_String());
     oc.addDescription("window-size", "GUI Only", "Create initial window with the given x,y size");
@@ -500,6 +529,7 @@ MSFrame::buildStreams() {
 
     //OutputDevice::createDeviceByOption("vtk-output", "vtk-export");
     OutputDevice::createDeviceByOption("link-output", "link-output");
+    OutputDevice::createDeviceByOption("railsignal-block-output", "railsignal-block-output");
     OutputDevice::createDeviceByOption("bt-output", "bt-output");
     OutputDevice::createDeviceByOption("lanechange-output", "lanechanges");
     OutputDevice::createDeviceByOption("stop-output", "stops", "stopinfo_file.xsd");
@@ -611,13 +641,25 @@ MSFrame::checkOptions() {
         const std::string val = oc.getString("default.emergencydecel");
         if (val != "default" && val != "decel") {
             try {
-                TplConvert::_2double(val.c_str());
-            } catch (NumberFormatException) {
+                StringUtils::toDouble(val);
+            } catch (NumberFormatException&) {
                 WRITE_ERROR("Invalid value '" + val + "' for option 'default.emergencydecel'. Must be a FLOAT or 'default' or 'decel'");
                 ok = false;
             }
         }
     }
+    for (const std::string& val : oc.getStringVector("breakpoints")) {
+        try {
+            string2time(val);
+        } catch (ProcessError& e) {
+            WRITE_ERROR("Invalid time '" + val + "' for option 'breakpoints'." + e.what());
+            ok = false;
+        }
+    };
+    if (oc.getInt("threads") > oc.getInt("thread-rngs")) {
+        WRITE_WARNING("Number of threads exceeds number of thread-rngs. Simulation runs with the same seed may produce different results");
+    }
+
     ok &= MSDevice::checkOptions(oc);
     ok &= SystemFrame::checkOptions();
 
@@ -676,8 +718,12 @@ MSFrame::setMSGlobals(OptionsCont& oc) {
         MSGlobals::gDefaultEmergencyDecel = VTYPEPARS_DEFAULT_EMERGENCYDECEL_DECEL;
     } else {
         // value already checked in checkOptions()
-        MSGlobals::gDefaultEmergencyDecel = TplConvert::_2double(defaultEmergencyDecelOption.c_str());
+        MSGlobals::gDefaultEmergencyDecel = StringUtils::toDouble(defaultEmergencyDecelOption);
     }
+    MSGlobals::gNumSimThreads = OptionsCont::getOptions().getInt("threads");
+
+    MSGlobals::gEmergencyDecelWarningThreshold = oc.getFloat("emergencydecel.warning-threshold");
+    MSGlobals::gMinorPenalty = oc.getFloat("weights.minor-penalty");
 
 #ifdef _DEBUG
     if (oc.isSet("movereminder-output")) {
@@ -687,6 +733,4 @@ MSFrame::setMSGlobals(OptionsCont& oc) {
 }
 
 
-
 /****************************************************************************/
-

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2004-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2004-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -56,11 +56,12 @@ public:
      * @param[in] shape The shape of the polygon
      * @param[in] geo specifiy if shape was loaded as GEO
      * @param[in] fill Whether the polygon shall be filled
+     * @param[in] lineWidth The line with for drawing an unfilled polygon
      * @param[in] relativePath set image file as relative path
      */
     SUMOPolygon(const std::string& id, const std::string& type,
                 const RGBColor& color, const PositionVector& shape,
-                bool geo, bool fill,
+                bool geo, bool fill, double lineWidth,
                 double layer = DEFAULT_LAYER,
                 double angle = DEFAULT_ANGLE,
                 const std::string& imgFile = DEFAULT_IMG_FILE,
@@ -88,6 +89,13 @@ public:
     inline bool getFill() const {
         return myFill;
     }
+
+    /** @brief Returns whether the polygon is filled
+     * @return Whether the polygon is filled
+     */
+    inline double getLineWidth() const {
+        return myLineWidth;
+    }
     /// @}
 
 
@@ -99,6 +107,10 @@ public:
      */
     inline void setFill(bool fill) {
         myFill = fill;
+    }
+
+    inline void setLineWidth(double lineWidth) {
+        myLineWidth = lineWidth;
     }
 
 
@@ -124,6 +136,9 @@ protected:
 
     /// @brief Information whether the polygon has to be filled
     bool myFill;
+
+    /// @brief The line width for drawing an unfilled polygon
+    double myLineWidth;
 };
 
 

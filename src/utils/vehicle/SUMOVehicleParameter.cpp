@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -25,7 +25,7 @@
 
 #include "SUMOVehicleParameter.h"
 #include <utils/common/ToString.h>
-#include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/common/MsgHandler.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/options/OptionsCont.h>
@@ -68,227 +68,79 @@ SUMOVehicleParameter::write(OutputDevice& dev, const OptionsCont& oc, const Sumo
     } else {
         dev.writeAttr(SUMO_ATTR_TYPE, typeID);
     }
-    if (departProcedure == DEPART_TRIGGERED) {
-        dev.writeAttr(SUMO_ATTR_DEPART, "triggered");
-    } else if (departProcedure == DEPART_CONTAINER_TRIGGERED) {
-        dev.writeAttr(SUMO_ATTR_DEPART, "containerTriggered");
+    // write depart depending of tag
+    if (tag == SUMO_TAG_FLOW) {
+        dev.writeAttr(SUMO_ATTR_BEGIN, getDepart());
     } else {
-        dev.writeAttr(SUMO_ATTR_DEPART, time2string(depart));
+        dev.writeAttr(SUMO_ATTR_DEPART, getDepart());
     }
-
     // optional parameter
     //  departlane
     if (wasSet(VEHPARS_DEPARTLANE_SET) && !defaultOptionOverrides(oc, "departlane")) {
-        std::string val;
-        switch (departLaneProcedure) {
-            case DEPART_LANE_GIVEN:
-                val = toString(departLane);
-                break;
-            case DEPART_LANE_RANDOM:
-                val = "random";
-                break;
-            case DEPART_LANE_FREE:
-                val = "free";
-                break;
-            case DEPART_LANE_ALLOWED_FREE:
-                val = "allowed";
-                break;
-            case DEPART_LANE_BEST_FREE:
-                val = "best";
-                break;
-            case DEPART_LANE_FIRST_ALLOWED:
-                val = "first";
-                break;
-            case DEPART_LANE_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTLANE, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTLANE, getDepartLane());
     } else if (oc.exists("departlane") && oc.isSet("departlane")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTLANE, oc.getString("departlane"));
     }
     //  departpos
     if (wasSet(VEHPARS_DEPARTPOS_SET) && !defaultOptionOverrides(oc, "departpos")) {
-        std::string val;
-        switch (departPosProcedure) {
-            case DEPART_POS_GIVEN:
-                val = toString(departPos);
-                break;
-            case DEPART_POS_RANDOM:
-                val = "random";
-                break;
-            case DEPART_POS_RANDOM_FREE:
-                val = "random_free";
-                break;
-            case DEPART_POS_FREE:
-                val = "free";
-                break;
-            case DEPART_POS_LAST:
-                val = "last";
-                break;
-            case DEPART_POS_BASE:
-                val = "base";
-                break;
-            case DEPART_POS_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTPOS, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTPOS, getDepartPos());
     } else if (oc.exists("departpos") && oc.isSet("departpos")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTPOS, oc.getString("departpos"));
     }
     //  departPosLat
     if (wasSet(VEHPARS_DEPARTPOSLAT_SET)) {
-        std::string val;
-        switch (departPosLatProcedure) {
-            case DEPART_POSLAT_GIVEN:
-                val = toString(departPos);
-                break;
-            case DEPART_POSLAT_RANDOM:
-                val = "random";
-                break;
-            case DEPART_POSLAT_RANDOM_FREE:
-                val = "random_free";
-                break;
-            case DEPART_POSLAT_FREE:
-                val = "free";
-                break;
-            case DEPART_POSLAT_RIGHT:
-                val = "right";
-                break;
-            case DEPART_POSLAT_CENTER:
-                val = "center";
-                break;
-            case DEPART_POSLAT_LEFT:
-                val = "left";
-                break;
-            case DEPART_POSLAT_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTPOS_LAT, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTPOS_LAT, getDepartPosLat());
     }
+
     //  departspeed
     if (wasSet(VEHPARS_DEPARTSPEED_SET) && !defaultOptionOverrides(oc, "departspeed")) {
-        std::string val;
-        switch (departSpeedProcedure) {
-            case DEPART_SPEED_GIVEN:
-                val = toString(departSpeed);
-                break;
-            case DEPART_SPEED_RANDOM:
-                val = "random";
-                break;
-            case DEPART_SPEED_MAX:
-                val = "max";
-                break;
-            case DEPART_SPEED_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTSPEED, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTSPEED, getDepartSpeed());
     } else if (oc.exists("departspeed") && oc.isSet("departspeed")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_DEPARTSPEED, oc.getString("departspeed"));
     }
-
     //  arrivallane
     if (wasSet(VEHPARS_ARRIVALLANE_SET) && !defaultOptionOverrides(oc, "arrivallane")) {
-        std::string val;
-        switch (arrivalLaneProcedure) {
-            case ARRIVAL_LANE_GIVEN:
-                val = toString(arrivalLane);
-                break;
-            case ARRIVAL_LANE_CURRENT:
-                val = "current";
-                break;
-            case ARRIVAL_LANE_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALLANE, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALLANE, getArrivalLane());
     } else if (oc.exists("arrivallane") && oc.isSet("arrivallane")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALLANE, oc.getString("arrivallane"));
     }
     //  arrivalpos
     if (wasSet(VEHPARS_ARRIVALPOS_SET) && !defaultOptionOverrides(oc, "arrivalpos")) {
-        std::string val;
-        switch (arrivalPosProcedure) {
-            case ARRIVAL_POS_GIVEN:
-                val = toString(arrivalPos);
-                break;
-            case ARRIVAL_POS_RANDOM:
-                val = "random";
-                break;
-            case ARRIVAL_POS_CENTER:
-                val = "center";
-                break;
-            case ARRIVAL_POS_MAX:
-                val = "max";
-                break;
-            case ARRIVAL_POS_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALPOS, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALPOS, getArrivalPos());
     } else if (oc.exists("arrivalpos") && oc.isSet("arrivalpos")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALPOS, oc.getString("arrivalpos"));
     }
     //  arrivalPosLat
     if (wasSet(VEHPARS_ARRIVALPOSLAT_SET)) {
-        std::string val;
-        switch (arrivalPosLatProcedure) {
-            case ARRIVAL_POSLAT_GIVEN:
-                val = toString(arrivalPos);
-                break;
-            case ARRIVAL_POSLAT_RIGHT:
-                val = "right";
-                break;
-            case ARRIVAL_POSLAT_CENTER:
-                val = "center";
-                break;
-            case ARRIVAL_POSLAT_LEFT:
-                val = "left";
-                break;
-            case ARRIVAL_POSLAT_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALPOS_LAT, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALPOS_LAT, getArrivalPosLat());
     }
     //  arrivalspeed
     if (wasSet(VEHPARS_ARRIVALSPEED_SET) && !defaultOptionOverrides(oc, "arrivalspeed")) {
-        std::string val;
-        switch (arrivalSpeedProcedure) {
-            case ARRIVAL_SPEED_GIVEN:
-                val = toString(arrivalSpeed);
-                break;
-            case ARRIVAL_SPEED_CURRENT:
-                val = "current";
-                break;
-            case ARRIVAL_SPEED_DEFAULT:
-            default:
-                break;
-        }
-        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALSPEED, val);
+        dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALSPEED, getArrivalSpeed());
     } else if (oc.exists("arrivalspeed") && oc.isSet("arrivalspeed")) {
         dev.writeNonEmptyAttr(SUMO_ATTR_ARRIVALSPEED, oc.getString("arrivalspeed"));
     }
-
     // color
     if (wasSet(VEHPARS_COLOR_SET)) {
         dev.writeAttr(SUMO_ATTR_COLOR, color);
     }
+    // line
     if (wasSet(VEHPARS_LINE_SET)) {
         dev.writeAttr(SUMO_ATTR_LINE, line);
     }
+    // from TAZ
     if (wasSet(VEHPARS_FROM_TAZ_SET)) {
         dev.writeAttr(SUMO_ATTR_FROM_TAZ, fromTaz);
     }
+    // to TAZ
     if (wasSet(VEHPARS_TO_TAZ_SET)) {
         dev.writeAttr(SUMO_ATTR_TO_TAZ, toTaz);
     }
+    // person number
     if (wasSet(VEHPARS_PERSON_NUMBER_SET)) {
         dev.writeAttr(SUMO_ATTR_PERSON_NUMBER, personNumber);
     }
+    // container number
     if (wasSet(VEHPARS_CONTAINER_NUMBER_SET)) {
         dev.writeAttr(SUMO_ATTR_CONTAINER_NUMBER, containerNumber);
     }
@@ -317,10 +169,10 @@ SUMOVehicleParameter::Stop::write(OutputDevice& dev) const {
         }
     }
     if (duration >= 0) {
-        dev.writeAttr(SUMO_ATTR_DURATION, STEPS2TIME(duration));
+        dev.writeAttr(SUMO_ATTR_DURATION, time2string(duration));
     }
     if (until >= 0) {
-        dev.writeAttr(SUMO_ATTR_UNTIL, STEPS2TIME(until));
+        dev.writeAttr(SUMO_ATTR_UNTIL, time2string(until));
     }
     if ((parametersSet & STOP_TRIGGER_SET) != 0) {
         dev.writeAttr(SUMO_ATTR_TRIGGERED, triggered);
@@ -384,7 +236,7 @@ SUMOVehicleParameter::parseDepartLane(const std::string& val, const std::string&
         dld = DEPART_LANE_FIRST_ALLOWED;
     } else {
         try {
-            lane = TplConvert::_2int(val.c_str());
+            lane = StringUtils::toInt(val);
             dld = DEPART_LANE_GIVEN;
             if (lane < 0) {
                 ok = false;
@@ -416,7 +268,7 @@ SUMOVehicleParameter::parseDepartPos(const std::string& val, const std::string& 
         dpd = DEPART_POS_LAST;
     } else {
         try {
-            pos = TplConvert::_2double(val.c_str());
+            pos = StringUtils::toDouble(val);
             dpd = DEPART_POS_GIVEN;
         } catch (...) {
             ok = false;
@@ -447,7 +299,7 @@ SUMOVehicleParameter::parseDepartPosLat(const std::string& val, const std::strin
         dpd = DEPART_POSLAT_LEFT;
     } else {
         try {
-            pos = TplConvert::_2double(val.c_str());
+            pos = StringUtils::toDouble(val);
             dpd = DEPART_POSLAT_GIVEN;
         } catch (...) {
             ok = false;
@@ -470,7 +322,7 @@ SUMOVehicleParameter::parseDepartSpeed(const std::string& val, const std::string
         dsd = DEPART_SPEED_MAX;
     } else {
         try {
-            speed = TplConvert::_2double(val.c_str());
+            speed = StringUtils::toDouble(val);
             dsd = DEPART_SPEED_GIVEN;
             if (speed < 0) {
                 ok = false;
@@ -494,7 +346,7 @@ SUMOVehicleParameter::parseArrivalLane(const std::string& val, const std::string
         ald = ARRIVAL_LANE_CURRENT;
     } else {
         try {
-            lane = TplConvert::_2int(val.c_str());
+            lane = StringUtils::toInt(val);
             ald = ARRIVAL_LANE_GIVEN;
             if (lane < 0) {
                 ok = false;
@@ -522,7 +374,7 @@ SUMOVehicleParameter::parseArrivalPos(const std::string& val, const std::string&
         apd = ARRIVAL_POS_MAX;
     } else {
         try {
-            pos = TplConvert::_2double(val.c_str());
+            pos = StringUtils::toDouble(val);
             apd = ARRIVAL_POS_GIVEN;
         } catch (...) {
             ok = false;
@@ -547,7 +399,7 @@ SUMOVehicleParameter::parseArrivalPosLat(const std::string& val, const std::stri
         apd = ARRIVAL_POSLAT_LEFT;
     } else {
         try {
-            pos = TplConvert::_2double(val.c_str());
+            pos = StringUtils::toDouble(val);
             apd = ARRIVAL_POSLAT_GIVEN;
         } catch (...) {
             ok = false;
@@ -568,7 +420,7 @@ SUMOVehicleParameter::parseArrivalSpeed(const std::string& val, const std::strin
         asd = ARRIVAL_SPEED_CURRENT;
     } else {
         try {
-            speed = TplConvert::_2double(val.c_str());
+            speed = StringUtils::toDouble(val);
             if (speed < 0) {
                 ok = false;
             }
@@ -596,5 +448,214 @@ SUMOVehicleParameter::interpretEdgePos(double pos, double maximumValue, SumoXMLA
     return pos;
 }
 
+
+std::string 
+SUMOVehicleParameter::getDepart() const {
+    if (departProcedure == DEPART_TRIGGERED) {
+        return "triggered";
+    } else if (departProcedure == DEPART_CONTAINER_TRIGGERED) {
+        return "containerTriggered";
+    } else {
+        return time2string(depart);
+    }
+}
+
+
+std::string 
+SUMOVehicleParameter::getDepartLane() const {
+    std::string val;
+    switch (departLaneProcedure) {
+        case DEPART_LANE_GIVEN:
+            val = toString(departLane);
+            break;
+        case DEPART_LANE_RANDOM:
+            val = "random";
+            break;
+        case DEPART_LANE_FREE:
+            val = "free";
+            break;
+        case DEPART_LANE_ALLOWED_FREE:
+            val = "allowed";
+            break;
+        case DEPART_LANE_BEST_FREE:
+            val = "best";
+            break;
+        case DEPART_LANE_FIRST_ALLOWED:
+            val = "first";
+            break;
+        case DEPART_LANE_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getDepartPos() const {
+    std::string val;
+    switch (departPosProcedure) {
+        case DEPART_POS_GIVEN:
+            val = toString(departPos);
+            break;
+        case DEPART_POS_RANDOM:
+            val = "random";
+            break;
+        case DEPART_POS_RANDOM_FREE:
+            val = "random_free";
+            break;
+        case DEPART_POS_FREE:
+            val = "free";
+            break;
+        case DEPART_POS_LAST:
+            val = "last";
+            break;
+        case DEPART_POS_BASE:
+            val = "base";
+            break;
+        case DEPART_POS_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getDepartPosLat() const {
+    std::string val;
+    switch (departPosLatProcedure) {
+        case DEPART_POSLAT_GIVEN:
+            val = toString(departPos);
+            break;
+        case DEPART_POSLAT_RANDOM:
+            val = "random";
+            break;
+        case DEPART_POSLAT_RANDOM_FREE:
+            val = "random_free";
+            break;
+        case DEPART_POSLAT_FREE:
+            val = "free";
+            break;
+        case DEPART_POSLAT_RIGHT:
+            val = "right";
+            break;
+        case DEPART_POSLAT_CENTER:
+            val = "center";
+            break;
+        case DEPART_POSLAT_LEFT:
+            val = "left";
+            break;
+        case DEPART_POSLAT_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getDepartSpeed() const {
+    std::string val;
+    switch (departSpeedProcedure) {
+        case DEPART_SPEED_GIVEN:
+            val = toString(departSpeed);
+            break;
+        case DEPART_SPEED_RANDOM:
+            val = "random";
+            break;
+        case DEPART_SPEED_MAX:
+            val = "max";
+            break;
+        case DEPART_SPEED_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getArrivalLane() const {
+    std::string val;
+    switch (arrivalLaneProcedure) {
+        case ARRIVAL_LANE_GIVEN:
+            val = toString(arrivalLane);
+            break;
+        case ARRIVAL_LANE_CURRENT:
+            val = "current";
+            break;
+        case ARRIVAL_LANE_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getArrivalPos() const {
+    std::string val;
+    switch (arrivalPosProcedure) {
+        case ARRIVAL_POS_GIVEN:
+            val = toString(arrivalPos);
+            break;
+        case ARRIVAL_POS_RANDOM:
+            val = "random";
+            break;
+        case ARRIVAL_POS_CENTER:
+            val = "center";
+            break;
+        case ARRIVAL_POS_MAX:
+            val = "max";
+            break;
+        case ARRIVAL_POS_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getArrivalPosLat() const {
+    std::string val;
+    switch (arrivalPosLatProcedure) {
+        case ARRIVAL_POSLAT_GIVEN:
+            val = toString(arrivalPos);
+            break;
+        case ARRIVAL_POSLAT_RIGHT:
+            val = "right";
+            break;
+        case ARRIVAL_POSLAT_CENTER:
+            val = "center";
+            break;
+        case ARRIVAL_POSLAT_LEFT:
+            val = "left";
+            break;
+        case ARRIVAL_POSLAT_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
+
+
+std::string 
+SUMOVehicleParameter::getArrivalSpeed() const {
+    std::string val;
+    switch (arrivalSpeedProcedure) {
+        case ARRIVAL_SPEED_GIVEN:
+            val = toString(arrivalSpeed);
+            break;
+        case ARRIVAL_SPEED_CURRENT:
+            val = "current";
+            break;
+        case ARRIVAL_SPEED_DEFAULT:
+        default:
+            break;
+    }
+    return val;
+}
 
 /****************************************************************************/

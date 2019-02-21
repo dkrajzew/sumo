@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2001-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2001-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -44,6 +44,7 @@
 #include "MSBaseVehicle.h"
 #include "MSLink.h"
 #include "MSLane.h"
+#include "MSNet.h"
 
 #define INVALID_SPEED 299792458 + 1 // nothing can go faster than the speed of light! Refs. #2577
 
@@ -366,6 +367,10 @@ public:
      */
     void planMove(const SUMOTime t, const MSLeaderInfo& ahead, const double lengthsInFront);
 
+    /** @brief Register junction approaches for all link items in the current
+     * plan */
+    void setApproachingForAllLinks(const SUMOTime t);
+
 
     /** @brief Executes planned vehicle movements with regards to right-of-way
      *
@@ -387,7 +392,7 @@ public:
      *  @param[in] accel the assumed acceleration
      *  @return distance covered in next integration step
      */
-    double getDeltaPos(double accel);
+    double getDeltaPos(const double accel) const;
 
 
     /// @name state setter/getter
@@ -980,9 +985,12 @@ public:
      */
     void createDriverState();
 
-    /** @brief get the current parking area stop
+    /** @brief get the upcoming parking area stop or nullptr
      */
     MSParkingArea* getNextParkingArea();
+
+    /** @brief get the current  parking area stop or nullptr */
+    MSParkingArea* getCurrentParkingArea();
 
     /** @brief Returns whether the vehicle has to stop somewhere
      * @return Whether the vehicle has to stop somewhere
@@ -1089,7 +1097,6 @@ public:
      * @return The time gap in seconds; -1 if no leader was found or speed is 0.
      */
     double getTimeGapOnLane() const;
-
 
     /// @name Emission retrieval
     //@{
@@ -1349,20 +1356,93 @@ public:
      * LaneChangeMode and any given laneTimeLine
      */
     class Influencer {
+    private:
+
+        /// @brief A static instance of this class in GapControlState deactivates gap control
+        ///        for vehicles whose reference vehicle is removed from the road network
+        class GapControlVehStateListener : public MSNet::VehicleStateListener {
+            /** @brief Called if a vehicle changes its state
+             * @param[in] vehicle The vehicle which changed its state
+             * @param[in] to The state the vehicle has changed to
+             * @param[in] info Additional information on the state change
+             * @note This deactivates the corresponding gap control when a reference vehicle is removed.
+             */
+            void vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& info = "");
+        };
+
+
+        /// @brief Container for state and parameters of the gap control
+        struct GapControlState {
+            GapControlState();
+            virtual ~GapControlState();
+            /// @brief Static initalization (adds vehicle state listener)
+            static void init();
+            /// @brief Static cleanup (removes vehicle state listener)
+            static void cleanup();
+            /// @brief Start gap control with given params
+            void activate(double tauOriginal, double tauTarget, double additionalGap, double duration, double changeRate, double maxDecel, const MSVehicle* refVeh);
+            /// @brief Stop gap control
+            void deactivate();
+            /// @brief Original value for the desired headway (will be reset after duration has expired)
+            double tauOriginal;
+            /// @brief Current, interpolated value for the desired time headway
+            double tauCurrent;
+            /// @brief Target value for the desired time headway
+            double tauTarget;
+            /// @brief Current, interpolated value for the desired space headway
+            double addGapCurrent;
+            /// @brief Target value for the desired space headway
+            double addGapTarget;
+            /// @brief Remaining duration for keeping the target headway
+            double remainingDuration;
+            /// @brief Rate by which the current time and space headways are changed towards the target value.
+            ///        (A rate of one corresponds to reaching the target value within one second)
+            double changeRate;
+            /// @brief Maximal deceleration to be applied due to the adapted headway
+            double maxDecel;
+            /// @brief reference vehicle for the gap - if it is null, the current leader on the ego's lane is used as a reference
+            const MSVehicle* referenceVeh;
+            /// @brief Whether the gap control is active
+            bool active;
+            /// @brief Whether the desired gap was attained during the current activity phase (induces the remaining duration to decrease)
+            bool gapAttained;
+            /// @brief The last recognized leader
+            const MSVehicle* prevLeader;
+            /// @brief Time of the last update of the gap control
+            SUMOTime lastUpdate;
+            /// @brief cache storage for the headway increments of the current operation
+            double timeHeadwayIncrement, spaceHeadwayIncrement;
+
+            /// @brief stores reference vehicles currently in use by a gapController
+            static std::map<const MSVehicle*, GapControlState*> refVehMap;
+
+        private:
+            static GapControlVehStateListener vehStateListener;
+        };
     public:
         /// @brief Constructor
         Influencer();
 
-
         /// @brief Destructor
         ~Influencer();
 
+        /// @brief Static initalization
+        static void init();
+        /// @brief Static cleanup
+        static void cleanup();
 
         /** @brief Sets a new velocity timeline
          * @param[in] speedTimeLine The time line of speeds to use
          */
         void setSpeedTimeLine(const std::vector<std::pair<SUMOTime, double> >& speedTimeLine);
 
+        /** @brief Activates the gap control with the given parameters, @see GapControlState
+         */
+        void activateGapController(double originalTau, double newTimeHeadway, double newSpaceHeadway, double duration, double changeRate, double maxDecel, MSVehicle* refVeh=nullptr);
+
+        /** @brief Deactivates the gap control
+         */
+        void deactivateGapController();
 
         /** @brief Sets a new lane timeline
          * @param[in] laneTimeLine The time line of lanes to use
@@ -1386,7 +1466,9 @@ public:
         }
         SUMOTime getLaneTimeLineDuration();
 
-        /** @brief Applies stored velocity information on the speed to use
+        SUMOTime getLaneTimeLineEnd();
+
+        /** @brief Applies stored velocity information on the speed to use.
          *
          * The given speed is assumed to be the non-influenced speed from longitudinal control.
          *  It is stored for further usage in "myOriginalSpeed".
@@ -1398,6 +1480,20 @@ public:
          * @return The speed to use
          */
         double influenceSpeed(SUMOTime currentTime, double speed, double vSafe, double vMin, double vMax);
+
+        /** @brief Applies gap control logic on the speed.
+         *
+         * The given speed is assumed to be the non-influenced speed from longitudinal control.
+         *  It is stored for further usage in "myOriginalSpeed".
+         * @param[in] currentTime The current simulation time
+         * @param[in] veh The controlled vehicle
+         * @param[in] speed The undisturbed speed
+         * @param[in] vSafe The safe velocity
+         * @param[in] vMin The minimum velocity
+         * @param[in] vMax The maximum simulation time
+         * @return The speed to use (<=speed)
+         */
+        double gapControlSpeed(SUMOTime currentTime, const SUMOVehicle* veh, double speed, double vSafe, double vMin, double vMax);
 
         /** @brief Applies stored LaneChangeMode information and laneTimeLine
          * @param[in] currentTime The current simulation time
@@ -1493,6 +1589,10 @@ public:
             myLatDist = 0.;
         }
 
+        bool ignoreOverlap() const {
+            return myTraciLaneChangePriority == LCP_ALWAYS;
+        }
+
         SUMOAbstractRouter<MSEdge, SUMOVehicle>& getRouterTT() const;
 
     private:
@@ -1501,6 +1601,9 @@ public:
 
         /// @brief The lane usage time line to apply
         std::vector<std::pair<SUMOTime, int> > myLaneTimeLine;
+
+        /// @brief The gap control state
+        std::shared_ptr<GapControlState> myGapControlState;
 
         /// @brief The velocity before influence
         double myOriginalSpeed;
@@ -1570,7 +1673,7 @@ public:
     const Influencer* getInfluencer() const;
 
     bool hasInfluencer() const {
-        return myInfluencer != 0;
+        return myInfluencer != nullptr;
     }
 
     /// @brief allow TraCI to influence a lane change decision
@@ -1588,6 +1691,9 @@ public:
 
     /// @brief get a numerical value for the priority of the  upcoming link
     static int nextLinkPriority(const std::vector<MSLane*>& conts);
+
+    /// @brief whether the given vehicle must be followed at the given junction
+    bool isLeader(const MSLink* link, const MSVehicle* veh) const;
 
     /// @name state io
     //@{
@@ -1633,7 +1739,7 @@ protected:
      *  @param[in/out] vSafeMin The minimal safe (or admissible) velocity (used her for ensuring the clearing of junctions in time).
      *  @param[in/out] vSafeMinDist The distance to the next link, which should either be crossed this step, or in front of which the vehicle need to stop.
      */
-    void processLinkAproaches(double& vSafe, double& vSafeMin, double& vSafeMinDist);
+    void processLinkApproaches(double& vSafe, double& vSafeMin, double& vSafeMinDist);
 
 
     /** @brief This method checks if the vehicle has advanced over one or several lanes
@@ -1674,7 +1780,7 @@ protected:
     void updateTimeLoss(double vNext);
 
     /// @brief whether the vehicle is a train that can reverse its direction at the current point in its route
-    bool canReverse() const;
+    bool canReverse(double speedThreshold = SUMO_const_haltingSpeed) const;
 
     /** @brief sets the braking lights on/off
      */
@@ -1691,9 +1797,16 @@ protected:
     /// updates LaneQ::nextOccupation and myCurrentLaneInBestLanes
     void updateOccupancyAndCurrentBestLane(const MSLane* startLane);
 
-    /** @brief Returns the list of still pending stop edges
+    /** @brief Returns the list of still pending stop edges 
+     * also returns the first and last stop position 
      */
-    const ConstMSEdgeVector getStopEdges() const;
+    const ConstMSEdgeVector getStopEdges(double& firstPos, double& lastPos) const;
+
+    /// @brief return list of route indices for the remaining stops
+    std::vector<int> getStopIndices() const;
+
+    /// @brief get distance for coming to a stop (used for rerouting checks)
+    double getBrakeGap() const;
 
     /// @brief ensure that a vehicle-relative position is not invalid
     Position validatePosition(Position result, double offset = 0) const;
@@ -1777,13 +1890,18 @@ protected:
     /// @brief the angle in radians (@todo consider moving this into myState)
     double myAngle;
 
-    /// @brief distance to the next stop or -1 if there is none
+    /// @brief distance to the next stop or doubleMax if there is none
     double myStopDist;
 
     /// @brief amount of time for which the vehicle is immune from collisions
     SUMOTime myCollisionImmunity;
 
     mutable Position myCachedPosition;
+
+    /// @brief time at which the current junction was entered
+    SUMOTime myJunctionEntryTime;
+    SUMOTime myJunctionEntryTimeNeverYield;
+    SUMOTime myJunctionConflictEntryTime;
 
 protected:
 
@@ -1801,7 +1919,7 @@ protected:
         double myArrivalSpeedBraking;
         double myDistance;
         double accelV;
-        bool hadVehicle;
+        bool hadStoppedVehicle;
         double availableSpace;
 
         DriveProcessItem(MSLink* link, double vPass, double vWait, bool setRequest,
@@ -1813,7 +1931,7 @@ protected:
             myArrivalTime(arrivalTime), myArrivalSpeed(arrivalSpeed),
             myArrivalTimeBraking(arrivalTimeBraking), myArrivalSpeedBraking(arrivalSpeedBraking),
             myDistance(distance),
-            accelV(leaveSpeed), hadVehicle(false), availableSpace(0) {
+            accelV(leaveSpeed), hadStoppedVehicle(false), availableSpace(0) {
             assert(vWait >= 0 || !MSGlobals::gSemiImplicitEulerUpdate);
             assert(vPass >= 0 || !MSGlobals::gSemiImplicitEulerUpdate);
         };
@@ -1825,7 +1943,7 @@ protected:
             myArrivalTime(0), myArrivalSpeed(0),
             myArrivalTimeBraking(0), myArrivalSpeedBraking(0),
             myDistance(distance),
-            accelV(-1), hadVehicle(false), availableSpace(_availableSpace) {
+            accelV(-1), hadStoppedVehicle(false), availableSpace(_availableSpace) {
             assert(vWait >= 0 || !MSGlobals::gSemiImplicitEulerUpdate);
         };
 
@@ -1845,7 +1963,13 @@ protected:
     /// Container for used Links/visited Lanes during planMove() and executeMove.
     // TODO: Consider making LFLinkLanes a std::deque for efficient front removal (needs refactoring in checkRewindLinkLanes()...)
     typedef std::vector< DriveProcessItem > DriveItemVector;
+
+    /// @brief container for the planned speeds in the current step
     DriveItemVector myLFLinkLanes;
+
+    /// @brief planned speeds from the previous step for un-registering from junctions after the new container is filled
+    DriveItemVector myLFLinkLanesPrev;
+
     /** @brief iterator pointing to the next item in myLFLinkLanes
     *   @note  This is updated whenever the vehicle advances to a subsequent lane (see processLaneAdvances())
     *          and used for inter-actionpoint actualization of myLFLinkLanes (i.e. deletion of passed items)
@@ -1859,11 +1983,8 @@ protected:
     /// @brief runs heuristic for keeping the intersection clear in case of downstream jamming
     void checkRewindLinkLanes(const double lengthsInFront, DriveItemVector& lfLinks) const;
 
-    /// @brief registers computed approach information with all links
-    void setApproachingForAllLinks(DriveItemVector& lfLinks) const;
-
     /// @brief unregister approach from all upcoming links
-    void removeApproachingInformation(DriveItemVector& lfLinks) const;
+    void removeApproachingInformation(const DriveItemVector& lfLinks) const;
 
 
     /// @brief estimate leaving speed when accelerating across a link
@@ -1937,6 +2058,10 @@ protected:
 
     /// @brief decide whether a red (or yellow light) may be ignore
     bool ignoreRed(const MSLink* link, bool canBrake) const;
+
+
+    /// @brief check whether all stop.edge MSRouteIterators are valid and in order
+    bool haveValidStopEdges();
 
 private:
     /* @brief The vehicle's knowledge about edge efforts/travel times; @see MSEdgeWeightsStorage

@@ -1,6 +1,6 @@
 /****************************************************************************/
 // Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
-// Copyright (C) 2003-2018 German Aerospace Center (DLR) and others.
+// Copyright (C) 2003-2019 German Aerospace Center (DLR) and others.
 // This program and the accompanying materials
 // are made available under the terms of the Eclipse Public License v2.0
 // which accompanies this distribution, and is available at
@@ -100,7 +100,7 @@ public:
          * @see MSMoveReminder::notifyMove
          * @see MSE3Collector::enter
          */
-        bool notifyMove(SUMOVehicle& veh, double , double newPos, double);
+        bool notifyMove(SUMOVehicle& veh, double, double newPos, double);
 
 
         /** @brief Processes state changes of a vehicle
@@ -244,7 +244,7 @@ public:
      *  @param[in] entryTimestep The time in seconds the vehicle entered the area
      *  @param[in] fractionTimeOnDet The interpolated time in seconds the vehicle already spent on the detector
      */
-    void enter(const SUMOVehicle& veh, const double entryTimestep, const double fractionTimeOnDet);
+    void enter(const SUMOVehicle& veh, const double entryTimestep, const double fractionTimeOnDet, MSE3EntryReminder* entryReminder);
 
 
     /** @brief Called if a vehicle front passes a leave-cross-section.
@@ -379,7 +379,7 @@ protected:
         /// @brief The sum of haltings the vehicle has/had within the area
         int haltings;
         /// @brief Begin time of last halt begin
-        double haltingBegin;
+        SUMOTime haltingBegin;
         /// @brief The sum of registered speeds the vehicle has/had inside the area during the current interval
         double intervalSpeedSum;
         /// @brief The sum of haltings the vehicle has/had within the area during the current interval
@@ -390,6 +390,8 @@ protected:
         SUMOTime intervalTimeLoss;
         /// @brief An internal information whether the update step was performed
         bool hadUpdate;
+        /// @brief the reminder on which the vehicle entered the detector
+        MSE3EntryReminder* entryReminder;
     };
 
     /// @brief Container for vehicles that have entered the area
