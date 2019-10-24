@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select chargingStation
-netedit.changeAdditional("chargingStation")
+netedit.changeElement("chargingStation")
 
 # set charge in transit
-netedit.modifyAdditionalDefaultBoolValue(6)
+netedit.changeDefaultBoolValue(7)
 
 # create chargingStation in mode "reference left"
 netedit.leftClick(referencePosition, 250, 250)
@@ -42,10 +42,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

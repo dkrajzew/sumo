@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select containerStop
-netedit.changeAdditional("containerStop")
+netedit.changeElement("containerStop")
 
 # set name
-netedit.modifyAdditionalDefaultValue(2, "custom container stop name")
+netedit.changeDefaultValue(3, "custom bus stop name")
 
 # create containerStop in mode "reference left"
 netedit.leftClick(referencePosition, 250, 250)
@@ -42,10 +42,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

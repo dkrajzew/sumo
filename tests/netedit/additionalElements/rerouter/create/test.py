@@ -32,115 +32,115 @@ netedit.setZoom("25", "0", "25")
 netedit.additionalMode()
 
 # select rerouter
-netedit.changeAdditional("rerouter")
+netedit.changeElement("rerouter")
 
 # try to create rerouter without edge child (Warning)
 netedit.leftClick(referencePosition, 50, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # create rerouter with default parameters
 netedit.leftClick(referencePosition, 100, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # set invalid filename
-netedit.modifyAdditionalDefaultValue(2, "$$&&$$$$$$")
+netedit.changeDefaultValue(3, "$$&&$$$$$$")
 
 # try to create rerouter with invalid name
 netedit.leftClick(referencePosition, 200, 100)
 
 # set valid name
-netedit.modifyAdditionalDefaultValue(2, "custom Name")
+netedit.changeDefaultValue(3, "custom Name")
 
 # create rerouter with valid name
 netedit.leftClick(referencePosition, 200, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # set invalid filename
-netedit.modifyAdditionalDefaultValue(3, "$$$$$$$$")
+netedit.changeDefaultValue(4, "$$$$$$$$")
 
 # try to create rerouter with invalid filename
 netedit.leftClick(referencePosition, 300, 100)
 
 # set valid filename
-netedit.modifyAdditionalDefaultValue(3, "myOwnFilenameRerouter.txt")
+netedit.changeDefaultValue(4, "myOwnFilenameRerouter.txt")
 
 # create rerouter with valid filename
 netedit.leftClick(referencePosition, 300, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # set invalid probability
-netedit.modifyAdditionalDefaultValue(4, "2")
+netedit.changeDefaultValue(5, "2")
 
 # try to create rerouter with invalid probability
 netedit.leftClick(referencePosition, 400, 100)
 
 # set valid probability
-netedit.modifyAdditionalDefaultValue(4, "0.3")
+netedit.changeDefaultValue(5, "0.3")
 
 # create rerouter with valid probability
 netedit.leftClick(referencePosition, 400, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # set invalid time treshold (dummy)
-netedit.modifyAdditionalDefaultValue(5, "dummyFrequency")
+netedit.changeDefaultValue(6, "dummyFrequency")
 
 # try to create rerouter with invalid time treshold
 netedit.leftClick(referencePosition, 500, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # set invalid time treshold (negative)
-netedit.modifyAdditionalDefaultValue(5, "-3")
+netedit.changeDefaultValue(6, "-3")
 
 # try to create rerouter with invalid time treshold
 netedit.leftClick(referencePosition, 500, 100)
 
 # set valid time treshold
-netedit.modifyAdditionalDefaultValue(5, "2.7")
+netedit.changeDefaultValue(6, "2.7")
 
 # create rerouter with valid time treshold
 netedit.leftClick(referencePosition, 500, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # set invalid vtypes
-netedit.modifyAdditionalDefaultValue(6, "%%% type2 &&&&")
+netedit.changeDefaultValue(7, "%%% type2 &&&&")
 
 # create rerouter with valid time treshold
 netedit.leftClick(referencePosition, 550, 100)
 
 # set valid time treshold
-netedit.modifyAdditionalDefaultValue(6, "type1 type2 type3")
+netedit.changeDefaultValue(7, "type1 type2 type3")
 
 # create rerouter with valid time treshold
 netedit.leftClick(referencePosition, 550, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # change off
-netedit.modifyAdditionalDefaultBoolValue(7)
+netedit.changeDefaultBoolValue(8)
 
 # create route with different off
 netedit.leftClick(referencePosition, 600, 100)
 
 # select edge child
-netedit.selectAdditionalChild(12, 0)
+netedit.selectAdditionalChild(13, 0)
 
 # change block movement
-netedit.modifyAdditionalDefaultBoolValue(9)
+netedit.changeDefaultBoolValue(10)
 
 # try to create rerouter with different timeTreshold
 netedit.leftClick(referencePosition, 200, 200)
@@ -150,10 +150,10 @@ netedit.undo(referencePosition, 8)
 netedit.redo(referencePosition, 8)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -196,8 +196,12 @@ NIXMLTrafficLightsHandler::initTrafficLightLogic(const SUMOSAXAttributes& attrs,
         }
     } else {
         // case 1
-        loadedDef->setOffset(offset);
-        loadedDef->setType(type);
+        if (attrs.hasAttribute(SUMO_ATTR_OFFSET)) {
+            loadedDef->setOffset(offset);
+        }
+        if (attrs.hasAttribute(SUMO_ATTR_TYPE)) {
+            loadedDef->setType(type);
+        }
     }
     if (ok) {
         myResetPhases = true;
@@ -237,7 +241,7 @@ NIXMLTrafficLightsHandler::addTlConnection(const SUMOSAXAttributes& attrs) {
     std::string tlID = attrs.getOpt<std::string>(SUMO_ATTR_TLID, nullptr, ok, "");
     if (tlID == "") {
         // we are updating an existing tl-controlled connection
-        tlID = c.tlID;
+        tlID = (*(from->getToNode()->getControllingTLS().begin()))->getID();
         assert(tlID != "");
     }
     int tlIndex = attrs.getOpt<int>(SUMO_ATTR_TLLINKINDEX, nullptr, ok, -1);
@@ -281,8 +285,8 @@ NIXMLTrafficLightsHandler::removeTlConnection(const SUMOSAXAttributes& attrs) {
         if (!ok) {
             return;
         }
-        int fromLane = retrieveLaneIndex(attrs, SUMO_ATTR_FROM_LANE, from, ok);
-        int toLane = retrieveLaneIndex(attrs, SUMO_ATTR_TO_LANE, to, ok);
+        int fromLane = retrieveLaneIndex(attrs, SUMO_ATTR_FROM_LANE, from, ok, true);
+        int toLane = retrieveLaneIndex(attrs, SUMO_ATTR_TO_LANE, to, ok, true);
         if (!ok) {
             return;
         }
@@ -319,10 +323,12 @@ NIXMLTrafficLightsHandler::retrieveEdge(
 
 int
 NIXMLTrafficLightsHandler::retrieveLaneIndex(
-    const SUMOSAXAttributes& attrs, SumoXMLAttr attr, NBEdge* edge, bool& ok) {
+    const SUMOSAXAttributes& attrs, SumoXMLAttr attr, NBEdge* edge, bool& ok, bool isDelete) {
     int laneIndex = attrs.get<int>(attr, nullptr, ok);
     if (edge->getNumLanes() <= laneIndex) {
-        WRITE_ERROR("Invalid lane index '" + toString(laneIndex) + "' for edge '" + edge->getID() + "'.");
+        if (!isDelete) {
+            WRITE_ERROR("Invalid lane index '" + toString(laneIndex) + "' for edge '" + edge->getID() + "'.");
+        }
         ok = false;
     }
     return laneIndex;

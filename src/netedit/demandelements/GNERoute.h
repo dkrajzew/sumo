@@ -22,46 +22,116 @@
 // included modules
 // ===========================================================================
 
+#include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
+
 #include "GNEDemandElement.h"
+#include "GNERouteHandler.h"
+
 
 // ===========================================================================
 // class declarations
 // ===========================================================================
 class GNEEdge;
-
+class GNEConnection;
+class GNEVehicle;
 
 // ===========================================================================
 // class definitions
 // ===========================================================================
 
-class GNERoute : public GNEDemandElement {
+class GNERoute : public GNEDemandElement, public Parameterised {
+
 public:
-    /** default constructor
+
+    /// @brief class used in GUIGLObjectPopupMenu for routes
+    class GNERoutePopupMenu : public GUIGLObjectPopupMenu {
+        FXDECLARE(GNERoutePopupMenu)
+
+    public:
+        /** @brief Constructor
+         * @param[in] app The main window for instantiation of other windows
+         * @param[in] parent The parent view for changing it
+         * @param[in] o The object of interest
+         * @param[in, out] additionalVisualizations Information which additional visualisations are enabled (per view)
+         */
+        GNERoutePopupMenu(GUIMainWindow& app, GUISUMOAbstractView& parent, GUIGlObject& o);
+
+        /// @brief Destructor
+        ~GNERoutePopupMenu();
+
+        /// @brief Called to modify edge distance values along the route
+        long onCmdApplyDistance(FXObject*, FXSelector, void*);
+
+    protected:
+        /// @brief default constructor needed by FOX
+        GNERoutePopupMenu() {}
+    };
+
+    /**@brief default constructor
      * @param[in] viewNet view in which this Route is placed
-    **/
+     */
     GNERoute(GNEViewNet* viewNet);
 
-    /** parameter constructor
+    /**@brief parameter constructor
      * @param[in] viewNet view in which this Route is placed
-     * @param[in] routeID unique route ID
-     * @param[in] edges list of consecutive edges of this route
-     * @param[in] color RGBColor of this route
-    **/
-    GNERoute(GNEViewNet* viewNet, const std::string& routeID, const std::vector<GNEEdge*>& edges, const RGBColor& color);
+     * @param[in] routeParameters route parameters
+     */
+    GNERoute(GNEViewNet* viewNet, const GNERouteHandler::RouteParameter& routeParameters);
+
+    /**@brief parameter constructor for embedded routes
+     * @param[in] viewNet view in which this Route is placed
+     * @param[in] vehicleParent vehicle parent of this embedded route
+     * @param[in] routeParameters route parameters
+     */
+    GNERoute(GNEViewNet* viewNet, GNEDemandElement* vehicleParent, const GNERouteHandler::RouteParameter& routeParameters);
+
+    /// @brief copy constructor (used to create a route based on the parameters of other GNERoute)
+    GNERoute(GNEDemandElement* route);
 
     /// @brief destructor
     ~GNERoute();
-
-    /// @brief get color
-    const RGBColor &getColor() const;
 
     /**@brief writte demand element element into a xml file
      * @param[in] device device in which write parameters of demand element element
      */
     void writeDemandElement(OutputDevice& device) const;
 
+    /// @brief check if current demand element is valid to be writed into XML (by default true, can be reimplemented in children)
+    bool isDemandElementValid() const;
+
+    /// @brief return a string with the current demand element problem (by default empty, can be reimplemented in children)
+    std::string getDemandElementProblem() const;
+
+    /// @brief fix demand element problem (by default throw an exception, has to be reimplemented in children)
+    void fixDemandElementProblem();
+
+    /// @name members and functions relative to elements common to all demand elements
+    /// @{
+    /// @brief obtain from edge of this demand element
+    GNEEdge* getFromEdge() const;
+
+    /// @brief obtain to edge of this demand element
+    GNEEdge* getToEdge() const;
+
+    /// @brief obtain VClass related with this demand element
+    SUMOVehicleClass getVClass() const;
+
+    /// @brief get color
+    const RGBColor& getColor() const;
+
+    /// @brief compute demand element
+    void compute();
+
+    /// @}
+
     /// @name Functions related with geometry of element
     /// @{
+    /// @brief begin geometry movement
+    void startGeometryMoving();
+
+    /// @brief end geometry movement
+    void endGeometryMoving();
+
     /**@brief change the position of the element geometry without saving in undoList
      * @param[in] offset Position used for calculate new position of geometry without updating RTree
      */
@@ -73,7 +143,7 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -81,10 +151,25 @@ public:
 
     /// @name inherited from GUIGlObject
     /// @{
+
+    /**@brief Returns an own popup-menu
+     *
+     * @param[in] app The application needed to build the popup-menu
+     * @param[in] parent The parent window needed to build the popup-menu
+     * @return The built popup-menu
+     * @see GUIGlObject::getPopUpMenu
+     */
+    GUIGLObjectPopupMenu* getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent);
+
     /**@brief Returns the name of the parent object
      * @return This object's parent id
      */
     std::string getParentName() const;
+
+    /**@brief Returns the boundary to which the view shall be centered in order to show the object
+     * @return The boundary the object is within
+     */
+    Boundary getCenteringBoundary() const;
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -107,6 +192,12 @@ public:
     */
     std::string getAttribute(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
     * @param[in] key The attribute key
     * @param[in] value The new value
@@ -122,6 +213,25 @@ public:
     */
     bool isValid(SumoXMLAttr key, const std::string& value);
 
+    /* @brief method for enable attribute
+     * @param[in] key The attribute key
+     * @param[in] undoList The undoList on which to register changes
+     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
+     */
+    void enableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
+
+    /* @brief method for disable attribute
+     * @param[in] key The attribute key
+     * @param[in] undoList The undoList on which to register changes
+     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
+     */
+    void disableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
+
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
 
@@ -133,9 +243,15 @@ protected:
     /// @brief route color
     RGBColor myColor;
 
+    /// @brief SUMOVehicleClass (Only used for drawing)
+    SUMOVehicleClass myVClass;
+
 private:
     /// @brief method for setting the attribute and nothing else
     void setAttribute(SumoXMLAttr key, const std::string& value);
+
+    /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
+    void setEnabledAttribute(const int enabledAttributes);
 
     /// @brief Invalidated copy constructor.
     GNERoute(GNERoute*) = delete;

@@ -170,19 +170,15 @@ public:
     }
 
 
-    /** @brief Returns the list of names of all known edges
-     *
-     * @return a vector of names of all known edges
-     */
-    std::vector<std::string> getEdgeNames() const;
-
-
     /** @brief Informs the control that the given lane got active
      *
      * @param[in] l The activated lane
      * @todo Check for l==0?
      */
     void gotActive(MSLane* l);
+
+    /// @brief trigger collision checking for inactive lane
+    void checkCollisionForInactive(MSLane* l);
 
     /// @brief apply additional restrictions
     void setAdditionalRestrictions();
@@ -230,6 +226,9 @@ private:
 
     /// @brief The list of active (not empty) lanes
     std::vector<SUMOTime> myLastLaneChange;
+
+    /// @brief Additional lanes for which collision checking must be performed
+    std::set<MSLane*, ComparatorNumericalIdLess> myInactiveCheckCollisions;
 
 #ifdef HAVE_FOX
     FXWorkerThread::Pool myThreadPool;

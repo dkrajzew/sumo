@@ -38,7 +38,7 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect selection
-netedit.leftClick(referencePosition, 320, 240)
+netedit.leftClick(referencePosition, 320, 255)
 
 # Change parameter vtypes with a invalid value
 netedit.modifyAttribute(3, "Type%%%%%1 T;;yp$2 Type3", True)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

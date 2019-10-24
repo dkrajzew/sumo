@@ -29,25 +29,25 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select chargingStation
-netedit.changeAdditional("chargingStation")
+netedit.changeElement("chargingStation")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(9, "reference center")
+netedit.changeDefaultValue(10, "reference center")
 
 # create chargingStation in mode "reference center"
-netedit.leftClick(referencePosition, 250, 240)
+netedit.leftClick(referencePosition, 250, 258)
 
 # change to move mode
 netedit.moveMode()
 
 # move chargingStation to right
-netedit.moveElement(referencePosition, 150, 240, 250, 240)
+netedit.moveElement(referencePosition, 150, 258, 250, 258)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect chargingStation
-netedit.leftClick(referencePosition, 350, 240)
+netedit.leftClick(referencePosition, 350, 258)
 
 # block additional
 netedit.modifyBoolAttribute(13, True)
@@ -56,13 +56,13 @@ netedit.modifyBoolAttribute(13, True)
 netedit.moveMode()
 
 # try to move chargingStation to right (must be blocked)
-netedit.moveElement(referencePosition, 250, 240, 350, 240)
+netedit.moveElement(referencePosition, 250, 258, 350, 258)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect chargingStation
-netedit.leftClick(referencePosition, 350, 240)
+netedit.leftClick(referencePosition, 350, 258)
 
 # unblock additional
 netedit.modifyBoolAttribute(13, True)
@@ -71,17 +71,17 @@ netedit.modifyBoolAttribute(13, True)
 netedit.moveMode()
 
 # move chargingStation to right (must be allowed)
-netedit.moveElement(referencePosition, 250, 240, 350, 240)
+netedit.moveElement(referencePosition, 250, 258, 350, 258)
 
 # Check undos and redos
 netedit.undo(referencePosition, 5)
 netedit.redo(referencePosition, 5)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

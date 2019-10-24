@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to additional mode
-netedit.changeShape("poly")
+netedit.changeElement("poly")
 
 # enable block move
-netedit.modifyShapeDefaultBoolValue(12)
+netedit.changeDefaultBoolValue(13)
 
 # create polygon
 netedit.createSquaredPoly(referencePosition, 400, 150, 100, True)
@@ -48,10 +48,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

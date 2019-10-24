@@ -34,15 +34,18 @@
 HelpersEnergy::HelpersEnergy() : PollutantsInterface::Helper("Energy") {
     myEmissionClassStrings.insert("zero", PollutantsInterface::ZERO_EMISSIONS);
     myEmissionClassStrings.insert("unknown", ENERGY_BASE);
+    // default values from
+    // Kurczveil, T., López, P.Á., & Schnieder, E. (2014). Implementation of an Energy Model and a Charging Infrastructure in SUMO.
     myDefaultParameter[SUMO_ATTR_VEHICLEMASS] = 1000.;
-    myDefaultParameter[SUMO_ATTR_FRONTSURFACEAREA] = 2.;
-    myDefaultParameter[SUMO_ATTR_AIRDRAGCOEFFICIENT] = 0.4;
-    myDefaultParameter[SUMO_ATTR_INTERNALMOMENTOFINERTIA] = 10.;
-    myDefaultParameter[SUMO_ATTR_RADIALDRAGCOEFFICIENT] = 1.;
-    myDefaultParameter[SUMO_ATTR_ROLLDRAGCOEFFICIENT] = 0.5;
-    myDefaultParameter[SUMO_ATTR_CONSTANTPOWERINTAKE] = 10.;
-    myDefaultParameter[SUMO_ATTR_PROPULSIONEFFICIENCY] = 0.5;
-    myDefaultParameter[SUMO_ATTR_RECUPERATIONEFFICIENCY] = 0.;
+    myDefaultParameter[SUMO_ATTR_FRONTSURFACEAREA] = 5.;
+    myDefaultParameter[SUMO_ATTR_AIRDRAGCOEFFICIENT] = 0.6;
+    myDefaultParameter[SUMO_ATTR_INTERNALMOMENTOFINERTIA] = 0.01;
+    myDefaultParameter[SUMO_ATTR_RADIALDRAGCOEFFICIENT] = 0.5;
+    myDefaultParameter[SUMO_ATTR_ROLLDRAGCOEFFICIENT] = 0.01;
+    myDefaultParameter[SUMO_ATTR_CONSTANTPOWERINTAKE] = 100.;
+    myDefaultParameter[SUMO_ATTR_PROPULSIONEFFICIENCY] = 0.9;
+    myDefaultParameter[SUMO_ATTR_RECUPERATIONEFFICIENCY] = 0.8;
+    myDefaultParameter[SUMO_ATTR_RECUPERATIONEFFICIENCY_BY_DECELERATION] = 0.0;
     myDefaultParameter[SUMO_ATTR_ANGLE] = 0.;
 }
 
@@ -113,6 +116,18 @@ HelpersEnergy::compute(const SUMOEmissionClass /* c */, const PollutantsInterfac
     } else {
         // Assumption: Efficiency of myRecuperationEfficiency when recuperating
         energyDiff *= param->find(SUMO_ATTR_RECUPERATIONEFFICIENCY)->second;
+        if (a != 0) {
+            // Fiori, Chiara & Ahn, Kyoungho & Rakha, Hesham. (2016).
+            // Power-based electric vehicle energy consumption model: Model
+            // development and validation. Applied Energy. 168. 257-268.
+            // 10.1016/j.apenergy.2016.01.097.
+            // 
+            // Insaf Sagaama, Amine Kchiche, Wassim Trojet, Farouk Kamoun
+            // Improving The Accuracy of The Energy Consumption Model for
+            // Electric Vehicle in SUMO Considering The Ambient Temperature
+            // Effects
+            energyDiff *= (1 / exp(param->find(SUMO_ATTR_RECUPERATIONEFFICIENCY_BY_DECELERATION)->second / fabs(a)));
+        }
     }
 
     // convert from [Ws] to [Wh] (3600s / 1h):

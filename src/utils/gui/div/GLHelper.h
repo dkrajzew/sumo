@@ -29,6 +29,7 @@
 #include <utility>
 #include <utils/common/RGBColor.h>
 #include <utils/geom/PositionVector.h>
+#include <utils/gui/settings/GUIVisualizationSettings.h>
 
 
 // ===========================================================================
@@ -281,20 +282,20 @@ public:
     static void drawTriangleAtEnd(const Position& p1, const Position& p2,
                                   double tLength, double tWidth);
 
-    /// @brief get dotted contour colors (black and white). Vector will be automatically increased if current size is minor than size
-    static const std::vector<RGBColor>& getDottedcontourColors(const int size);
-
     /// @brief draw a dotted contour around the given Non closed shape with certain width
-    static void drawShapeDottedContour(const int type, const PositionVector& shape, const double width);
+    static void drawShapeDottedContourAroundShape(const GUIVisualizationSettings& s, const int type, const PositionVector& shape, const double width);
 
     /// @brief draw a dotted contour around the given closed shape with certain width
-    static void drawShapeDottedContour(const int type, const PositionVector& shape);
+    static void drawShapeDottedContourAroundClosedShape(const GUIVisualizationSettings& s, const int type, const PositionVector& shape);
 
-    /// @brief draw a dotted contour around the given non closed shapes with certain width
-    static void drawShapeDottedContour(const int type, const PositionVector& frontShape, const double offsetFrontShape, const PositionVector& backShape, const double offsetBackShape);
+    /// @brief draw a dotted contour around the given lane shapes
+    static void drawShapeDottedContourBetweenLanes(const GUIVisualizationSettings& s, const int type, const PositionVector& frontLaneShape, const double offsetFrontLaneShape, const PositionVector& backLaneShape, const double offsetBackLaneShape);
 
     /// @brief draw a dotted contour around the given Position with certain width and height
-    static void drawShapeDottedContour(const int type, const Position& center, const double width, const double height, const double rotation = 0, const double offsetX = 0, const double offsetY = 0);
+    static void drawShapeDottedContourRectangle(const GUIVisualizationSettings& s, const int type, const Position& center, const double width, const double height, const double rotation = 0, const double offsetX = 0, const double offsetY = 0);
+
+    /// @brief draw a dotted contour in a partial shapes
+    static void drawShapeDottedContourPartialShapes(const GUIVisualizationSettings& s, const int type, const Position& begin, const Position& end, const double width);
 
     /// @brief Sets the gl-color to this value
     static void setColor(const RGBColor& c);
@@ -341,8 +342,15 @@ public:
     /// @brief draw vertex numbers for the given shape (in a random color)
     static void debugVertices(const PositionVector& shape, double size, double layer = 256);
 
+    /// @brief Draw a boundary (used for debugging)
+    static void drawBoundary(const Boundary& b);
+
     /// @brief to be called when the font context is invalidated
     static void resetFont();
+
+    static void setGL2PS(bool active = true) {
+        myGL2PSActive = active;
+    }
 
 private:
     /// @brief normalize angle for lookup in myCircleCoords
@@ -354,13 +362,18 @@ private:
     /// @brief init myFont
     static bool initFont();
 
-private:
+    /// @brief get dotted contour colors (black and white). Vector will be automatically increased if current size is minor than size
+    static const std::vector<RGBColor>& getDottedcontourColors(const int size);
+
     /// @brief Storage for precomputed sin/cos-values describing a circle
     static std::vector<std::pair<double, double> > myCircleCoords;
 
     /// @brief Font context
     static struct FONScontext* myFont;
     static double myFontSize;
+
+    /// @brief whether we are currently rendering for gl2ps
+    static bool myGL2PSActive;
 
     /// @brief static vector with a list of alternated black/white colors (used for contourns)
     static std::vector<RGBColor> myDottedcontourColors;

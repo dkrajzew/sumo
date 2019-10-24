@@ -29,17 +29,18 @@
 #include <utils/geom/GeoConvHelper.h>
 #include <utils/geom/GeomHelper.h>
 #include <microsim/devices/MSDevice_FCD.h>
+#include <microsim/devices/MSTransportableDevice_FCD.h>
 #include <microsim/MSEdgeControl.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSLane.h>
 #include <microsim/MSGlobals.h>
-#include "MSFCDExport.h"
 #include <microsim/MSNet.h>
 #include <microsim/MSVehicle.h>
 #include <microsim/pedestrians/MSPerson.h>
 #include <microsim/MSTransportableControl.h>
 #include <microsim/MSContainer.h>
 #include <microsim/MSVehicleControl.h>
+#include "MSFCDExport.h"
 
 
 // ===========================================================================
@@ -49,8 +50,10 @@ void
 MSFCDExport::write(OutputDevice& of, SUMOTime timestep, bool elevation) {
     const bool useGeo = OptionsCont::getOptions().getBool("fcd-output.geo");
     const bool signals = OptionsCont::getOptions().getBool("fcd-output.signals");
+    const bool writeDistance = OptionsCont::getOptions().getBool("fcd-output.distance");
     const SUMOTime period = string2time(OptionsCont::getOptions().getString("device.fcd.period"));
-    if (period > 0 && timestep % period != 0) {
+    const SUMOTime begin = string2time(OptionsCont::getOptions().getString("begin"));
+    if (period > 0 && (timestep - begin) % period != 0) {
         return;
     }
     of.openTag("timestep").writeAttr(SUMO_ATTR_TIME, time2string(timestep));
@@ -83,8 +86,21 @@ MSFCDExport::write(OutputDevice& of, SUMOTime timestep, bool elevation) {
                 of.writeAttr(SUMO_ATTR_LANE, microVeh->getLane()->getID());
             }
             of.writeAttr(SUMO_ATTR_SLOPE, veh->getSlope());
-            if (microVeh != nullptr && signals) {
-                of.writeAttr("signals", toString(microVeh->getSignals()));
+            if (microVeh != nullptr) {
+                if (signals) {
+                    of.writeAttr("signals", toString(microVeh->getSignals()));
+                }
+                if (writeDistance) {
+                    double distance = microVeh->getEdge()->getDistance();
+                    if (microVeh->getLane()->isInternal()) {
+                        distance += microVeh->getRoute().getDistanceBetween(0, microVeh->getPositionOnLane(),
+                                    microVeh->getEdge(), &microVeh->getLane()->getEdge(), true, microVeh->getRoutePosition());
+                    } else {
+                        distance += microVeh->getPositionOnLane();
+                    }
+                    // if the kilometrage runs counter to the edge direction edge->getDistance() is negative
+                    of.writeAttr("distance", fabs(distance));
+                }
             }
             of.closeTag();
             // write persons and containers
@@ -134,7 +150,7 @@ MSFCDExport::write(OutputDevice& of, SUMOTime timestep, bool elevation) {
 
 void
 MSFCDExport::writeTransportable(OutputDevice& of, const MSEdge* e, MSTransportable* p, SumoXMLTag tag, bool useGeo, bool elevation) {
-    if (!MSDevice::equippedByParameter(p, "fcd", true)) {
+    if (p->getDevice(typeid(MSTransportableDevice_FCD)) == nullptr) {
         return;
     }
     Position pos = p->getPosition();
@@ -156,4 +172,6 @@ MSFCDExport::writeTransportable(OutputDevice& of, const MSEdge* e, MSTransportab
     of.writeAttr(SUMO_ATTR_SLOPE, e->getLanes()[0]->getShape().slopeDegreeAtOffset(p->getEdgePos()));
     of.closeTag();
 }
+
+
 /****************************************************************************/

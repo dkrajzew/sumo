@@ -34,7 +34,7 @@ traci.start(cmd)
 
 
 def step():
-    s = traci.simulation.getCurrentTime() / 1000
+    s = traci.simulation.getTime()
     traci.simulationStep()
     return s
 
@@ -59,5 +59,5 @@ traci.person.moveToXY(p, "", x, y - 80)
 s = step()
 x, y = traci.person.getPosition(p)
 print("s=%s x=%s y=%s" % (s, x, y))
-
+step()
 traci.close()

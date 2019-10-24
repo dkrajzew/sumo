@@ -35,54 +35,6 @@ class GNEVehicleFrame : public GNEFrame {
 public:
 
     // ===========================================================================
-    // class VTypeSelector
-    // ===========================================================================
-
-    class VTypeSelector : protected FXGroupBox {
-        /// @brief FOX-declaration
-        FXDECLARE(GNEVehicleFrame::VTypeSelector)
-
-    public:
-        /// @brief constructor
-        VTypeSelector(GNEVehicleFrame* vehicleFrameParent);
-
-        /// @brief destructor
-        ~VTypeSelector();
-
-        /// @brief get current type tag
-        const GNEDemandElement* getCurrentVehicleType() const;
-
-        /// @brief show VType selector
-        void showVTypeSelector(const GNEAttributeCarrier::TagProperties& tagProperties);
-
-        /// @brief hide VType selector
-        void hideVTypeSelector();
-
-        /// @brief refresh VType selector
-        void refreshVTypeSelector();
-
-        /// @name FOX-callbacks
-        /// @{
-        /// @brief Called when the user select another element in ComboBox
-        long onCmdSelectVType(FXObject*, FXSelector, void*);
-        /// @}
-
-    protected:
-        /// @brief FOX needs this
-        VTypeSelector() {}
-
-    private:
-        /// @brief pointer to Vehicle Frame Parent
-        GNEVehicleFrame* myVehicleFrameParent;
-
-        /// @brief comboBox with the list of elements type
-        FXComboBox* myTypeMatchBox;
-
-        /// @brief current vehicle type
-        GNEDemandElement* myCurrentVehicleType;
-    };
-
-    // ===========================================================================
     // class HelpCreation
     // ===========================================================================
 
@@ -110,7 +62,6 @@ public:
 
         /// @brief Label with creation information
         FXLabel* myInformationLabel;
-
     };
 
     /**@brief Constructor
@@ -131,62 +82,34 @@ public:
      */
     bool addVehicle(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor);
 
-protected:
-    /// @brief enable moduls depending of item selected in ItemSelector
-    void enableModuls(const GNEAttributeCarrier::TagProperties& tagProperties);
+    /// @brief get EdgePathCreator modul
+    GNEFrameModuls::EdgePathCreator* getEdgePathCreator() const;
 
-    /// @brief disable moduls if element selected in itemSelector isn't valid
-    void disableModuls();
+protected:
+    /// @brief Tag selected in TagSelector
+    void tagSelected();
+
+    /// @brief selected vehicle type in DemandElementSelector
+    void demandElementSelected();
+
+    /// @brief finish edge path creation
+    void edgePathCreated();
 
 private:
-    /// @brief structs used for creating routes only givin from-to routes
-    struct AutoRoute {
-        /// @brief default construct0or
-        AutoRoute(GNEVehicleFrame* vehicleFrameParent);
-
-        /// @brief check if from and to edges create a valid route
-        bool isValid() const;
-
-        /// @brief get edge form
-        GNEEdge* getFrom() const;
-        
-        /// @brief get edge to
-        GNEEdge* getTo() const;
-
-        /// @brief set edge from (and change color)
-        void setFrom(GNEEdge* from);
-        
-        /// @brief set edge to (and change color)
-        void setTo(GNEEdge* to);
-
-        /// @brief clear edges (and restore colors)
-        void clearEdges();
-
-    private:
-        /// @brief pointer to Vehicle Frame Parent
-        GNEVehicleFrame* myVehicleFrameParent;
-
-        /// @brief from Edge
-        GNEEdge* myFrom;
-
-        /// @brief to Edge
-        GNEEdge* myTo;
-    };
-
-    /// @brief item selector (used to select diffent kind of vehicles)
-    ItemSelector* myItemSelector;
+    /// @brief vehicle tag selector (used to select diffent kind of vehicles)
+    GNEFrameModuls::TagSelector* myVehicleTagSelector;
 
     /// @brief Vehicle Type selectors
-    VTypeSelector* myVTypeSelector;
+    GNEFrameModuls::DemandElementSelector* myVTypeSelector;
 
     /// @brief internal vehicle attributes
-    ACAttributes* myVehicleAttributes;
+    GNEFrameAttributesModuls::AttributesCreator* myVehicleAttributes;
+
+    /// @brief edge path creator (used for trips and flows)
+    GNEFrameModuls::EdgePathCreator* myEdgePathCreator;
 
     /// @brief Help creation
     HelpCreation* myHelpCreation;
-
-    /// @brief AutoRoute
-    AutoRoute myAutoRoute;
 };
 
 

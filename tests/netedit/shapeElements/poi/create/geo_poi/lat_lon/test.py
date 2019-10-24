@@ -29,13 +29,13 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poi")
+netedit.changeElement("poi")
 
 # set Lat-Lon format
 netedit.GEOPOILatLon()
 
 # set GEO Position
-netedit.modifyShapeDefaultValue(16, "0.000126, 10.511086")
+netedit.changeDefaultValue(17, "0.000126, 10.511086")
 
 # create POI
 netedit.createGEOPOI()
@@ -45,10 +45,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

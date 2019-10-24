@@ -23,8 +23,10 @@
 // ===========================================================================
 #include <config.h>
 
-#include <netedit/GNEAttributeCarrier.h>
+#include <netedit/GNEHierarchicalElementParents.h>
+#include <netedit/GNEHierarchicalElementChildren.h>
 #include <utils/gui/globjects/GUIGlObject.h>
+#include <utils/geom/PositionVector.h>
 
 // ===========================================================================
 // class declarations
@@ -37,9 +39,30 @@ class GNEDemandElement;
 // class definitions
 // ===========================================================================
 
-class GNENetElement : public GUIGlObject, public GNEAttributeCarrier {
+class GNENetElement : public GUIGlObject, public GNEAttributeCarrier, public GNEHierarchicalElementParents, public GNEHierarchicalElementChildren {
 
 public:
+    /// @brief struct for pack all variables related with geometry of elemement
+    struct NetElementGeometry {
+        /// @brief constructor
+        NetElementGeometry();
+
+        /// @brief reset geometry
+        void clearGeometry();
+
+        /// @brief calculate shape rotations and lengths
+        void calculateShapeRotationsAndLengths();
+
+        /// @brief The shape of the netElement element
+        PositionVector shape;
+
+        /// @brief The rotations of the single shape parts
+        std::vector<double> shapeRotations;
+
+        /// @brief The lengths of the single shape parts
+        std::vector<double> shapeLengths;
+    };
+
     /**@brief Constructor.
      * @param[in] net The net to inform about gui updates
      * @param[in] id of the element
@@ -51,59 +74,23 @@ public:
     /// @brief Destructor
     ~GNENetElement();
 
-    /**@brief update pre-computed geometry information
-     * @note: must be called when geometry changes (i.e. lane moved) and implemented in ALL childrens
-     */
-    virtual void updateGeometry(bool updateGrid) = 0;
+    /// @brief gererate a new ID for an element child
+    virtual std::string generateChildID(SumoXMLTag childTag) = 0;
+
+    /// @name Functions related with geometry of element
+    /// @{
+    /// @brief get NetElementGeometry
+    const NetElementGeometry& getGeometry() const;
+
+    /// @brief update pre-computed geometry information
+    virtual void updateGeometry() = 0;
+
+    /// @brief Returns position of hierarchical element in view
+    virtual Position getPositionInView() const = 0;
+    /// @}
 
     /// @brief get Net in which this element is placed
     GNENet* getNet() const;
-
-    /// @name functions related with additionals parent/childs
-    /// @{
-
-    /// @brief add additional child to this edge
-    void addAdditionalParent(GNEAdditional* additional);
-
-    /// @brief remove additional child from this edge
-    void removeAdditionalParent(GNEAdditional* additional);
-
-    /// @brief add additional child to this edge
-    void addAdditionalChild(GNEAdditional* additional);
-
-    /// @brief remove additional child from this edge
-    void removeAdditionalChild(GNEAdditional* additional);
-
-    /// @brief return vector of additionals that have as Parameter this edge (For example, Rerouters)
-    const std::vector<GNEAdditional*>& getAdditionalParents() const;
-
-    /// @brief return vector of additionals that have as Parent this edge (For example, Calibrators)
-    const std::vector<GNEAdditional*>& getAdditionalChilds() const;
-
-    /// @}
-
-    /// @name functions related with demand elements parent/childs
-    /// @{
-
-    /// @brief add demand element child to this edge
-    void addDemandElementParent(GNEDemandElement* demandElement);
-
-    /// @brief remove demand element child from this edge
-    void removeDemandElementParent(GNEDemandElement* demandElement);
-
-    /// @brief add demand element child to this edge
-    void addDemandElementChild(GNEDemandElement* demandElement);
-
-    /// @brief remove demand element child from this edge
-    void removeDemandElementChild(GNEDemandElement* demandElement);
-
-    /// @brief return vector of demand element that have as Parameter this edge (For example, Routes)
-    const std::vector<GNEDemandElement*>& getDemandElementParents() const;
-
-    /// @brief return vector of demand element that have as Parent this edge (For example, Routes)
-    const std::vector<GNEDemandElement*>& getDemandElementChilds() const;
-
-    /// @}
 
     /// @name inherited from GUIGlObject
     /// @{
@@ -171,6 +158,25 @@ public:
      */
     virtual bool isValid(SumoXMLAttr key, const std::string& value) = 0;
 
+    /* @brief method for enable attribute
+     * @param[in] key The attribute key
+     * @param[in] undoList The undoList on which to register changes
+     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
+     */
+    void enableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
+
+    /* @brief method for disable attribute
+     * @param[in] key The attribute key
+     * @param[in] undoList The undoList on which to register changes
+     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
+     */
+    void disableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    virtual bool isAttributeEnabled(SumoXMLAttr key) const = 0;
+
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
 
@@ -178,42 +184,22 @@ public:
     std::string getHierarchyName() const;
     /// @}
 
-    /// @name This functions related with generic parameters has to be implemented in all GNEAttributeCarriers
-    /// @{
-
-    /// @brief return generic parameters in string format
-    virtual std::string getGenericParametersStr() const = 0;
-
-    /// @brief return generic parameters as vector of pairs format
-    virtual std::vector<std::pair<std::string, std::string> > getGenericParameters() const = 0;
-
-    /// @brief set generic parameters in string format
-    virtual void setGenericParametersStr(const std::string& value) = 0;
-
-    /// @}
-
 protected:
     /// @brief the net to inform about updates
     GNENet* myNet;
 
+    /// @brief netElement geometry
+    NetElementGeometry myGeometry;
+
     /// @brief boundary used during moving of elements
     Boundary myMovingGeometryBoundary;
-
-    /// @brief list of additional parents of this NetElement
-    std::vector<GNEAdditional*> myAdditionalParents;
-
-    /// @brief list of additional Childs of this NetElement
-    std::vector<GNEAdditional*> myAdditionalChilds;
-
-    /// @brief list of demand elements parents of this NetElement
-    std::vector<GNEDemandElement*> myDemandElementParents;
-
-    /// @brief list of demand elements Childs of this NetElement (note: Can be inserted multiples times)
-    std::vector<GNEDemandElement*> myDemandElementChilds;
 
 private:
     /// @brief set attribute after validation
     virtual void setAttribute(SumoXMLAttr key, const std::string& value) = 0;
+
+    /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
+    void setEnabledAttribute(const int enabledAttributes);
 
     /// @brief Invalidated copy constructor.
     GNENetElement(const GNENetElement&) = delete;

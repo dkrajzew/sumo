@@ -57,10 +57,21 @@ MSDevice_Transportable::MSDevice_Transportable(SUMOVehicle& holder, const std::s
 
 
 MSDevice_Transportable::~MSDevice_Transportable() {
+    // flush any unfortunate riders still remaining
+    while (!myTransportables.empty()) {
+        MSTransportable* transportable = myTransportables.front();
+        WRITE_WARNING((myAmContainer ? "Removing container '" : "Removing person '") + transportable->getID() +
+                      "' at removal of vehicle '" + myHolder.getID() + "'");
+        if (myAmContainer) {
+            MSNet::getInstance()->getContainerControl().erase(transportable);
+        } else {
+            MSNet::getInstance()->getPersonControl().erase(transportable);
+        }
+    }
 }
 
 void
-MSDevice_Transportable::notifyMoveInternal(const SUMOVehicle& veh,
+MSDevice_Transportable::notifyMoveInternal(const SUMOTrafficObject& veh,
         const double /* frontOnLane */,
         const double /* timeOnLane*/,
         const double /* meanSpeedFrontOnLane */,
@@ -68,12 +79,12 @@ MSDevice_Transportable::notifyMoveInternal(const SUMOVehicle& veh,
         const double /* travelledDistanceFrontOnLane */,
         const double /* travelledDistanceVehicleOnLane */,
         const double /* meanLengthOnLane */) {
-    notifyMove(const_cast<SUMOVehicle&>(veh), -1, -1, -1);
+    notifyMove(const_cast<SUMOTrafficObject&>(veh), -1, -1, -1);
 }
 
 
 bool
-MSDevice_Transportable::notifyMove(SUMOVehicle& veh, double /*oldPos*/, double /*newPos*/, double /*newSpeed*/) {
+MSDevice_Transportable::notifyMove(SUMOTrafficObject& veh, double /*oldPos*/, double /*newPos*/, double /*newSpeed*/) {
     if (myStopped) {
         if (!veh.isStopped()) {
             for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end(); ++i) {
@@ -86,6 +97,7 @@ MSDevice_Transportable::notifyMove(SUMOVehicle& veh, double /*oldPos*/, double /
             for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end();) {
                 MSTransportable* transportable = *i;
                 if (transportable->getDestination() == veh.getEdge()) {
+                    i = myTransportables.erase(i); // erase first in case proceed throws an exception
                     if (!transportable->proceed(MSNet::getInstance(), MSNet::getInstance()->getCurrentTimeStep())) {
                         if (myAmContainer) {
                             MSNet::getInstance()->getContainerControl().erase(transportable);
@@ -94,13 +106,13 @@ MSDevice_Transportable::notifyMove(SUMOVehicle& veh, double /*oldPos*/, double /
                         }
                     }
                     if (MSStopOut::active()) {
+                        SUMOVehicle* vehicle = dynamic_cast<SUMOVehicle*>(&veh);
                         if (myAmContainer) {
-                            MSStopOut::getInstance()->unloadedContainers(&veh, 1);
+                            MSStopOut::getInstance()->unloadedContainers(vehicle, 1);
                         } else {
-                            MSStopOut::getInstance()->unloadedPersons(&veh, 1);
+                            MSStopOut::getInstance()->unloadedPersons(vehicle, 1);
                         }
                     }
-                    i = myTransportables.erase(i);
                 } else {
                     ++i;
                 }
@@ -113,7 +125,7 @@ MSDevice_Transportable::notifyMove(SUMOVehicle& veh, double /*oldPos*/, double /
 
 
 bool
-MSDevice_Transportable::notifyEnter(SUMOVehicle& /*veh*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_Transportable::notifyEnter(SUMOTrafficObject& /*veh*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     if (reason == MSMoveReminder::NOTIFICATION_DEPARTED) {
         for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end(); ++i) {
             (*i)->setDeparted(MSNet::getInstance()->getCurrentTimeStep());
@@ -124,10 +136,10 @@ MSDevice_Transportable::notifyEnter(SUMOVehicle& /*veh*/, MSMoveReminder::Notifi
 
 
 bool
-MSDevice_Transportable::notifyLeave(SUMOVehicle& veh, double /*lastPos*/,
+MSDevice_Transportable::notifyLeave(SUMOTrafficObject& veh, double /*lastPos*/,
                                     MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     if (reason >= MSMoveReminder::NOTIFICATION_ARRIVED) {
-        for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end(); ++i) {
+        for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end();) {
             MSTransportable* transportable = *i;
             if (transportable->getDestination() != veh.getEdge()) {
                 WRITE_WARNING((myAmContainer ? "Teleporting container '" : "Teleporting person '") + transportable->getID() +
@@ -141,6 +153,7 @@ MSDevice_Transportable::notifyLeave(SUMOVehicle& veh, double /*lastPos*/,
                     MSNet::getInstance()->getPersonControl().erase(transportable);
                 }
             }
+            i = myTransportables.erase(i);
         }
     }
     return true;
@@ -162,12 +175,15 @@ MSDevice_Transportable::addTransportable(MSTransportable* transportable) {
 
 void
 MSDevice_Transportable::removeTransportable(MSTransportable* transportable) {
-    myTransportables.erase(std::find(myTransportables.begin(), myTransportables.end(), transportable));
-    if (MSStopOut::active() && myHolder.isStopped()) {
-        if (myAmContainer) {
-            MSStopOut::getInstance()->loadedContainers(&myHolder, 1);
-        } else {
-            MSStopOut::getInstance()->loadedPersons(&myHolder, 1);
+    auto it = std::find(myTransportables.begin(), myTransportables.end(), transportable);
+    if (it != myTransportables.end()) {
+        myTransportables.erase(it);
+        if (MSStopOut::active() && myHolder.isStopped()) {
+            if (myAmContainer) {
+                MSStopOut::getInstance()->loadedContainers(&myHolder, 1);
+            } else {
+                MSStopOut::getInstance()->loadedPersons(&myHolder, 1);
+            }
         }
     }
 }

@@ -65,7 +65,8 @@ MSEdge::MSEdge(const std::string& id, int numericalID,
                const SumoXMLEdgeFunc function,
                const std::string& streetName,
                const std::string& edgeType,
-               int priority) :
+               int priority,
+               double distance) :
     Named(id), myNumericalID(numericalID), myLanes(nullptr),
     myLaneChanger(nullptr), myFunction(function), myVaporizationRequests(0),
     myLastFailedInsertionTime(-1),
@@ -73,6 +74,7 @@ MSEdge::MSEdge(const std::string& id, int numericalID,
     myStreetName(streetName),
     myEdgeType(edgeType),
     myPriority(priority),
+    myDistance(distance),
     myWidth(0.),
     myLength(0.),
     myEmptyTraveltime(0.),
@@ -336,13 +338,13 @@ MSEdge::rebuildAllowedTargets(const bool updateVehicles) {
         } else {
             addToAllowed(SVC_IGNORING, allLanes, myAllowedTargets[target]);
             // compute the vclass specific mapping
-            for (SUMOVehicleClass vclass = SVC_PRIVATE; vclass <= SUMOVehicleClass_MAX; vclass = (SUMOVehicleClass)(2 * (int)vclass)) {
+            for (int vclass = SVC_PRIVATE; vclass <= SUMOVehicleClass_MAX; vclass *= 2) {
                 if ((myCombinedPermissions & vclass) == vclass) {
                     std::vector<MSLane*>* allowedLanes = new std::vector<MSLane*>();
                     for (MSLane* const lane : *myLanes) {
-                        if (lane->allowsVehicleClass(vclass)) {
+                        if (lane->allowsVehicleClass((SUMOVehicleClass)vclass)) {
                             for (const MSLink* const link : lane->getLinkCont()) {
-                                if (link->getLane()->allowsVehicleClass(vclass) && &link->getLane()->getEdge() == target) {
+                                if (link->getLane()->allowsVehicleClass((SUMOVehicleClass)vclass) && &link->getLane()->getEdge() == target) {
                                     allowedLanes->push_back(lane);
                                 }
                             }
@@ -380,13 +382,11 @@ MSEdge::rightLane(const MSLane* const lane) const {
 
 
 MSLane*
-MSEdge::parallelLane(const MSLane* const lane, int offset) const {
-    const int index = (int)(find(myLanes->begin(), myLanes->end(), lane) - myLanes->begin());
-    if (index == (int)myLanes->size()) {
-        return nullptr;
-    }
-    const int resultIndex = index + offset;
-    if (resultIndex >= (int)myLanes->size() || resultIndex < 0) {
+MSEdge::parallelLane(const MSLane* const lane, int offset, bool includeOpposite) const {
+    const int resultIndex = lane->getIndex() + offset;
+    if (resultIndex == (int)myLanes->size() && includeOpposite) {
+        return lane->getOpposite();
+    } else if (resultIndex >= (int)myLanes->size() || resultIndex < 0) {
         return nullptr;
     } else {
         return (*myLanes)[resultIndex];
@@ -449,7 +449,7 @@ MSEdge::getFreeLane(const std::vector<MSLane*>* allowed, const SUMOVehicleClass 
     if (allowed != nullptr) {
         double largestGap = 0;
         MSLane* resByGap = nullptr;
-        double leastOccupancy = std::numeric_limits<double>::max();;
+        double leastOccupancy = std::numeric_limits<double>::max();
         for (std::vector<MSLane*>::const_iterator i = allowed->begin(); i != allowed->end(); ++i) {
             const double occupancy = (*i)->getBruttoOccupancy();
             if (occupancy < leastOccupancy) {
@@ -704,7 +704,6 @@ MSEdge::changeLanes(SUMOTime t) {
 }
 
 
-
 const MSEdge*
 MSEdge::getInternalFollowingEdge(const MSEdge* followerAfterInternal) const {
     //@todo to be optimized
@@ -722,6 +721,7 @@ MSEdge::getInternalFollowingEdge(const MSEdge* followerAfterInternal) const {
     return nullptr;
 }
 
+
 double
 MSEdge::getInternalFollowingLengthTo(const MSEdge* followerAfterInternal) const {
     assert(followerAfterInternal != 0);
@@ -735,6 +735,7 @@ MSEdge::getInternalFollowingLengthTo(const MSEdge* followerAfterInternal) const 
     }
     return dist;
 }
+
 
 const MSEdge*
 MSEdge::getNormalBefore() const {
@@ -769,9 +770,10 @@ MSEdge::getMeanSpeed() const {
         }
         if (myBidiEdge != nullptr) {
             for (const MSLane* lane : myBidiEdge->getLanes()) {
-                const double vehNo = (double)lane->getVehicleNumber();
-                v += vehNo * lane->getMeanSpeed();
-                no += vehNo;
+                if (lane->getVehicleNumber() > 0) {
+                    // do not route across edges which are already occupied in reverse direction
+                    return 0;
+                }
             }
         }
         if (no == 0) {
@@ -796,7 +798,6 @@ double
 MSEdge::getRoutingSpeed() const {
     return MSRoutingEngine::getAssumedSpeed(this);
 }
-
 
 
 bool
@@ -888,6 +889,7 @@ MSEdge::parseEdgesList(const std::vector<std::string>& desc, ConstMSEdgeVector& 
 
 double
 MSEdge::getDistanceTo(const MSEdge* other, const bool doBoundaryEstimate) const {
+    assert(this != other);
     if (doBoundaryEstimate) {
         return myBoundary.distanceTo2D(other->myBoundary);
     }
@@ -923,7 +925,7 @@ MSEdge::getLengthGeometryFactor() const {
 }
 
 double
-MSEdge::getVehicleMaxSpeed(const SUMOVehicle* const veh) const {
+MSEdge::getVehicleMaxSpeed(const SUMOTrafficObject* const veh) const {
     // @note lanes might have different maximum speeds in theory
     return myLanes->empty() ? 1 : getLanes()[0]->getVehicleMaxSpeed(veh);
 }

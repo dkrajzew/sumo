@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select containerStop
-netedit.changeAdditional("containerStop")
+netedit.changeElement("containerStop")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(6, "reference center")
+netedit.changeDefaultValue(7, "reference center")
 
 # create containerStop 1 in mode "reference center"
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 170)
 
 # create containerStop 2 in mode "reference center"
-netedit.leftClick(referencePosition, 450, 150)
+netedit.leftClick(referencePosition, 450, 170)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first containerStop
-netedit.leftClick(referencePosition, 250, 170)
+netedit.leftClick(referencePosition, 250, 190)
 
 # Change parameter id with a non valid value (Duplicated ID)
 netedit.modifyAttribute(0, "containerStop_gneE2_1_1", True)
@@ -60,10 +60,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

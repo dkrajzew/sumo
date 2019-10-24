@@ -47,9 +47,18 @@ public:
     /// @brief Destructor
     ~GNEConnection();
 
+    /// @brief gererate a new ID for an element child
+    std::string generateChildID(SumoXMLTag childTag);
+
+    /// @name Functions related with geometry of element
+    /// @{
     /// @brief update pre-computed geometry information
-    /// @note: must be called when geometry changes (i.e. lane moved) and implemented in ALL childrens
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
+
+    /// @brief Returns position of hierarchical element in view
+    Position getPositionInView() const;
+
+    /// @}
 
     /// Returns the street's geometry
     Boundary getBoundary() const;
@@ -81,7 +90,7 @@ public:
     /// @brief get LinkState
     LinkState getLinkState() const;
 
-    /// @brief get Position vector calculated in updateGeometry(bool updateGrid)
+    /// @brief get Position vector calculated in updateGeometry()
     const PositionVector& getShape() const;
 
     /// @brief check that connection's Geometry has to be updated
@@ -143,20 +152,11 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-    /// @name Function related with Generic Parameters
-    /// @{
-
-    /// @brief return generic parameters in string format
-    std::string getGenericParametersStr() const;
-
-    /// @brief return generic parameters as vector of pairs format
-    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
-
-    /// @brief set generic parameters in string format
-    void setGenericParametersStr(const std::string& value);
-
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
 protected:
@@ -172,23 +172,11 @@ protected:
     /// @brief optional special color
     const RGBColor* mySpecialColor;
 
-    /// @brief the shape of the connection
-    PositionVector myShape;
-
     /// @brief flag to indicate that connection's shape has to be updated
     bool myShapeDeprecated;
 
-    /// @name computed only once (for performance) in updateGeometry(bool updateGrid)
-    /// @{
-    /// @brief The rotations of the shape parts
-    std::vector<double> myShapeRotations;
-
-    /// @brief The lengths of the shape parts
-    std::vector<double> myShapeLengths;
-
     /// @brief waiting position for internal junction
     PositionVector myInternalJunctionMarker;
-    /// @}
 
 private:
     /// @brief set attribute after validation

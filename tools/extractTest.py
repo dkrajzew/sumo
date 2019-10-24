@@ -27,6 +27,7 @@ from os.path import join
 import optparse
 import glob
 import shutil
+import shlex
 import subprocess
 from collections import defaultdict
 
@@ -42,21 +43,17 @@ SOURCE_DEST_SEP = ';'
 
 def get_options(args=None):
     optParser = optparse.OptionParser(usage="%prog <options> <test directory>")
-    optParser.add_option(
-        "-o", "--output", default=".", help="send output to directory")
-    optParser.add_option(
-        "-f", "--file", help="read list of source and target dirs from")
-    optParser.add_option(
-        "-p", "--python-script", help="name of a python script to generate for a batch run")
+    optParser.add_option("-o", "--output", default=".", help="send output to directory")
+    optParser.add_option("-f", "--file", help="read list of source and target dirs from")
+    optParser.add_option("-p", "--python-script",
+                         help="name of a python script to generate for a batch run")
     optParser.add_option("-i", "--intelligent-names", dest="names", action="store_true",
                          default=False, help="generate cfg name from directory name")
     optParser.add_option("-v", "--verbose", action="store_true", default=False, help="more information")
     optParser.add_option("-a", "--application", help="sets the application to be used")
-    optParser.add_option("-s", "--skip-configuration",
-                         dest="skip_configuration", default=False, action="store_true",
+    optParser.add_option("-s", "--skip-configuration", default=False, action="store_true",
                          help="skips creation of an application config from the options.app file")
-    optParser.add_option("-x", "--skip-validation",
-                         dest="skip_validation", default=False, action="store_true",
+    optParser.add_option("-x", "--skip-validation", default=False, action="store_true",
                          help="remove all options related to XML validation")
     options, args = optParser.parse_args(args=args)
     if not options.file and len(args) == 0:
@@ -106,7 +103,13 @@ def main(options):
         if not os.path.exists(os.path.dirname(options.python_script)):
             os.makedirs(os.path.dirname(options.python_script))
         pyBatch = open(options.python_script, 'w')
-        pyBatch.write('import subprocess,sys\nfor p in [\n')
+        pyBatch.write('''import subprocess, sys, os
+from os.path import abspath, dirname, join
+THIS_DIR = abspath(dirname(__file__))
+SUMO_HOME = os.environ.get("SUMO_HOME", dirname(dirname(THIS_DIR)))
+os.environ["SUMO_HOME"] = SUMO_HOME
+for p in [
+''')
     for source, target, app in targets:
         outputFiles = glob.glob(join(source, "output.[0-9a-z]*"))
         # print source, target, outputFiles
@@ -157,7 +160,7 @@ def main(options):
         skip = False
         appOptions = []
         for f in reversed(optionsFiles):
-            for o in open(f).read().split():
+            for o in shlex.split(open(f).read()):
                 if skip:
                     skip = False
                     continue
@@ -199,24 +202,28 @@ def main(options):
                             shutil.copy2(toCopy, testPath)
         if options.python_script:
             if app == "netgen":
-                call = ["netgenerate"] + appOptions
+                call = ['join(SUMO_HOME, "bin", "netgenerate")'] + ['"%s"' % a for a in appOptions]
             elif app == "tools":
-                call = ["python"] + appOptions
-                call[1] = join(SUMO_HOME, call[1])
+                call = ['"python"'] + ['"%s"' % a for a in appOptions]
+                call[1] = 'join(SUMO_HOME, "%s")' % appOptions[0]
             elif app == "complex":
-                call = ["python"]
+                call = ['"python"']
                 for o in appOptions:
                     if o.endswith(".py"):
-                        call.insert(1, os.path.join(".", os.path.basename(o)))
+                        call.insert(1, '"%s"' % os.path.join(".", os.path.basename(o)))
                     else:
-                        call.append(o)
+                        call.append('"%s"' % o)
             else:
-                call = [join(SUMO_HOME, "bin", app)] + appOptions
-            pyBatch.write('    subprocess.Popen([r"%s"], cwd=r"%s"),\n' % ('", r"'.join(call), testPath))
+                call = ['join(SUMO_HOME, "bin", "%s")' % app] + ['"%s"' % a for a in appOptions]
+            prefix = os.path.commonprefix((testPath, os.path.abspath(pyBatch.name)))
+            up = os.path.abspath(pyBatch.name)[len(prefix):].count(os.sep) * "../"
+            pyBatch.write('    subprocess.Popen([%s], cwd=join(THIS_DIR, r"%s%s")),\n' %
+                          (', '.join(call), up, testPath[len(prefix):]))
         if options.skip_configuration:
             continue
         oldWorkDir = os.getcwd()
         os.chdir(testPath)
+        haveConfig = False
         if app in ["dfrouter", "duarouter", "jtrrouter", "marouter", "netconvert",
                    "netgen", "netgenerate", "od2trips", "polyconvert", "sumo", "activitygen"]:
             appOptions += ['--save-configuration', '%s.%scfg' %
@@ -227,14 +234,17 @@ def main(options):
             if options.verbose:
                 print(("calling %s for testPath '%s' with  options '%s'") %
                       (checkBinary(app), testPath, " ".join(appOptions)))
-            subprocess.call([checkBinary(app)] + appOptions)
-        elif app == "tools":
-            if os.name == "posix" or options.file:
-                tool = join("$SUMO_HOME", appOptions[-1])
-                open(nameBase + ".sh", "w").write(tool + " " + " ".join(appOptions[:-1]))
-            if os.name != "posix" or options.file:
-                tool = join("%SUMO_HOME%", appOptions[-1])
-                open(nameBase + ".bat", "w").write(tool + " " + " ".join(appOptions[:-1]))
+            try:
+                haveConfig = subprocess.call([checkBinary(app)] + appOptions) == 0
+            except OSError:
+                print("Executable %s not found, generating shell scripts instead of config." % app, file=sys.stderr)
+            if not haveConfig:
+                appOptions[-2:] = ["bin/" + app]
+        if not haveConfig:
+            cmd = ["$SUMO_HOME/" + appOptions[-1]] + [o if " " not in o else "'%s'" % o for o in appOptions[:-1]]
+            open(nameBase + ".sh", "w").write(" ".join(cmd))
+            cmd = ["%SUMO_HOME%/" + appOptions[-1]] + [o if " " not in o else '"%s"' % o for o in appOptions[:-1]]
+            open(nameBase + ".bat", "w").write(" ".join(cmd))
         os.chdir(oldWorkDir)
     if options.python_script:
         pyBatch.write(']:\n    if p.wait() != 0:\n        sys.exit(1)\n')

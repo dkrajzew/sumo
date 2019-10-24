@@ -58,6 +58,32 @@ MSCFModel_IDM::finalizeSpeed(MSVehicle* const veh, double vPos) const {
 
 
 double
+MSCFModel_IDM::freeSpeed(const MSVehicle* const veh, double speed, double seen, double maxSpeed, const bool /*onInsertion*/) const {
+    if (maxSpeed < 0.) {
+        // can occur for ballistic update (in context of driving at red light)
+        return maxSpeed;
+    }
+    const double secGap = getSecureGap(veh, nullptr, maxSpeed, 0, myDecel);
+    double vSafe;
+    if (speed <= maxSpeed) {
+        // accelerate
+        vSafe = _v(veh, 1e6, speed, maxSpeed, veh->getLane()->getVehicleMaxSpeed(veh), false);
+    } else {
+        // decelerate 
+        // @note relax gap to avoid emergency braking
+        // @note since the transition point does not move we set the leader speed to 0
+        vSafe = _v(veh, MAX2(seen, secGap), speed, 0, veh->getLane()->getVehicleMaxSpeed(veh), false);
+    }
+    if (seen < secGap) {
+        // avoid overshoot when close to change in speed limit
+        vSafe = MIN2(vSafe, maxSpeed);
+    }
+    //std::cout << SIMTIME << " speed=" << speed << " maxSpeed=" << maxSpeed << " seen=" << seen << " secGap=" << secGap << " vSafe=" << vSafe << "\n"; 
+    return vSafe;
+}
+
+
+double
 MSCFModel_IDM::followSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double /*predMaxDecel*/, const MSVehicle* const /*pred*/) const {
 #ifdef DEBUG_V
     gDebugFlag1 = veh->isSelected();
@@ -67,8 +93,15 @@ MSCFModel_IDM::followSpeed(const MSVehicle* const veh, double speed, double gap2
 
 
 double
-MSCFModel_IDM::insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel) const {
-    return followSpeed(v, speed, gap2pred, predSpeed, predMaxDecel);
+MSCFModel_IDM::insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel, const MSVehicle* const /*pred*/) const {
+    // see definition of s in _v()
+    double s = MAX2(0., speed * myHeadwayTime + speed * (speed - predSpeed) / myTwoSqrtAccelDecel);
+    if (gap2pred >= s) {
+        // followSpeed always stays below speed because s*s / (gap2pred * gap2pred) > 0. This would prevent insertion with maximum speed at all distances
+        return speed;
+    } else {
+        return followSpeed(v, speed, gap2pred, predSpeed, predMaxDecel);
+    }
 }
 
 
@@ -105,7 +138,7 @@ MSCFModel_IDM::interactionGap(const MSVehicle* const veh, double vL) const {
 }
 
 double
-MSCFModel_IDM::getSecureGap(const double speed, const double leaderSpeed, const double /*leaderMaxDecel*/) const {
+MSCFModel_IDM::getSecureGap(const MSVehicle* const /*veh*/, const MSVehicle* const /*pred*/, const double speed, const double leaderSpeed, const double /*leaderMaxDecel*/) const {
     const double delta_v = speed - leaderSpeed;
     return MAX2(0.0, speed * myHeadwayTime + speed * delta_v / myTwoSqrtAccelDecel);
 }

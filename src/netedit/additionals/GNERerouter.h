@@ -52,7 +52,7 @@ public:
      * @param[in] block movement enable or disable additional movement
      */
     GNERerouter(const std::string& id, GNEViewNet* viewNet, const Position& pos, const std::vector<GNEEdge*>& edges, const std::string& name,
-                const std::string& filename, double probability, bool off, double timeThreshold, const std::string& vTypes, bool blockMovement);
+                const std::string& filename, double probability, bool off, SUMOTime timeThreshold, const std::string& vTypes, bool blockMovement);
 
     /// @brief Destructor
     ~GNERerouter();
@@ -73,10 +73,13 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    Boundary getCenteringBoundary() const;
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -100,6 +103,12 @@ public:
      */
     std::string getAttribute(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
      * @param[in] key The attribute key
      * @param[in] value The new value
@@ -113,6 +122,11 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
 
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
@@ -135,7 +149,7 @@ protected:
     bool myOff;
 
     /// @brief attribute to configure activation time threshold
-    double myTimeThreshold;
+    SUMOTime myTimeThreshold;
 
     /// @brief optional vehicle types for restricting the rerouter
     std::string myVTypes;

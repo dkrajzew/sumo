@@ -155,23 +155,28 @@ MSTransportableControl::boardAnyWaiting(MSEdge* edge, SUMOVehicle* vehicle, cons
     bool ret = false;
     if (myWaiting4Vehicle.find(edge) != myWaiting4Vehicle.end()) {
         TransportableVector& wait = myWaiting4Vehicle[edge];
-        const std::string& line = vehicle->getParameter().line == "" ? vehicle->getParameter().id : vehicle->getParameter().line;
         SUMOTime currentTime =  MSNet::getInstance()->getCurrentTimeStep();
         for (TransportableVector::iterator i = wait.begin(); i != wait.end();) {
-            if ((*i)->isWaitingFor(line) && vehicle->getVehicleType().getPersonCapacity() > vehicle->getPersonNumber() && timeToBoardNextPerson <= currentTime && stop.startPos <= (*i)->getEdgePos() && (*i)->getEdgePos() <= stop.endPos) {
+            if ((*i)->isWaitingFor(vehicle)
+                    && vehicle->getVehicleType().getPersonCapacity() > vehicle->getPersonNumber()
+                    && timeToBoardNextPerson <= currentTime
+                    && stop.startPos <= (*i)->getEdgePos()
+                    && (*i)->getEdgePos() <= stop.endPos) {
                 edge->removePerson(*i);
                 vehicle->addPerson(*i);
-                //if the time a person needs to enter the vehicle extends the duration of the stop of the vehicle extend
-                //the duration by setting it to the boarding duration of the person
-                const SUMOTime boardingDuration = vehicle->getVehicleType().getBoardingDuration();
-                if (boardingDuration >= stopDuration) {
-                    stopDuration = boardingDuration;
-                }
-                //update the time point at which the next person can board the vehicle
-                if (timeToBoardNextPerson > currentTime - DELTA_T) {
-                    timeToBoardNextPerson += boardingDuration;
-                } else {
-                    timeToBoardNextPerson = currentTime + boardingDuration;
+                if (timeToBoardNextPerson >= 0) { // meso does not have boarding times
+                    //if the time a person needs to enter the vehicle extends the duration of the stop of the vehicle extend
+                    //the duration by setting it to the boarding duration of the person
+                    const SUMOTime boardingDuration = vehicle->getVehicleType().getBoardingDuration();
+                    if (boardingDuration >= stopDuration) {
+                        stopDuration = boardingDuration;
+                    }
+                    //update the time point at which the next person can board the vehicle
+                    if (timeToBoardNextPerson > currentTime - DELTA_T) {
+                        timeToBoardNextPerson += boardingDuration;
+                    } else {
+                        timeToBoardNextPerson = currentTime + boardingDuration;
+                    }
                 }
 
                 static_cast<MSTransportable::Stage_Driving*>((*i)->getCurrentStage())->setVehicle(vehicle);
@@ -196,11 +201,12 @@ MSTransportableControl::loadAnyWaiting(MSEdge* edge, SUMOVehicle* vehicle, const
     if (myWaiting4Vehicle.find(edge) != myWaiting4Vehicle.end()) {
         TransportableVector& waitContainers = myWaiting4Vehicle[edge];
         for (TransportableVector::iterator i = waitContainers.begin(); i != waitContainers.end();) {
-            const std::string& line = vehicle->getParameter().line == "" ? vehicle->getParameter().id : vehicle->getParameter().line;
             SUMOTime currentTime = MSNet::getInstance()->getCurrentTimeStep();
-            if ((*i)->isWaitingFor(line) && vehicle->getVehicleType().getContainerCapacity() > vehicle->getContainerNumber()
+            if ((*i)->isWaitingFor(vehicle)
+                    && vehicle->getVehicleType().getContainerCapacity() > vehicle->getContainerNumber()
                     && timeToLoadNextContainer <= currentTime
-                    && stop.startPos <= (*i)->getEdgePos() && (*i)->getEdgePos() <= stop.endPos) {
+                    && stop.startPos <= (*i)->getEdgePos()
+                    && (*i)->getEdgePos() <= stop.endPos) {
                 edge->removeContainer(*i);
                 vehicle->addContainer(*i);
                 //if the time a container needs to get loaded on the vehicle extends the duration of the stop of the vehicle extend
@@ -247,13 +253,12 @@ MSTransportableControl::getActiveCount() {
 
 
 void
-MSTransportableControl::abortWaitingForVehicle() {
+MSTransportableControl::abortAnyWaitingForVehicle() {
     for (std::map<const MSEdge*, TransportableVector>::const_iterator i = myWaiting4Vehicle.begin(); i != myWaiting4Vehicle.end(); ++i) {
         const MSEdge* edge = (*i).first;
         const TransportableVector& pv = (*i).second;
         for (TransportableVector::const_iterator j = pv.begin(); j != pv.end(); ++j) {
             MSTransportable* p = (*j);
-            p->setDeparted(MSNet::getInstance()->getCurrentTimeStep());
             std::string transportableType;
             if (dynamic_cast<MSPerson*>(p) != nullptr) {
                 edge->removePerson(p);
@@ -270,6 +275,18 @@ MSTransportableControl::abortWaitingForVehicle() {
     }
 }
 
+void
+MSTransportableControl::abortWaitingForVehicle(MSTransportable* t) {
+    const MSEdge* edge = t->getEdge();
+    auto it = myWaiting4Vehicle.find(edge);
+    if (it != myWaiting4Vehicle.end()) {
+        TransportableVector& waiting = it->second;
+        auto it2 = std::find(waiting.begin(), waiting.end(), t);
+        if (it2 != waiting.end()) {
+            waiting.erase(it2);
+        }
+    }
+}
 
 void
 MSTransportableControl::abortWaiting(MSTransportable* t) {
@@ -280,7 +297,7 @@ MSTransportableControl::abortWaiting(MSTransportable* t) {
             ts.erase(it2);
         }
     }
-    for (std::map<SUMOTime, TransportableVector>::iterator it = myWaiting4Departure.begin(); it != myWaiting4Departure.end(); ++it) {
+    for (std::map<SUMOTime, TransportableVector>::iterator it = myWaitingUntil.begin(); it != myWaitingUntil.end(); ++it) {
         TransportableVector& ts = it->second;
         TransportableVector::iterator it2 = std::find(ts.begin(), ts.end(), t);
         if (it2 != ts.end()) {
@@ -302,5 +319,6 @@ MSTransportable*
 MSTransportableControl::buildContainer(const SUMOVehicleParameter* pars, MSVehicleType* vtype, MSTransportable::MSTransportablePlan* plan) const {
     return new MSContainer(pars, vtype, plan);
 }
+
 
 /****************************************************************************/

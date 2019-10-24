@@ -49,8 +49,9 @@ public:
      * @param[in] angle ParkingArea's angle
      * @param[in] block movement enable or disable additional movement
      */
-    GNEParkingArea(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const std::string& startPos, const std::string& endPos, const std::string& name, bool friendlyPosition, int roadSideCapacity,
-                   bool onRoad, double width, const std::string& length, double angle, bool blockMovement);
+    GNEParkingArea(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const double startPos, const double endPos, const int parametersSet, 
+                   const std::string& name, bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length, 
+                   double angle, bool blockMovement);
 
     /// @brief Destructor
     ~GNEParkingArea();
@@ -58,7 +59,10 @@ public:
     /// @name Functions related with geometry of element
     /// @{
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    Boundary getCenteringBoundary() const;
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -91,6 +95,11 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
 protected:

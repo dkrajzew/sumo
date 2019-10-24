@@ -29,38 +29,38 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.selectMode()
 
 # select first POI
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 103, 67)
 
 # select second POI
-netedit.leftClick(referencePosition, 150, 50)
+netedit.leftClick(referencePosition, 153, 67)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first POI
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 103, 67)
 
-# Change parameter 10 with a non valid value (dummy)
-netedit.modifyAttribute(10, "dummyAngle", False)
+# Change parameter 9 with a non valid value (dummy)
+netedit.modifyAttribute(8, "dummyAngle", False)
 
-# Change parameter 10 with a valid value (negative)
-netedit.modifyAttribute(10, "-12", False)
+# Change parameter 9 with a valid value (negative)
+netedit.modifyAttribute(8, "-12", False)
 
-# Change parameter 10 with a valid value (> 360)
-netedit.modifyAttribute(10, "500", False)
+# Change parameter 9 with a valid value (> 360)
+netedit.modifyAttribute(8, "500", False)
 
-# Change parameter 10 with a valid value
-netedit.modifyAttribute(10, "30", False)
+# Change parameter 9 with a valid value
+netedit.modifyAttribute(8, "30", False)
 
 # Check undos and redos
 netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

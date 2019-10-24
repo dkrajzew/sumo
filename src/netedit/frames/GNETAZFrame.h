@@ -21,7 +21,14 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
+#include <config.h>
 #include "GNEFrame.h"
+
+
+// ===========================================================================
+// class definitions
+// ===========================================================================
+class GNETAZSourceSink;
 
 
 // ===========================================================================
@@ -44,7 +51,7 @@ public:
         /// @brief struct for edges and the source/sink colors
         struct TAZEdge {
             /// @brief constructor
-            TAZEdge(TAZCurrent* TAZCurrentParent, GNEEdge* _edge, GNEAdditional* _TAZSource, GNEAdditional* _TAZSink);
+            TAZEdge(TAZCurrent* TAZCurrentParent, GNEEdge* _edge, GNETAZSourceSink* _TAZSource, GNETAZSourceSink* _TAZSink);
 
             /// @brief destructor (needed because RGBColors has to be deleted)
             ~TAZEdge();
@@ -56,10 +63,10 @@ public:
             GNEEdge* edge;
 
             /// @brief source TAZ
-            GNEAdditional* TAZSource;
+            GNETAZSourceSink* TAZSource;
 
             /// @brif sink TAZ
-            GNEAdditional* TAZSink;
+            GNETAZSourceSink* TAZSink;
 
             /// @brief color by source [0-9]
             int sourceColor;
@@ -107,7 +114,7 @@ public:
 
     protected:
         /// @brief add TAZChild
-        void addTAZChild(GNEAdditional* additional);
+        void addTAZChild(GNETAZSourceSink* additional);
 
     private:
         /// @brief pointer to TAZ Frame
@@ -209,8 +216,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        TAZSaveChanges() {}
+        FOX_CONSTRUCTOR(TAZSaveChanges)
 
     private:
         /// @brief pointer to TAZFrame parent
@@ -266,8 +272,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        TAZChildDefaultParameters() {}
+        FOX_CONSTRUCTOR(TAZChildDefaultParameters)
 
     private:
         /// @brief pointer to TAZFrame parent
@@ -322,20 +327,20 @@ public:
         /// @brief hide TAZ Selection Statistics Modul
         void hideTAZSelectionStatisticsModul();
 
-        /// @brief add an edge and their TAZ Childs in the list of selected items
+        /// @brief add an edge and their TAZ Children in the list of selected items
         bool selectEdge(const TAZCurrent::TAZEdge& edge);
 
-        /// @brief un select an edge (and their TAZ Childs)
+        /// @brief un select an edge (and their TAZ Children)
         bool unselectEdge(GNEEdge* edge);
 
         /// @brief check if an edge is selected
         bool isEdgeSelected(GNEEdge* edge);
 
-        /// @brief clear current TAZ childs
+        /// @brief clear current TAZ children
         void clearSelectedEdges();
 
-        /// @brief get map with edge and TAZChilds
-        const std::vector<TAZCurrent::TAZEdge>& getEdgeAndTAZChildsSelected() const;
+        /// @brief get map with edge and TAZChildren
+        const std::vector<TAZCurrent::TAZEdge>& getEdgeAndTAZChildrenSelected() const;
 
         /// @name FOX-callbacks
         /// @{
@@ -347,8 +352,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        TAZSelectionStatistics() {}
+        FOX_CONSTRUCTOR(TAZSelectionStatistics)
 
         /// @brief update TAZSelectionStatistics
         void updateStatistics();
@@ -372,8 +376,8 @@ public:
         /// @brief Statistics labels
         FXLabel* myStatisticsLabel;
 
-        /// @brief vector with the current selected edges and their associated childs
-        std::vector<TAZCurrent::TAZEdge> myEdgeAndTAZChildsSelected;
+        /// @brief vector with the current selected edges and their associated children
+        std::vector<TAZCurrent::TAZEdge> myEdgeAndTAZChildrenSelected;
     };
 
     // ===========================================================================
@@ -419,8 +423,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        TAZParameters() {}
+        FOX_CONSTRUCTOR(TAZParameters)
 
     private:
         /// @brief pointer to GNETAZFrame parent
@@ -470,8 +473,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        TAZEdgesGraphic() {}
+        FOX_CONSTRUCTOR(TAZEdgesGraphic)
 
     private:
         /// @brief pointer to TAZFrame parent
@@ -522,7 +524,7 @@ public:
     void processEdgeSelection(const std::vector<GNEEdge*>& edges);
 
     /// @brief get drawing mode modul
-    DrawingShape* getDrawingShapeModul() const;
+    GNEFrameModuls::DrawingShape* getDrawingShapeModul() const;
 
     /// @brief get Current TAZ modul
     TAZCurrent* getTAZCurrentModul() const;
@@ -538,9 +540,9 @@ protected:
      * return true if was sucesfully created
      * @note called when user stop drawing shape
      */
-    bool buildShape();
+    bool shapeDrawed();
 
-    /// @brief add or remove a TAZSource and a TAZSink, or remove it if edge is in the list of TAZ Childs
+    /// @brief add or remove a TAZSource and a TAZSink, or remove it if edge is in the list of TAZ Children
     bool addOrRemoveTAZMember(GNEEdge* edge);
 
     /// @brief drop all TAZSources and TAZ Sinks of current TAZ
@@ -557,10 +559,10 @@ private:
     TAZParameters* myTAZParameters;
 
     /// @brief Netedit parameter
-    NeteditAttributes* myNeteditAttributes;
+    GNEFrameAttributesModuls::NeteditAttributes* myNeteditAttributes;
 
     /// @brief Drawing shape
-    DrawingShape* myDrawingShape;
+    GNEFrameModuls::DrawingShape* myDrawingShape;
 
     /// @brief save TAZ Edges
     TAZSaveChanges* myTAZSaveChanges;

@@ -33,6 +33,8 @@ def get_options(args=None):
     argParser.add_argument("orig", help="the first tripinfo file")
     argParser.add_argument("new", help="the second tripinfo file")
     argParser.add_argument("output", help="the output file")
+    argParser.add_argument("--filter-ids", dest="filterIDs",
+                           help="only use trip ids with the given substring")
     argParser.add_argument("--persons", action="store_true",
                            default=False, help="compute personinfo differences")
     argParser.add_argument("--histogram-scale", type=float, dest="histScale",
@@ -48,12 +50,23 @@ def write_diff(options):
     attr_conversions = dict([(a, parseTime) for a in attrs])
     vehicles_orig = OrderedDict([(v.id, v) for v in parse(options.orig, 'tripinfo',
                                                           attr_conversions=attr_conversions)])
-    origDurations = Statistics('original durations',   histogram=options.useHist, scale=options.histScale)
-    durations = Statistics('new durations',            histogram=options.useHist, scale=options.histScale)
-    durationDiffs = Statistics('duration differences', histogram=options.useHist, scale=options.histScale)
+    descr = ""
+    if options.filterIDs:
+        descr = " (%s)" % options.filterIDs
+    origDurations = Statistics('original durations%s' % descr,
+                               histogram=options.useHist, scale=options.histScale)
+    durations = Statistics('new durations%s' % descr,
+                           histogram=options.useHist, scale=options.histScale)
+    durationDiffs = Statistics('duration differences%s new-old' % descr,
+                               histogram=options.useHist, scale=options.histScale)
+    numNew = 0
+    numMissing = 0
     with open(options.output, 'w') as f:
         f.write("<tripDiffs>\n")
         for v in parse(options.new, 'tripinfo', attr_conversions=attr_conversions):
+            if options.filterIDs and options.filterIDs not in v.id:
+                del vehicles_orig[v.id]
+                continue
             if v.id in vehicles_orig:
                 vOrig = vehicles_orig[v.id]
                 diffs = [v.getAttribute(a) - vOrig.getAttribute(a) for a in attrs]
@@ -65,10 +78,16 @@ def write_diff(options):
                 del vehicles_orig[v.id]
             else:
                 f.write('    <vehicle id="%s" comment="new"/>\n' % v.id)
+                numNew += 1
         for id in vehicles_orig.keys():
             f.write('    <vehicle id="%s" comment="missing"/>\n' % id)
+            numMissing += 1
         f.write("</tripDiffs>\n")
 
+    if numMissing > 0:
+        print("missing: %s" % numMissing)
+    if numNew > 0:
+        print("new: %s" % numNew)
     print(origDurations)
     print(durations)
     print(durationDiffs)

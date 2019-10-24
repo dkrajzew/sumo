@@ -21,11 +21,9 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/foxtools/MFXUtils.h>
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/div/GUIDesigns.h>
 #include <netbuild/NBLoadedSUMOTLDef.h>
-#include <utils/gui/images/GUIIconSubSys.h>
 #include <utils/xml/XMLSubSys.h>
 #include <netimport/NIXMLTrafficLightsHandler.h>
 #include <netedit/changes/GNEChange_TLS.h>
@@ -95,6 +93,9 @@ GNETLSEditorFrame::GNETLSEditorFrame(FXHorizontalFrame* horizontalFrameParent, G
     GNEFrame(horizontalFrameParent, viewNet, "Edit Traffic Light"),
     myEditedDef(nullptr) {
 
+    // Create Overlapped Inspection modul
+    myOverlappedInspection = new GNEFrameModuls::OverlappedInspection(this, SUMO_TAG_JUNCTION);
+
     // create TLSJunction modul
     myTLSJunction = new GNETLSEditorFrame::TLSJunction(this);
 
@@ -126,22 +127,27 @@ GNETLSEditorFrame::~GNETLSEditorFrame() {
 }
 
 
+void 
+GNETLSEditorFrame::show() {
+    // hide myOverlappedInspection
+    myOverlappedInspection->hideOverlappedInspection();
+    GNEFrame::show();
+}
+
 void
-GNETLSEditorFrame::editJunction(GNEJunction* junction) {
-    if (myTLSJunction->getCurrentJunction() == nullptr || (!myTLSModifications->checkHaveModifications() && (junction != myTLSJunction->getCurrentJunction()))) {
-        onCmdCancel(nullptr, 0, nullptr);
-        myViewNet->getUndoList()->p_begin("modifying traffic light definition");
-        myTLSJunction->setCurrentJunction(junction);
-        myTLSAttributes->initTLSAttributes(myTLSJunction->getCurrentJunction());
-        myTLSJunction->updateJunctionDescription();
-        myTLSJunction->getCurrentJunction()->selectTLS(true);
-        if (myTLSAttributes->getNumberOfTLSDefinitions() > 0) {
-            for (NBNode* node : myTLSAttributes->getCurrentTLSDefinition()->getNodes()) {
-                myViewNet->getNet()->retrieveJunction(node->getID())->selectTLS(true);
-            }
+GNETLSEditorFrame::editTLS(const Position& clickedPosition, const GNEViewNetHelper::ObjectsUnderCursor &objectsUnderCursor) {
+    // first check if in objectsUnderCursor there is a junction
+    if (objectsUnderCursor.getJunctionFront()) {
+        // show objects under cursor
+        myOverlappedInspection->showOverlappedInspection(objectsUnderCursor, clickedPosition);
+        // hide if we inspect only one junction
+        if (myOverlappedInspection->getNumberOfOverlappedACs() == 1) {
+            myOverlappedInspection->hideOverlappedInspection();
         }
+        // set junction
+        editJunction(objectsUnderCursor.getJunctionFront());
     } else {
-        myViewNet->setStatusBarText("Unsaved modifications. Abort or Save");
+        myViewNet->setStatusBarText("Click over a junction to edit a TLS");
     }
 }
 
@@ -182,7 +188,7 @@ GNETLSEditorFrame::isTLSSaved() {
 bool
 GNETLSEditorFrame::parseTLSPrograms(const std::string& file) {
     NBTrafficLightLogicCont& tllCont = myViewNet->getNet()->getTLLogicCont();
-    NBTrafficLightLogicCont tmpTLLCont;;
+    NBTrafficLightLogicCont tmpTLLCont;
     NIXMLTrafficLightsHandler tllHandler(tmpTLLCont, myViewNet->getNet()->getEdgeCont());
     // existing definitions must be available to update their programs
     std::set<NBTrafficLightDefinition*> origDefs;
@@ -436,11 +442,19 @@ GNETLSEditorFrame::onCmdPhaseSwitch(FXObject*, FXSelector, void*) {
     return 1;
 }
 
+
 bool
 GNETLSEditorFrame::fixedDuration() const {
     assert(myEditedDef != nullptr);
     return myEditedDef->getType() == TLTYPE_STATIC;
 }
+
+
+void 
+GNETLSEditorFrame::selectedOverlappedElement(GNEAttributeCarrier *AC) {
+    editJunction(dynamic_cast<GNEJunction*>(AC));
+}
+
 
 long
 GNETLSEditorFrame::onCmdPhaseCreate(FXObject*, FXSelector, void*) {
@@ -504,7 +518,7 @@ GNETLSEditorFrame::onCmdPhaseCreate(FXObject*, FXSelector, void*) {
         }
     }
 
-    myEditedDef->getLogic()->addStep(duration, state, -1, "", newIndex);
+    myEditedDef->getLogic()->addStep(duration, state, std::vector<int>(), "", newIndex);
     myTLSPhases->getPhaseTable()->setCurrentItem(newIndex, 0);
     myTLSPhases->initPhaseTable(newIndex);
     myTLSPhases->getPhaseTable()->setFocus();
@@ -617,20 +631,23 @@ GNETLSEditorFrame::onCmdPhaseEdit(FXObject*, FXSelector, void* ptr) {
         }
     } else if (tp->col == colNext) {
         // next edited
-        if (GNEAttributeCarrier::canParse<int>(value.text())) {
-            int next = GNEAttributeCarrier::parse<int>(value.text());
-            if (next == -1 || next < myTLSPhases->getPhaseTable()->getNumRows()) {
-                myEditedDef->getLogic()->setPhaseNext(tp->row, next);
+        bool ok = true;
+        if (GNEAttributeCarrier::canParse<std::vector<int> >(value.text())) {
+            std::vector<int> nextEdited = GNEAttributeCarrier::parse<std::vector<int> >(value.text());
+            for (int n : nextEdited) {
+                if (n < 0 || n >= myTLSPhases->getPhaseTable()->getNumRows()) {
+                    ok = false;
+                    break;
+                }
             }
-            myTLSModifications->setHaveModifications(true);
-            return 1;
-        } else if (StringUtils::prune(value.text()).empty()) {
-            myEditedDef->getLogic()->setPhaseNext(tp->row, -1);
-            myTLSModifications->setHaveModifications(true);
-            return 1;
+            if (ok) {
+                myEditedDef->getLogic()->setPhaseNext(tp->row, nextEdited);
+                myTLSModifications->setHaveModifications(true);
+                return 1;
+            }
         }
         // input error, reset value
-        myTLSPhases->getPhaseTable()->setItemText(tp->row, colNext, varDurString(getPhases()[tp->row].maxDur).c_str());
+        myTLSPhases->getPhaseTable()->setItemText(tp->row, colNext, "");
     } else if (tp->col == colName) {
         // name edited
         myEditedDef->getLogic()->setPhaseName(tp->row, value.text());
@@ -680,8 +697,8 @@ GNETLSEditorFrame::buildIinternalLanes(NBTrafficLightDefinition* tlDef) {
     if (tlDef != nullptr) {
         const int NUM_POINTS = 10;
         assert(myTLSJunction->getCurrentJunction());
-        NBNode* nbn = myTLSJunction->getCurrentJunction()->getNBNode();
-        std::string innerID = ":" + nbn->getID(); // see NWWriter_SUMO::writeInternalEdges
+        NBNode* nbnCurrentJunction = myTLSJunction->getCurrentJunction()->getNBNode();
+        std::string innerID = ":" + nbnCurrentJunction->getID(); // see NWWriter_SUMO::writeInternalEdges
         const NBConnectionVector& links = tlDef->getControlledLinks();
         for (auto it : links) {
             int tlIndex = it.getTLIndex();
@@ -813,9 +830,31 @@ GNETLSEditorFrame::controlsEdge(GNEEdge& edge) const {
 }
 
 
+void
+GNETLSEditorFrame::editJunction(GNEJunction* junction) {
+    if ((myTLSJunction->getCurrentJunction() == nullptr) || (!myTLSModifications->checkHaveModifications() && (junction != myTLSJunction->getCurrentJunction()))) {
+        onCmdCancel(nullptr, 0, nullptr);
+        myViewNet->getUndoList()->p_begin("modifying traffic light definition");
+        myTLSJunction->setCurrentJunction(junction);
+        myTLSAttributes->initTLSAttributes(myTLSJunction->getCurrentJunction());
+        myTLSJunction->updateJunctionDescription();
+        // only select TLS if getCurrentJunction exist
+        if (myTLSJunction->getCurrentJunction()) {
+            myTLSJunction->getCurrentJunction()->selectTLS(true);
+        }
+        if (myTLSAttributes->getNumberOfTLSDefinitions() > 0) {
+            for (NBNode* node : myTLSAttributes->getCurrentTLSDefinition()->getNodes()) {
+                myViewNet->getNet()->retrieveJunction(node->getID())->selectTLS(true);
+            }
+        }
+    } else {
+        myViewNet->setStatusBarText("Unsaved modifications. Abort or Save");
+    }
+}
+
+
 SUMOTime
 GNETLSEditorFrame::getSUMOTime(const FXString& string) {
-    assert(GNEAttributeCarrier::canParse<double>(string.text()));
     return TIME2STEPS(GNEAttributeCarrier::parse<double>(string.text()));
 }
 
@@ -842,7 +881,7 @@ GNETLSEditorFrame::TLSAttributes::TLSAttributes(GNETLSEditorFrame* TLSEditorPare
     // create frame, label and TextField for Offset (By default disabled)
     FXHorizontalFrame* offsetFrame = new FXHorizontalFrame(this, GUIDesignAuxiliarHorizontalFrame);
     myOffsetLabel = new FXLabel(offsetFrame, "Offset", nullptr, GUIDesignLabelAttribute);
-    myOffsetTextField = new FXTextField(offsetFrame, GUIDesignTextFieldNCol, myTLSEditorParent, MID_GNE_TLSFRAME_OFFSET, GUIDesignTextFieldReal);
+    myOffsetTextField = new FXTextField(offsetFrame, GUIDesignTextFieldNCol, myTLSEditorParent, MID_GNE_TLSFRAME_OFFSET, GUIDesignTextField);
     myOffsetTextField->disable();
 }
 
@@ -980,8 +1019,7 @@ GNETLSEditorFrame::TLSJunction::updateJunctionDescription() const {
 // ---------------------------------------------------------------------------
 
 GNETLSEditorFrame::TLSDefinition::TLSDefinition(GNETLSEditorFrame* TLSEditorParent) :
-    FXGroupBox(TLSEditorParent->myContentFrame, "Traffic lights definition", GUIDesignGroupBoxFrame),
-    myTLSEditorParent(TLSEditorParent) {
+    FXGroupBox(TLSEditorParent->myContentFrame, "Traffic lights definition", GUIDesignGroupBoxFrame) {
     // create create tlDef button
     myNewTLProgram = new FXButton(this, "Create TLS\t\tCreate a new traffic light program",
                                   GUIIconSubSys::getIcon(ICON_MODETLS), TLSEditorParent, MID_GNE_TLSFRAME_CREATE, GUIDesignButton);
@@ -1008,7 +1046,7 @@ GNETLSEditorFrame::TLSPhases::TLSPhases(GNETLSEditorFrame* TLSEditorParent) :
     myTableScroll = new FXScrollWindow(this, LAYOUT_FILL_X | LAYOUT_FIX_HEIGHT);
     myPhaseTable = new FXTable(myTableScroll, myTLSEditorParent, MID_GNE_TLSFRAME_PHASE_TABLE, GUIDesignTableLimitedHeight);
     myPhaseTable->setColumnHeaderMode(LAYOUT_FIX_HEIGHT);
-    myPhaseTable->setColumnHeaderHeight(0);
+    myPhaseTable->setColumnHeaderHeight(getApp()->getNormalFont()->getFontHeight() + getApp()->getNormalFont()->getFontAscent() / 2);
     myPhaseTable->setRowHeaderMode(LAYOUT_FIX_WIDTH);
     myPhaseTable->setRowHeaderWidth(0);
     myPhaseTable->hide();
@@ -1072,17 +1110,41 @@ GNETLSEditorFrame::TLSPhases::initPhaseTable(int index) {
                 myPhaseTable->setItemText(row, colMaxDur, varDurString(phases[row].maxDur).c_str());
             }
             myPhaseTable->setItemText(row, colState, phases[row].state.c_str());
-            myPhaseTable->setItemText(row, colNext, phases[row].next >= 0 ? toString(phases[row].next).c_str() : " ");
+            myPhaseTable->setItemText(row, colNext, phases[row].next.size() > 0 ? toString(phases[row].next).c_str() : " ");
             myPhaseTable->setItemText(row, colName, phases[row].name.c_str());
             myPhaseTable->getItem(row, 1)->setJustify(FXTableItem::LEFT);
         }
         myPhaseTable->fitColumnsToContents(0, cols);
-        myPhaseTable->setHeight((int)phases.size() * 21); // experimental
+        myPhaseTable->setColumnText(colDuration, "dur");
+        if (colMinDur >= 0) {
+            myPhaseTable->setColumnText(colMinDur, "min");
+            myPhaseTable->setColumnText(colMaxDur, "max");
+            myPhaseTable->setColumnWidth(colMinDur, MAX2(myPhaseTable->getColumnWidth(colMinDur), 30));
+            myPhaseTable->setColumnWidth(colMaxDur, MAX2(myPhaseTable->getColumnWidth(colMaxDur), 35));
+        }
+        myPhaseTable->setColumnText(colState, "state");
+        myPhaseTable->setColumnText(colNext, "nxt");
+        myPhaseTable->setColumnText(colName, "name");
+        myPhaseTable->setColumnWidth(colNext, MAX2(myPhaseTable->getColumnWidth(colNext), 30));
+        myPhaseTable->setColumnWidth(colName, MAX2(myPhaseTable->getColumnWidth(colName), 45));
+
+        myPhaseTable->setHeight((int)phases.size() * 21 + 21); // experimental
         myPhaseTable->setCurrentItem(index, 0);
         myPhaseTable->selectRow(index, true);
         myPhaseTable->show();
         myPhaseTable->setFocus();
-        myTableScroll->setHeight(myPhaseTable->getHeight() + 10);
+        myTableScroll->setHeight(myPhaseTable->getHeight() + 15);
+
+        // neither my myPhaseTable->getWidth nor getDefaultWidth return the sum of column widths
+        // however, the scroll pane uses getDefaultWidth to determine the
+        // horizontal scrolling area which can only be changed via
+        // getDefColumnWidth, hence the baroque work-around
+
+        int neededWidth = 0;
+        for (int i = 0; i < cols; i++) {
+            neededWidth += myPhaseTable->getColumnWidth(i);
+        }
+        myPhaseTable->setDefColumnWidth(neededWidth / cols);
     }
     update();
 }
@@ -1172,7 +1234,7 @@ GNETLSEditorFrame::TLSFile::onCmdLoadTLSProgram(FXObject*, FXSelector, void*) {
     }
     if (opendialog.execute()) {
         // run parser
-        NBTrafficLightLogicCont tmpTLLCont;;
+        NBTrafficLightLogicCont tmpTLLCont;
         NIXMLTrafficLightsHandler tllHandler(tmpTLLCont, myTLSEditorParent->myViewNet->getNet()->getEdgeCont(), true);
         tmpTLLCont.insert(myTLSEditorParent->myEditedDef);
         XMLSubSys::runParser(tllHandler, opendialog.getFilename().text());

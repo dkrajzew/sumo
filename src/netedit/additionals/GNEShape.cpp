@@ -36,8 +36,20 @@
 // method definitions
 // ===========================================================================
 
-GNEShape::GNEShape(GNENet* net, SumoXMLTag tag, bool movementBlocked) :
+GNEShape::GNEShape(GNENet* net, SumoXMLTag tag, bool movementBlocked,
+                   const std::vector<GNEEdge*>& edgeParents,
+                   const std::vector<GNELane*>& laneParents,
+                   const std::vector<GNEShape*>& shapeParents,
+                   const std::vector<GNEAdditional*>& additionalParents,
+                   const std::vector<GNEDemandElement*>& demandElementParents,
+                   const std::vector<GNEEdge*>& edgeChildren,
+                   const std::vector<GNELane*>& laneChildren,
+                   const std::vector<GNEShape*>& shapeChildren,
+                   const std::vector<GNEAdditional*>& additionalChildren,
+                   const std::vector<GNEDemandElement*>& demandElementChildren) :
     GNEAttributeCarrier(tag),
+    GNEHierarchicalElementParents(this, edgeParents, laneParents, shapeParents, additionalParents, demandElementParents),
+    GNEHierarchicalElementChildren(this, edgeChildren, laneChildren, shapeChildren, additionalChildren, demandElementChildren),
     myNet(net),
     myBlockMovement(movementBlocked) {
 }
@@ -98,10 +110,9 @@ GNEShape::selectAttributeCarrier(bool changeFlag) {
     if (!myNet) {
         throw ProcessError("Net cannot be nullptr");
     } else {
-        GUIGlObject* object = dynamic_cast<GUIGlObject*>(this);
-        gSelected.select(object->getGlID());
+        gSelected.select(getGUIGlObject()->getGlID());
         // add object into list of selected objects
-        myNet->getViewNet()->getViewParent()->getSelectorFrame()->getLockGLObjectTypes()->addedLockedObject(object->getType());
+        myNet->getViewNet()->getViewParent()->getSelectorFrame()->getLockGLObjectTypes()->addedLockedObject(getGUIGlObject()->getType());
         if (changeFlag) {
             mySelected = true;
         }
@@ -114,10 +125,9 @@ GNEShape::unselectAttributeCarrier(bool changeFlag) {
     if (!myNet) {
         throw ProcessError("Net cannot be nullptr");
     } else {
-        GUIGlObject* object = dynamic_cast<GUIGlObject*>(this);
-        gSelected.deselect(object->getGlID());
+        gSelected.deselect(getGUIGlObject()->getGlID());
         // remove object of list of selected objects
-        myNet->getViewNet()->getViewParent()->getSelectorFrame()->getLockGLObjectTypes()->removeLockedObject(object->getType());
+        myNet->getViewNet()->getViewParent()->getSelectorFrame()->getLockGLObjectTypes()->removeLockedObject(getGUIGlObject()->getType());
         if (changeFlag) {
             mySelected = false;
         }
@@ -141,6 +151,18 @@ GNEShape::drawUsingSelectColor() const {
 }
 
 
+void
+GNEShape::enableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) {
+    //
+}
+
+
+void
+GNEShape::disableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) {
+    //
+}
+
+
 std::string
 GNEShape::getPopUpID() const {
     return getTagStr() + ": " + getID();
@@ -150,6 +172,12 @@ GNEShape::getPopUpID() const {
 std::string
 GNEShape::getHierarchyName() const {
     return getTagStr();
+}
+
+
+void
+GNEShape::setEnabledAttribute(const int /*enabledAttributes*/) {
+    //
 }
 
 /****************************************************************************/

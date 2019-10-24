@@ -118,12 +118,14 @@ public:
     VariableWrapper(SubscriptionHandler handler = nullptr) : handle(handler) {}
     SubscriptionHandler handle;
     virtual void setContext(const std::string& /* refID */) {}
+    virtual void clear() {}
     virtual bool wrapDouble(const std::string& objID, const int variable, const double value) = 0;
     virtual bool wrapInt(const std::string& objID, const int variable, const int value) = 0;
     virtual bool wrapString(const std::string& objID, const int variable, const std::string& value) = 0;
     virtual bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value) = 0;
     virtual bool wrapPosition(const std::string& objID, const int variable, const TraCIPosition& value) = 0;
     virtual bool wrapColor(const std::string& objID, const int variable, const TraCIColor& value) = 0;
+    virtual bool wrapRoadPosition(const std::string& objID, const int variable, const TraCIRoadPosition& value) = 0;
 };
 }
 

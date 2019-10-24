@@ -59,10 +59,10 @@ enum NetworkEditMode {
     GNE_NMODE_DELETE,
     ///@brief mode for selecting network elements
     GNE_NMODE_SELECT,
-    ///@brief mode for creating new edges
-    GNE_NMODE_CREATE_EDGE,
     ///@brief mode for moving network elements
     GNE_NMODE_MOVE,
+    ///@brief mode for creating new edges
+    GNE_NMODE_CREATE_EDGE,
     ///@brief mode for connecting lanes
     GNE_NMODE_CONNECT,
     ///@brief mode for editing tls
@@ -89,12 +89,22 @@ enum DemandEditMode {
     GNE_DMODE_DELETE,
     ///@brief mode for selecting demand elements
     GNE_DMODE_SELECT,
+    ///@brief mode for moving demand elements
+    GNE_DMODE_MOVE,
     ///@brief Mode for editing routes
-    GNE_DMODE_ROUTES,
+    GNE_DMODE_ROUTE,
     ///@brief Mode for editing vehicles
-    GNE_DMODE_VEHICLES,
+    GNE_DMODE_VEHICLE,
     ///@brief Mode for editing vehicle types
-    GNE_DMODE_VEHICLETYPES
+    GNE_DMODE_VEHICLETYPES,
+    ///@brief Mode for editing stops
+    GNE_DMODE_STOP,
+    ///@brief Mode for editing person types
+    GNE_DMODE_PERSONTYPES,
+    ///@brief Mode for editing person
+    GNE_DMODE_PERSON,
+    ///@brief Mode for editing person plan
+    GNE_DMODE_PERSONPLAN
 };
 
 // ===========================================================================
@@ -321,17 +331,49 @@ struct GNEViewNetHelper {
         EditModes& operator=(const EditModes&) = delete;
     };
 
-    /// @brief struct used to group all variables related to view options
-    struct ViewOptions {
+    /// @brief struct used to group all variables related to view options in all supermodes
+    struct CommonViewOptions {
 
         /// @brief default constructor
-        ViewOptions(GNEViewNet* viewNet);
+        CommonViewOptions(GNEViewNet* viewNet);
 
         /// @brief build menu checks
-        void buildViewOptionsMenuChecks();
+        void buildCommonViewOptionsMenuChecks();
 
         /// @brief hide all options menu checks
-        void hideViewOptionsMenuChecks();
+        void hideCommonViewOptionsMenuChecks();
+
+        /// @brief get visible common menu commands
+        void getVisibleCommonMenuCommands(std::vector<FXMenuCheck*>& commands) const;
+
+        /// @brief menu check to show grid button
+        FXMenuCheck* menuCheckShowGrid;
+
+    private:
+        /// @brief pointer to viewNet
+        GNEViewNet* myViewNet;
+
+        /// @brief Invalidated copy constructor.
+        CommonViewOptions(const CommonViewOptions&) = delete;
+
+        /// @brief Invalidated assignment operator.
+        CommonViewOptions& operator=(const CommonViewOptions&) = delete;
+    };
+
+    /// @brief struct used to group all variables related to view options in supermode Network
+    struct NetworkViewOptions {
+
+        /// @brief default constructor
+        NetworkViewOptions(GNEViewNet* viewNet);
+
+        /// @brief build menu checks
+        void buildNetworkViewOptionsMenuChecks();
+
+        /// @brief hide all options menu checks
+        void hideNetworkViewOptionsMenuChecks();
+
+        /// @brief get visible network menu commands
+        void getVisibleNetworkMenuCommands(std::vector<FXMenuCheck*>& commands) const;
 
         /// @brief check if show demand elements checkbox is enabled
         bool showDemandElements() const;
@@ -341,6 +383,9 @@ struct GNEViewNetHelper {
 
         /// @brief check if select show connections checkbox is enabled
         bool showConnections() const;
+
+        /// @brief check if we're editing elevation
+        bool editingElevation() const;
 
         /// @brief menu check to show Demand Elements
         FXMenuCheck* menuCheckShowDemandElements;
@@ -360,53 +405,88 @@ struct GNEViewNetHelper {
         /// @brief menu check to set change all phases
         FXMenuCheck* menuCheckChangeAllPhases;
 
-        /// @brief show grid button
-        FXMenuCheck* menuCheckShowGrid;
+        /// @brief menu check to we should warn about merging junctions
+        FXMenuCheck* menuCheckWarnAboutMerge;
 
+        /// @brief menu check to show connection as buuble in "Move" mode.
+        FXMenuCheck* menuCheckShowJunctionBubble;
+
+        /// @brief menu check to apply movement to elevation
+        FXMenuCheck* menuCheckMoveElevation;
+
+        /// @brief menu check to the endpoint for a created edge should be set as the new source
+        FXMenuCheck* menuCheckChainEdges;
+
+        /// @brief menu check to create auto create opposite edge
+        FXMenuCheck* menuCheckAutoOppositeEdge;
     private:
         /// @brief pointer to viewNet
         GNEViewNet* myViewNet;
 
         /// @brief Invalidated copy constructor.
-        ViewOptions(const ViewOptions&) = delete;
+        NetworkViewOptions(const NetworkViewOptions&) = delete;
 
         /// @brief Invalidated assignment operator.
-        ViewOptions& operator=(const ViewOptions&) = delete;
+        NetworkViewOptions& operator=(const NetworkViewOptions&) = delete;
     };
 
-    /// @brief struct used to group all variables related to create edges
-    struct MoveOptions {
+    /// @brief struct used to group all variables related to view options in supermode Demand
+    struct DemandViewOptions {
 
         /// @brief default constructor
-        MoveOptions(GNEViewNet* viewNet);
+        DemandViewOptions(GNEViewNet* viewNet);
 
         /// @brief build menu checks
-        void buildMoveOptionMenuChecks();
+        void buildDemandViewOptionsMenuChecks();
 
-        /// @brief hide all MenuChecks
-        void hideMoveOptionMenuChecks();
+        /// @brief hide all options menu checks
+        void hideDemandViewOptionsMenuChecks();
 
-        /// @brief check if we're editing elevation
-        bool editingElevation() const;
+        /// @brief get visible demand menu commands
+        void getVisibleDemandMenuCommands(std::vector<FXMenuCheck*>& commands) const;
 
-        /// @brief whether we should warn about merging junctions
-        FXMenuCheck* warnAboutMerge;
+        /// @brief check if non inspected element has to be hidden
+        bool showNonInspectedDemandElements(const GNEDemandElement* demandElement) const;
 
-        /// @brief show connection as buuble in "Move" mode.
-        FXMenuCheck* showJunctionBubble;
+        /// @brief check if shapes has to be hide
+        bool showShapes() const;
 
-        /// @brief apply movement to elevation
-        FXMenuCheck* moveElevation;
+        /// @brief check all person plans has to be show
+        bool showAllPersonPlans() const;
+
+        /// @brief lock person
+        void lockPerson(const GNEDemandElement* person);
+
+        /// @brief unlock person
+        void unlockPerson();
+
+        /// @brief get locked person
+        const GNEDemandElement* getLockedPerson() const;
+
+        /// @brief Hide shapes (Polygons and POIs)
+        FXMenuCheck* menuCheckHideShapes;
+
+        /// @brief Hide non inspected demand elements
+        FXMenuCheck* menuCheckHideNonInspectedDemandElements;
+
+        /// @brief show all person plans
+        FXMenuCheck* menuCheckShowAllPersonPlans;
+
+        /// @brief Lock Person
+        FXMenuCheck* menuCheckLockPerson;
 
     private:
         /// @brief pointer to viewNet
         GNEViewNet* myViewNet;
 
+        /// @brief pointer to locked person
+        const GNEDemandElement* myLockedPerson;
+
         /// @brief Invalidated copy constructor.
-        MoveOptions(const MoveOptions&) = delete;
+        DemandViewOptions(const DemandViewOptions&) = delete;
 
         /// @brief Invalidated assignment operator.
-        MoveOptions& operator=(const MoveOptions&) = delete;
+        DemandViewOptions& operator=(const DemandViewOptions&) = delete;
     };
 
     /// @brief struct used to group all variables related with movement of single elements
@@ -415,13 +495,16 @@ struct GNEViewNetHelper {
         /// @brief constructor
         MoveSingleElementValues(GNEViewNet* viewNet);
 
-        /// @brief begin move single element
-        bool beginMoveSingleElement();
+        /// @brief begin move single element in Network mode
+        bool beginMoveSingleElementNetworkMode();
 
-        /// @brief move single element
+        /// @brief begin move single element in Demand mode
+        bool beginMoveSingleElementDemandMode();
+
+        /// @brief move single element in Network AND Demand mode
         void moveSingleElement();
 
-        /// @brief finish moving single elements
+        /// @brief finish moving single elements in Network AND Demand mode
         void finishMoveSingleElement();
 
         /// @brief original shape of element before start moving (used by polygons, edges, etc., needed for commmit position changes)
@@ -469,6 +552,9 @@ struct GNEViewNetHelper {
 
         /// @brief the additional element which position is being moved
         GNEAdditional* myAdditionalToMove;
+
+        /// @brief the demand element which position is being moved
+        GNEDemandElement* myDemandElementToMove;
 
         /// @brief the TAZ element which their Shape is being moved (it's the only additional with a shape instead a position)
         GNETAZ* myTAZToMove;
@@ -606,6 +692,9 @@ struct GNEViewNetHelper {
         /// @brief draw testing element
         void drawTestingElements(GUIMainWindow* mainWindow);
 
+        /// @brief check if testing mode is enabled
+        bool isTestingEnabled() const;
+
     private:
         /// @brief pointer to viewNet
         GNEViewNet* myViewNet;
@@ -618,29 +707,6 @@ struct GNEViewNetHelper {
 
         /// @brief Height of viewNet in testing mode
         int myTestingHeight;
-    };
-
-    /// @brief struct used to group all variables related to create edges
-    struct CreateEdgeOptions {
-
-        /// @brief default constructor
-        CreateEdgeOptions(GNEViewNet* viewNet);
-
-        /// @brief build menu checks
-        void buildCreateEdgeOptionMenuChecks();
-
-        /// @brief hide all MenuChecks
-        void hideCreateEdgeOptionMenuChecks();
-
-        /// @brief whether the endpoint for a created edge should be set as the new source
-        FXMenuCheck* chainEdges;
-
-        /// @brief create auto create opposite edge
-        FXMenuCheck* autoOppositeEdge;
-
-    private:
-        /// @brief pointer to viewNet
-        GNEViewNet* myViewNet;
     };
 
     /// @brief struct used to group all variables related with common chekable Buttons
@@ -673,6 +739,9 @@ struct GNEViewNetHelper {
         /// @brief chekable button for edit mode select
         MFXCheckableButton* selectButton;
 
+        /// @brief chekable button for edit mode move
+        MFXCheckableButton* moveButton;
+
     private:
         /// @brief pointer to viewNet
         GNEViewNet* myViewNet;
@@ -701,9 +770,6 @@ struct GNEViewNetHelper {
 
         /// @brief chekable button for edit mode create edge
         MFXCheckableButton* createEdgeButton;
-
-        /// @brief chekable button for edit mode move
-        MFXCheckableButton* moveButton;
 
         /// @brief chekable button for edit mode connection
         MFXCheckableButton* connectionButton;
@@ -761,7 +827,48 @@ struct GNEViewNetHelper {
         /// @brief chekable button for edit mode create vehicle type
         MFXCheckableButton* vehicleTypeButton;
 
+        /// @brief chekable button for edit mode create stops
+        MFXCheckableButton* stopButton;
+
+        /// @brief chekable button for edit mode create person type
+        MFXCheckableButton* personTypeButton;
+
+        /// @brief chekable button for edit mode create persons
+        MFXCheckableButton* personButton;
+
+        /// @brief chekable button for edit mode create person plans
+        MFXCheckableButton* personPlanButton;
+
     private:
+        /// @brief pointer to viewNet
+        GNEViewNet* myViewNet;
+    };
+
+    /// @brief struct used to group all variables related with edit shapes of NetElements
+    struct EditShapes {
+
+        /// @brief default constructor
+        EditShapes(GNEViewNet* viewNet);
+
+        /// @brief start edit custom shape
+        void startEditCustomShape(GNENetElement* element, const PositionVector& shape, bool fill);
+
+        /// @brief edit edit shape
+        void stopEditCustomShape();
+
+        /// @brief save edited shape
+        void saveEditedShape();
+
+        /// @brief polygon used for edit shapes
+        GNEPoly* editedShapePoly;
+
+        /// @brief flag to edit net element shapes
+        bool editingNetElementShapes;
+
+    private:
+        /// @brief the previous edit mode before edit NetElement's shapes
+        NetworkEditMode myPreviousNetworkEditMode;
+
         /// @brief pointer to viewNet
         GNEViewNet* myViewNet;
     };

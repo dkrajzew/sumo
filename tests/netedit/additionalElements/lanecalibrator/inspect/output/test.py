@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select calibrator
-netedit.changeAdditional("laneCalibrator")
+netedit.changeElement("laneCalibrator")
 
 # create calibrator
-netedit.leftClick(referencePosition, 245, 160)
+netedit.leftClick(referencePosition, 245, 140)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect calibrator
-netedit.leftClick(referencePosition, 300, 220)
+netedit.leftClick(referencePosition, 350, 240)
 
 # Change parameter id with a non valid value (invalid characters)
 netedit.modifyAttribute(6, "///;;", True)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -68,6 +68,7 @@ copy_test_path:input_edgedata.xml
 copy_test_path:summary.xml
 copy_test_path:config.txt
 copy_test_path:input_sel.txt
+copy_test_path:matsim_plans.xml
 
 [collate_file]
 detectors:e1.add.xml
@@ -107,6 +108,7 @@ flt:test.flt
 str:test.str
 gpsdat:gpsdat.txt
 gpx:output.gpx
+kml:output.kml
 match:match.txt
 image:image.svg
 csv:out*.csv
@@ -154,6 +156,7 @@ output:Written configuration to .*{REPLACE Written configuration to <PATH>}
 output:Warning: Module 'rtree' not available. Using brute-force fallback
 output:2147483647{REPLACE 9223372036854775807}
 output:Simulation.*started with{REPLACE Simulation started with}
+output:Retrying in
 trips:<!-- generated on{[->]}-->
 osmtrips:<!-- generated on{[->]}-->
 districts:<!-- generated on{[->]}-->
@@ -185,7 +188,7 @@ ptroutes:<!--{[->]}-->
 osmbatch:python.*randomTrips\.py"{REPLACE python /path/to/randomTrips.py}
 osmbatch:python.*route2trips\.py{REPLACE python /path/to/route2trips.py}
 osmbatch:python.*ptlines2flows\.py{REPLACE python /path/to/ptlines2flows.py}
-osmbatch:--trip-attributes.*--{REPLACE --trip-attributes <attrs-with-os-dependent-quoting> --}
+osmbatch:-attributes.*--{REPLACE -attributes <attrs-with-os-dependent-quoting> --}
 osmbatch:#!/bin/bash
 image:id="[^"]*"{REPLACE id="ReplacedTransientID"}
 image:url\(.*\){REPLACE url(ReplacedTransientURL)}
@@ -201,6 +204,7 @@ osmstops:0.0101
 osmtrips:0.0101
 ptroutes:0.0101
 summary:0.0001
+routes:0.0001
 
 [unordered_text]
 errors:ERROR:SCHEMA

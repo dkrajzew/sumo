@@ -35,7 +35,7 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect E2s
-netedit.leftClick(referencePosition, 150, 250)
+netedit.leftClick(referencePosition, 150, 255)
 
 # Change parameter JamThreshold with a non valid value
 netedit.modifyAttribute(7, "dummyJamThreshold", True)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

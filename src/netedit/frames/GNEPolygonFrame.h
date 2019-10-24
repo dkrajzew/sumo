@@ -21,6 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
+
 #include "GNEFrame.h"
 
 // ===========================================================================
@@ -76,8 +77,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        GEOPOICreator() {}
+		FOX_CONSTRUCTOR(GEOPOICreator)
 
     private:
         /// @brief pointer to Shape frame parent
@@ -125,20 +125,17 @@ public:
     static std::string getIdsSelected(const FXList* list);
 
     /// @brief get drawing mode editor
-    DrawingShape* getDrawingShapeModul() const;
+    GNEFrameModuls::DrawingShape* getDrawingShapeModul() const;
 
 protected:
     /**@brief build a shaped element using the drawed shape
-     * return true if was sucesfully created
+     * return true if was successfully created
      * @note called when user stop drawing polygon
      */
-    bool buildShape();
+    bool shapeDrawed();
 
-    /// @brief enable moduls depending of item selected in ItemSelector
-    void enableModuls(const GNEAttributeCarrier::TagProperties& tagProperties);
-
-    /// @brief disable moduls if element selected in itemSelector isn't valid
-    void disableModuls();
+    /// @brief Tag selected in TagSelector
+    void tagSelected();
 
     /// @brief add Polygon
     bool addPolygon(const std::map<SumoXMLAttr, std::string>& POIValues);
@@ -150,17 +147,17 @@ protected:
     bool addPOILane(const std::map<SumoXMLAttr, std::string>& POIValues);
 
 private:
-    /// @brief item selector
-    ItemSelector* myItemSelector;
+    /// @brief shape tag selector
+    GNEFrameModuls::TagSelector* myShapeTagSelector;
 
     /// @brief shape internal attributes
-    ACAttributes* myShapeAttributes;
+    GNEFrameAttributesModuls::AttributesCreator* myShapeAttributes;
 
     /// @brief Netedit parameter
-    NeteditAttributes* myNeteditAttributes;
+    GNEFrameAttributesModuls::NeteditAttributes* myNeteditAttributes;
 
     /// @brief Drawing shape
-    DrawingShape* myDrawingShape;
+    GNEFrameModuls::DrawingShape* myDrawingShape;
 
     /// @brief GEOPOICreator
     GEOPOICreator* myGEOPOICreator;

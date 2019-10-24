@@ -72,7 +72,7 @@ public:
      */
     GUIBusStop(const std::string& id,
                const std::vector<std::string>& lines, MSLane& lane,
-               double frompos, double topos, const std::string name);
+               double frompos, double topos, const std::string name, int personCapacity);
 
 
     /// @brief Destructor
@@ -116,12 +116,19 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief Returns the street name
+    const std::string getOptionalName() const;
 
     /** @brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
      * @see GUIGlObject::drawGL
      */
     void drawGL(const GUIVisualizationSettings& s) const;
+
+    /** @brief Returns the next free waiting place for pedestrians / containers
+     * @return The next free waiting place for pedestrians / containers
+     */
+    Position getWaitPosition(MSTransportable* person) const;
     //@}
 
 
@@ -141,8 +148,14 @@ private:
     /// @brief The rotation of the sign
     double myFGSignRot;
 
+    /// @brief The visual width of the stoppling place
+    double myWidth;
+
     /// @brief The coordinates of access points
     PositionVector myAccessCoords;
+
+    /// @brief The current person exaggeration
+    mutable double myPersonExaggeration;
 
 
 };

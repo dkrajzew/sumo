@@ -62,16 +62,18 @@ public:
                         bool customOrigValue = false,
                         const std::string& origValue = "");
 
-    /**@brief Constructor used for disjoint attributes
+    /**@brief Constructor
      * @param[in] ac The attribute-carrier to be modified
      * @param[in] net Net in which AC is saved
-     * @param[in] oldParametersSet The old ParameterSet
-     * @param[in] newParametersSet The new ParameterSet
+     * @param[in] forceChange enable or disable force change
+     * @param[in] key The attribute key
+     * @param[in] value The new value
      */
     GNEChange_Attribute(GNEAttributeCarrier* ac,
                         GNENet* net,
-                        const int oldParametersSet,
-                        const int newParametersSet);
+                        bool forceChange,
+                        const SumoXMLAttr key,
+                        const std::string& value);
 
     /// @brief Destructor
     ~GNEChange_Attribute();
@@ -103,17 +105,14 @@ private:
     /// @brief The attribute name (or the original attribute if we're editing a disjoint attribute)
     const SumoXMLAttr myKey;
 
+    /// @brief flag used to force set attributes
+    bool myForceChange;
+
     /// @brief the original value
     const std::string myOrigValue;
 
     /// @brief the original value
     const std::string myNewValue;
-
-    /// @brief old parameter set (used for disjoint attributes)
-    const int myOldParametersSet;
-
-    /// @brief new parameter set (used for disjoint attributes)
-    const int myNewParametersSet;
 };
 
 #endif

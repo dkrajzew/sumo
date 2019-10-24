@@ -35,7 +35,7 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect chargingStations
-netedit.leftClick(referencePosition, 150, 250)
+netedit.leftClick(referencePosition, 150, 255)
 
 # Try to set invalid efficiency
 netedit.modifyAttribute(3, "dummyEfficiency", True)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

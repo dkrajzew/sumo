@@ -96,6 +96,12 @@ TraCIServerAPI_Simulation::processGet(TraCIServer& server, tcpip::Storage& input
             case libsumo::VAR_PARKING_STARTING_VEHICLES_IDS:
                 writeVehicleStateIDs(server, server.getWrapperStorage(), MSNet::VEHICLE_STATE_STARTING_PARKING);
                 break;
+            case libsumo::VAR_PARKING_MANEUVERING_VEHICLES_NUMBER:
+                writeVehicleStateNumber(server, server.getWrapperStorage(), MSNet::VEHICLE_STATE_MANEUVERING);
+                break;
+            case libsumo::VAR_PARKING_MANEUVERING_VEHICLES_IDS:
+                writeVehicleStateIDs(server, server.getWrapperStorage(), MSNet::VEHICLE_STATE_MANEUVERING);
+                break;
             case libsumo::VAR_PARKING_ENDING_VEHICLES_NUMBER:
                 writeVehicleStateNumber(server, server.getWrapperStorage(), MSNet::VEHICLE_STATE_ENDING_PARKING);
                 break;
@@ -134,9 +140,15 @@ TraCIServerAPI_Simulation::processGet(TraCIServer& server, tcpip::Storage& input
                 server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_INTEGER);
                 server.getWrapperStorage().writeInt(libsumo::Simulation::getMinExpectedNumber());
                 break;
+            case libsumo::VAR_BUS_STOP_ID_LIST:
+                server.wrapStringList(id, variable, libsumo::Simulation::getBusStopIDList());
+                break;
             case libsumo::VAR_BUS_STOP_WAITING:
                 server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_INTEGER);
                 server.getWrapperStorage().writeInt(libsumo::Simulation::getBusStopWaiting(id));
+                break;
+            case libsumo::VAR_BUS_STOP_WAITING_IDS:
+                server.wrapStringList(id, variable, libsumo::Simulation::getBusStopWaitingIDList(id));
                 break;
             case libsumo::VAR_NET_BOUNDING_BOX: {
                 server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_POLYGON);
@@ -148,17 +160,19 @@ TraCIServerAPI_Simulation::processGet(TraCIServer& server, tcpip::Storage& input
                 server.getWrapperStorage().writeDouble(tb[1].y);
                 break;
             }
-            case libsumo::POSITION_CONVERSION:
+            case libsumo::POSITION_CONVERSION: {
                 if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
                     return server.writeErrorStatusCmd(libsumo::CMD_GET_SIM_VARIABLE, "Position conversion requires a compound object.", outputStorage);
                 }
-                if (inputStorage.readInt() != 2) {
+                const int compoundSize = inputStorage.readInt();
+                if (compoundSize < 2 || compoundSize > 3) {
                     return server.writeErrorStatusCmd(libsumo::CMD_GET_SIM_VARIABLE, "Position conversion requires a source position and a position type as parameter.", outputStorage);
                 }
-                if (!commandPositionConversion(server, inputStorage, server.getWrapperStorage(), libsumo::CMD_GET_SIM_VARIABLE)) {
+                if (!commandPositionConversion(server, inputStorage, compoundSize, server.getWrapperStorage(), libsumo::CMD_GET_SIM_VARIABLE)) {
                     return false;
                 }
                 break;
+            }
             case libsumo::DISTANCE_REQUEST:
                 if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
                     return server.writeErrorStatusCmd(libsumo::CMD_GET_SIM_VARIABLE, "Retrieval of distance requires a compound object.", outputStorage);
@@ -247,10 +261,10 @@ TraCIServerAPI_Simulation::processGet(TraCIServer& server, tcpip::Storage& input
                 if (!server.readTypeCheckingString(inputStorage, destStop)) {
                     return server.writeErrorStatusCmd(libsumo::CMD_GET_SIM_VARIABLE, "Retrieval of a route requires a string as thirteenth parameter.", outputStorage);
                 }
-                const std::vector<libsumo::TraCIStage> result = libsumo::Simulation::findIntermodalRoute(from, to, modes, depart, routingMode, speed, walkFactor, departPos, arrivalPos, departPosLat, ptype, vtype, destStop);
+                const std::vector<libsumo::TraCIStage>& result = libsumo::Simulation::findIntermodalRoute(from, to, modes, depart, routingMode, speed, walkFactor, departPos, arrivalPos, departPosLat, ptype, vtype, destStop);
                 server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_COMPOUND);
                 server.getWrapperStorage().writeInt((int)result.size());
-                for (const libsumo::TraCIStage s : result) {
+                for (const libsumo::TraCIStage& s : result) {
                     writeStage(server.getWrapperStorage(), s);
                 }
                 break;
@@ -368,10 +382,29 @@ TraCIServerAPI_Simulation::writeStage(tcpip::Storage& outputStorage, const libsu
     outputStorage.writeString(stage.description);
 }
 
+libsumo::TraCIStage*
+TraCIServerAPI_Simulation::readStage(TraCIServer& server, tcpip::Storage& inputStorage) {
+    auto* stage = new libsumo::TraCIStage();
+    server.readTypeCheckingInt(inputStorage, stage->type);
+    server.readTypeCheckingString(inputStorage, stage->vType);
+    server.readTypeCheckingString(inputStorage, stage->line);
+    server.readTypeCheckingString(inputStorage, stage->destStop);
+    server.readTypeCheckingStringList(inputStorage, stage->edges);
+    server.readTypeCheckingDouble(inputStorage, stage->travelTime);
+    server.readTypeCheckingDouble(inputStorage, stage->cost);
+    server.readTypeCheckingDouble(inputStorage, stage->length);
+    server.readTypeCheckingString(inputStorage, stage->intended);
+    server.readTypeCheckingDouble(inputStorage, stage->depart);
+    server.readTypeCheckingDouble(inputStorage, stage->departPos);
+    server.readTypeCheckingDouble(inputStorage, stage->arrivalPos);
+    server.readTypeCheckingString(inputStorage, stage->description);
+    return stage;
+}
 
 bool
 TraCIServerAPI_Simulation::commandPositionConversion(TraCIServer& server, tcpip::Storage& inputStorage,
-        tcpip::Storage& outputStorage, int commandId) {
+        const int compoundSize, tcpip::Storage& outputStorage,
+        const int commandId) {
     std::pair<MSLane*, double> roadPos;
     Position cartesianPos;
     Position geoPos;
@@ -385,8 +418,8 @@ TraCIServerAPI_Simulation::commandPositionConversion(TraCIServer& server, tcpip:
         case libsumo::POSITION_3D:
         case libsumo::POSITION_LON_LAT:
         case libsumo::POSITION_LON_LAT_ALT: {
-            double x = inputStorage.readDouble();
-            double y = inputStorage.readDouble();
+            const double x = inputStorage.readDouble();
+            const double y = inputStorage.readDouble();
             if (srcPosType != libsumo::POSITION_2D && srcPosType != libsumo::POSITION_LON_LAT) {
                 z = inputStorage.readDouble();
             }
@@ -400,12 +433,12 @@ TraCIServerAPI_Simulation::commandPositionConversion(TraCIServer& server, tcpip:
         }
         break;
         case libsumo::POSITION_ROADMAP: {
-            std::string roadID = inputStorage.readString();
-            double pos = inputStorage.readDouble();
-            int laneIdx = inputStorage.readUnsignedByte();
+            const std::string roadID = inputStorage.readString();
+            const double pos = inputStorage.readDouble();
+            const int laneIdx = inputStorage.readUnsignedByte();
             try {
                 // convert edge,offset,laneIdx to cartesian position
-                cartesianPos = geoPos = libsumo::Helper::getLaneChecking(roadID, laneIdx, pos)->getShape().positionAtOffset(pos);
+                cartesianPos = geoPos = libsumo::Helper::getLaneChecking(roadID, laneIdx, pos)->geometryPositionAtOffset(pos);
                 z = cartesianPos.z();
                 GeoConvHelper::getFinal().cartesian2geo(geoPos);
             } catch (libsumo::TraCIException& e) {
@@ -425,16 +458,30 @@ TraCIServerAPI_Simulation::commandPositionConversion(TraCIServer& server, tcpip:
         return false;
     }
 
+    SUMOVehicleClass vClass = SVC_IGNORING;
+    if (compoundSize == 3) {
+        inputStorage.readUnsignedByte();
+        const std::string& vClassString = inputStorage.readString();
+        if (!SumoVehicleClassStrings.hasString(vClassString)) {
+            server.writeStatusCmd(commandId, libsumo::RTYPE_ERR, "Unknown vehicle class '" + vClassString + "'.");
+            return false;
+        }
+        vClass = SumoVehicleClassStrings.get(vClassString);
+    }
+
     switch (destPosType) {
         case libsumo::POSITION_ROADMAP: {
             // convert cartesion position to edge,offset,lane_index
-            roadPos = libsumo::Helper::convertCartesianToRoadMap(cartesianPos);
+            roadPos = libsumo::Helper::convertCartesianToRoadMap(cartesianPos, vClass);
+            if (roadPos.first == nullptr) {
+                server.writeStatusCmd(commandId, libsumo::RTYPE_ERR, "No matching lane found.");
+                return false;
+            }
             // write result that is added to response msg
             outputStorage.writeUnsignedByte(libsumo::POSITION_ROADMAP);
             outputStorage.writeString(roadPos.first->getEdge().getID());
             outputStorage.writeDouble(roadPos.second);
-            const std::vector<MSLane*> lanes = roadPos.first->getEdge().getLanes();
-            outputStorage.writeUnsignedByte((int)distance(lanes.begin(), std::find(lanes.begin(), lanes.end(), roadPos.first)));
+            outputStorage.writeUnsignedByte(roadPos.first->getIndex());
         }
         break;
         case libsumo::POSITION_2D:
@@ -460,7 +507,6 @@ TraCIServerAPI_Simulation::commandPositionConversion(TraCIServer& server, tcpip:
     return true;
 }
 
-/****************************************************************************/
 
 bool
 TraCIServerAPI_Simulation::commandDistanceRequest(TraCIServer& server, tcpip::Storage& inputStorage,
@@ -478,7 +524,7 @@ TraCIServerAPI_Simulation::commandDistanceRequest(TraCIServer& server, tcpip::St
                 std::string roadID = inputStorage.readString();
                 roadPos1.second = inputStorage.readDouble();
                 roadPos1.first = libsumo::Helper::getLaneChecking(roadID, inputStorage.readUnsignedByte(), roadPos1.second);
-                pos1 = roadPos1.first->getShape().positionAtOffset(roadPos1.second);
+                pos1 = roadPos1.first->geometryPositionAtOffset(roadPos1.second);
             } catch (libsumo::TraCIException& e) {
                 server.writeStatusCmd(commandId, libsumo::RTYPE_ERR, e.what());
                 return false;
@@ -493,7 +539,7 @@ TraCIServerAPI_Simulation::commandDistanceRequest(TraCIServer& server, tcpip::St
         if (posType == libsumo::POSITION_3D) {
             inputStorage.readDouble();// z value is ignored
         }
-        roadPos1 = libsumo::Helper::convertCartesianToRoadMap(pos1);
+        roadPos1 = libsumo::Helper::convertCartesianToRoadMap(pos1, SVC_IGNORING);
         break;
         default:
             server.writeStatusCmd(commandId, libsumo::RTYPE_ERR, "Unknown position format used for distance request");
@@ -508,7 +554,7 @@ TraCIServerAPI_Simulation::commandDistanceRequest(TraCIServer& server, tcpip::St
                 std::string roadID = inputStorage.readString();
                 roadPos2.second = inputStorage.readDouble();
                 roadPos2.first = libsumo::Helper::getLaneChecking(roadID, inputStorage.readUnsignedByte(), roadPos2.second);
-                pos2 = roadPos2.first->getShape().positionAtOffset(roadPos2.second);
+                pos2 = roadPos2.first->geometryPositionAtOffset(roadPos2.second);
             } catch (libsumo::TraCIException& e) {
                 server.writeStatusCmd(commandId, libsumo::RTYPE_ERR, e.what());
                 return false;
@@ -523,7 +569,7 @@ TraCIServerAPI_Simulation::commandDistanceRequest(TraCIServer& server, tcpip::St
         if (posType == libsumo::POSITION_3D) {
             inputStorage.readDouble();// z value is ignored
         }
-        roadPos2 = libsumo::Helper::convertCartesianToRoadMap(pos2);
+        roadPos2 = libsumo::Helper::convertCartesianToRoadMap(pos2, SVC_IGNORING);
         break;
         default:
             server.writeStatusCmd(commandId, libsumo::RTYPE_ERR, "Unknown position format used for distance request");

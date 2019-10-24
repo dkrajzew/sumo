@@ -27,10 +27,14 @@
 // ===========================================================================
 // class declarations
 // ===========================================================================
-class GNEDemandElement;
+
 class GNEViewNet;
 class GNEEdge;
 class GNELane;
+class GNEShape;
+class GNEAdditional;
+class GNEDemandElement;
+class GNEXMLChild;
 
 // ===========================================================================
 // class definitions
@@ -73,14 +77,35 @@ private:
      */
     GNEDemandElement* myDemandElement;
 
-    /// @brief pointer to route parent
-    GNEDemandElement* myRouteParent;
+    /// @brief reference to vector of edge parents
+    const std::vector<GNEEdge*>& myEdgeParents;
 
-    /// @brief pointer to vehicle type parent
-    GNEDemandElement* myVehicletypeParent;
+    /// @brief reference to vector of lane parents
+    const std::vector<GNELane*>& myLaneParents;
 
-    /// @brief pointer to edge parents (used by demandElements with edge parents)
-    std::vector<GNEEdge*> myEdgeParents;
+    /// @brief reference to vector of shape parents
+    const std::vector<GNEShape*>& myShapeParents;
+
+    /// @brief reference to vector of additional parents
+    const std::vector<GNEAdditional*>& myAdditionalParents;
+
+    /// @brief reference to vector of demand element parents
+    const std::vector<GNEDemandElement*>& myDemandElementParents;
+
+    /// @brief reference to vector of edge children
+    const std::vector<GNEEdge*>& myEdgeChildren;
+
+    /// @brief reference to vector of lane children
+    const std::vector<GNELane*>& myLaneChildren;
+
+    /// @brief reference to vector of shape children
+    const std::vector<GNEShape*>& myShapeChildren;
+
+    /// @brief reference to vector of additional children
+    const std::vector<GNEAdditional*>& myAdditionalChildren;
+
+    /// @brief reference to vector of demand element children
+    const std::vector<GNEDemandElement*>& myDemandElementChildren;
 };
 
 #endif

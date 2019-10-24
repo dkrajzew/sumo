@@ -102,13 +102,14 @@ GUIParameterTableWindow*
 GUIParkingArea::getParameterWindow(GUIMainWindow& app,
                                    GUISUMOAbstractView&) {
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 5);
+        new GUIParameterTableWindow(app, *this, 6);
     // add items
     ret->mkItem("name", false, getMyName());
     ret->mkItem("begin position [m]", false, myBegPos);
     ret->mkItem("end position [m]", false, myEndPos);
     ret->mkItem("occupancy [#]", true, getOccupancy());
     ret->mkItem("capacity [#]", false, getCapacity());
+    ret->mkItem("alternatives [#]", false, getNumAlternatives());
     // close building
     ret->closeBuilding();
     return ret;
@@ -182,7 +183,7 @@ GUIParkingArea::drawGL(const GUIVisualizationSettings& s) const {
         glTranslated(0, 0, .1);
         GLHelper::setColor(grey);
         GLHelper::drawFilledCircle((double) 0.9, noPoints);
-        if (s.scale * exaggeration >= 4.5) {
+        if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration)) {
             GLHelper::drawText("P", Position(), .1, 1.6, blue, mySignRot);
         }
     }
@@ -192,10 +193,6 @@ GUIParkingArea::drawGL(const GUIVisualizationSettings& s) const {
     }
     glPopName();
     drawName(getCenteringBoundary().getCenter(), s.scale, s.addName, s.angle);
-    for (std::vector<MSTransportable*>::const_iterator i = myWaitingTransportables.begin(); i != myWaitingTransportables.end(); ++i) {
-        glTranslated(0, 1, 0); // make multiple containers viewable
-        static_cast<GUIContainer*>(*i)->drawGL(s);
-    }
     // draw parking vehicles (their lane might not be within drawing range. if it is, they are drawn twice)
     myLane.getVehiclesSecure();
     for (std::set<const MSVehicle*>::const_iterator v = myLane.getParkingVehicles().begin(); v != myLane.getParkingVehicles().end(); ++v) {
@@ -221,6 +218,10 @@ GUIParkingArea::getCenteringBoundary() const {
 }
 
 
+const std::string
+GUIParkingArea::getOptionalName() const {
+    return myName;
+}
 
 /****************************************************************************/
 

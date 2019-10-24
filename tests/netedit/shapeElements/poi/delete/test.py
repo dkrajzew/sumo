@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poi")
+netedit.changeElement("poi")
 
 # create POI
 netedit.leftClick(referencePosition, 150, 50)
@@ -41,17 +41,17 @@ netedit.deleteMode()
 netedit.leftClick(referencePosition, 150, 50)
 
 # delete first stacked loaded POI (Second stacked must stay)
-netedit.leftClick(referencePosition, 200, 58)
+netedit.leftClick(referencePosition, 200, 70)
 
 # Check undos and redos
 netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

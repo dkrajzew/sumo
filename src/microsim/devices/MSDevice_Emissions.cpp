@@ -66,13 +66,31 @@ MSDevice_Emissions::~MSDevice_Emissions() {
 
 
 bool
-MSDevice_Emissions::notifyMove(SUMOVehicle& veh, double /*oldPos*/, double /*newPos*/, double newSpeed) {
+MSDevice_Emissions::notifyMove(SUMOTrafficObject& veh, double /*oldPos*/, double /*newPos*/, double newSpeed) {
     const SUMOEmissionClass c = veh.getVehicleType().getEmissionClass();
     const double a = veh.getAcceleration();
     const double slope = veh.getSlope();
     myEmissions.addScaled(PollutantsInterface::computeAll(c, newSpeed, a, slope), TS);
     return true;
 }
+
+
+void
+MSDevice_Emissions::notifyMoveInternal(const SUMOTrafficObject& veh,
+                                      const double /* frontOnLane */,
+                                      const double timeOnLane,
+                                      const double /* meanSpeedFrontOnLane */,
+                                      const double meanSpeedVehicleOnLane,
+                                      const double /* travelledDistanceFrontOnLane */,
+                                      const double /* travelledDistanceVehicleOnLane */,
+                                      const double /* meanLengthOnLane */) {
+
+    // called by meso (see MSMeanData_Emissions::MSLaneMeanDataValues::notifyMoveInternal)
+    const double a = veh.getAcceleration();
+    myEmissions.addScaled(PollutantsInterface::computeAll(veh.getVehicleType().getEmissionClass(),
+                          meanSpeedVehicleOnLane, a, veh.getSlope()), timeOnLane);
+}
+
 
 
 void

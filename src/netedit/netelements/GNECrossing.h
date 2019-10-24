@@ -54,8 +54,17 @@ public:
     /// @brief Destructor
     ~GNECrossing();
 
+    /// @brief gererate a new ID for an element child
+    std::string generateChildID(SumoXMLTag childTag);
+
+    /// @name Functions related with geometry of element
+    /// @{
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
+
+    /// @brief Returns position of hierarchical element in view
+    Position getPositionInView() const;
+    /// @}
 
     /// @brief get parent Junction
     GNEJunction* getParentJunction() const;
@@ -112,20 +121,11 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-    /// @name Function related with Generic Parameters
-    /// @{
-
-    /// @brief return generic parameters in string format
-    std::string getGenericParametersStr() const;
-
-    /// @brief return generic parameters as vector of pairs format
-    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
-
-    /// @brief set generic parameters in string format
-    void setGenericParametersStr(const std::string& value);
-
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
     /// @brief return true if a edge belongs to crossing's edges
@@ -140,18 +140,6 @@ protected:
 
     /// @brief Crossing Edges (It works as ID because a junction can only ONE Crossing with the same edges)
     std::vector<NBEdge*> myCrossingEdges;
-
-    /// @brief crossingShape
-    PositionVector myShape;
-
-    /// @name computed only once (for performance) in updateGeometry(bool updateGrid)
-    /// @{
-    /// The rotations of the shape parts
-    std::vector<double> myShapeRotations;
-
-    /// The lengths of the shape parts
-    std::vector<double> myShapeLengths;
-    /// @}
 
 private:
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)

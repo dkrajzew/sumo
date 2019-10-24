@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poiLane")
+netedit.changeElement("poiLane")
 
 # create poiLane
 netedit.leftClick(referencePosition, 150, 215)
@@ -47,20 +47,20 @@ netedit.moveElement(referencePosition, 200, 215, 0, 215)
 netedit.moveElement(referencePosition, 0, 215, -180, 215)
 
 # move first POILane to left
-netedit.moveElement(referencePosition, -120, 215, 600, 215)
+netedit.moveElement(referencePosition, -100, 215, 600, 215)
 
 # move first POILane to left
-netedit.moveElement(referencePosition, 540, 215, 300, 215)
+netedit.moveElement(referencePosition, 530, 215, 300, 215)
 
 # Check undo redo
 netedit.undo(referencePosition, 5)
 netedit.redo(referencePosition, 5)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

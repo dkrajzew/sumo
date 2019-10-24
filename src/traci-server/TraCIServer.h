@@ -59,7 +59,7 @@
 /** @class TraCIServer
  * @brief TraCI server used to control sumo by a remote TraCI client
  */
-class TraCIServer : public MSNet::VehicleStateListener, public libsumo::VariableWrapper {
+class TraCIServer final : public MSNet::VehicleStateListener, public libsumo::VariableWrapper {
 public:
     /// @brief Definition of a method to be called for serving an associated commandID
     typedef bool(*CmdExecutor)(TraCIServer& server, tcpip::Storage& inputStorage, tcpip::Storage& outputStorage);
@@ -67,9 +67,7 @@ public:
     SUMOTime getTargetTime() const {
         return myTargetTime;
     }
-    bool isEmbedded() const {
-        return myAmEmbedded;
-    }
+
     static TraCIServer* getInstance() {
         return myInstance;
     }
@@ -102,14 +100,6 @@ public:
     /// @brief clean up subscriptions
     void cleanup();
 
-
-#ifdef HAVE_PYTHON
-    /// @brief process the command
-    static std::string execute(std::string cmd);
-
-    /// @brief run the given script
-    static void runEmbedded(std::string pyFile);
-#endif
 
     void vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& info = "");
 
@@ -144,9 +134,7 @@ public:
 
 
     const std::map<MSNet::VehicleState, std::vector<std::string> >& getVehicleStateChanges() const {
-        if (myAmEmbedded) {
-            return myVehicleStateChanges;
-        } else if (myCurrentSocket == mySockets.end()) {
+        if (myCurrentSocket == mySockets.end()) {
             // Requested in context of a subscription update
             return myVehicleStateChanges;
         } else {
@@ -197,6 +185,15 @@ public:
      * @return Whether a double value was given (by data type)
      */
     bool readTypeCheckingStringList(tcpip::Storage& inputStorage, std::vector<std::string>& into);
+
+
+    /** @brief Reads the value type and a double list, verifying the type
+     *
+     * @param[in, changed] inputStorage The storage to read from
+     * @param[out] into Holder of the read value
+     * @return Whether a double value was given (by data type)
+     */
+    bool readTypeCheckingDoubleList(tcpip::Storage& inputStorage, std::vector<double>& into);
 
 
     /** @brief Reads the value type and a color, verifying the type
@@ -262,6 +259,7 @@ public:
     bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value);
     bool wrapPosition(const std::string& objID, const int variable, const libsumo::TraCIPosition& value);
     bool wrapColor(const std::string& objID, const int variable, const libsumo::TraCIColor& value);
+    bool wrapRoadPosition(const std::string& objID, const int variable, const libsumo::TraCIRoadPosition& value);
     tcpip::Storage& getWrapperStorage();
     /// @}
 
@@ -374,9 +372,6 @@ private:
 
     /// @brief The last timestep's subscription results
     tcpip::Storage mySubscriptionCache;
-
-    /// @brief Whether the server runs in embedded mode
-    const bool myAmEmbedded;
 
     /// @brief Map of commandIds -> their executors; applicable if the executor applies to the method footprint
     std::map<int, CmdExecutor> myExecutors;

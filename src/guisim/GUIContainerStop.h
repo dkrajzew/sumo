@@ -71,7 +71,7 @@ public:
      */
     GUIContainerStop(const std::string& id,
                      const std::vector<std::string>& lines, MSLane& lane,
-                     double frompos, double topos);
+                     double frompos, double topos, const std::string& name, int containerCapacity);
 
 
     /// @brief Destructor
@@ -113,6 +113,8 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief Returns the stopping place name
+    const std::string getOptionalName() const;
 
     /** @brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)

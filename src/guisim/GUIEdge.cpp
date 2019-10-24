@@ -65,8 +65,9 @@
 // ===========================================================================
 GUIEdge::GUIEdge(const std::string& id, int numericalID,
                  const SumoXMLEdgeFunc function,
-                 const std::string& streetName, const std::string& edgeType, int priority)
-    : MSEdge(id, numericalID, function, streetName, edgeType, priority),
+                 const std::string& streetName, const std::string& edgeType, int priority,
+                 double distance)
+    : MSEdge(id, numericalID, function, streetName, edgeType, priority, distance),
       GUIGlObject(GLO_EDGE, id) {}
 
 
@@ -92,7 +93,7 @@ GUIEdge::getIDs(bool includeInternal) {
     for (MSEdge::DictType::const_iterator i = MSEdge::myDict.begin(); i != MSEdge::myDict.end(); ++i) {
         const GUIEdge* edge = dynamic_cast<const GUIEdge*>(i->second);
         assert(edge);
-        if (includeInternal || !edge->isInternal()) {
+        if (includeInternal || edge->isNormal()) {
             ret.push_back(edge->getGlID());
         }
     }
@@ -203,6 +204,10 @@ GUIEdge::getCenteringBoundary() const {
     return b;
 }
 
+const std::string
+GUIEdge::getOptionalName() const {
+    return myStreetName;
+}
 
 void
 GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
@@ -211,14 +216,11 @@ GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
     }
     glPushName(getGlID());
     // draw the lanes
+    if (MSGlobals::gUseMesoSim) {
+        setColor(s);
+    }
     for (std::vector<MSLane*>::const_iterator i = myLanes->begin(); i != myLanes->end(); ++i) {
-        if (MSGlobals::gUseMesoSim) {
-            setColor(s);
-        }
-        GUILane* l = dynamic_cast<GUILane*>(*i);
-        if (l != nullptr) {
-            l->drawGL(s);
-        }
+        static_cast<GUILane*>(*i)->drawGL(s);
     }
     if (MSGlobals::gUseMesoSim) {
         if (s.scale * s.vehicleSize.getExaggeration(s, nullptr) > s.vehicleSize.minSize) {
@@ -266,7 +268,10 @@ GUIEdge::drawGL(const GUIVisualizationSettings& s) const {
                 double value = (MSGlobals::gUseMesoSim
                                 ? getColorValue(s, activeScheme)
                                 : lane2->getColorValue(s, activeScheme));
-                GLHelper::drawTextSettings(s.edgeValue, toString(value), p, s.scale, angle);
+                const RGBColor color = (MSGlobals::gUseMesoSim ? s.edgeColorer : s.laneColorer).getScheme().getColor(value);
+                if (color.alpha() != 0) {
+                    GLHelper::drawTextSettings(s.edgeValue, toString(value), p, s.scale, angle);
+                }
             }
         }
     }

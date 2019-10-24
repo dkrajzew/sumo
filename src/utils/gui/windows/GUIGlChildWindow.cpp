@@ -37,12 +37,12 @@
 // FOX callback mapping
 // ===========================================================================
 FXDEFMAP(GUIGlChildWindow) GUIGlChildWindowMap[] = {
-    FXMAPFUNC(SEL_COMMAND,  MID_RECENTERVIEW,       GUIGlChildWindow::onCmdRecenterView),
-    FXMAPFUNC(SEL_COMMAND,  MID_EDITVIEWPORT,       GUIGlChildWindow::onCmdEditViewport),
-    FXMAPFUNC(SEL_COMMAND,  MID_SHOWTOOLTIPS,       GUIGlChildWindow::onCmdShowToolTips),
-    FXMAPFUNC(SEL_COMMAND,  MID_ZOOM_STYLE,         GUIGlChildWindow::onCmdZoomStyle),
-    FXMAPFUNC(SEL_COMMAND,  MID_COLOURSCHEMECHANGE, GUIGlChildWindow::onCmdChangeColorScheme),
-    FXMAPFUNC(SEL_COMMAND,  MID_EDITVIEWSCHEME,     GUIGlChildWindow::onCmdEditViewScheme),
+    FXMAPFUNC(SEL_COMMAND,  MID_RECENTERVIEW,                   GUIGlChildWindow::onCmdRecenterView),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_I_EDITVIEWPORT,     GUIGlChildWindow::onCmdEditViewport),
+    FXMAPFUNC(SEL_COMMAND,  MID_SHOWTOOLTIPS,                   GUIGlChildWindow::onCmdShowToolTips),
+    FXMAPFUNC(SEL_COMMAND,  MID_ZOOM_STYLE,                     GUIGlChildWindow::onCmdZoomStyle),
+    FXMAPFUNC(SEL_COMMAND,  MID_COLOURSCHEMECHANGE,             GUIGlChildWindow::onCmdChangeColorScheme),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_F9_EDIT_VIEWSCHEME,      GUIGlChildWindow::onCmdEditViewScheme),
 };
 
 FXIMPLEMENT(GUIGlChildWindow, FXMDIChild, GUIGlChildWindowMap, ARRAYNUMBER(GUIGlChildWindowMap))
@@ -118,12 +118,12 @@ GUIGlChildWindow::buildNavigationToolBar() {
     // add viewport button
     new FXButton(myGripNavigationToolbar ? myGripNavigationToolbar : myStaticNavigationToolBar,
                  "\tEdit ViewporttOpens a menu which lets you edit the viewport.",
-                 GUIIconSubSys::getIcon(ICON_EDITVIEWPORT), this, MID_EDITVIEWPORT, GUIDesignButtonToolbar);
+                 GUIIconSubSys::getIcon(ICON_EDITVIEWPORT), this, MID_HOTKEY_CTRL_I_EDITVIEWPORT, GUIDesignButtonToolbar);
     // toggle button for zooming style
     MFXCheckableButton* zoomBut = new MFXCheckableButton(false, myGripNavigationToolbar ? myGripNavigationToolbar : myStaticNavigationToolBar,
             "\tToggles Zooming Style\tToggles whether zooming is based at cursor position or at the center of the view.",
             GUIIconSubSys::getIcon(ICON_ZOOMSTYLE), this, MID_ZOOM_STYLE, GUIDesignButtonToolbarCheckable);
-    zoomBut->setChecked(getApp()->reg().readIntEntry("gui", "zoomAtCenter", 1) != 1);
+    zoomBut->setChecked(getApp()->reg().readIntEntry("gui", "zoomAtCenter", 0) != 1);
     // build the locator popup
     myLocatorPopup = new FXPopup(myGripNavigationToolbar ? myGripNavigationToolbar : myStaticNavigationToolBar, POPUP_VERTICAL);
     // build locator button
@@ -147,7 +147,7 @@ GUIGlChildWindow::buildColoringToolBar() {
     // editor
     new FXButton(myGripNavigationToolbar ? myGripNavigationToolbar : myStaticNavigationToolBar,
                  "\tEdit Coloring Schemes\tOpens a menu which lets you edit the coloring schemes.",
-                 GUIIconSubSys::getIcon(ICON_COLORWHEEL), this, MID_EDITVIEWSCHEME, GUIDesignButtonToolbar);
+                 GUIIconSubSys::getIcon(ICON_COLORWHEEL), this, MID_HOTKEY_F9_EDIT_VIEWSCHEME, GUIDesignButtonToolbar);
 }
 
 
@@ -210,23 +210,28 @@ GUIGlChildWindow::onCmdEditViewScheme(FXObject*, FXSelector, void*) {
 
 long
 GUIGlChildWindow::onCmdShowToolTips(FXObject* sender, FXSelector, void*) {
-    MFXCheckableButton* button = static_cast<MFXCheckableButton*>(sender);
-    button->setChecked(!button->amChecked());
-    myView->showToolTips(button->amChecked());
-    update();
-    myView->update();
+    MFXCheckableButton* button = dynamic_cast<MFXCheckableButton*>(sender);
+    // check if button was sucesfully casted
+    if (button) {
+        button->setChecked(!button->amChecked());
+        myView->showToolTips(button->amChecked());
+        update();
+        myView->update();
+    }
     return 1;
 }
 
 
 long
 GUIGlChildWindow::onCmdZoomStyle(FXObject* sender, FXSelector, void*) {
-    MFXCheckableButton* button = static_cast<MFXCheckableButton*>(sender);
-    button->setChecked(!button->amChecked());
-    getApp()->reg().writeIntEntry("gui", "zoomAtCenter",
-                                  button->amChecked() ? 0 : 1);
-    update();
-    myView->update();
+    MFXCheckableButton* button = dynamic_cast<MFXCheckableButton*>(sender);
+    if (button) {
+        button->setChecked(!button->amChecked());
+        getApp()->reg().writeIntEntry("gui", "zoomAtCenter",
+                                      button->amChecked() ? 0 : 1);
+        update();
+        myView->update();
+    }
     return 1;
 }
 

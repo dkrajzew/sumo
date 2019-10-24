@@ -34,21 +34,21 @@ netedit.selectionInvert()
 # go to inspect mode
 netedit.inspectMode()
 
-# inspect busstops
-netedit.leftClick(referencePosition, 150, 250)
+# inspect containerStops
+netedit.leftClick(referencePosition, 150, 265)
 
 # Set friendlyPos
-netedit.modifyAttribute(0, "true", True)
+netedit.modifyAttribute(1, "true", True)
 
 # Check undo redo
 netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

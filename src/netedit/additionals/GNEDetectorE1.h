@@ -47,7 +47,7 @@ public:
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
      */
-    GNEDetectorE1(const std::string& id, GNELane* lane, GNEViewNet* viewNet, double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
+    GNEDetectorE1(const std::string& id, GNELane* lane, GNEViewNet* viewNet, double pos, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
 
     /// @brief Destructor
     ~GNEDetectorE1();
@@ -64,12 +64,6 @@ public:
     void fixAdditionalProblem();
     /// @}
 
-    /// @name inherited from GNEDetector
-    /// @{
-    /// @brief get lane
-    GNELane* getLane() const;
-    /// @}
-
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
@@ -83,7 +77,7 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -116,11 +110,12 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-protected:
-    /// @brief The lane in which this detector is placed
-    GNELane* myLane;
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
+    /// @}
 
 private:
     /// @brief set attribute after validation

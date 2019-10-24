@@ -21,14 +21,7 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-    traci.vehicle.addFull = traci.vehicle.add
-    traci.vehicle.add = traci.vehicle.addLegacy
-else:
-    import traci  # noqa
-    traci._vehicle.VehicleDomain.addFull = traci._vehicle.VehicleDomain.add
-    traci._vehicle.VehicleDomain.add = traci._vehicle.VehicleDomain.addLegacy
+import traci  # noqa
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
@@ -38,7 +31,7 @@ endPos = None
 vehID = "v0"
 traci.simulationStep()
 traci.route.add("r0", ["SC", "CN"])
-traci.vehicle.add(vehID, "r0")
+traci.vehicle.addLegacy(vehID, "r0")
 traci.vehicle.setImperfection(vehID, 0)
 while traci.simulation.getMinExpectedNumber() > 0:
     traci.simulationStep()
@@ -51,7 +44,7 @@ while traci.simulation.getMinExpectedNumber() > 0:
         currLanePos = traci.vehicle.getLanePosition(vehID)
         print(("step=%s road=%s lane=%s pos=%.2f dist=%.2f simDist=%.2f simDistToEnd=%.2f distToInt=%.2f " +
                "distToEnd=%.2f simDist2DToInt=%.2f simDist2DToEnd=%.2f") % (
-            traci.simulation.getCurrentTime() / 1000,
+            traci.simulation.getTime(),
             currEdge,
             traci.vehicle.getLaneID(vehID),
             traci.vehicle.getLanePosition(vehID),

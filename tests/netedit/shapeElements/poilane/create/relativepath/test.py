@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poiLane")
+netedit.changeElement("poiLane")
 
 # change save relative path
-netedit.modifyShapeDefaultBoolValue(10)
+netedit.changeDefaultBoolValue(11)
 
 # create poi
 netedit.leftClick(referencePosition, 150, 215)
@@ -42,10 +42,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -8,6 +8,8 @@
 #pragma warning(disable: 4290)
 /* Disable DLL-Interface warnings */
 #pragma warning(disable: 4251)
+/* Disable integer overflow in arithmetics warnings */
+#pragma warning(disable: 26451)
 
 /* Disable "unsafe" warnings for crt functions in VC++ 2005. */
 #if _MSC_VER >= 1400
@@ -21,6 +23,10 @@
 /* Define for dynamic Fox linkage */
 #define FOXDLL 1
 
+#define FOX_CONSTRUCTOR(classname) __pragma(warning(suppress: 26495)) \
+classname() {}
+#else
+#define FOX_CONSTRUCTOR(classname) classname() {}
 #endif
 
 
@@ -42,8 +48,11 @@
 /* defined if osg is available */
 #cmakedefine HAVE_OSG
 
-/* defined if PROJ is available */
-#cmakedefine HAVE_PROJ
+/* defined if zlib is available */
+#cmakedefine HAVE_ZLIB
+
+/* set to proj.h, proj_api.h or empty depending on which proj is available */
+#cmakedefine PROJ_API_FILE "@PROJ_API_FILE@"
 
 /* defined if python is available */
 #cmakedefine HAVE_PYTHON
@@ -52,7 +61,7 @@
 #define HAVE_VERSION_H
 #ifndef HAVE_VERSION_H
 /* Define if auto-generated version.h is unavailable. */
-#define VERSION_STRING "1.1.0"
+#define VERSION_STRING "1.3.1"
 #endif
 
 /* defines the epsilon to use on general floating point comparison */

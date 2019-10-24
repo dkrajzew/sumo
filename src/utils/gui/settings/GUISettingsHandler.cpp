@@ -98,7 +98,6 @@ GUISettingsHandler::myStartElement(int element,
             break;
         }
         case SUMO_TAG_SNAPSHOT: {
-            bool ok = true;
             std::string file = attrs.get<std::string>(SUMO_ATTR_FILE, nullptr, ok);
             if (file != "" && !FileHelpers::isAbsolute(file)) {
                 file = FileHelpers::getConfigurationRelative(getFileName(), file);
@@ -107,7 +106,6 @@ GUISettingsHandler::myStartElement(int element,
         }
         break;
         case SUMO_TAG_VIEWSETTINGS_SCHEME: {
-            bool ok = true;
             mySettings.name = attrs.getOpt<std::string>(SUMO_ATTR_NAME, nullptr, ok, mySettings.name);
             if (gSchemeStorage.contains(mySettings.name)) {
                 mySettings = gSchemeStorage.get(mySettings.name);
@@ -116,9 +114,11 @@ GUISettingsHandler::myStartElement(int element,
         break;
         case SUMO_TAG_VIEWSETTINGS_OPENGL:
             mySettings.dither = StringUtils::toBool(attrs.getStringSecure("dither", toString(mySettings.dither)));
+            mySettings.fps = StringUtils::toBool(attrs.getStringSecure("fps", toString(mySettings.fps)));
+            mySettings.drawBoundaries = StringUtils::toBool(attrs.getStringSecure("drawBoundaries", toString(mySettings.drawBoundaries)));
+            mySettings.forceDrawForSelecting = StringUtils::toBool(attrs.getStringSecure("forceDrawForSelecting", toString(mySettings.forceDrawForSelecting)));
             break;
         case SUMO_TAG_VIEWSETTINGS_BACKGROUND: {
-            bool ok = true;
             mySettings.backgroundColor = RGBColor::parseColorReporting(attrs.getStringSecure("backgroundColor", toString(mySettings.backgroundColor)), "background", nullptr, true, ok);
             mySettings.showGrid = StringUtils::toBool(attrs.getStringSecure("showGrid", toString(mySettings.showGrid)));
             mySettings.gridXSize = StringUtils::toDouble(attrs.getStringSecure("gridXSize", toString(mySettings.gridXSize)));
@@ -146,6 +146,8 @@ GUISettingsHandler::myStartElement(int element,
             mySettings.spreadSuperposed = StringUtils::toBool(attrs.getStringSecure("spreadSuperposed", toString(mySettings.spreadSuperposed)));
             mySettings.edgeParam = attrs.getStringSecure("edgeParam", mySettings.edgeParam);
             mySettings.laneParam = attrs.getStringSecure("laneParam", mySettings.laneParam);
+            mySettings.vehicleParam = attrs.getStringSecure("vehicleParam", mySettings.vehicleParam);
+            mySettings.vehicleTextParam = attrs.getStringSecure("vehicleTextParam", mySettings.vehicleTextParam);
             mySettings.edgeData = attrs.getStringSecure("edgeData", mySettings.edgeData);
             myCurrentColorer = element;
             mySettings.edgeColorer.setActive(laneEdgeMode);
@@ -179,7 +181,6 @@ GUISettingsHandler::myStartElement(int element,
                 myCurrentScheme = mySettings.polyColorer.getSchemeByName(attrs.getStringSecure(SUMO_ATTR_NAME, ""));
             }
             if (myCurrentScheme && !myCurrentScheme->isFixed()) {
-                bool ok = true;
                 myCurrentScheme->setInterpolated(attrs.getOpt<bool>(SUMO_ATTR_INTERPOLATED, nullptr, ok, false));
                 myCurrentScheme->clear();
             }
@@ -194,7 +195,6 @@ GUISettingsHandler::myStartElement(int element,
                 }
             }
             if (myCurrentScaleScheme && !myCurrentScaleScheme->isFixed()) {
-                bool ok = true;
                 myCurrentScaleScheme->setInterpolated(attrs.getOpt<bool>(SUMO_ATTR_INTERPOLATED, nullptr, ok, false));
                 myCurrentScaleScheme->clear();
             }
@@ -202,7 +202,6 @@ GUISettingsHandler::myStartElement(int element,
 
         case SUMO_TAG_ENTRY:
             if (myCurrentScheme != nullptr) {
-                bool ok = true;
                 RGBColor color = attrs.get<RGBColor>(SUMO_ATTR_COLOR, nullptr, ok);
                 if (myCurrentScheme->isFixed()) {
                     myCurrentScheme->setColor(attrs.getStringSecure(SUMO_ATTR_NAME, ""), color);
@@ -210,7 +209,6 @@ GUISettingsHandler::myStartElement(int element,
                     myCurrentScheme->addColor(color, attrs.getOpt<double>(SUMO_ATTR_THRESHOLD, nullptr, ok, 0));
                 }
             } else if (myCurrentScaleScheme != nullptr) {
-                bool ok = true;
                 double scale = attrs.get<double>(SUMO_ATTR_COLOR, nullptr, ok);
                 if (myCurrentScaleScheme->isFixed()) {
                     myCurrentScaleScheme->setColor(attrs.getStringSecure(SUMO_ATTR_NAME, ""), scale);
@@ -224,9 +222,11 @@ GUISettingsHandler::myStartElement(int element,
             mySettings.vehicleQuality = StringUtils::toInt(attrs.getStringSecure("vehicleQuality", toString(mySettings.vehicleQuality)));
             mySettings.showBlinker = StringUtils::toBool(attrs.getStringSecure("showBlinker", toString(mySettings.showBlinker)));
             mySettings.drawMinGap = StringUtils::toBool(attrs.getStringSecure("drawMinGap", toString(mySettings.drawMinGap)));
+            mySettings.drawBrakeGap = StringUtils::toBool(attrs.getStringSecure("drawBrakeGap", toString(mySettings.drawBrakeGap)));
             mySettings.vehicleSize = parseSizeSettings("vehicle", attrs, mySettings.vehicleSize);
             mySettings.vehicleName = parseTextSettings("vehicleName", attrs, mySettings.vehicleName);
             mySettings.vehicleValue = parseTextSettings("vehicleValue", attrs, mySettings.vehicleValue);
+            mySettings.vehicleText = parseTextSettings("vehicleText", attrs, mySettings.vehicleText);
             myCurrentColorer = element;
             break;
         case SUMO_TAG_VIEWSETTINGS_PERSONS:
@@ -280,6 +280,7 @@ GUISettingsHandler::myStartElement(int element,
             break;
         case SUMO_TAG_VIEWSETTINGS_LEGEND:
             mySettings.showSizeLegend = StringUtils::toBool(attrs.getStringSecure("showSizeLegend", toString(mySettings.showSizeLegend)));
+            mySettings.showColorLegend = StringUtils::toBool(attrs.getStringSecure("showColorLegend", toString(mySettings.showColorLegend)));
             break;
         case SUMO_TAG_VIEWSETTINGS_DECAL: {
             GUISUMOAbstractView::Decal d;

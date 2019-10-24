@@ -22,9 +22,6 @@
 
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/GNENet.h>
-#include <netedit/frames/GNEInspectorFrame.h>
-#include <netedit/GNEViewParent.h>
-#include <netedit/GNEViewNet.h>
 
 #include "GNEChange_Connection.h"
 
@@ -70,12 +67,8 @@ GNEChange_Connection::undo() {
         // add connection into edge
         myEdge->addConnection(myNBEdgeConnection, mySelected);
     }
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
-    }
     // enable save netElements
-    myNet->requiereSaveNet(true);
+    myNet->requireSaveNet(true);
 }
 
 
@@ -97,12 +90,8 @@ GNEChange_Connection::redo() {
         // remove connection from edge
         myEdge->removeConnection(myNBEdgeConnection);
     }
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
-    }
     // enable save netElements
-    myNet->requiereSaveNet(true);
+    myNet->requireSaveNet(true);
 }
 
 

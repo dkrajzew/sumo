@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.selectMode()
 
 # select first polygon
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 105, 70)
 
 # select second polygon
-netedit.leftClick(referencePosition, 300, 50)
+netedit.leftClick(referencePosition, 305, 70)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first polygon
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 105, 70)
 
 # Change parameter 2 with a non valid value (dummy)
 netedit.modifyAttribute(1, "dummyColor", False)
@@ -57,10 +57,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -69,7 +69,7 @@ MSMeanData_Emissions::MSLaneMeanDataValues::addTo(MSMeanData::MeanDataValues& va
 
 
 void
-MSMeanData_Emissions::MSLaneMeanDataValues::notifyMoveInternal(const SUMOVehicle& veh, const double /* frontOnLane */, const double timeOnLane, const double /*meanSpeedFrontOnLane*/, const double meanSpeedVehicleOnLane, const double /*travelledDistanceFrontOnLane*/, const double travelledDistanceVehicleOnLane, const double /* meanLengthOnLane */) {
+MSMeanData_Emissions::MSLaneMeanDataValues::notifyMoveInternal(const SUMOTrafficObject& veh, const double /* frontOnLane */, const double timeOnLane, const double /*meanSpeedFrontOnLane*/, const double meanSpeedVehicleOnLane, const double /*travelledDistanceFrontOnLane*/, const double travelledDistanceVehicleOnLane, const double /* meanLengthOnLane */) {
     sampleSeconds += timeOnLane;
     travelledDistance += travelledDistanceVehicleOnLane;
     const double a = veh.getAcceleration();
@@ -144,7 +144,7 @@ MSMeanData_Emissions::MSMeanData_Emissions(const std::string& id,
         const double minSamples,
         const std::string& vTypes)
     : MSMeanData(id, dumpBegin, dumpEnd, useLanes, withEmpty, printDefaults,
-                 withInternal, trackVehicles, maxTravelTime, minSamples, vTypes) {
+                 withInternal, trackVehicles, 0, maxTravelTime, minSamples, vTypes) {
 }
 
 

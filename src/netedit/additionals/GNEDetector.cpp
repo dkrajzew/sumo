@@ -32,8 +32,9 @@
 // ===========================================================================
 
 GNEDetector::GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
-                         double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement) :
-    GNEAdditional(id, viewNet, type, tag, name, blockMovement),
+        double pos, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes,
+        const std::string& name, bool friendlyPos, bool blockMovement, const std::vector<GNELane*>& laneParents) :
+    GNEAdditional(id, viewNet, type, tag, name, blockMovement, {}, laneParents, {}, {}, {}, {}, {}, {}, {}, {}),
     myPositionOverLane(pos),
     myFreq(freq),
     myFilename(filename),
@@ -43,8 +44,9 @@ GNEDetector::GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObject
 
 
 GNEDetector::GNEDetector(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
-                         double pos, double freq, const std::string& filename, const std::string& name, bool friendlyPos, bool blockMovement) :
-    GNEAdditional(additionalParent, viewNet, type, tag, name, blockMovement),
+        double pos, SUMOTime freq, const std::string& filename, const std::string& name, bool friendlyPos, 
+        bool blockMovement, const std::vector<GNELane*>& laneParents) :
+    GNEAdditional(additionalParent, viewNet, type, tag, name, blockMovement, {}, laneParents, {}, {additionalParent}, {}, {}, {}, {}, {}, {}),
     myPositionOverLane(pos),
     myFreq(freq),
     myFilename(filename),
@@ -61,9 +63,25 @@ GNEDetector::getPositionOverLane() const {
 }
 
 
+GNELane*
+GNEDetector::getLane() const {
+    return getLaneParents().front();
+}
+
+
 Position
 GNEDetector::getPositionInView() const {
-    return getLane()->getShape().positionAtOffset(getGeometryPositionOverLane());
+    return getLane()->getGeometry().shape.positionAtOffset(getGeometryPositionOverLane());
+}
+
+
+Boundary
+GNEDetector::getCenteringBoundary() const {
+    if (myGeometry.multiShapeUnified.size() > 0) {
+        return myGeometry.multiShapeUnified.getBoxBoundary().grow(10);
+    } else {
+        return myGeometry.shape.getBoxBoundary().grow(10);
+    }
 }
 
 
@@ -77,6 +95,13 @@ GNEDetector::getGeometryPositionOverLane() const {
     GNEAdditionalHandler::checkAndFixDetectorPosition(fixedPos, len, true);
     return fixedPos * getLane()->getLengthGeometryFactor();
 }
+
+
+double 
+GNEDetector::getAttributeDouble(SumoXMLAttr key) const {
+    throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
+}
+
 
 std::string
 GNEDetector::getParentName() const {

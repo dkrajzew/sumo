@@ -37,25 +37,50 @@
 class GNEVehicleType : public GNEDemandElement, public SUMOVTypeParameter {
 
 public:
-    /// @brief constructor
-    GNEVehicleType(GNEViewNet* viewNet, const std::string &vTypeID);
+    /// @brief constructor for default VTypes
+    GNEVehicleType(GNEViewNet* viewNet, const std::string& vTypeID, const SUMOVehicleClass& defaultVClass, SumoXMLTag tag);
 
     /// @brief constructor
-    GNEVehicleType(GNEViewNet* viewNet, const SUMOVTypeParameter &vTypeParameter);
+    GNEVehicleType(GNEViewNet* viewNet, const SUMOVTypeParameter& vTypeParameter, SumoXMLTag tag);
+
+    /// @brief copy constructor
+    GNEVehicleType(GNEViewNet* viewNet, const std::string& vTypeID, GNEVehicleType* vTypeOriginal);
 
     /// @brief destructor
     ~GNEVehicleType();
-
-    /// @brief get color
-    const RGBColor &getColor() const;
 
     /**@brief writte demand element element into a xml file
      * @param[in] device device in which write parameters of demand element element
      */
     void writeDemandElement(OutputDevice& device) const;
 
+    /// @name members and functions relative to elements common to all demand elements
+    /// @{
+    /// @brief obtain from edge of this demand element
+    GNEEdge* getFromEdge() const;
+
+    /// @brief obtain to edge of this demand element
+    GNEEdge* getToEdge() const;
+
+    /// @brief obtain VClass related with this demand element
+    SUMOVehicleClass getVClass() const;
+
+    /// @brief get color
+    const RGBColor& getColor() const;
+
+    /// @brief compute demand element
+    void compute();
+
+    /// @}
+
     /// @name Functions related with geometry of element
     /// @{
+    /// @brief begin geometry movement
+    void startGeometryMoving();
+
+    /// @brief end geometry movement
+    void endGeometryMoving();
+
     /**@brief change the position of the element geometry without saving in undoList
      * @param[in] offset Position used for calculate new position of geometry without updating RTree
      */
@@ -67,7 +92,7 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -79,6 +104,11 @@ public:
      * @return This object's parent id
      */
     std::string getParentName() const;
+
+    /**@brief Returns the boundary to which the view shall be centered in order to show the object
+     * @return The boundary the object is within
+     */
+    Boundary getCenteringBoundary() const;
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -101,6 +131,12 @@ public:
     */
     std::string getAttribute(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
     * @param[in] key The attribute key
     * @param[in] value The new value
@@ -116,11 +152,24 @@ public:
     */
     bool isValid(SumoXMLAttr key, const std::string& value);
 
-    /* @brief method for check if certain attribute is set (used by ACs with disjoint attributes)
+    /* @brief method for enable attribute
      * @param[in] key The attribute key
-     * @return true if it's set, false in other case
+     * @param[in] undoList The undoList on which to register changes
+     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
      */
-    bool isDisjointAttributeSet(const SumoXMLAttr attr) const;
+    void enableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
+
+    /* @brief method for disable attribute
+     * @param[in] key The attribute key
+     * @param[in] undoList The undoList on which to register changes
+     * @note certain attributes can be only enabled, and can produce the disabling of other attributes
+     */
+    void disableAttribute(SumoXMLAttr key, GNEUndoList* undoList);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
 
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
@@ -129,9 +178,28 @@ public:
     std::string getHierarchyName() const;
     /// @}
 
+    /// @brief overwrite all values of GNEVehicleType with a SUMOVTypeParameter
+    static void overwriteVType(GNEDemandElement* vType, SUMOVTypeParameter* newVTypeParameter, GNEUndoList* undoList);
+
+protected:
+    /// @brief init Rail Visualization Parameters
+    void initRailVisualizationParameters();
+
+    /// @brief flag to check if this GNEVehicleType is a default vehicle Type (For Vehicles, Pedestrians...)
+    bool myDefaultVehicleType;
+
+    /// @brief flag to check if this default GNEVehicleType was modified
+    bool myDefaultVehicleTypeModified;
+
 private:
     /// @brief method for setting the attribute and nothing else
     void setAttribute(SumoXMLAttr key, const std::string& value);
+
+    /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
+    void setEnabledAttribute(const int enabledAttributes);
+
+    /// @brief function called after set new VClass
+    void updateDefaultVClassAttributes(const VClassDefaultValues& defaultValues);
 
     /// @brief Invalidated copy constructor.
     GNEVehicleType(GNEVehicleType*) = delete;

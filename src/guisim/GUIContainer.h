@@ -148,30 +148,28 @@ public:
      *  also allows to trigger further visualisations and to track the vehicle.
      */
     class GUIContainerPopupMenu : public GUIGLObjectPopupMenu {
-        //FXDECLARE(GUIContainerPopupMenu)
+        FXDECLARE(GUIContainerPopupMenu)
     public:
         /** @brief Constructor
          * @param[in] app The main window for instantiation of other windows
          * @param[in] parent The parent view for changing it
          * @param[in] o The object of interest
-         * @param[in, out] additionalVisualizations Information which additional visualisations are enabled (per view)
          */
-        GUIContainerPopupMenu(GUIMainWindow& app,
-                              GUISUMOAbstractView& parent, GUIGlObject& o, std::map<GUISUMOAbstractView*, int>& additionalVisualizations);
+        GUIContainerPopupMenu(GUIMainWindow& app, GUISUMOAbstractView& parent, GUIGlObject& o);
 
         /// @brief Destructor
         ~GUIContainerPopupMenu();
 
-
-    protected:
-        /// @brief Information which additional visualisations are enabled (per view)
-        std::map<GUISUMOAbstractView*, int>& myVehiclesAdditionalVisualizations;
-        /// @brief Needed for parameterless instantiation
-        std::map<GUISUMOAbstractView*, int> dummy;
+        /// @brief Called if the plan shall be shown
+        long onCmdShowPlan(FXObject*, FXSelector, void*);
+        /// @brief Called if the person shall be tracked
+        long onCmdStartTrack(FXObject*, FXSelector, void*);
+        /// @brief Called if the person shall not be tracked any longer
+        long onCmdStopTrack(FXObject*, FXSelector, void*);
 
     protected:
         /// @brief default constructor needed by FOX
-        GUIContainerPopupMenu() : myVehiclesAdditionalVisualizations(dummy) { }
+        FOX_CONSTRUCTOR(GUIContainerPopupMenu)
 
     };
 
@@ -194,7 +192,7 @@ private:
     void setColor(const GUIVisualizationSettings& s) const;
 
     /// @brief gets the color value according to the current scheme index
-    double getColorValue(int activeScheme) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
     /// @brief sets the color according to the current scheme index and some vehicle function
     bool setFunctionalColor(int activeScheme) const;

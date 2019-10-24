@@ -36,9 +36,8 @@
 // member method definitions
 // ===========================================================================
 
-GNEVaporizer::GNEVaporizer(GNEViewNet* viewNet, GNEEdge* edge, double begin, double end, const std::string& name) :
-    GNEAdditional(edge->getID(), viewNet, GLO_VAPORIZER, SUMO_TAG_VAPORIZER, name, false),
-    myEdge(edge),
+GNEVaporizer::GNEVaporizer(GNEViewNet* viewNet, GNEEdge* edge, SUMOTime begin, SUMOTime end, const std::string& name) :
+    GNEAdditional(edge->getID(), viewNet, GLO_VAPORIZER, SUMO_TAG_VAPORIZER, name, false, {edge}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
     myBegin(begin),
     myEnd(end) {
 }
@@ -49,24 +48,19 @@ GNEVaporizer::~GNEVaporizer() {
 
 
 void
-GNEVaporizer::updateGeometry(bool updateGrid) {
-    // first check if object has to be removed from grid (SUMOTree)
-    if (updateGrid) {
-        myViewNet->getNet()->removeGLObjectFromGrid(this);
-    }
-
+GNEVaporizer::updateGeometry() {
     // Clear all containers
     myGeometry.clearGeometry();
 
     // get lanes of edge
-    GNELane* firstLane = myEdge->getLanes().at(0);
+    GNELane* firstLane = getEdgeParents().front()->getLanes().at(0);
 
     // Get shape of lane parent
-    double offset = firstLane->getShape().length() < 2.5 ? firstLane->getShape().length() : 2.5;
-    myGeometry.shape.push_back(firstLane->getShape().positionAtOffset(offset));
+    double offset = firstLane->getGeometry().shape.length() < 2.5 ? firstLane->getGeometry().shape.length() : 2.5;
+    myGeometry.shape.push_back(firstLane->getGeometry().shape.positionAtOffset(offset));
 
     // Save rotation (angle) of the vector constructed by points f and s
-    myGeometry.shapeRotations.push_back(firstLane->getShape().rotationDegreeAtOffset(0) * -1);
+    myGeometry.shapeRotations.push_back(firstLane->getGeometry().shape.rotationDegreeAtOffset(0) * -1);
 
     // Set block icon position
     myBlockIcon.position = myGeometry.shape.getLineCenter();
@@ -76,25 +70,26 @@ GNEVaporizer::updateGeometry(bool updateGrid) {
 
     // Set block icon rotation, and using their rotation for logo
     myBlockIcon.setRotation(firstLane);
-
-    // last step is to check if object has to be added into grid (SUMOTree) again
-    if (updateGrid) {
-        myViewNet->getNet()->addGLObjectIntoGrid(this);
-    }
 }
 
 
 Position
 GNEVaporizer::getPositionInView() const {
-    if (myEdge->getLanes().front()->getShape().length() < 2.5) {
-        return myEdge->getLanes().front()->getShape().front();
+    if (getEdgeParents().front()->getLanes().front()->getGeometry().shape.length() < 2.5) {
+        return getEdgeParents().front()->getLanes().front()->getGeometry().shape.front();
     } else {
-        Position A = myEdge->getLanes().front()->getShape().positionAtOffset(2.5);
-        Position B = myEdge->getLanes().back()->getShape().positionAtOffset(2.5);
+        Position A = getEdgeParents().front()->getLanes().front()->getGeometry().shape.positionAtOffset(2.5);
+        Position B = getEdgeParents().front()->getLanes().back()->getGeometry().shape.positionAtOffset(2.5);
 
         // return Middle point
         return Position((A.x() + B.x()) / 2, (A.y() + B.y()) / 2);
     }
+}
+
+
+Boundary
+GNEVaporizer::getCenteringBoundary() const {
+    return myGeometry.shape.getBoxBoundary().grow(10);
 }
 
 
@@ -112,100 +107,92 @@ GNEVaporizer::commitGeometryMoving(GNEUndoList*) {
 
 std::string
 GNEVaporizer::getParentName() const {
-    return myEdge->getMicrosimID();
+    return getEdgeParents().front()->getMicrosimID();
 }
 
 
 void
 GNEVaporizer::drawGL(const GUIVisualizationSettings& s) const {
-    // get values
-    glPushName(getGlID());
-    double width = (double) 2.0 * s.scale;
-    glLineWidth(1.0);
+    // Obtain exaggeration of the draw
     const double exaggeration = s.addSize.getExaggeration(s, this);
-    const int numberOfLanes = int(myEdge->getLanes().size());
-
-    // set color
-    if (drawUsingSelectColor()) {
-        GLHelper::setColor(s.selectedAdditionalColor);
-    } else {
-        GLHelper::setColor(RGBColor(120, 216, 0));
-    }
-    // draw shape
-    glPushMatrix();
-    glTranslated(0, 0, getType());
-    glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), 0);
-    glRotated(myGeometry.shapeRotations[0], 0, 0, 1);
-    glScaled(exaggeration, exaggeration, 1);
-    glTranslated(-1.6, -1.6, 0);
-    glBegin(GL_QUADS);
-    glVertex2d(0,  0.25);
-    glVertex2d(0, -0.25);
-    glVertex2d((numberOfLanes * 3.3), -0.25);
-    glVertex2d((numberOfLanes * 3.3),  0.25);
-    glEnd();
-    glTranslated(0, 0, .01);
-    glBegin(GL_LINES);
-    glVertex2d(0, 0.25 - .1);
-    glVertex2d(0, -0.25 + .1);
-    glEnd();
-
-    // draw position indicator (White) if isn't being drawn for selecting
-    if ((width * exaggeration > 1) && !s.drawForSelecting) {
+    // first check if additional has to be drawn
+    if (s.drawAdditionals(exaggeration)) {
+        // get values
+        const int numberOfLanes = int(getEdgeParents().front()->getLanes().size());
+        const double width = (double) 2.0 * s.scale;
+        // begin draw
+        glPushName(getGlID());
+        glLineWidth(1.0);
+        // set color
         if (drawUsingSelectColor()) {
-            GLHelper::setColor(s.selectionColor);
+            GLHelper::setColor(s.colorSettings.selectedAdditionalColor);
         } else {
-            GLHelper::setColor(RGBColor::WHITE);
+            GLHelper::setColor(s.colorSettings.vaporizer);
         }
-        glRotated(90, 0, 0, -1);
-        glBegin(GL_LINES);
-        glVertex2d(0, 0);
-        glVertex2d(0, (numberOfLanes * 3.3));
+        // draw shape
+        glPushMatrix();
+        glTranslated(0, 0, getType());
+        glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), 0);
+        glRotated(myGeometry.shapeRotations[0], 0, 0, 1);
+        glScaled(exaggeration, exaggeration, 1);
+        glTranslated(-1.6, -1.6, 0);
+        glBegin(GL_QUADS);
+        glVertex2d(0,  0.25);
+        glVertex2d(0, -0.25);
+        glVertex2d((numberOfLanes * 3.3), -0.25);
+        glVertex2d((numberOfLanes * 3.3),  0.25);
         glEnd();
-    }
-
-    // Pop shape matrix
-    glPopMatrix();
-
-    // Add a draw matrix for drawing logo
-    glPushMatrix();
-    glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), getType());
-    glRotated(myGeometry.shapeRotations[0], 0, 0, 1);
-    glTranslated((-2.56), (-1.6), 0);
-
-    // Draw icon depending of Vaporizer is selected and if isn't being drawn for selecting
-    if (s.drawForSelecting) {
-        GLHelper::setColor(RGBColor::GREEN);
-        GLHelper::drawBoxLine(Position(0, 1), 0, 2, 1);
-    } else {
-        glColor3d(1, 1, 1);
-        glRotated(-90, 0, 0, 1);
-        if (drawUsingSelectColor()) {
-            GUITexturesHelper::drawTexturedBox(GUITextureSubSys::getTexture(GNETEXTURE_VAPORIZERSELECTED), 1);
-        } else {
-            GUITexturesHelper::drawTexturedBox(GUITextureSubSys::getTexture(GNETEXTURE_VAPORIZER), 1);
+        glTranslated(0, 0, .01);
+        glBegin(GL_LINES);
+        glVertex2d(0, 0.25 - .1);
+        glVertex2d(0, -0.25 + .1);
+        glEnd();
+        // draw position indicator (White) if isn't being drawn for selecting
+        if ((width * exaggeration > 1) && !s.drawForSelecting) {
+            if (drawUsingSelectColor()) {
+                GLHelper::setColor(s.colorSettings.selectionColor);
+            } else {
+                GLHelper::setColor(RGBColor::WHITE);
+            }
+            glRotated(90, 0, 0, -1);
+            glBegin(GL_LINES);
+            glVertex2d(0, 0);
+            glVertex2d(0, (numberOfLanes * 3.3));
+            glEnd();
         }
+        // Pop shape matrix
+        glPopMatrix();
+        // Add a draw matrix for drawing logo
+        glPushMatrix();
+        glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), getType());
+        glRotated(myGeometry.shapeRotations[0], 0, 0, 1);
+        glTranslated((-2.56), (-1.6), 0);
+        // Draw icon depending of Vaporizer is selected and if isn't being drawn for selecting
+        if (!s.drawForSelecting && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
+            glColor3d(1, 1, 1);
+            glRotated(-90, 0, 0, 1);
+            if (drawUsingSelectColor()) {
+                GUITexturesHelper::drawTexturedBox(GUITextureSubSys::getTexture(GNETEXTURE_VAPORIZERSELECTED), 1);
+            } else {
+                GUITexturesHelper::drawTexturedBox(GUITextureSubSys::getTexture(GNETEXTURE_VAPORIZER), 1);
+            }
+        } else {
+            GLHelper::setColor(s.colorSettings.vaporizer);
+            GLHelper::drawBoxLine(Position(0, 1), 0, 2, 1);
+        }
+        // Pop logo matrix
+        glPopMatrix();
+        // Show Lock icon
+        myBlockIcon.drawIcon(s, exaggeration, 0.4);
+        // draw name
+        drawName(getPositionInView(), s.scale, s.addName);
+        // check if dotted contour has to be drawn
+        if (myViewNet->getDottedAC() == this) {
+            GLHelper::drawShapeDottedContourRectangle(s, getType(), myGeometry.shape[0], 2, 2, myGeometry.shapeRotations[0], -2.56, -1.6);
+        }
+        // pop name
+        glPopName();
     }
-
-    // Pop logo matrix
-    glPopMatrix();
-
-    // Check if the distance is enought to draw details
-    if ((s.scale * exaggeration >= 10) && !s.drawForSelecting) {
-        // Show Lock icon depending of the Edit mode
-        myBlockIcon.draw(0.4);
-    }
-
-    // draw name
-    drawName(getCenteringBoundary().getCenter(), s.scale, s.addName);
-
-    // check if dotted contour has to be drawn
-    if (!s.drawForSelecting && (myViewNet->getDottedAC() == this)) {
-        GLHelper::drawShapeDottedContour(getType(), myGeometry.shape[0], 2, 2, myGeometry.shapeRotations[0], -2.56, -1.6);
-    }
-
-    // pop name
-    glPopName();
 }
 
 
@@ -216,17 +203,30 @@ GNEVaporizer::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_EDGE:
             return getAdditionalID();
         case SUMO_ATTR_BEGIN:
-            return toString(myBegin);
+            return time2string(myBegin);
         case SUMO_ATTR_END:
-            return toString(myEnd);
+            return time2string(myEnd);
         case SUMO_ATTR_NAME:
             return myAdditionalName;
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
+    }
+}
+
+
+double 
+GNEVaporizer::getAttributeDouble(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_BEGIN:
+            return STEPS2TIME(myBegin);
+        case SUMO_ATTR_END:
+            return STEPS2TIME(myEnd);
+        default:
+            throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -243,7 +243,7 @@ GNEVaporizer::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoLis
         case SUMO_ATTR_END:
         case SUMO_ATTR_NAME:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -263,14 +263,14 @@ GNEVaporizer::isValid(SumoXMLAttr key, const std::string& value) {
                 return false;
             }
         case SUMO_ATTR_BEGIN:
-            if (canParse<double>(value) && (parse<double>(value) >= 0)) {
-                return (parse<double>(value) <= myEnd);
+            if (canParse<SUMOTime>(value)) {
+                return (parse<SUMOTime>(value) <= myEnd);
             } else {
                 return false;
             }
         case SUMO_ATTR_END:
-            if (canParse<double>(value) && (parse<double>(value) >= 0)) {
-                return (myBegin <= parse<double>(value));
+            if (canParse<SUMOTime>(value)) {
+                return (myBegin <= parse<SUMOTime>(value));
             } else {
                 return false;
             }
@@ -278,11 +278,17 @@ GNEVaporizer::isValid(SumoXMLAttr key, const std::string& value) {
             return SUMOXMLDefinitions::isValidAttribute(value);
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+bool 
+GNEVaporizer::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 
@@ -307,13 +313,13 @@ GNEVaporizer::setAttribute(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_ID:
         case SUMO_ATTR_EDGE:
             changeAdditionalID(value);
-            myEdge = changeEdge(myEdge, value);
+            changeEdgeParents(this, value);
             break;
         case SUMO_ATTR_BEGIN:
-            myBegin = parse<double>(value);
+            myBegin = parse<SUMOTime>(value);
             break;
         case SUMO_ATTR_END:
-            myEnd = parse<double>(value);
+            myEnd = parse<SUMOTime>(value);
             break;
         case SUMO_ATTR_NAME:
             myAdditionalName = value;
@@ -325,15 +331,11 @@ GNEVaporizer::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
-    }
-    // Update Geometry after setting a new attribute (but avoided for certain attributes)
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
-        updateGeometry(true);
     }
 }
 

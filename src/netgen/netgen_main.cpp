@@ -78,6 +78,7 @@ fillOptions() {
     oc.addOptionSubTopic("Unregulated Nodes");
     oc.addOptionSubTopic("Junctions");
     oc.addOptionSubTopic("Pedestrian");
+    oc.addOptionSubTopic("Bicycle");
     SystemFrame::addReportOptions(oc); // this subtopic is filled here, too
 
     NGFrame::fillOptions();
@@ -181,7 +182,7 @@ buildNetwork(NBNetBuilder& nb) {
     neighborDist.add(6, oc.getFloat("rand.neighbor-dist6"));
     NGNet* net = new NGNet(nb);
     NGRandomNetBuilder randomNet(*net,
-                                 oc.getFloat("rand.min-angle"),
+                                 DEG2RAD(oc.getFloat("rand.min-angle")),
                                  oc.getFloat("rand.min-distance"),
                                  oc.getFloat("rand.max-distance"),
                                  oc.getFloat("rand.connectivity"),

@@ -84,7 +84,13 @@ public:
     static int getEndingTeleportNumber();
     static std::vector<std::string> getEndingTeleportIDList();
 
+    static std::vector<std::string> getBusStopIDList();
     static int getBusStopWaiting(const std::string& id);
+
+    /** @brief Returns the IDs of the transportables on a given bus stop.
+     */
+    static std::vector<std::string> getBusStopWaitingIDList(const std::string& id);
+
 
     static double getDeltaT();
 
@@ -94,7 +100,7 @@ public:
 
     static TraCIPosition convert3D(const std::string& edgeID, double pos, int laneIndex = 0, bool toGeo = false);
 
-    static TraCIRoadPosition convertRoad(double x, double y, bool isGeo = false);
+    static TraCIRoadPosition convertRoad(double x, double y, bool isGeo = false, const std::string& vClass = "ignoring");
 
     static TraCIPosition convertGeo(double x, double y, bool fromGeo = false);
 
@@ -118,8 +124,7 @@ public:
     static void clearPending(const std::string& routeID = "");
     static void saveState(const std::string& fileName);
 
-    LIBSUMO_SUBSCRIPTION_API
-    static void subscribe(const std::vector<int>& vars = std::vector<int>(), double beginTime = INVALID_DOUBLE_VALUE, double endTime = INVALID_DOUBLE_VALUE);
+    static void subscribe(const std::vector<int>& varIDs = std::vector<int>(), double begin = INVALID_DOUBLE_VALUE, double end = INVALID_DOUBLE_VALUE);
     static const TraCIResults getSubscriptionResults();
 
     static std::shared_ptr<VariableWrapper> makeWrapper();

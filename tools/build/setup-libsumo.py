@@ -18,13 +18,13 @@ from setuptools import setup
 import os
 import version
 
-SUMO_VERSION = version.gitDescribe()[1:-11].replace("_", ".").replace("+", ".")
+SUMO_VERSION = version.gitDescribe(commitPrefix=".", padZero=False)[1:-11].replace("_", ".")
 package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 setup(
     name='libsumo',
     version=SUMO_VERSION,
-    url='http://sumo.dlr.de/wiki/Libsumo',
+    url='https://sumo.dlr.de/wiki/Libsumo',
     author='DLR and contributors',
     author_email='sumo@dlr.de',
     license='EPL-2.0',

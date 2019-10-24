@@ -29,28 +29,28 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poly")
+netedit.changeElement("poly")
 
 # change color manually
-netedit.modifyShapeDefaultValue(3, "white")
+netedit.changeDefaultValue(4, "white")
 
 # change fill
-netedit.modifyShapeDefaultBoolValue(4)
+netedit.changeDefaultBoolValue(5)
 
 # change imgfile (invalid)
-netedit.modifyShapeDefaultValue(8, "%%$%$&$%$%$")
+netedit.changeDefaultValue(9, "%%$%$&$%$%$")
 
 # try to create polygon
 netedit.createSquaredPoly(referencePosition, 100, 50, 100, True)
 
 # change imgfile (inexistent)
-netedit.modifyShapeDefaultValue(8, "paris.ico")
+netedit.changeDefaultValue(9, "paris.ico")
 
 # try to create polygon
 netedit.createSquaredPoly(referencePosition, 200, 50, 100, True)
 
 # change imgfile (valid)
-netedit.modifyShapeDefaultValue(8, "berlin_icon.ico")
+netedit.changeDefaultValue(9, "berlin_icon.ico")
 
 # create polygon
 netedit.createSquaredPoly(referencePosition, 300, 50, 100, True)
@@ -60,10 +60,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

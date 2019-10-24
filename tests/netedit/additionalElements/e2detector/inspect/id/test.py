@@ -29,19 +29,19 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2Detector")
+netedit.changeElement("e2Detector")
 
 # create E2 1
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 170)
 
 # create E2 2
-netedit.leftClick(referencePosition, 450, 150)
+netedit.leftClick(referencePosition, 450, 170)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first E2
-netedit.leftClick(referencePosition, 260, 150)
+netedit.leftClick(referencePosition, 260, 170)
 
 # Change parameter id with a non valid value (Duplicated ID)
 netedit.modifyAttribute(0, "e2Detector_gneE2_1_1", True)
@@ -57,10 +57,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

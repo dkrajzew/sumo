@@ -115,7 +115,9 @@ NBRailwayTopologyAnalyzer::repairTopology(NBNetBuilder& nb) {
     addBidiEdgesBetweenSwitches(nb);
     addBidiEdgesForStops(nb);
     if (OptionsCont::getOptions().getBool("railway.topology.repair.connect-straight")) {
-        addBidiEdgesForStraightConnectivity(nb);
+        addBidiEdgesForStraightConnectivity(nb, true);
+        addBidiEdgesForStraightConnectivity(nb, false);
+        extendBidiEdges(nb);
     }
 }
 
@@ -193,7 +195,7 @@ NBRailwayTopologyAnalyzer::getRailEdges(const NBNode* node,
 
 std::set<NBNode*>
 NBRailwayTopologyAnalyzer::getBrokenRailNodes(NBNetBuilder& nb, bool verbose) {
-    std::set<NBNode*> brokenNodes;;
+    std::set<NBNode*> brokenNodes;
     OutputDevice& device = OutputDevice::getDevice(verbose
                            ? OptionsCont::getOptions().getString("railway.topology.output")
                            : "/dev/null");
@@ -232,6 +234,25 @@ NBRailwayTopologyAnalyzer::getBrokenRailNodes(NBNetBuilder& nb, bool verbose) {
     if (verbose && types.size() > 0) {
         WRITE_MESSAGE("Railway nodes by number of incoming,outgoing edges:")
     }
+    device.openTag("legend");
+    device.openTag("error");
+    device.writeAttr(SUMO_ATTR_ID, "a");
+    device.writeAttr("meaning", "edge pair angle supports driving but both are outgoing");
+    device.closeTag();
+    device.openTag("error");
+    device.writeAttr(SUMO_ATTR_ID, "b");
+    device.writeAttr("meaning", "edge pair angle supports driving but both are incoming");
+    device.closeTag();
+    device.openTag("error");
+    device.writeAttr(SUMO_ATTR_ID, "c");
+    device.writeAttr("meaning", "an incoming edge has a sharp angle to all outgoing edges");
+    device.closeTag();
+    device.openTag("error");
+    device.writeAttr(SUMO_ATTR_ID, "d");
+    device.writeAttr("meaning", "an outgoing edge has a sharp angle from all incoming edges");
+    device.closeTag();
+    device.closeTag();
+
     for (auto it : types) {
         int numBrokenType = 0;
         device.openTag("railNodeType");
@@ -245,10 +266,7 @@ NBRailwayTopologyAnalyzer::getBrokenRailNodes(NBNetBuilder& nb, bool verbose) {
             EdgeVector inRail, outRail;
             getRailEdges(n, inRail, outRail);
             // check if there is a mismatch between angle and edge direction
-            // a) edge pair angle supports driving but both are outgoing
-            // b) edge pair angle supports driving but both are incoming
-            // c) an incoming edge has a sharp angle to all outgoing edges
-            // d) an outgoing edge has a sharp angle from all incoming edges
+            // (see above)
 
             std::string broken = "";
             if (in < 2 && hasStraightPair(n, outRail, outRail)) {
@@ -469,9 +487,9 @@ NBRailwayTopologyAnalyzer::extendBidiEdges(NBNetBuilder& nb) {
             added += extendBidiEdges(nb, e->getToNode(), e);
         }
     }
-    //if (added > 0) {
-    //    std::cout << "Addeded " << added << " bidi-edges as extension of existing bidi edges\n";
-    //}
+    if (added > 0) {
+        WRITE_MESSAGE("Added " + toString(added) + " bidi-edges as extension of existing bidi edges.");
+    }
     return added;
 }
 
@@ -862,23 +880,30 @@ NBRailwayTopologyAnalyzer::addBidiEdgesForStops(NBNetBuilder& nb) {
     int numDisconnected = 0;
     std::set<NBEdge*> addBidiStops;
     std::set<NBEdge*> addBidiEdges;
-    std::set<std::pair<NBPTStop*, NBPTStop*> > visited;
-    for (NBPTLine* line : nb.getPTLineCont().getLines()) {
-        std::vector<NBPTStop*> stops = line->getStops();
+    std::set<std::pair<NBEdge*, NBEdge*> > visited;
+    for (const auto& item : nb.getPTLineCont().getLines()) {
+        NBPTLine* line = item.second;
+        std::vector<NBEdge*> stops = line->getStopEdges(ec);
+        NBEdge* routeStart = line->getRouteStart(ec);
+        NBEdge* routeEnd = line->getRouteEnd(ec);
+        if (routeStart != nullptr) {
+            stops.insert(stops.begin(), routeStart);
+        }
+        if (routeEnd != nullptr) {
+            stops.push_back(routeEnd);
+        }
         if (stops.size() < 2) {
             continue;
         }
         for (auto it = stops.begin(); it + 1 != stops.end(); ++it) {
-            std::pair<NBPTStop*, NBPTStop*> trip(*it, *(it + 1));
+            NBEdge* fromEdge = *it;
+            NBEdge* toEdge = *(it + 1);
+            std::pair<NBEdge*, NBEdge*> trip(fromEdge, toEdge);
+            //std::cout << " trip=" << Named::getIDSecure(fromEdge) << "->" << Named::getIDSecure(toEdge) << " visited=" << (visited.count(trip) != 0) << "\n";
             if (visited.count(trip) != 0) {
                 continue;
             } else {
                 visited.insert(trip);
-            }
-            NBEdge* fromEdge = ec.getByID((*it)->getEdgeId());
-            NBEdge* toEdge = ec.getByID((*(it + 1))->getEdgeId());
-            if (fromEdge == nullptr || toEdge == nullptr) {
-                continue;
             }
             if (stopTracks.count(fromEdge) == 0
                     || stopTracks.count(toEdge) == 0) {
@@ -945,7 +970,7 @@ NBRailwayTopologyAnalyzer::addBidiEdgesForStops(NBNetBuilder& nb) {
 
 
 void
-NBRailwayTopologyAnalyzer::addBidiEdgesForStraightConnectivity(NBNetBuilder& nb) {
+NBRailwayTopologyAnalyzer::addBidiEdgesForStraightConnectivity(NBNetBuilder& nb, bool geometryLike) {
     int added = 0;
     std::set<NBNode*> brokenNodes = getBrokenRailNodes(nb);
     for (const auto& e : nb.getEdgeCont()) {
@@ -957,44 +982,73 @@ NBRailwayTopologyAnalyzer::addBidiEdgesForStraightConnectivity(NBNetBuilder& nb)
         if (brokenNodes.count(from) == 0 && brokenNodes.count(to) == 0) {
             continue;
         }
+        if (e.second->isBidiRail()) {
+            continue;
+        }
         EdgeVector inRailFrom, outRailFrom, inRailTo, outRailTo;
         getRailEdges(from, inRailFrom, outRailFrom);
         getRailEdges(to, inRailTo, outRailTo);
-        bool haveReverse = false;
-        for (const NBEdge* cand : outRailTo) {
-            if (cand->getToNode() == from) {
-                haveReverse = true;
-                break;
-            }
-        }
-        if (haveReverse) {
-            continue;
-        }
-        bool haveStraightFrom = false;
-        for (const NBEdge* fromStraightCand : outRailFrom) {
-            if (fromStraightCand != e.second && isStraight(from, fromStraightCand, e.second)) {
-                haveStraightFrom = true;
-                break;
-            }
-        }
-        if (!haveStraightFrom) {
-            continue;
-        }
-        for (const NBEdge* toStraightCand : inRailTo) {
-            if (toStraightCand != e.second && isStraight(to, toStraightCand, e.second)) {
-                NBEdge* e2 = addBidiEdge(nb, e.second);
-                //std::cout << " add bidiEdge for straight connectivity at edge " << e.second->getID() << " fromBroken=" << brokenNodes.count(from) << " toBroken=" << brokenNodes.count(to) << "\n";
-                if (e2 != nullptr) {
-                    added++;
-                    added += extendBidiEdges(nb, to, e.second);
-                    added += extendBidiEdges(nb, from, e2);
+        // check whether there is a straight edge pointing away from this one at the from-node
+        // and there is no straight incoming edge at the from-node
+        bool haveStraight = false;
+        bool haveStraightReverse = false; 
+        if (!geometryLike || outRailFrom.size() + inRailFrom.size() == 2) {
+            for (const NBEdge* fromStraightCand : outRailFrom) {
+                if (fromStraightCand != e.second && isStraight(from, fromStraightCand, e.second)) {
+                    haveStraightReverse = true;
+                    //std::cout << " haveStraightReverse outRailFrom=" << fromStraightCand->getID() << "\n";
+                    break;
                 }
-                break;
+            }
+            if (haveStraightReverse) {
+                for (const NBEdge* fromStraightCand : inRailFrom) {
+                    if (fromStraightCand != e.second && isStraight(from, fromStraightCand, e.second)) {
+                        haveStraight= true;
+                        //std::cout << " haveStraight inRailFrom=" << fromStraightCand->getID() << "\n";
+                        break;
+                    }
+                }
+            }
+        }
+        if ((!haveStraightReverse || haveStraight) && (!geometryLike || outRailTo.size() + inRailTo.size() == 2)) {
+            // check whether there is a straight edge pointing towards this one at the to-node
+            // and there is no straight outoing edge at the to-node
+            haveStraight = false;
+            haveStraightReverse = false; 
+            for (const NBEdge* toStraightCand : inRailTo) {
+                if (toStraightCand != e.second && isStraight(to, toStraightCand, e.second)) {
+                    haveStraightReverse = true;
+                    //std::cout << " haveStraightReverse inRailTo=" << toStraightCand->getID() << "\n";
+                    break;
+                }
+            }
+            if (haveStraightReverse) {
+                for (const NBEdge* toStraightCand : outRailTo) {
+                    if (toStraightCand != e.second && isStraight(to, toStraightCand, e.second)) {
+                        haveStraight= true;
+                        //std::cout << " haveStraightReverse outRailTo=" << toStraightCand->getID() << "\n";
+                        break;
+                    }
+                }
+            }
+        }
+        //std::cout << "edge=" << e.second->getID() << " haveStraight=" << haveStraight << " haveStraightReverse=" << haveStraightReverse << "\n";
+        if (haveStraightReverse && !haveStraight) {
+            NBEdge* e2 = addBidiEdge(nb, e.second);
+            //std::cout << " add bidiEdge for straight connectivity at edge " << e.second->getID() << " fromBroken=" << brokenNodes.count(from) << " toBroken=" << brokenNodes.count(to) << "\n";
+            if (e2 != nullptr) {
+                added++;
+                added += extendBidiEdges(nb, to, e.second);
+                added += extendBidiEdges(nb, from, e2);
             }
         }
     }
     if (added > 0) {
-        WRITE_MESSAGE("Added " + toString(added) + " bidi-edges to ensure connectivity of straight tracks.");
+        if (geometryLike) {
+            WRITE_MESSAGE("Added " + toString(added) + " bidi-edges to ensure connectivity of straight tracks at geometry-like nodes.");
+        } else {
+            WRITE_MESSAGE("Added " + toString(added) + " bidi-edges to ensure connectivity of straight tracks at switches.");
+        }
     }
 }
 

@@ -21,10 +21,7 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 
@@ -33,7 +30,7 @@ def main(args):
                  "--netstate-dump", "rawdump.xml",
                  "--no-step-log"])
 
-    for step in range(161):
+    for step in range(162):
         traci.simulationStep()
         if step == 120:
             print(traci.vehicle.getDistance('Stapler_00'))

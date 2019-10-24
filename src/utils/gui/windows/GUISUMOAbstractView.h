@@ -94,6 +94,14 @@ public:
      */
     virtual void centerTo(GUIGlID id, bool applyZoom, double zoomDist = 20);
 
+    /** @brief centers to the chosen position
+     * @param[in] pos Position to center view
+     * @param[in] applyZoom Whether to zoom in
+     * @param[in] zoomDist The distance in m to use for the zoom, values < 0 means: use the centeringBoundary
+     * @note caller is responsible for calling update
+     */
+    virtual void centerTo(const Position& pos, bool applyZoom, double zoomDist = 20);
+
     /// @brief centers to the chosen artifact
     void centerTo(const Boundary& bound);
 
@@ -163,17 +171,21 @@ public:
     ///@{
     /** @brief Sets the snapshot time to file map
      * @param[in] snaps The snapshots to take at certain times
+     * @param[in] w The snapshot image width
+     * @param[in] w The snapshot image height
      */
-    void addSnapshot(SUMOTime time, const std::string& file, const int width = -1, const int height = -1);
+    void addSnapshot(SUMOTime time, const std::string& file, const int w = -1, const int h = -1);
 
     /** @brief Takes a snapshots and writes it into the given file
      *
      * The format to use is determined from the extension.
      * If compiled with ffmpeg and a video format is requested it will instantiate a video encoder.
      * @param[in] destFile The name of the file to write the snapshot into
+     * @param[in] w The snapshot image width
+     * @param[in] w The snapshot image height
      * @return The error message, if an error occcured; "" otherwise
      */
-    std::string makeSnapshot(const std::string& destFile, const int width = -1, const int height = -1);
+    std::string makeSnapshot(const std::string& destFile, const int w = -1, const int h = -1);
 
     /// @brief Adds a frame to a video snapshot which will be initialized if neccessary
     virtual void saveFrame(const std::string& destFile, FXColor* buf);
@@ -209,7 +221,11 @@ public:
     GUIVisualizationSettings* getVisualisationSettings() const;
 
     /// @brief recalibrate color scheme according to the current value range
-    virtual void buildColorRainbow(const GUIVisualizationSettings& /*s*/, GUIColorScheme& /*scheme*/, int /*active*/, GUIGlObjectType /*objectType*/) { }
+    virtual void buildColorRainbow(const GUIVisualizationSettings& /*s*/, GUIColorScheme& /*scheme*/, int /*active*/, GUIGlObjectType /*objectType*/,
+                                   bool hide = false, double hideThreshold = 0) {
+        UNUSED_PARAMETER(hide);
+        UNUSED_PARAMETER(hideThreshold);
+    }
 
     /// @brief return list of loaded edgeData attributes
     virtual std::vector<std::string> getEdgeDataAttrs() const {
@@ -218,6 +234,11 @@ public:
 
     /// @brief return list of available edge parameters
     virtual std::vector<std::string> getEdgeLaneParamKeys(bool /*edgeKeys*/) const {
+        return std::vector<std::string>();
+    }
+
+    /// @brief return list of available vehicle parameters
+    virtual std::vector<std::string> getVehicleParamKeys(bool /*vTypeKeys*/) const {
         return std::vector<std::string>();
     }
 
@@ -231,7 +252,7 @@ public:
     // @todo: check why this is here
     double getGridWidth() const;
 
-    /// @brief get grid Height
+    /// @brief get grid height
     // @todo: check why this is here
     double getGridHeight() const;
 
@@ -246,6 +267,7 @@ public:
 
     /// @brief on gaming click
     virtual void onGamingClick(Position /*pos*/);
+    virtual void onGamingRightClick(Position /*pos*/);
 
     /// @brief @name Additional visualisations
     ///@{
@@ -254,14 +276,14 @@ public:
      * @return Always true
      * @see GUIGlObject::drawGLAdditional
      */
-    bool addAdditionalGLVisualisation(const GUIGlObject* const which);
+    bool addAdditionalGLVisualisation(GUIGlObject* const which);
 
     /** @brief Removes an object from the list of objects that show additional things
      * @param[in] which The object to remoe
      * @return True if the object was known, false otherwise
      * @see GUIGlObject::drawGLAdditional
      */
-    bool removeAdditionalGLVisualisation(const GUIGlObject* const which);
+    bool removeAdditionalGLVisualisation(GUIGlObject* const which);
 
     /** @brief Check if an object is added in the additional GL visualitation
      * @param[in] which The object to check
@@ -327,7 +349,7 @@ public:
     /**@brief Returns a position that is mapped to the closest grid point if the grid is active
      * @brief note: formats are pos(x,y,0) por pos(0,0,z)
      */
-    Position snapToActiveGrid(const Position& pos) const;
+    Position snapToActiveGrid(const Position& pos, bool snapXY = true) const;
 
     /// @brief Translate screen position to network position
     Position screenPos2NetPos(int x, int y) const;
@@ -352,6 +374,9 @@ public:
         return std::vector<SUMOTime>();
     }
 
+    /// @brief retrieve FPS
+    double getFPS() const;
+
 protected:
     /// @brief performs the painting of the simulation
     void paintGL();
@@ -368,8 +393,14 @@ protected:
     /// @brief paints a grid
     void paintGLGrid();
 
-    /// @briefDraws a line with ticks, and the length information.
+    /// @brief Draws a line with ticks, and the length information.
     void displayLegend();
+
+    /// @brief Draws a legend for the current edge coloring scheme
+    void displayColorLegend();
+
+    /// @brief Draws frames-per-second indicator
+    void drawFPS();
 
     /// @brief returns the id of the front object under the cursor using GL_SELECT
     GUIGlID getObjectUnderCursor();
@@ -396,8 +427,7 @@ protected:
     void showToolTipFor(const GUIGlID id);
 
 protected:
-    /// @brief FOX need this
-    GUISUMOAbstractView() {}
+	FOX_CONSTRUCTOR(GUISUMOAbstractView)
 
     /// @brief check whether we can read image data or position with gdal
     FXImage* checkGDALImage(Decal& d);
@@ -475,7 +505,10 @@ protected:
     mutable FXMutex myPolyDrawLock;
 
     /// @brief List of objects for which GUIGlObject::drawGLAdditional is called
-    std::map<const GUIGlObject*, int> myAdditionallyDrawn;
+    std::map<GUIGlObject*, int> myAdditionallyDrawn;
+
+    /// @brief counter for measuring rendering time
+    long myFrameDrawTime;
 
 private:
     // @brief sensitivity for "<>AtPosition(...) functions

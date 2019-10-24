@@ -170,19 +170,20 @@ NIXMLEdgesHandler::addEdge(const SUMOSAXAttributes& attrs) {
     myCurrentPriority = myTypeCont.getPriority("");
     myCurrentLaneNo = myTypeCont.getNumLanes("");
     myCurrentEndOffset = NBEdge::UNSPECIFIED_OFFSET;
+    myCurrentType = "";
     if (myCurrentEdge != nullptr) {
         // update existing edge. only update lane-specific settings when explicitly requested
         myIsUpdate = true;
         myCurrentSpeed = NBEdge::UNSPECIFIED_SPEED;
         myPermissions = SVC_UNSPECIFIED;
         myCurrentWidth = NBEdge::UNSPECIFIED_WIDTH;
+        myCurrentType = myCurrentEdge->getTypeID();
     } else {
         // this is a completely new edge. get the type specific defaults
         myCurrentSpeed = myTypeCont.getSpeed("");
         myPermissions = myTypeCont.getPermissions("");
         myCurrentWidth = myTypeCont.getWidth("");
     }
-    myCurrentType = "";
     myShape = PositionVector();
     myLanesSpread = LANESPREAD_RIGHT;
     myLength = NBEdge::UNSPECIFIED_LOADED_LENGTH;
@@ -319,6 +320,9 @@ NIXMLEdgesHandler::addEdge(const SUMOSAXAttributes& attrs) {
     if (myPermissions != SVC_UNSPECIFIED) {
         myCurrentEdge->setPermissions(myPermissions);
     }
+    // try to get the kilometrage/mileage
+    myCurrentEdge->setDistance(attrs.getOpt<double>(SUMO_ATTR_DISTANCE, myCurrentID.c_str(), ok, myCurrentEdge->getDistance()));
+
     myLastParameterised.push_back(myCurrentEdge);
 }
 
@@ -377,8 +381,7 @@ NIXMLEdgesHandler::addLane(const SUMOSAXAttributes& attrs) {
     if (attrs.hasAttribute(SUMO_ATTR_ACCELERATION)) {
         myCurrentEdge->setAcceleration(lane, attrs.get<bool>(SUMO_ATTR_ACCELERATION, myCurrentID.c_str(), ok));
     }
-
-    // check whether this is an acceleration lane
+    // check whether this lane has a custom shape
     if (attrs.hasAttribute(SUMO_ATTR_SHAPE)) {
         PositionVector shape = attrs.get<PositionVector>(SUMO_ATTR_SHAPE, myCurrentID.c_str(), ok);
         if (!NBNetBuilder::transformCoordinates(shape)) {
@@ -386,6 +389,10 @@ NIXMLEdgesHandler::addLane(const SUMOSAXAttributes& attrs) {
             WRITE_ERROR("Unable to project coordinates for lane '" + laneID + "'.");
         }
         myCurrentEdge->setLaneShape(lane, shape);
+    }
+    // set custom lane type
+    if (attrs.hasAttribute(SUMO_ATTR_TYPE)) {
+        myCurrentEdge->setLaneType(lane, attrs.get<std::string>(SUMO_ATTR_TYPE, myCurrentID.c_str(), ok));
     }
     myLastParameterised.push_back(&myCurrentEdge->getLaneStruct(lane));
 }
@@ -411,6 +418,7 @@ void NIXMLEdgesHandler::addSplit(const SUMOSAXAttributes& attrs) {
             WRITE_ERROR("Edge '" + myCurrentID + "' has already a split at position " + toString(e.pos) + ".");
             return;
         }
+        // XXX rounding to int may duplicate the id of another split
         e.nameID = myCurrentID + "." + toString((int)e.pos);
         if (e.pos < 0) {
             e.pos += myCurrentEdge->getGeometry().length();
@@ -445,11 +453,12 @@ void NIXMLEdgesHandler::addSplit(const SUMOSAXAttributes& attrs) {
             return;
         }
         e.node = myNodeCont.retrieve(nodeID);
+        e.offsetFactor = OptionsCont::getOptions().getBool("lefthand") ? -1 : 1;
         if (e.node == nullptr) {
             e.node = new NBNode(nodeID, myCurrentEdge->getGeometry().positionAtOffset(e.pos));
         }
         NIXMLNodesHandler::processNodeType(attrs, e.node, e.node->getID(), e.node->getPosition(), false,
-                                           myNodeCont, myTLLogicCont);
+                                           myNodeCont, myEdgeCont, myTLLogicCont);
         mySplits.push_back(e);
     }
 }
@@ -486,11 +495,6 @@ NIXMLEdgesHandler::setNodes(const SUMOSAXAttributes& attrs) {
     }
     if (myToNode == nullptr) {
         WRITE_ERROR("Edge's '" + myCurrentID + "' to-node '" + endNodeID + "' is not known.");
-    }
-    if (myFromNode != nullptr && myToNode != nullptr) {
-        if (myIsUpdate && (myFromNode->getID() != oldBegID || myToNode->getID() != oldEndID)) {
-            myShape = PositionVector();
-        }
     }
     return myFromNode != nullptr && myToNode != nullptr;
 }

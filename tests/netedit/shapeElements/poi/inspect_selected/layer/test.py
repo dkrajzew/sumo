@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.selectMode()
 
 # select first POI
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 103, 67)
 
 # select second POI
-netedit.leftClick(referencePosition, 150, 50)
+netedit.leftClick(referencePosition, 153, 67)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first POI
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 103, 67)
 
 # Change parameter 5 with a non valid value
 netedit.modifyAttribute(3, "dummyLayer", False)
@@ -57,10 +57,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

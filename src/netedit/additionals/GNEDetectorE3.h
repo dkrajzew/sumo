@@ -47,7 +47,7 @@ public:
      * @param[in] speedThreshold The speed-based threshold that describes how slow a vehicle has to be to be recognized as halting
      * @param[in] block movement enable or disable additional movement
      */
-    GNEDetectorE3(const std::string& id, GNEViewNet* viewNet, Position pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, const double timeThreshold, double speedThreshold, bool blockMovement);
+    GNEDetectorE3(const std::string& id, GNEViewNet* viewNet, Position pos, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, SUMOTime timeThreshold, double speedThreshold, bool blockMovement);
 
     /// @brief GNEDetectorE3 Destructor
     ~GNEDetectorE3();
@@ -65,10 +65,13 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    Boundary getCenteringBoundary() const;
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -92,6 +95,12 @@ public:
      */
     std::string getAttribute(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
      * @param[in] key The attribute key
      * @param[in] value The new value
@@ -106,6 +115,11 @@ public:
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
 
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
+
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
 
@@ -113,12 +127,18 @@ public:
     std::string getHierarchyName() const;
     /// @}
 
+    /// @name inherited from GNEHierarchicalElementChildren
+    /// @{
+    /// @brief update parent after add or remove a child
+    void updateAdditionalParent();
+    /// @}
+
 protected:
     /// @brief position of E3 in view
     Position myPosition;
 
     /// @brief frequency of E3 detector
-    double myFreq;
+    SUMOTime myFreq;
 
     /// @brief fielname of E3 detector
     std::string myFilename;
@@ -127,13 +147,13 @@ protected:
     std::string myVehicleTypes;
 
     /// @brief The time-based threshold that describes how much time has to pass until a vehicle is recognized as halting
-    double myTimeThreshold;
+    SUMOTime myTimeThreshold;
 
     /// @brief The speed-based threshold that describes how slow a vehicle has to be to be recognized as halting
     double mySpeedThreshold;
 
 private:
-    /// @brief check restriction with the number of childs
+    /// @brief check restriction with the number of children
     bool checkAdditionalChildRestriction() const;
 
     /// @brief set attribute after validation

@@ -34,27 +34,13 @@ public:
     ~NBPTLineCont();
 
     /// @brief insert new line
-    void insert(NBPTLine* pLine);
+    void insert(NBPTLine* ptLine);
 
-    /** @brief Returns the pointer to the begin of the stored pt lines
-    * @return The iterator to the beginning of stored pt lines
-    */
-    std::vector<NBPTLine*>::const_iterator begin() const {
-        return myPTLines.begin();
-    }
-
-    /** @brief Returns the pointer to the end of the stored pt lines
-     * @return The iterator to the end of stored pt lines
-     */
-    std::vector<NBPTLine*>::const_iterator end() const {
-        return myPTLines.end();
-    }
-
-    const std::vector<NBPTLine*>& getLines() const {
+    const std::map<std::string, NBPTLine*>& getLines() const {
         return myPTLines;
     }
 
-    void process(NBEdgeCont& cont);
+    void process(NBEdgeCont& ec, NBPTStopCont& sc);
 
     /// @brief add edges that must be kept
     void addEdges2Keep(const OptionsCont& oc, std::set<std::string>& into);
@@ -69,16 +55,23 @@ private:
     static const int BWD;
 
     /// @brief The map of names to pt lines
-    std::vector<NBPTLine*> myPTLines;
+    std::map<std::string, NBPTLine*> myPTLines;
 
-    long long int myIdCnt;
-    void reviseStops(NBPTLine* myPTLine, NBEdgeCont& cont);
+    /// @brief find directional edge for all stops of the line
+    void reviseStops(NBPTLine* line, const NBEdgeCont& ec, NBPTStopCont& sc);
+
+    /* @brief find way element corresponding to the stop
+     * @note: if the edge id is updated, the stop extent is recomputed */
+    NBPTStop* findWay(NBPTLine* line, NBPTStop* stop, const NBEdgeCont& ec, NBPTStopCont& sc) const; 
+
     void constructRoute(NBPTLine* myPTLine, NBEdgeCont& cont);
 
     std::set<std::string> myServedPTStops;
 
-    static double getCost(const NBEdgeCont& ec, SUMOAbstractRouter<NBEdge, NBVehicle>& router,
+    static double getCost(const NBEdgeCont& ec, SUMOAbstractRouter<NBRouterEdge, NBVehicle>& router,
                           const NBPTStop* from, const NBPTStop* to, const NBVehicle* veh);
+
+    static std::string getWayID(const std::string& edgeID); 
 };
 
 

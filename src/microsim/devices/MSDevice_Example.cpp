@@ -106,27 +106,30 @@ MSDevice_Example::~MSDevice_Example() {
 
 
 bool
-MSDevice_Example::notifyMove(SUMOVehicle& veh, double /* oldPos */,
+MSDevice_Example::notifyMove(SUMOTrafficObject& tObject, double /* oldPos */,
                              double /* newPos */, double newSpeed) {
     std::cout << "device '" << getID() << "' notifyMove: newSpeed=" << newSpeed << "\n";
-    // check whether another device is present on the vehicle:
-    MSDevice_Tripinfo* otherDevice = static_cast<MSDevice_Tripinfo*>(veh.getDevice(typeid(MSDevice_Tripinfo)));
-    if (otherDevice != nullptr) {
-        std::cout << "  veh '" << veh.getID() << " has device '" << otherDevice->getID() << "'\n";
+    if (tObject.isVehicle()) {
+        SUMOVehicle& veh = static_cast<SUMOVehicle&>(tObject);
+        // check whether another device is present on the vehicle:
+        MSDevice_Tripinfo* otherDevice = static_cast<MSDevice_Tripinfo*>(veh.getDevice(typeid(MSDevice_Tripinfo)));
+        if (otherDevice != nullptr) {
+            std::cout << "  veh '" << veh.getID() << " has device '" << otherDevice->getID() << "'\n";
+        }
     }
     return true; // keep the device
 }
 
 
 bool
-MSDevice_Example::notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_Example::notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     std::cout << "device '" << getID() << "' notifyEnter: reason=" << reason << " currentEdge=" << veh.getEdge()->getID() << "\n";
     return true; // keep the device
 }
 
 
 bool
-MSDevice_Example::notifyLeave(SUMOVehicle& veh, double /*lastPos*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_Example::notifyLeave(SUMOTrafficObject& veh, double /*lastPos*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     std::cout << "device '" << getID() << "' notifyLeave: reason=" << reason << " currentEdge=" << veh.getEdge()->getID() << "\n";
     return true; // keep the device
 }

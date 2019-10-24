@@ -116,7 +116,7 @@ MSCFModel_ACC::stopSpeed(const MSVehicle* const veh, const double speed, double 
 
 
 double
-MSCFModel_ACC::getSecureGap(const double speed, const double leaderSpeed, const double /* leaderMaxDecel */) const {
+MSCFModel_ACC::getSecureGap(const MSVehicle* const /*veh*/, const MSVehicle* const /*pred*/, const double speed, const double leaderSpeed, const double /* leaderMaxDecel */) const {
     // Accel in gap mode should vanish:
     //      0 = myGapControlGainSpeed * (leaderSpeed - speed) + myGapControlGainSpace * (g - myHeadwayTime * speed);
     // <=>  myGapControlGainSpace * g = - myGapControlGainSpeed * (leaderSpeed - speed) + myGapControlGainSpace * myHeadwayTime * speed;
@@ -126,7 +126,7 @@ MSCFModel_ACC::getSecureGap(const double speed, const double leaderSpeed, const 
 
 
 double
-MSCFModel_ACC::insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel) const {
+MSCFModel_ACC::insertionFollowSpeed(const MSVehicle* const v, double speed, double gap2pred, double predSpeed, double predMaxDecel, const MSVehicle* const /*pred*/) const {
 //#ifdef DEBUG_ACC
 //        std::cout << "MSCFModel_ACC::insertionFollowSpeed(), speed="<<speed<< std::endl;
 //#endif
@@ -141,7 +141,7 @@ MSCFModel_ACC::insertionFollowSpeed(const MSVehicle* const v, double speed, doub
     while (n_iter < max_iter) {
         // proposed acceleration
         const double a = SPEED2ACCEL(followSpeed(v, res, gap2pred, predSpeed, predMaxDecel, nullptr) - res);
-        res = res + damping*a;
+        res = res + damping * a;
 //#ifdef DEBUG_ACC
 //        std::cout << "   n_iter=" << n_iter << ", a=" << a << ", res=" << res << std::endl;
 //#endif
@@ -170,17 +170,17 @@ double MSCFModel_ACC::accelSpeedControl(double vErr) const {
 double MSCFModel_ACC::accelGapControl(const MSVehicle* const veh, const double gap2pred, const double speed, const double predSpeed, double vErr) const {
 
 #ifdef DEBUG_ACC
-    if DEBUG_COND {
-    std::cout << "        applying gapControl" << std::endl;
-}
+    if (DEBUG_COND) {
+        std::cout << "        applying gapControl" << std::endl;
+    }
 #endif
 
 // Gap control law
-double gclAccel = 0.0;
-double desSpacing = myHeadwayTime * speed;
+    double gclAccel = 0.0;
+    double desSpacing = myHeadwayTime * speed;
 // The argument gap2pred does not consider minGap ->  substract minGap!!
 // XXX: It does! (Leo)
-double gap = gap2pred - veh->getVehicleType().getMinGap();
+    double gap = gap2pred - veh->getVehicleType().getMinGap();
     double spacingErr = gap - desSpacing;
     double deltaVel = predSpeed - speed;
 
@@ -209,8 +209,8 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
     double gapLimit_GC = GAP_THRESHOLD_GAPCTRL; // upper gap limit in meters to enable gap control law
 
 #ifdef DEBUG_ACC
-    if DEBUG_COND {
-    std::cout << SIMTIME << " MSCFModel_ACC::_v() for veh '" << veh->getID() << "'\n"
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << " MSCFModel_ACC::_v() for veh '" << veh->getID() << "'\n"
                   << "        gap=" << gap2pred << " speed="  << speed << " predSpeed=" << predSpeed
                   << " desSpeed=" << desSpeed << std::endl;
     }
@@ -228,7 +228,7 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
     if (gap2pred > gapLimit_SC) {
 
 #ifdef DEBUG_ACC
-        if DEBUG_COND {
+        if (DEBUG_COND) {
             std::cout << "        applying speedControl" << std::endl;
         }
 #endif
@@ -251,11 +251,11 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
         if (!cm) {
 
 #ifdef DEBUG_ACC
-            if DEBUG_COND {
-            std::cout << "        applying speedControl" << std::endl;
-        }
+            if (DEBUG_COND) {
+                std::cout << "        applying speedControl" << std::endl;
+            }
 #endif
-        accelACC = accelSpeedControl(vErr);
+            accelACC = accelSpeedControl(vErr);
         } else {
             accelACC = accelGapControl(veh, gap2pred, speed, predSpeed, vErr);
         }
@@ -265,12 +265,12 @@ MSCFModel_ACC::_v(const MSVehicle* const veh, const double gap2pred, const doubl
     double newSpeed = speed + ACCEL2SPEED(accelACC);
 
 #ifdef DEBUG_ACC
-    if DEBUG_COND {
-    std::cout << "        result: accel=" << accelACC << " newSpeed="  << newSpeed << std::endl;
-}
+    if (DEBUG_COND) {
+        std::cout << "        result: accel=" << accelACC << " newSpeed="  << newSpeed << std::endl;
+    }
 #endif
 
-return MAX2(0., newSpeed);
+    return MAX2(0., newSpeed);
 }
 
 

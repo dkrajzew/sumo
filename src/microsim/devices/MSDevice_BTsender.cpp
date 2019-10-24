@@ -82,7 +82,7 @@ MSDevice_BTsender::~MSDevice_BTsender() {
 
 
 bool
-MSDevice_BTsender::notifyEnter(SUMOVehicle& veh, Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_BTsender::notifyEnter(SUMOTrafficObject& veh, Notification reason, const MSLane* /* enteredLane */) {
     if (reason == MSMoveReminder::NOTIFICATION_DEPARTED && sVehicles.find(veh.getID()) == sVehicles.end()) {
         sVehicles[veh.getID()] = new VehicleInformation(veh.getID());
         sVehicles[veh.getID()]->route.push_back(veh.getEdge());
@@ -93,26 +93,28 @@ MSDevice_BTsender::notifyEnter(SUMOVehicle& veh, Notification reason, const MSLa
     if (reason == MSMoveReminder::NOTIFICATION_TELEPORT || reason == MSMoveReminder::NOTIFICATION_JUNCTION) {
         sVehicles[veh.getID()]->route.push_back(veh.getEdge());
     }
-    const MSVehicle& v = static_cast<MSVehicle&>(veh);
-    sVehicles[veh.getID()]->updates.push_back(VehicleState(veh.getSpeed(), veh.getPosition(), v.getLane()->getID(), veh.getPositionOnLane(), v.getRoutePosition()));
+    const std::string location = MSGlobals::gUseMesoSim ? veh.getEdge()->getID() : static_cast<MSVehicle&>(veh).getLane()->getID();
+    const MSBaseVehicle& v = static_cast<MSBaseVehicle&>(veh);
+    sVehicles[veh.getID()]->updates.push_back(VehicleState(veh.getSpeed(), veh.getPosition(), location, veh.getPositionOnLane(), v.getRoutePosition()));
     return true;
 }
 
 
 bool
-MSDevice_BTsender::notifyMove(SUMOVehicle& veh, double /* oldPos */, double newPos, double newSpeed) {
+MSDevice_BTsender::notifyMove(SUMOTrafficObject& veh, double /* oldPos */, double newPos, double newSpeed) {
     if (sVehicles.find(veh.getID()) == sVehicles.end()) {
         WRITE_WARNING("btsender: Can not update position of vehicle '" + veh.getID() + "' which is not on the road.");
         return true;
     }
-    const MSVehicle& v = static_cast<MSVehicle&>(veh);
-    sVehicles[veh.getID()]->updates.push_back(VehicleState(newSpeed, veh.getPosition(), v.getLane()->getID(), newPos, v.getRoutePosition()));
+    const std::string location = MSGlobals::gUseMesoSim ? veh.getEdge()->getID() : static_cast<MSVehicle&>(veh).getLane()->getID();
+    const MSBaseVehicle& v = static_cast<MSBaseVehicle&>(veh);
+    sVehicles[veh.getID()]->updates.push_back(VehicleState(newSpeed, veh.getPosition(), location, newPos, v.getRoutePosition()));
     return true;
 }
 
 
 bool
-MSDevice_BTsender::notifyLeave(SUMOVehicle& veh, double /* lastPos */, Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_BTsender::notifyLeave(SUMOTrafficObject& veh, double /* lastPos */, Notification reason, const MSLane* /* enteredLane */) {
     if (reason < MSMoveReminder::NOTIFICATION_TELEPORT) {
         return true;
     }
@@ -120,8 +122,9 @@ MSDevice_BTsender::notifyLeave(SUMOVehicle& veh, double /* lastPos */, Notificat
         WRITE_WARNING("btsender: Can not update position of vehicle '" + veh.getID() + "' which is not on the road.");
         return true;
     }
-    const MSVehicle& v = static_cast<MSVehicle&>(veh);
-    sVehicles[veh.getID()]->updates.push_back(VehicleState(veh.getSpeed(), veh.getPosition(), v.getLane()->getID(), veh.getPositionOnLane(), v.getRoutePosition()));
+    const std::string location = MSGlobals::gUseMesoSim ? veh.getEdge()->getID() : static_cast<MSVehicle&>(veh).getLane()->getID();
+    const MSBaseVehicle& v = static_cast<MSBaseVehicle&>(veh);
+    sVehicles[veh.getID()]->updates.push_back(VehicleState(veh.getSpeed(), veh.getPosition(), location, veh.getPositionOnLane(), v.getRoutePosition()));
     if (reason >= MSMoveReminder::NOTIFICATION_TELEPORT) {
         sVehicles[veh.getID()]->amOnNet = false;
     }

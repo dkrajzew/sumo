@@ -223,8 +223,17 @@ public:
     //// @brief add a position
     void add(double xoff, double yoff, double zoff);
 
-    //// @brief add a position
+    //// @brief substract a position
     void add(const Position& offset);
+
+    //// @brief add a position
+    void sub(double xoff, double yoff, double zoff);
+
+    //// @brief substract a position
+    void sub(const Position& offset);
+
+    //// @brief adds a position without modifying the vector itself but returning the result
+    PositionVector added(const Position& offset) const;
 
     //// @brief mirror coordinates along the x-axis
     void mirrorX();
@@ -263,10 +272,10 @@ public:
     static Position sideOffset(const Position& beg, const Position& end, const double amount);
 
     /// @brief move position vector to side using certain ammount
-    void move2side(double amount);
+    void move2side(double amount, double maxExtension = 100);
 
     /// @brief move position vector to side using a custom offset for each geometry point
-    void move2side(std::vector<double> amount);
+    void move2side(std::vector<double> amount, double maxExtension = 100);
 
     /// @brief get angle  in certain position of position vector
     double angleAt2D(int pos) const;
@@ -318,6 +327,9 @@ public:
 
     /// @brief return the nearest offest to point 2D
     double nearest_offset_to_point2D(const Position& p, bool perpendicular = true) const;
+
+    /// @brief return the nearest offest to point 2D projected onto the 3D geometry
+    double nearest_offset_to_point25D(const Position& p, bool perpendicular = true) const;
 
     /** @brief return position p within the length-wise coordinate system
      * defined by this position vector. The x value is the same as that returned
@@ -390,6 +402,9 @@ public:
      * @param[out] maxJump The maximum vertical jump (with grade infinity)
      */
     double getMaxGrade(double& maxJump) const;
+
+    /// @brief return a bezier interpolation
+    PositionVector bezier(int numPoints);
 
 private:
     /// @brief return whether the line segments defined by Line p11,p12 and Line p21,p22 intersect

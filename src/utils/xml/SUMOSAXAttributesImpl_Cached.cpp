@@ -56,7 +56,7 @@ SUMOSAXAttributesImpl_Cached::SUMOSAXAttributesImpl_Cached(
     SUMOSAXAttributes(objectType),
     myPredefinedTagsMML(predefinedTagsMML) {
     // parse <SumoXMLAttr, string> to <string, string>
-    for (const auto &i : attrs) {
+    for (const auto& i : attrs) {
         myAttrs[toString(i.first)] = i.second;
     }
 }
@@ -182,6 +182,17 @@ SUMOSAXAttributesImpl_Cached::getRightOfWay(bool& ok) const {
     return RIGHT_OF_WAY_DEFAULT;
 }
 
+FringeType
+SUMOSAXAttributesImpl_Cached::getFringeType(bool& ok) const {
+    if (hasAttribute(SUMO_ATTR_FRINGE)) {
+        std::string fringeString = getString(SUMO_ATTR_FRINGE);
+        if (SUMOXMLDefinitions::FringeTypeValues.hasString(fringeString)) {
+            return SUMOXMLDefinitions::FringeTypeValues.get(fringeString);
+        }
+        ok = false;
+    }
+    return FRINGE_TYPE_DEFAULT;
+}
 
 RGBColor
 SUMOSAXAttributesImpl_Cached::getColor() const {

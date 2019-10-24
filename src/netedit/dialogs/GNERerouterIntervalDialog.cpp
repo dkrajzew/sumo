@@ -20,26 +20,14 @@
 // ===========================================================================
 #include <config.h>
 
-#include <iostream>
 #include <utils/gui/windows/GUIAppEnum.h>
-#include <utils/gui/images/GUIIconSubSys.h>
 #include <utils/gui/div/GUIDesigns.h>
-#include <utils/common/MsgHandler.h>
 #include <netedit/changes/GNEChange_Additional.h>
-#include <netedit/additionals/GNERerouter.h>
-#include <netedit/additionals/GNERerouterInterval.h>
-#include <netedit/additionals/GNEClosingLaneReroute.h>
-#include <netedit/additionals/GNEClosingReroute.h>
-#include <netedit/additionals/GNEDestProbReroute.h>
-#include <netedit/additionals/GNERouteProbReroute.h>
-#include <netedit/netelements/GNEEdge.h>
-#include <netedit/netelements/GNELane.h>
 #include <netedit/GNEViewNet.h>
 #include <netedit/GNENet.h>
 #include <netedit/GNEUndoList.h>
 
 #include "GNERerouterIntervalDialog.h"
-#include "GNERerouterDialog.h"
 
 
 // ===========================================================================
@@ -96,38 +84,38 @@ GNERerouterIntervalDialog::GNERerouterIntervalDialog(GNEAdditional* rerouterInte
     myParkingAreaReroutesValid(true),
     myRouteProbReroutesValid(true) {
     // fill closing Reroutes
-    for (auto i : myEditedAdditional->getAdditionalChilds()) {
+    for (auto i : myEditedAdditional->getAdditionalChildren()) {
         if (i->getTagProperty().getTag() == SUMO_TAG_CLOSING_REROUTE) {
             myClosingReroutesEdited.push_back(i);
         }
     }
     // fill closing Lane Reroutes
-    for (auto i : myEditedAdditional->getAdditionalChilds()) {
+    for (auto i : myEditedAdditional->getAdditionalChildren()) {
         if (i->getTagProperty().getTag() == SUMO_TAG_CLOSING_LANE_REROUTE) {
             myClosingLaneReroutesEdited.push_back(i);
         }
     }
     // fill Dest Prob Reroutes
-    for (auto i : myEditedAdditional->getAdditionalChilds()) {
+    for (auto i : myEditedAdditional->getAdditionalChildren()) {
         if (i->getTagProperty().getTag() == SUMO_TAG_DEST_PROB_REROUTE) {
             myDestProbReroutesEdited.push_back(i);
         }
     }
     // fill Route Prob Reroutes
-    for (auto i : myEditedAdditional->getAdditionalChilds()) {
+    for (auto i : myEditedAdditional->getAdditionalChildren()) {
         if (i->getTagProperty().getTag() == SUMO_TAG_ROUTE_PROB_REROUTE) {
             myRouteProbReroutesEdited.push_back(i);
         }
     }
     // fill Parking Area reroutes
-    for (auto i : myEditedAdditional->getAdditionalChilds()) {
+    for (auto i : myEditedAdditional->getAdditionalChildren()) {
         if (i->getTagProperty().getTag() == SUMO_TAG_PARKING_ZONE_REROUTE) {
             myParkingAreaRerouteEdited.push_back(i);
         }
     }
     // change default header
     std::string typeOfOperation = myUpdatingElement ? "Edit " + myEditedAdditional->getTagStr() + " of " : "Create " + myEditedAdditional->getTagStr() + " for ";
-    changeAdditionalDialogHeader(typeOfOperation + myEditedAdditional->getFirstAdditionalParent()->getTagStr() + " '" + myEditedAdditional->getFirstAdditionalParent()->getID() + "'");
+    changeAdditionalDialogHeader(typeOfOperation + myEditedAdditional->getAdditionalParents().at(0)->getTagStr() + " '" + myEditedAdditional->getAdditionalParents().at(0)->getID() + "'");
 
     // Create auxiliar frames for tables
     FXHorizontalFrame* columns = new FXHorizontalFrame(myContentFrame, GUIDesignUniformHorizontalFrame);
@@ -142,9 +130,9 @@ GNERerouterIntervalDialog::GNERerouterIntervalDialog(GNEAdditional* rerouterInte
 
     // create horizontal frame for begin and end text fields
     FXHorizontalFrame* beginEndElementsRight = new FXHorizontalFrame(columnRight, GUIDesignAuxiliarHorizontalFrame);
-    myBeginTextField = new FXTextField(beginEndElementsRight, GUIDesignTextFieldNCol, this, MID_GNE_REROUTEDIALOG_EDIT_INTERVAL, GUIDesignTextFieldReal);
+    myBeginTextField = new FXTextField(beginEndElementsRight, GUIDesignTextFieldNCol, this, MID_GNE_REROUTEDIALOG_EDIT_INTERVAL, GUIDesignTextField);
     myBeginTextField->setText(toString(myEditedAdditional->getAttribute(SUMO_ATTR_BEGIN)).c_str());
-    myEndTextField = new FXTextField(beginEndElementsRight, GUIDesignTextFieldNCol, this, MID_GNE_REROUTEDIALOG_EDIT_INTERVAL, GUIDesignTextFieldReal);
+    myEndTextField = new FXTextField(beginEndElementsRight, GUIDesignTextFieldNCol, this, MID_GNE_REROUTEDIALOG_EDIT_INTERVAL, GUIDesignTextField);
     myEndTextField->setText(toString(myEditedAdditional->getAttribute(SUMO_ATTR_END)).c_str());
 
     // Create labels and tables
@@ -184,13 +172,13 @@ GNERerouterIntervalDialog::GNERerouterIntervalDialog(GNEAdditional* rerouterInte
     myParkingAreaRerouteTable->setSelTextColor(FXRGBA(0, 0, 0, 255));
 
     // disable add parkingAreaReroute Button and change label if there isn't parkingAreas in net
-    if (rerouterInterval->getViewNet()->getNet()->getAdditionalByType(SUMO_TAG_PARKING_AREA).size() == 0) {
+    if (rerouterInterval->getViewNet()->getNet()->getAttributeCarriers().additionals.at(SUMO_TAG_PARKING_AREA).size() == 0) {
         parkingAreaRerouteButton->disable();
         parkingAreaRerouteLabel->setText(("There isn't " + toString(SUMO_TAG_PARKING_AREA) + "s in net").c_str());
     }
 
     // disable add routeProbReroute Button and change label if the rerouter has multiple edges (random routes can only work from one edge)
-    if (rerouterInterval->getFirstAdditionalParent()->getEdgeChilds().size() > 1) {
+    if (rerouterInterval->getAdditionalParents().at(0)->getEdgeChildren().size() > 1) {
         myAddRouteProbReroute->disable();
         routeProbRerouteLabel->setText("Rerouter has more than one edge");
     }
@@ -221,8 +209,8 @@ GNERerouterIntervalDialog::~GNERerouterIntervalDialog() {}
 long
 GNERerouterIntervalDialog::onCmdAccept(FXObject*, FXSelector, void*) {
     // set strings for dialogs
-    std::string errorTitle = "Error" + toString(myUpdatingElement ? "updating" : "creating") + " " + myEditedAdditional->getTagStr() + " of " + myEditedAdditional->getFirstAdditionalParent()->getTagStr();
-    std::string operationType = myEditedAdditional->getFirstAdditionalParent()->getTagStr() + "'s " + myEditedAdditional->getTagStr() + " cannot be " + (myUpdatingElement ? "updated" : "created") + " because ";
+    std::string errorTitle = "Error" + toString(myUpdatingElement ? "updating" : "creating") + " " + myEditedAdditional->getTagStr() + " of " + myEditedAdditional->getAdditionalParents().at(0)->getTagStr();
+    std::string operationType = myEditedAdditional->getAdditionalParents().at(0)->getTagStr() + "'s " + myEditedAdditional->getTagStr() + " cannot be " + (myUpdatingElement ? "updated" : "created") + " because ";
     if (myBeginEndValid == false) {
         // write warning if netedit is running in testing mode
         WRITE_DEBUG("Opening FXMessageBox of type 'warning'");
@@ -628,7 +616,7 @@ GNERerouterIntervalDialog::onCmdChangeBeginEnd(FXObject*, FXSelector, void*) {
         myEditedAdditional->setAttribute(SUMO_ATTR_BEGIN, myBeginTextField->getText().text(), myEditedAdditional->getViewNet()->getUndoList());
         myEditedAdditional->setAttribute(SUMO_ATTR_END, myEndTextField->getText().text(), myEditedAdditional->getViewNet()->getUndoList());
         // sort intervals of rerouter
-        myEditedAdditional->sortAdditionalChilds();
+        myEditedAdditional->sortAdditionalChildren();
         // change icon
         myBeginEndValid = true;
         myCheckLabel->setIcon(GUIIconSubSys::getIcon(ICON_CORRECT));

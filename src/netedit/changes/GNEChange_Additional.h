@@ -27,10 +27,13 @@
 // ===========================================================================
 // class declarations
 // ===========================================================================
-class GNEAdditional;
+
 class GNEViewNet;
-class GNELane;
 class GNEEdge;
+class GNELane;
+class GNEShape;
+class GNEAdditional;
+class GNEDemandElement;
 
 // ===========================================================================
 // class definitions
@@ -73,23 +76,35 @@ private:
      */
     GNEAdditional* myAdditional;
 
-    /// @brief pointer to lane parents (used by additionals with lane parent)
-    std::vector<GNELane*> myLaneParents;
+    /// @brief reference to vector of edge parents
+    const std::vector<GNEEdge*>& myEdgeParents;
 
-    /// @brief pointer to edge parents (used by additionals with edge parents)
-    std::vector<GNEEdge*> myEdgeParents;
+    /// @brief reference to vector of lane parents
+    const std::vector<GNELane*>& myLaneParents;
 
-    /// @brief pointer to first additional parent (used by additional with parents, for example Entry/exits)
-    GNEAdditional* myFirstAdditionalParent;
+    /// @brief reference to vector of shape parents
+    const std::vector<GNEShape*>& myShapeParents;
 
-    /// @brief pointer to second additional parent (used by additional with parents, for example Entry/exits)
-    GNEAdditional* mySecondAdditionalParent;
+    /// @brief reference to vector of additional parents
+    const std::vector<GNEAdditional*>& myAdditionalParents;
 
-    /// @brief list of Edge childs (used by Rerouters)
-    std::vector<GNEEdge*> myEdgeChilds;
+    /// @brief reference to vector of demand element parents
+    const std::vector<GNEDemandElement*>& myDemandElementParents;
 
-    /// @brief list of Edge childs (used by VSS)
-    std::vector<GNELane*> myLaneChilds;
+    /// @brief reference to vector of edge children
+    const std::vector<GNEEdge*>& myEdgeChildren;
+
+    /// @brief reference to vector of lane children
+    const std::vector<GNELane*>& myLaneChildren;
+
+    /// @brief reference to vector of shape children
+    const std::vector<GNEShape*>& myShapeChildren;
+
+    /// @brief reference to vector of additional children
+    const std::vector<GNEAdditional*>& myAdditionalChildren;
+
+    /// @brief reference to vector of demand element children
+    const std::vector<GNEDemandElement*>& myDemandElementChildren;
 };
 
 #endif

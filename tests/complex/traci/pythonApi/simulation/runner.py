@@ -23,15 +23,12 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 
 def checkVehicleStates():
-    print("time", traci.simulation.getCurrentTime())
+    print("time", traci.simulation.getTime())
     print("#loaded", traci.simulation.getLoadedNumber())
     print("loaded", traci.simulation.getLoadedIDList())
     print("#departed", traci.simulation.getDepartedNumber())
@@ -76,10 +73,14 @@ print("convertRoad2D", traci.simulation.convert2D("o", 0.))
 print("convertRoad3D", traci.simulation.convert3D("o", 0.))
 print("convertRoadGeo", traci.simulation.convert2D("o", 0., toGeo=True))
 print("convertRoadGeoAlt", traci.simulation.convert3D("o", 0., toGeo=True))
+print("convertRoad2D length", traci.simulation.convert2D("2o", 8000.))
 print("convert2DGeo", traci.simulation.convertGeo(488.65, 501.65))
 print("convertGeo2D", traci.simulation.convertGeo(12, 48, True))
 print("convert2DRoad", traci.simulation.convertRoad(488.65, 501.65))
 print("convertGeoRoad", traci.simulation.convertRoad(12, 48.1, True))
+print("convertGeoRoadBus", traci.simulation.convertRoad(12, 48.1, True, "bus"))
+traci.lane.setDisallowed("o_0", ["bus"])
+print("convertGeoRoadBusDisallowed", traci.simulation.convertRoad(12, 48.1, True, "bus"))
 print("distance2D", traci.simulation.getDistance2D(
     488.65, 501.65, 498.65, 501.65))
 print("drivingDistance2D", traci.simulation.getDistance2D(
@@ -109,12 +110,18 @@ except traci.TraCIException as e:
 print("getParameter charginStation.totalEnergyCharged",
       traci.simulation.getParameter("cs1", "chargingStation.totalEnergyCharged"))
 print("getParameter chargingStation.name", traci.simulation.getParameter("cs1", "chargingStation.name"))
+print("getParameter chargingStation.lane", traci.simulation.getParameter("cs1", "chargingStation.lane"))
+print("getParameter chargingStation.key1", traci.simulation.getParameter("cs1", "chargingStation.key1"))
 
 print("getParameter parkingArea.capacity", traci.simulation.getParameter("pa1", "parkingArea.capacity"))
 print("getParameter parkingArea.occupancy", traci.simulation.getParameter("pa1", "parkingArea.occupancy"))
 print("getParameter parkingArea.name", traci.simulation.getParameter("pa1", "parkingArea.name"))
+print("getParameter parkingArea.lane", traci.simulation.getParameter("pa1", "parkingArea.lane"))
+print("getParameter parkingArea.key3", traci.simulation.getParameter("pa1", "parkingArea.key3"))
 
 print("getParameter busStop.name", traci.simulation.getParameter("bs", "busStop.name"))
+print("getParameter busStop.lane", traci.simulation.getParameter("bs", "busStop.lane"))
+print("getParameter busStop.key2", traci.simulation.getParameter("bs", "busStop.key2"))
 
 try:
     print("getBusStopWaiting", traci.simulation.getBusStopWaiting("foo"))
@@ -123,6 +130,7 @@ except traci.TraCIException as e:
         print(e, file=sys.stderr)
 
 print("getBusStopWaiting", traci.simulation.getBusStopWaiting("bs"))
+print("getBusStopWaitingIDList", traci.simulation.getBusStopWaitingIDList("bs"))
 
 try:
     print("findRoute", traci.simulation.findRoute("foo", "fup"))
@@ -168,9 +176,6 @@ for step in range(12):
         checkVehicleStates()
     print(traci.simulation.getSubscriptionResults())
 
-try:
-    print("check whether GUI is present", traci.gui.hasView("blub"))
-except traci.TraCIException as e:
-    if traci.isLibsumo():
-        print(e, file=sys.stderr)
+print("check whether GUI is present", traci.hasGUI())
+traci.simulationStep()
 traci.close()

@@ -44,6 +44,7 @@
 #include "cfmodels/MSCFModel_Daniel1.h"
 #include "cfmodels/MSCFModel_PWag2009.h"
 #include "cfmodels/MSCFModel_Wiedemann.h"
+#include "cfmodels/MSCFModel_W99.h"
 #include "cfmodels/MSCFModel_ACC.h"
 #include "cfmodels/MSCFModel_CACC.h"
 #include "MSVehicleControl.h"
@@ -323,6 +324,9 @@ MSVehicleType::build(SUMOVTypeParameter& from) {
         case SUMO_TAG_CF_WIEDEMANN:
             vtype->myCarFollowModel = new MSCFModel_Wiedemann(vtype);
             break;
+        case SUMO_TAG_CF_W99:
+            vtype->myCarFollowModel = new MSCFModel_W99(vtype);
+            break;
         case SUMO_TAG_CF_RAIL:
             vtype->myCarFollowModel = new MSCFModel_Rail(vtype);
             break;
@@ -340,12 +344,23 @@ MSVehicleType::build(SUMOVTypeParameter& from) {
             vtype->myCarFollowModel = new MSCFModel_Krauss(vtype);
             break;
     }
-    // init further param values
-    vtype->initParameters();
+    // init Rail visualization parameters
+    vtype->initRailVisualizationParameters();
     vtype->check();
     return vtype;
 }
 
+SUMOTime
+MSVehicleType::getEntryManoeuvreTime(const int angle) const
+{
+    return (getParameter().getEntryManoeuvreTime(angle));
+}
+
+SUMOTime
+MSVehicleType::getExitManoeuvreTime(const int angle) const
+{
+    return (getParameter().getExitManoeuvreTime(angle));
+}
 
 MSVehicleType*
 MSVehicleType::buildSingularType(const std::string& id) const {
@@ -438,10 +453,10 @@ MSVehicleType::setTau(double tau) {
 
 
 void
-MSVehicleType::initParameters() {
+MSVehicleType::initRailVisualizationParameters() {
     if (myParameter.knowsParameter("carriageLength")) {
         myParameter.carriageLength = StringUtils::toDouble(myParameter.getParameter("carriageLength"));
-    } else {
+    } else if (myParameter.wasSet(VTYPEPARS_SHAPE_SET)) {
         switch (myParameter.shape) {
             case SVS_BUS_FLEXIBLE:
                 myParameter.carriageLength = 8.25; // 16.5 overall, 2 modules http://de.wikipedia.org/wiki/Ikarus_180

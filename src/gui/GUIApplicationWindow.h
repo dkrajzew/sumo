@@ -142,6 +142,9 @@ public:
     long onCmdOpenRecent(FXObject*, FXSelector, void*);
 
     /// @brief Called on menu File->Close
+    long onCmdSaveConfig(FXObject*, FXSelector, void*);
+
+    /// @brief Called on menu File->Close
     long onCmdClose(FXObject*, FXSelector, void*);
 
     /** @brief Called by FOX if the application shall be closed
@@ -311,10 +314,10 @@ private:
 
     /// @brief handles additional game-related events
     void checkGamingEvents();
+    void checkGamingEventsDRT();
 
 protected:
-    /// FOX needs this for static members
-    GUIApplicationWindow() { }
+    FOX_CONSTRUCTOR(GUIApplicationWindow)
 
 protected:
     /// Builds the menu bar
@@ -334,7 +337,7 @@ protected:
     GUIRunThread* myRunThread;
 
     /// @brief  the information whether the simulation was started before
-    bool myWasStarted;
+    bool myWasStarted = false;
 
     /// @brief The current view number
     int myViewNumber;
@@ -343,35 +346,35 @@ protected:
     bool myAmLoading;
 
     /// @brief the submenus
-    FXMenuPane* myFileMenu, *myEditMenu, *mySelectByPermissions, *mySettingsMenu,
-                *myLocatorMenu, *myControlMenu,
-                *myWindowsMenu, *myHelpMenu;
+    FXMenuPane* myFileMenu = nullptr, *myEditMenu = nullptr, *mySelectByPermissions = nullptr, *mySettingsMenu = nullptr,
+                *myLocatorMenu, *myControlMenu = nullptr,
+                *myWindowsMenu, *myHelpMenu = nullptr;
 
     /// @brief the menu cascades
-    FXMenuCascade* mySelectLanesMenuCascade;
+    FXMenuCascade* mySelectLanesMenuCascade = nullptr;
 
     /// @brief Buttons showing and running values and triggering statistic windows
     std::vector<FXButton*> myStatButtons;
 
     /// @brief A window to display messages, warnings and error in
-    GUIMessageWindow* myMessageWindow;
+    GUIMessageWindow* myMessageWindow = nullptr;
 
-    /// @brief The splitter that divides the main window into vies and the log window
-    FXSplitter* myMainSplitter;
+    /// @brief The splitter that divides the main window into views and the log window
+    FXSplitter* myMainSplitter = nullptr;
 
     /// @brief for some menu detaching fun
-    FXToolBarShell* myToolBarDrag1, *myToolBarDrag2, *myToolBarDrag3,
-                    *myToolBarDrag4, *myToolBarDrag5, *myMenuBarDrag,
-                    *myToolBarDrag8;
+    FXToolBarShell* myToolBarDrag1 = nullptr, *myToolBarDrag2 = nullptr, *myToolBarDrag3 = nullptr,
+                    *myToolBarDrag4 = nullptr, *myToolBarDrag5 = nullptr, *myMenuBarDrag = nullptr,
+                    *myToolBarDrag8 = nullptr;
 
     /// @brief the simulation delay in milliseconds
-    double mySimDelay;
-    FXDataTarget* mySimDelayTarget;
-    FXRealSpinner* mySimDelaySpinner;
-    FXSlider* mySimDelaySlider;
+    double mySimDelay = 0.;
+    FXDataTarget* mySimDelayTarget = nullptr;
+    FXRealSpinner* mySimDelaySpinner = nullptr;
+    FXSlider* mySimDelaySlider = nullptr;
 
     /// @brief the demand scale
-    FXRealSpinner* myDemandScaleSpinner;
+    FXRealSpinner* myDemandScaleSpinner = nullptr;
 
     /// @brief The alternate simulation delay in milliseconds for toggling
     double myAlternateSimDelay;
@@ -380,16 +383,16 @@ protected:
     FXSynchQue<GUIEvent*> myEvents;
 
     /// @brief The menu used for the MDI-windows
-    FXMDIMenu* myMDIMenu;
+    FXMDIMenu* myMDIMenu = nullptr;
 
     /// @brief The application menu bar
-    FXMenuBar* myMenuBar;
+    FXMenuBar* myMenuBar = nullptr;
 
     /// @brief The application tool bar
-    FXToolBar* myToolBar1, *myToolBar2, *myToolBar3, *myToolBar4, *myToolBar5, *myToolBar8;
+    FXToolBar* myToolBar1 = nullptr, *myToolBar2 = nullptr, *myToolBar3 = nullptr, *myToolBar4 = nullptr, *myToolBar5 = nullptr, *myToolBar8 = nullptr;
 
     /// @brief the simulation step display
-    FXEX::FXLCDLabel* myLCDLabel;
+    FXEX::FXLCDLabel* myLCDLabel = nullptr;
 
     /// @brief io-event with the load-thread
     FXEX::FXThreadEvent myLoadThreadEvent;
@@ -429,14 +432,20 @@ protected:
     /// @brief A random number generator used to choose a gaming sound
     static std::mt19937 myGamingRNG;
     int myPreviousCollisionNumber;
+    /// @brief current game mode
+    bool myTLSGame;
 
     /// @brief performance indicators
-    FXEX::FXLCDLabel* myWaitingTimeLabel;
-    FXEX::FXLCDLabel* myTimeLossLabel;
+    FXEX::FXLCDLabel* myWaitingTimeLabel = nullptr;
+    FXEX::FXLCDLabel* myTimeLossLabel = nullptr;
+    FXEX::FXLCDLabel* myTotalDistanceLabel = nullptr;
+    FXEX::FXLCDLabel* myEmergencyVehicleLabel = nullptr;
     SUMOTime myWaitingTime;
     SUMOTime myTimeLoss;
-    FXToolBar* myToolBar6, *myToolBar7;
-    FXToolBarShell* myToolBarDrag6, *myToolBarDrag7;
+    SUMOTime myEmergencyVehicleCount;
+    double myTotalDistance;
+    FXToolBar* myToolBar6 = nullptr, *myToolBar7 = nullptr, *myToolBar9 = nullptr, *myToolBar10 = nullptr;
+    FXToolBarShell* myToolBarDrag6 = nullptr, *myToolBarDrag7 = nullptr, *myToolBarDrag9 = nullptr, *myToolBarDrag10 = nullptr;
     ////}
 
 };

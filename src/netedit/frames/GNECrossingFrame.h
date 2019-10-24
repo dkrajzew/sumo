@@ -96,8 +96,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        EdgesSelector() {}
+        FOX_CONSTRUCTOR(EdgesSelector)
 
     private:
         /// @brief pointer to GNECrossingFrame parent
@@ -174,8 +173,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        CrossingParameters() {}
+        FOX_CONSTRUCTOR(CrossingParameters)
 
     private:
         /// @brief pointer to GNECrossingFrame parent
@@ -234,8 +232,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        CreateCrossing() {}
+        FOX_CONSTRUCTOR(CreateCrossing)
 
     private:
         /// @brief pointer to crossingFrame parent
@@ -266,8 +263,7 @@ public:
     void createCrossingHotkey();
 
 protected:
-    /// @brief FOX needs this
-    GNECrossingFrame() {}
+    FOX_CONSTRUCTOR(GNECrossingFrame)
 
 private:
     /// @brief current junction modul

@@ -21,16 +21,13 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), '--device.rerouting.adaptation-steps', '120', '-c', 'sumo.sumocfg'])
 traci.simulationStep()
 while traci.simulation.getMinExpectedNumber() > 0:
-    timeS = traci.simulation.getCurrentTime() / 1000
+    timeS = traci.simulation.getTime()
     for vehID in traci.simulation.getDepartedIDList():
         traci.vehicle.setRoutingMode(vehID, traci.constants.ROUTING_MODE_AGGREGATED)
         traci.vehicle.rerouteTraveltime(vehID)

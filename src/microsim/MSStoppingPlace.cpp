@@ -32,17 +32,22 @@
 #include "MSTransportable.h"
 #include "MSStoppingPlace.h"
 
-
 // ===========================================================================
 // method definitions
 // ===========================================================================
 MSStoppingPlace::MSStoppingPlace(const std::string& id,
                                  const std::vector<std::string>& lines,
                                  MSLane& lane,
-                                 double begPos, double endPos, const std::string name)
-    : Named(id), myLines(lines), myLane(lane),
-      myBegPos(begPos), myEndPos(endPos), myLastFreePos(endPos), myWaitingPos(endPos), myName(name) {
+                                 double begPos, double endPos, const std::string name,
+                                 int capacity) :
+    Named(id), myLines(lines), myLane(lane),
+    myBegPos(begPos), myEndPos(endPos), myLastFreePos(endPos),
+    myName(name),
+    myTransportableCapacity(capacity) {
     computeLastFreePos();
+    for (int i = 0; i < capacity; i++) {
+        myWaitingSpots.insert(i);
+    }
 }
 
 
@@ -114,9 +119,42 @@ MSStoppingPlace::fits(double pos, const SUMOVehicle& veh) const {
     return pos + POSITION_EPS >= myEndPos || (pos - myBegPos >= veh.getVehicleType().getLength() / 2);
 }
 
+double
+MSStoppingPlace::getWaitingPositionOnLane(MSTransportable* t) const {
+    auto it = myWaitingTransportables.find(t);
+    if (it != myWaitingTransportables.end() && it->second >= 0) {
+        return myEndPos - (0.5 + (it->second) % getPersonsAbreast()) * SUMO_const_waitingPersonWidth;
+    } else {
+        return (myEndPos + myBegPos) / 2;
+    }
+}
+
+
+int
+MSStoppingPlace::getPersonsAbreast(double length) {
+    return MAX2(1, (int)floor(length / SUMO_const_waitingPersonWidth));
+}
+
+int
+MSStoppingPlace::getPersonsAbreast() const {
+    return getPersonsAbreast(myEndPos - myBegPos);
+}
+
 Position
-MSStoppingPlace::getWaitPosition() const {
-    return myLane.getShape().positionAtOffset(myLane.interpolateLanePosToGeometryPos(myWaitingPos), .5);
+MSStoppingPlace::getWaitPosition(MSTransportable* t) const {
+    double lanePos = getWaitingPositionOnLane(t);
+    int row = 0;
+    auto it = myWaitingTransportables.find(t);
+    if (it != myWaitingTransportables.end()) {
+        if (it->second >= 0) {
+            row = int(it->second / getPersonsAbreast());
+        } else {
+            // invalid position, draw outside bounds
+            row = 1 + myTransportableCapacity / getPersonsAbreast();
+        }
+    }
+    return myLane.getShape().positionAtOffset(myLane.interpolateLanePosToGeometryPos(lanePos),
+            myLane.getWidth() / 2 + row * SUMO_const_waitingPersonDepth);
 }
 
 
@@ -130,23 +168,39 @@ MSStoppingPlace::getStoppingPosition(const SUMOVehicle* veh) const {
     }
 }
 
-void
+std::vector<MSTransportable*>
+MSStoppingPlace::getTransportables() const {
+    std::vector<MSTransportable*> result;
+    for (std::map<MSTransportable*, int>::const_iterator it = myWaitingTransportables.begin(); it != myWaitingTransportables.end(); it++) {
+        result.push_back(it->first);
+    }
+    return result;
+}
+
+bool
+MSStoppingPlace::hasSpaceForTransportable() const {
+    return myWaitingSpots.size() > 0;
+}
+
+bool
 MSStoppingPlace::addTransportable(MSTransportable* p) {
-    myWaitingTransportables.push_back(p);
-    myWaitingPos -= p->getVehicleType().getLength();
-    myWaitingPos = MAX2(myBegPos, myWaitingPos);
+    int spot = -1;
+    if (!hasSpaceForTransportable()) {
+        return false;
+    }
+    spot = *myWaitingSpots.begin();
+    myWaitingSpots.erase(myWaitingSpots.begin());
+    myWaitingTransportables[p] = spot;
+    return true;
 }
 
 
 void
 MSStoppingPlace::removeTransportable(MSTransportable* p) {
-    std::vector<MSTransportable*>::iterator i = std::find(myWaitingTransportables.begin(), myWaitingTransportables.end(), p);
+    auto i = myWaitingTransportables.find(p);
     if (i != myWaitingTransportables.end()) {
-        if (i == myWaitingTransportables.end() - 1) {
-            myWaitingPos -= p->getVehicleType().getLength();
-        }
-        if (i == myWaitingTransportables.begin()) {
-            myWaitingPos = getEndLanePosition();
+        if (i->second >= 0) {
+            myWaitingSpots.insert(i->second);
         }
         myWaitingTransportables.erase(i);
     }

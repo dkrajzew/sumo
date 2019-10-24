@@ -32,23 +32,23 @@ netedit.setZoom("25", "20", "25")
 netedit.additionalMode()
 
 # select BusStop
-netedit.changeAdditional("busStop")
+netedit.changeElement("busStop")
 
 # create BusStop with default parameters
 netedit.leftClick(referencePosition, 375, 250)
 
 # select Access
-netedit.changeAdditional("access")
+netedit.changeElement("access")
 
 # Create Access
 netedit.selectAdditionalChild(7, 0)
-netedit.leftClick(referencePosition, 200, 250)
+netedit.leftClick(referencePosition, 200, 280)
 
 # go to inspect mode
 netedit.inspectMode()
 
-# inspect Access
-netedit.leftClick(referencePosition, 208, 260)
+# delete Access
+netedit.leftClick(referencePosition, 208, 280)
 
 # Change parameter pos with a non valid value (dummy position X)
 netedit.modifyAttribute(1, "dummy position", True)
@@ -70,10 +70,10 @@ netedit.undo(referencePosition, 6)
 netedit.redo(referencePosition, 6)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

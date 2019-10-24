@@ -29,13 +29,13 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select parkingArea
-netedit.changeAdditional("parkingArea")
+netedit.changeElement("parkingArea")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(10, "reference center")
+netedit.changeDefaultValue(11, "reference center")
 
 # create parkingArea in mode "reference center"
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 165)
 
 # go to inspect mode
 netedit.inspectMode()
@@ -63,10 +63,10 @@ netedit.undo(referencePosition, 5)
 netedit.redo(referencePosition, 5)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

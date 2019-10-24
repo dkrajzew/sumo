@@ -35,7 +35,7 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect E1
-netedit.leftClick(referencePosition, 150, 240)
+netedit.leftClick(referencePosition, 150, 260)
 
 # Change parameter vtypes with a empty value
 netedit.modifyAttribute(3, "", True)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 5)
 netedit.redo(referencePosition, 5)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

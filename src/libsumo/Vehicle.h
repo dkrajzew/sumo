@@ -34,12 +34,10 @@
 // ===========================================================================
 // class declarations
 // ===========================================================================
-class SUMOVehicle;
-class MSVehicle;
-class MSVehicleType;
 namespace libsumo {
 class VariableWrapper;
 }
+class SUMOVehicle;
 
 
 // ===========================================================================
@@ -51,13 +49,13 @@ class VariableWrapper;
  */
 namespace libsumo {
 class Vehicle {
-    friend class Helper;
 public:
     /// @name Value retrieval
     /// @{
     static std::vector<std::string> getIDList();
     static int getIDCount();
     static double getSpeed(const std::string& vehicleID);
+    static double getLateralSpeed(const std::string& vehicleID);
     static double getAcceleration(const std::string& vehicleID);
     static double getSpeedWithoutTraCI(const std::string& vehicleID);
     static TraCIPosition getPosition(const std::string& vehicleID, const bool includeZ = false);
@@ -106,12 +104,7 @@ public:
     static std::pair<int, int> getLaneChangeState(const std::string& vehicleID, int direction);
     static double getLastActionTime(const std::string& vehicleID);
     static std::string getParameter(const std::string& vehicleID, const std::string& key);
-    static std::map<const MSVehicle*, double> getNeighbors(const std::string& vehicleID, const int mode);
-    static std::map<const MSVehicle*, double> getRightFollowers(const std::string& vehicleID, bool blockingOnly=false);
-    static std::map<const MSVehicle*, double> getRightLeaders(const std::string& vehicleID, bool blockingOnly=false);
-    static std::map<const MSVehicle*, double> getLeftFollowers(const std::string& vehicleID, bool blockingOnly=false);
-    static std::map<const MSVehicle*, double> getLeftLeaders(const std::string& vehicleID, bool blockingOnly=false);
-    static const MSVehicleType& getVehicleType(const std::string& vehicleID);
+    static std::vector<std::pair<std::string, double> > getNeighbors(const std::string& vehicleID, const int mode);
     /// @}
 
     LIBSUMO_VEHICLE_TYPE_GETTER
@@ -155,7 +148,7 @@ public:
     static void changeSublane(const std::string& vehicleID, double latDist);
 
     static void slowDown(const std::string& vehicleID, double speed, double duration);
-    static void openGap(const std::string& vehicleID, double newTimeHeadway, double newSpaceHeadway, double duration, double changeRate, double maxDecel, const std::string& referenceVehID="");
+    static void openGap(const std::string& vehicleID, double newTimeHeadway, double newSpaceHeadway, double duration, double changeRate, double maxDecel = INVALID_DOUBLE_VALUE, const std::string& referenceVehID = "");
     static void deactivateGapControl(const std::string& vehicleID);
     static void requestToC(const std::string& vehID, double leadTime);
     static void setSpeed(const std::string& vehicleID, double speed);
@@ -170,7 +163,7 @@ public:
                                      double time = INVALID_DOUBLE_VALUE, double begSeconds = 0, double endSeconds = std::numeric_limits<double>::max());
     static void setEffort(const std::string& vehicleID, const std::string& edgeID,
                           double effort = INVALID_DOUBLE_VALUE, double begSeconds = 0, double endSeconds = std::numeric_limits<double>::max());
-    static void rerouteTraveltime(const std::string& vehicleID);
+    static void rerouteTraveltime(const std::string& vehicleID, const bool currentTravelTimes = true);
     static void rerouteEffort(const std::string& vehicleID);
     static void setSignals(const std::string& vehicleID, int signals);
     static void moveTo(const std::string& vehicleID, const std::string& laneID, double position);
@@ -179,11 +172,14 @@ public:
     static void setLine(const std::string& vehicleID, const std::string& line);
     static void setVia(const std::string& vehicleID, const std::vector<std::string>& via);
     static void setParameter(const std::string& vehicleID, const std::string& key, const std::string& value);
+    static void highlight(const std::string& vehicleID, const TraCIColor& col, double size, const int alphaMax, const double duration, const int type);
     /// @}
 
     LIBSUMO_VEHICLE_TYPE_SETTER
 
     LIBSUMO_SUBSCRIPTION_API
+
+    static void subscribeLeader(const std::string& vehicleID, double dist = 0., double beginTime = libsumo::INVALID_DOUBLE_VALUE, double endTime = libsumo::INVALID_DOUBLE_VALUE);
 
     /** @brief Saves the shape of the requested object in the given container
     *  @param id The id of the poi to retrieve
@@ -195,8 +191,6 @@ public:
 
     static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
 
-protected:
-    static MSVehicle* getVehicle(const std::string& id);
 
 private:
     static bool isVisible(const SUMOVehicle* veh);

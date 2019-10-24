@@ -35,7 +35,7 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect E2s
-netedit.leftClick(referencePosition, 150, 250)
+netedit.leftClick(referencePosition, 150, 255)
 
 # Change boolean parameter block movement
 netedit.modifyBoolAttribute(13, True)
@@ -45,10 +45,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

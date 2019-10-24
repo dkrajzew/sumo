@@ -64,8 +64,8 @@ GUIMEVehicle::getParameterWindow(GUIMainWindow& app,
     GUIParameterTableWindow* ret =
         new GUIParameterTableWindow(app, *this, 21 + (int)getParameter().getParametersMap().size());
     // add items
-    ret->mkItem("edge [id]", false, getEdge()->getID());
-    ret->mkItem("segment [#]", false, getSegment()->getIndex());
+    ret->mkItem("edge [id]", true, new FunctionBindingString<GUIMEVehicle>(this, &GUIMEVehicle::getEdgeID));
+    ret->mkItem("segment [#]", true,  new FunctionBinding<GUIMEVehicle, int>(this, &GUIMEVehicle::getSegmentIndex));
     ret->mkItem("position [m]", true, new FunctionBinding<GUIMEVehicle, double>(this, &MEVehicle::getPositionOnLane));
     ret->mkItem("speed [m/s]", true, new FunctionBinding<GUIMEVehicle, double>(this, &MEVehicle::getSpeed));
     ret->mkItem("angle [degree]", true, new FunctionBinding<GUIMEVehicle, double>(this, &GUIBaseVehicle::getNaviDegree));
@@ -156,45 +156,55 @@ GUIMEVehicle::drawAction_drawCarriageClass(const GUIVisualizationSettings& /* s 
 
 
 double
-GUIMEVehicle::getColorValue(int activeScheme) const {
+GUIMEVehicle::getColorValue(const GUIVisualizationSettings& /* s */, int activeScheme) const {
     switch (activeScheme) {
         case 8:
             return getSpeed();
         case 9:
+            return 0; // by actionStep
+        case 10:
             return getWaitingSeconds();
         case 11:
-            return 0; // invalid getLastLaneChangeOffset();
+            return 0; // getAccumulatedWaitingSeconds
         case 12:
-            return getSegment()->getEdge().getVehicleMaxSpeed(this);
+            return 0; // invalid getLastLaneChangeOffset();
         case 13:
-            return 0; // invalid getCO2Emissions();
+            return getSegment()->getEdge().getVehicleMaxSpeed(this);
         case 14:
-            return 0; // invalid getCOEmissions();
+            return 0; // invalid getCO2Emissions();
         case 15:
-            return 0; // invalid getPMxEmissions();
+            return 0; // invalid getCOEmissions();
         case 16:
-            return 0; // invalid  getNOxEmissions();
+            return 0; // invalid getPMxEmissions();
         case 17:
-            return 0; // invalid getHCEmissions();
+            return 0; // invalid  getNOxEmissions();
         case 18:
-            return 0; // invalid getFuelConsumption();
+            return 0; // invalid getHCEmissions();
         case 19:
+            return 0; // invalid getFuelConsumption();
+        case 20:
             return 0; // invalid getHarmonoise_NoiseEmissions();
-        case 20: // !!! unused!?
+        case 21: // reroute number
             if (getNumberReroutes() == 0) {
                 return -1;
             }
             return getNumberReroutes();
-        case 21:
-            return gSelected.isSelected(GLO_VEHICLE, getGlID());
         case 22:
-            return 0; // invalid getBestLaneOffset();
+            return gSelected.isSelected(GLO_VEHICLE, getGlID());
         case 23:
-            return 0; // invalid getAcceleration();
+            return 0; // invalid getBestLaneOffset();
         case 24:
-            return 0; // invalid getTimeGapOnLane();
+            return 0; // invalid getAcceleration();
         case 25:
+            return 0; // invalid getTimeGapOnLane();
+        case 26:
             return STEPS2TIME(getDepartDelay());
+        case 27:
+            return 0; // electricityConsumption
+        case 28:
+            return 0; // timeLossSeconds
+        case 29:
+            return 0; // getSpeedLat
     }
     return 0;
 }
@@ -202,9 +212,9 @@ GUIMEVehicle::getColorValue(int activeScheme) const {
 
 
 void
-GUIMEVehicle::drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r) const {
+GUIMEVehicle::drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future) const {
     const double exaggeration = s.vehicleSize.getExaggeration(s, this);
-    MSRouteIterator i = r.begin();
+    MSRouteIterator i = future ? myCurrEdge : r.begin();
     for (; i != r.end(); ++i) {
         const GUILane* lane = static_cast<GUILane*>((*i)->getLanes()[0]);
         GLHelper::drawBoxLines(lane->getShape(), lane->getShapeRotations(), lane->getShapeLengths(), 1.0);
@@ -231,6 +241,16 @@ GUIMEVehicle::getStopInfo() const {
         return "";
     }
     return result;
+}
+
+std::string
+GUIMEVehicle::getEdgeID() const {
+    return getEdge()->getID();
+}
+
+int
+GUIMEVehicle::getSegmentIndex() const {
+    return getSegment()->getIndex();
 }
 
 

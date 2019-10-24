@@ -76,6 +76,7 @@ MSVehicleControl::MSVehicleControl() :
     myVTypeDict[DEFAULT_BIKETYPE_ID] = MSVehicleType::build(defBikeType);
     OptionsCont& oc = OptionsCont::getOptions();
     myScale = oc.getFloat("scale");
+    myStopTolerance = oc.getFloat("ride.stop-tolerance");
 }
 
 
@@ -111,15 +112,28 @@ MSVehicleControl::buildVehicle(SUMOVehicleParameter* defs,
 
 
 void
-MSVehicleControl::scheduleVehicleRemoval(SUMOVehicle* veh) {
+MSVehicleControl::scheduleVehicleRemoval(SUMOVehicle* veh, bool checkDuplicate) {
     assert(myRunningVehNo > 0);
-    myPendingRemovals.push_back(veh);
+    if (!checkDuplicate ||
+#ifdef HAVE_FOX
+            std::find(myPendingRemovals.getContainer().begin(), myPendingRemovals.getContainer().end(), veh) == myPendingRemovals.getContainer().end()
+#else
+            std::find(myPendingRemovals.begin(), myPendingRemovals.end(), veh) == myPendingRemovals.end()
+#endif
+       ) {
+        myPendingRemovals.push_back(veh);
+    }
 }
 
 
 void
 MSVehicleControl::removePending() {
+    OutputDevice* tripinfoOut = OptionsCont::getOptions().isSet("tripinfo-output") ? &OutputDevice::getDeviceByOption("tripinfo-output") : nullptr;
+#ifdef HAVE_FOX
     std::vector<SUMOVehicle*>& vehs = myPendingRemovals.getContainer();
+#else
+    std::vector<SUMOVehicle*>& vehs = myPendingRemovals;
+#endif
     std::sort(vehs.begin(), vehs.end(), ComparatorNumericalIdLess());
     for (SUMOVehicle* const veh : vehs) {
         myTotalTravelTime += STEPS2TIME(MSNet::getInstance()->getCurrentTimeStep() - veh->getDeparture());
@@ -128,14 +142,20 @@ MSVehicleControl::removePending() {
         for (MSVehicleDevice* const dev : veh->getDevices()) {
             dev->generateOutput();
         }
-        if (OptionsCont::getOptions().isSet("tripinfo-output")) {
+        if (tripinfoOut != nullptr) {
             // close tag after tripinfo (possibly including emissions from another device) have been written
-            OutputDevice::getDeviceByOption("tripinfo-output").closeTag();
+            tripinfoOut->closeTag();
         }
         deleteVehicle(veh);
     }
     vehs.clear();
+    if (tripinfoOut != nullptr) {
+        // there seem to be people who think reading an unfinished xml is a good idea ;-)
+        tripinfoOut->flush();
+    }
+#ifdef HAVE_FOX
     myPendingRemovals.unlock();
+#endif
 }
 
 
@@ -145,7 +165,7 @@ MSVehicleControl::vehicleDeparted(const SUMOVehicle& v) {
     myTotalDepartureDelay += STEPS2TIME(v.getDeparture() - STEPFLOOR(v.getParameter().depart));
     MSNet::getInstance()->informVehicleStateListener(&v, MSNet::VEHICLE_STATE_DEPARTED);
     myMaxSpeedFactor = MAX2(myMaxSpeedFactor, v.getChosenSpeedFactor());
-    if ((v.getVClass() & (SVC_SHIP | SVC_PEDESTRIAN | SVC_RAIL | SVC_RAIL_ELECTRIC | SVC_RAIL_URBAN)) == 0) {
+    if ((v.getVClass() & (SVC_PEDESTRIAN | SVC_NON_ROAD)) == 0) {
         // only  worry about deceleration of road users
         myMinDeceleration = MIN2(myMinDeceleration, v.getVehicleType().getCarFollowModel().getMaxDecel());
     }
@@ -355,7 +375,7 @@ MSVehicleControl::insertVTypeIDs(std::vector<std::string>& into) const {
 }
 
 
-std::set<std::string>
+const std::set<std::string>
 MSVehicleControl::getVTypeDistributionMembership(const std::string& id) const {
     std::map<std::string, std::set<std::string>>::const_iterator it = myVTypeToDist.find(id);
     if (it == myVTypeToDist.end()) {
@@ -386,31 +406,20 @@ MSVehicleControl::removeWaiting(const MSEdge* const edge, const SUMOVehicle* veh
 
 
 SUMOVehicle*
-MSVehicleControl::getWaitingVehicle(const MSEdge* const edge, const std::set<std::string>& lines, const double position, const std::string ridingID) {
+MSVehicleControl::getWaitingVehicle(MSTransportable* transportable, const MSEdge* const edge, const double position) {
     if (myWaiting.find(edge) != myWaiting.end()) {
-        // for every vehicle waiting vehicle at this edge
-        std::vector<SUMOVehicle*> waitingTooFarAway;
-        for (std::vector<SUMOVehicle*>::const_iterator it = myWaiting[edge].begin(); it != myWaiting[edge].end(); ++it) {
-            const std::string& line = (*it)->getParameter().line == "" ? (*it)->getParameter().id : (*it)->getParameter().line;
-            double vehiclePosition = (*it)->getPositionOnLane();
-            // if the line of the vehicle is contained in the set of given lines and the vehicle is stopped and is positioned
-            // in the interval [position - t, position + t] for a tolerance t=10
-            if (lines.count(line)) {
-                if ((position - 10 <= vehiclePosition) && (vehiclePosition <= position + 10)) {
-                    return (*it);
-                } else if ((*it)->isStoppedTriggered() ||
-                           (*it)->getParameter().departProcedure == DEPART_TRIGGERED) {
-                    // maybe we are within the range of the stop
-                    if ((*it)->isStoppedInRange(position)) {
-                        return (*it);
-                    } else {
-                        waitingTooFarAway.push_back(*it);
-                    }
+        for (SUMOVehicle* const vehicle : myWaiting[edge]) {
+            if (transportable->isWaitingFor(vehicle)) {
+                if (vehicle->isStoppedInRange(position, myStopTolerance) ||
+                        (!vehicle->hasDeparted() &&
+                         (vehicle->getParameter().departProcedure == DEPART_TRIGGERED ||
+                          vehicle->getParameter().departProcedure == DEPART_CONTAINER_TRIGGERED))) {
+                    return vehicle;
                 }
+                // !!! this gives false warnings when there are two stops on the same edge
+                WRITE_WARNING(transportable->getID() + " at edge '" + edge->getID() + "' position " + toString(position) + " cannot use waiting vehicle '"
+                              + vehicle->getID() + "' at position " + toString(vehicle->getPositionOnLane()) + " because it is too far away.");
             }
-        }
-        for (std::vector<SUMOVehicle*>::iterator it = waitingTooFarAway.begin(); it != waitingTooFarAway.end(); ++it) {
-            WRITE_WARNING(ridingID + " at edge '" + edge->getID() + "' position " + toString(position) + " cannot use waiting vehicle '" + (*it)->getID() + "' at position " + toString((*it)->getPositionOnLane()) + " because it is too far away.");
         }
     }
     return nullptr;

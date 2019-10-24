@@ -71,3 +71,31 @@ ticket5029
 
 # sumo aborts with error when calling traci.simulation.getDistanceRoad and no route is found
 ticket5114
+
+# invalid lane change when moving to a new edge
+ticket5309
+
+# crash when calling setRoute with a single internal edge
+ticket5390
+
+# bestLanse not updated after skipping stop with vehicle.setStop
+ticket5561
+
+# remove person from destination stop on removal from simultion
+ticket5620
+
+# crash when calling getPosition on a personTrip before departure
+ticket5674
+
+# stop with duration=0 and until < 0 should trigger removal
+# stop with duraiton=0 and until >= 0 should not trigger removal 
+ticket5712
+
+# changing vehicle type parameters should still trigger vtype specific rerouter
+ticket5831
+
+# moveTo with internal lane
+ticket5932
+
+# use changeLaneRelative to change to the right
+ticket5990

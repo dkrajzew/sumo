@@ -34,6 +34,11 @@ join_double_conn
 
 # tests for joining of close junctions
 junctions.join
+
+# joining adjacent lanes
+join-lanes
+
+# joining traffic light clusters
 tls.join
 
 # tests for disabling left-turns
@@ -41,6 +46,7 @@ no_left
 
 # test option --geometry.max-segment-length
 max_segment_length
+geometry.split
 
 # tests related to adding sidewalks
 sidewalks

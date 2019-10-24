@@ -21,10 +21,8 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/foxtools/MFXUtils.h>
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/div/GUIDesigns.h>
-#include <utils/gui/images/GUIIconSubSys.h>
 #include <netedit/changes/GNEChange_Connection.h>
 #include <netedit/GNEViewParent.h>
 #include <netedit/GNEUndoList.h>
@@ -34,6 +32,7 @@
 #include <netedit/netelements/GNEConnection.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/netelements/GNEJunction.h>
+#include <netedit/demandelements/GNEDemandElement.h>
 
 #include "GNEConnectorFrame.h"
 #include "GNESelectorFrame.h"
@@ -103,6 +102,9 @@ GNEConnectorFrame::ConnectionModifications::ConnectionModifications(GNEConnector
     // Create "OK" button
     mySaveButton = new FXButton(this, "OK\t\tSave connection modifications (Enter)",
                                 GUIIconSubSys::getIcon(ICON_ACCEPT), this, MID_OK, GUIDesignButton);
+
+    // Create checkbox for protect routes
+    myProtectRoutesCheckBox = new FXCheckButton(this, "Protect routes", this, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButton);
 }
 
 
@@ -126,6 +128,18 @@ GNEConnectorFrame::ConnectionModifications::onCmdCancelModifications(FXObject*, 
 long
 GNEConnectorFrame::ConnectionModifications::onCmdSaveModifications(FXObject*, FXSelector, void*) {
     if (myConnectorFrameParent->myCurrentEditedLane != 0) {
+        // check if routes has to be protected
+        if (myProtectRoutesCheckBox->isEnabled() && (myProtectRoutesCheckBox->getCheck() == TRUE)) {
+            for (const auto& i : myConnectorFrameParent->myCurrentEditedLane->getParentEdge().getDemandElementChildren()) {
+                if (!i->isDemandElementValid()) {
+                    FXMessageBox::warning(getApp(), MBOX_OK,
+                                          "Error saving connection operations", "%s",
+                                          ("Connection edition  cannot be saved because route '" + i->getID() + "' is broken.").c_str());
+                    return 1;
+                }
+            }
+        }
+        // finish route editing
         myConnectorFrameParent->getViewNet()->getUndoList()->p_end();
         if (myConnectorFrameParent->myNumChanges) {
             myConnectorFrameParent->getViewNet()->setStatusBarText("Changes accepted");

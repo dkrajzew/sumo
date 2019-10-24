@@ -172,7 +172,7 @@ public:
         myFareStates.resize(edges.size());
     }
 
-    void addStop(const int stopEdge, const Parameterised& params) {
+    void addStop(const int stopEdge, const Parameterised& params) override {
         myStopFareZone[stopEdge] = StringUtils::toInt(params.getParameter("fareZone"));
         myStopFareToken[stopEdge] = FareUtil::stringToToken(params.getParameter("fareToken"));
         myStopStartToken[stopEdge] = FareUtil::stringToToken(params.getParameter("startToken"));
@@ -191,7 +191,7 @@ public:
     }
 
     /** Implementation of EffortCalculator **/
-    void update(const int edge, const int prev, const double length)  override {
+    void update(const int edge, const int prev, const double length) override {
 
         std::string const& edgeType = myEdges[edge];
 
@@ -299,14 +299,14 @@ private:
 
         FareState const&   my = myFareStates[edge];
         std::stringstream msg;
-/*
-        msg << "Final fare state at edge of type: " << myEdges[edge] << std::endl;
-        msg << "Faretoken" << FareUtil::tokenToString(my.myFareToken) << std::endl;
-        msg << "Price:" << computePrice(my) << std::endl;
-        msg << "Zones " << my.myCounter.numZones() << std::endl;
-        msg << "Stations: " << my.myVisistedStops << std::endl;
-        msg << "Distance:" << my.myTravelledDistance << std::endl;
-*/
+        /*
+                msg << "Final fare state at edge of type: " << myEdges[edge] << std::endl;
+                msg << "Faretoken" << FareUtil::tokenToString(my.myFareToken) << std::endl;
+                msg << "Price:" << computePrice(my) << std::endl;
+                msg << "Zones " << my.myCounter.numZones() << std::endl;
+                msg << "Stations: " << my.myVisistedStops << std::endl;
+                msg << "Distance:" << my.myTravelledDistance << std::endl;
+        */
         msg << FareUtil::tokenToTicket(my.myFareToken) << " ";
         if (my.myFareToken == FareToken::Z) {
             msg << my.myCounter.numZones() << " ";

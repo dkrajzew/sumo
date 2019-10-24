@@ -22,7 +22,6 @@ import copy
 import struct
 import warnings
 
-import traci
 from . import constants as tc
 from .storage import Storage
 from .exceptions import FatalTraCIError
@@ -93,7 +92,6 @@ class Domain:
         self._deprecatedFor = deprecatedFor
         self._connection = None
         _defaultDomains.append(self)
-        setattr(traci, name, self)
 
     def _register(self, connection, mapping):
         dom = copy.copy(self)
@@ -110,9 +108,10 @@ class Domain:
     def _getUniversal(self, varID, objectID=""):
         if self._deprecatedFor:
             warnings.warn("The domain %s is deprecated, use %s instead." % (
-                self._name, self._deprecatedFor))  # , DeprecationWarning)
-        result = self._connection._sendReadOneStringCmd(
-            self._cmdGetID, varID, objectID)
+                self._name, self._deprecatedFor))
+        if self._connection is None:
+            raise FatalTraCIError("Not connected.")
+        result = self._connection._sendReadOneStringCmd(self._cmdGetID, varID, objectID)
         return self._retValFunc[varID](result)
 
     def getIDList(self):
@@ -186,8 +185,7 @@ class Domain:
             self._contextID, begin, end, objectID, domain, dist, varIDs)
 
     def unsubscribeContext(self, objectID, domain, dist):
-        self._connection._subscribeContext(
-            self._contextID, tc.INVALID_DOUBLE_VALUE, tc.INVALID_DOUBLE_VALUE, objectID, domain, dist, [])
+        self.subscribeContext(objectID, domain, dist, [])
 
     def getContextSubscriptionResults(self, objectID):
         return self._connection._getSubscriptionResults(self._contextResponseID).getContext(objectID)
@@ -208,7 +206,7 @@ class Domain:
         return result.readString()
 
     def setParameter(self, objID, param, value):
-        """setParameter(string, string, string) -> string
+        """setParameter(string, string, string) -> None
 
         Sets the value of the given parameter to value for the given objID
         """

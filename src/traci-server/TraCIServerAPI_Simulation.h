@@ -58,7 +58,10 @@ public:
     static bool processSet(TraCIServer& server, tcpip::Storage& inputStorage,
                            tcpip::Storage& outputStorage);
 
+    static void writeStage(tcpip::Storage& outputStorage, const libsumo::TraCIStage& stage);
+    static libsumo::TraCIStage* readStage(TraCIServer& server, tcpip::Storage& inputStorage);
 
+private:
     /**
      * Converts a road map position to a cartesian position
      *
@@ -67,15 +70,14 @@ public:
      */
 
     static bool commandPositionConversion(TraCIServer& server, tcpip::Storage& inputStorage,
-                                          tcpip::Storage& outputStorage, int commandId);
+                                          const int compoundSize, tcpip::Storage& outputStorage,
+                                          const int commandId);
 
     static bool commandDistanceRequest(TraCIServer& server, tcpip::Storage& inputStorage,
                                        tcpip::Storage& outputStorage, int commandId);
 
-private:
     static void writeVehicleStateNumber(TraCIServer& server, tcpip::Storage& outputStorage, MSNet::VehicleState state);
     static void writeVehicleStateIDs(TraCIServer& server, tcpip::Storage& outputStorage, MSNet::VehicleState state);
-    static void writeStage(tcpip::Storage& outputStorage, const libsumo::TraCIStage& stage);
 
 
 private:

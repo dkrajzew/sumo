@@ -120,7 +120,7 @@ main(int argc, char** argv) {
     oc.addDescription("output", "Output", "Defines the file (or the path if --iterate was set) to write the map(s) into.");
 
     oc.addOptionSubTopic("Emissions");
-    oc.doRegister("phemlight-path", new Option_FileName("./PHEMlight/"));
+    oc.doRegister("phemlight-path", new Option_FileName(StringVector({ "./PHEMlight/" })));
     oc.addDescription("phemlight-path", "Emissions", "Determines where to load PHEMlight definitions from.");
 
     SystemFrame::addReportOptions(oc);
@@ -132,7 +132,6 @@ main(int argc, char** argv) {
         XMLSubSys::init();
         OptionsIO::setArgs(argc, argv);
         OptionsIO::getOptions();
-        OptionsCont& oc = OptionsCont::getOptions();
         if (oc.processMetaOptions(argc < 2)) {
             SystemFrame::close();
             return 0;

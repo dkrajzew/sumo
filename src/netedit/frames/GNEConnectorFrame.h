@@ -20,8 +20,10 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include "GNEFrame.h"
+#include <config.h>
 #include <netbuild/NBEdge.h>
+#include "GNEFrame.h"
+
 
 // ===========================================================================
 // class definitions
@@ -81,8 +83,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        ConnectionModifications() {}
+        FOX_CONSTRUCTOR(ConnectionModifications)
 
     private:
         /// @brief pointer to connectorFrame parent
@@ -93,6 +94,9 @@ public:
 
         /// @brief "OK" button
         FXButton* mySaveButton;
+
+        /// @brief protect routes checkbox
+        FXCheckButton* myProtectRoutesCheckBox;
     };
 
     // ===========================================================================
@@ -133,8 +137,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        ConnectionOperations() {}
+        FOX_CONSTRUCTOR(ConnectionOperations)
 
     private:
         /// @brief pointer to connectorFrame parent

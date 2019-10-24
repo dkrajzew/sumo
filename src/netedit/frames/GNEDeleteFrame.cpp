@@ -21,23 +21,21 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/gui/div/GUIDesigns.h>
-#include <utils/gui/windows/GUIAppEnum.h>
+#include <netedit/GNENet.h>
+#include <netedit/GNEUndoList.h>
+#include <netedit/GNEViewNet.h>
+#include <netedit/additionals/GNEPoly.h>
+#include <netedit/additionals/GNETAZ.h>
+#include <netedit/demandelements/GNEDemandElement.h>
 #include <netedit/netelements/GNEConnection.h>
 #include <netedit/netelements/GNECrossing.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/netelements/GNEJunction.h>
 #include <netedit/netelements/GNELane.h>
-#include <netedit/additionals/GNETAZ.h>
-#include <netedit/demandelements/GNEDemandElement.h>
-#include <netedit/GNENet.h>
-#include <netedit/GNEViewNet.h>
-#include <netedit/additionals/GNEPoly.h>
-#include <netedit/GNEUndoList.h>
-#include <netedit/GNEViewParent.h>
+#include <utils/gui/div/GUIDesigns.h>
+#include <utils/gui/windows/GUIAppEnum.h>
 
 #include "GNEDeleteFrame.h"
-#include "GNEAdditionalFrame.h"
 
 
 // ---------------------------------------------------------------------------
@@ -45,19 +43,18 @@
 // ---------------------------------------------------------------------------
 
 GNEDeleteFrame::DeleteOptions::DeleteOptions(GNEDeleteFrame* deleteFrameParent) :
-    FXGroupBox(deleteFrameParent->myContentFrame, "Options", GUIDesignGroupBoxFrame),
-    myDeleteFrameParent(deleteFrameParent) {
+    FXGroupBox(deleteFrameParent->myContentFrame, "Options", GUIDesignGroupBoxFrame) {
 
-    // Create checkbox for enable/disable automatic deletion of additionals childs (by default, enabled)
-    myForceDeleteAdditionals = new FXCheckButton(this, "Force deletion of additionals", deleteFrameParent, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButtonAttribute);
+    // Create checkbox for enable/disable automatic deletion of additionals children (by default, enabled)
+    myForceDeleteAdditionals = new FXCheckButton(this, "Force deletion of additionals", deleteFrameParent, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButton);
     myForceDeleteAdditionals->setCheck(TRUE);
 
     // Create checkbox for enable/disable delete only geomtery point(by default, disabled)
-    myDeleteOnlyGeometryPoints = new FXCheckButton(this, "Delete only geometryPoints", deleteFrameParent, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButtonAttribute);
+    myDeleteOnlyGeometryPoints = new FXCheckButton(this, "Delete only geometryPoints", deleteFrameParent, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButton);
     myDeleteOnlyGeometryPoints->setCheck(FALSE);
 
     // Create checkbox for enable/disable delete only geomtery point(by default, disabled)
-    myProtectDemandElements = new FXCheckButton(this, "Protect demand elements", deleteFrameParent, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButtonAttribute);
+    myProtectDemandElements = new FXCheckButton(this, "Protect demand elements", deleteFrameParent, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButton);
     myProtectDemandElements->setCheck(TRUE);
 }
 
@@ -92,7 +89,7 @@ GNEDeleteFrame::GNEDeleteFrame(FXHorizontalFrame* horizontalFrameParent, GNEView
     myDeleteOptions = new DeleteOptions(this);
 
     // Create groupbox and tree list
-    myACHierarchy = new GNEFrame::ACHierarchy(this);
+    myAttributeCarrierHierarchy = new GNEFrameModuls::AttributeCarrierHierarchy(this);
 }
 
 
@@ -102,9 +99,9 @@ GNEDeleteFrame::~GNEDeleteFrame() {}
 void
 GNEDeleteFrame::show() {
     if (myViewNet->getNet()->getSelectedAttributeCarriers(false).size() == 1) {
-        myACHierarchy->showACHierarchy(*myViewNet->getNet()->getSelectedAttributeCarriers(false).begin());
+        myAttributeCarrierHierarchy->showAttributeCarrierHierarchy(*myViewNet->getNet()->getSelectedAttributeCarriers(false).begin());
     } else {
-        myACHierarchy->hideACHierarchy();
+        myAttributeCarrierHierarchy->hideAttributeCarrierHierarchy();
     }
     GNEFrame::show();
 }
@@ -112,230 +109,463 @@ GNEDeleteFrame::show() {
 
 void
 GNEDeleteFrame::hide() {
-
     GNEFrame::hide();
 }
 
 
 void
 GNEDeleteFrame::removeSelectedAttributeCarriers() {
-    // remove all selected attribute carriers
-    myViewNet->getUndoList()->p_begin("remove selected items");
-    while (myViewNet->getNet()->getSelectedAttributeCarriers(false).size() > 0) {
-        removeAttributeCarrier(*myViewNet->getNet()->getSelectedAttributeCarriers(false).begin(), true);
+    // first check if there is additional to remove
+    if (ACsToDelete()) {
+        // remove all selected attribute carrier susing the following parent-child sequence
+        myViewNet->getUndoList()->p_begin("remove selected items");
+        // disable update geometry
+        myViewNet->getNet()->disableUpdateGeometry();
+        // delete selected attribute carriers depending of current supermode
+        if (myViewNet->getEditModes().currentSupermode == GNE_SUPERMODE_NETWORK) {
+            //junctions
+            while (myViewNet->getNet()->retrieveJunctions(true).size() > 0) {
+                myViewNet->getNet()->deleteJunction(myViewNet->getNet()->retrieveJunctions(true).front(), myViewNet->getUndoList());
+            }
+            // edges
+            while (myViewNet->getNet()->retrieveEdges(true).size() > 0) {
+                myViewNet->getNet()->deleteEdge(myViewNet->getNet()->retrieveEdges(true).front(), myViewNet->getUndoList(), false);
+            }
+            // lanes
+            while (myViewNet->getNet()->retrieveLanes(true).size() > 0) {
+                myViewNet->getNet()->deleteLane(myViewNet->getNet()->retrieveLanes(true).front(), myViewNet->getUndoList(), false);
+            }
+            // connections
+            while (myViewNet->getNet()->retrieveConnections(true).size() > 0) {
+                myViewNet->getNet()->deleteConnection(myViewNet->getNet()->retrieveConnections(true).front(), myViewNet->getUndoList());
+            }
+            // crossings
+            while (myViewNet->getNet()->retrieveCrossings(true).size() > 0) {
+                myViewNet->getNet()->deleteCrossing(myViewNet->getNet()->retrieveCrossings(true).front(), myViewNet->getUndoList());
+            }
+            // shapes
+            while (myViewNet->getNet()->retrieveShapes(true).size() > 0) {
+                myViewNet->getNet()->deleteShape(myViewNet->getNet()->retrieveShapes(true).front(), myViewNet->getUndoList());
+            }
+            // additionals
+            while (myViewNet->getNet()->retrieveAdditionals(true).size() > 0) {
+                myViewNet->getNet()->deleteAdditional(myViewNet->getNet()->retrieveAdditionals(true).front(), myViewNet->getUndoList());
+            }
+        } else {
+            // demand elements
+            while (myViewNet->getNet()->retrieveDemandElements(true).size() > 0) {
+                myViewNet->getNet()->deleteDemandElement(myViewNet->getNet()->retrieveDemandElements(true).front(), myViewNet->getUndoList());
+            }
+        }
+        // enable update geometry
+        myViewNet->getNet()->enableUpdateGeometry();
+        // finish deletion
+        myViewNet->getUndoList()->p_end();
     }
-    myViewNet->getUndoList()->p_end();
 }
 
 
 void
-GNEDeleteFrame::removeAttributeCarrier(GNEAttributeCarrier* ac, bool ignoreOptions) {
-    // obtain clicked position
-    Position clickedPosition = myViewNet->getPositionInformation();
-    if (myDeleteOptions->deleteOnlyGeometryPoints() && !ignoreOptions) {
-        // check type of of GL object
-        switch (ac->getTagProperty().getTag()) {
-            case SUMO_TAG_EDGE: {
-                GNEEdge* edge = dynamic_cast<GNEEdge*>(ac);
-                if (edge && (edge->getVertexIndex(clickedPosition, false, false) != -1)) {
-                    edge->deleteGeometryPoint(clickedPosition);
+GNEDeleteFrame::removeAttributeCarrier(const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor, bool ignoreOptions) {
+    // first check if there is at leas an AC under cursor)
+    if (objectsUnderCursor.getAttributeCarrierFront()) {
+        // disable update geometry
+        myViewNet->getNet()->disableUpdateGeometry();
+        // obtain clicked position
+        Position clickedPosition = myViewNet->getPositionInformation();
+        // first check if we'll only delete a geometry point
+        if (myDeleteOptions->deleteOnlyGeometryPoints() && !ignoreOptions) {
+            // check type of of object under cursor object with geometry points
+            if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_EDGE) {
+                if (objectsUnderCursor.getEdgeFront()->getVertexIndex(clickedPosition, false, false) != -1) {
+                    objectsUnderCursor.getEdgeFront()->deleteGeometryPoint(clickedPosition);
                 }
-                break;
-            }
-            case SUMO_TAG_POLY: {
-                GNEPoly* polygon = dynamic_cast<GNEPoly*>(ac);
-                if (polygon && (polygon->getVertexIndex(clickedPosition, false, false) != -1)) {
-                    polygon->deleteGeometryPoint(clickedPosition);
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_POLY) {
+                if (objectsUnderCursor.getPolyFront()->getVertexIndex(clickedPosition, false, false) != -1) {
+                    objectsUnderCursor.getPolyFront()->deleteGeometryPoint(clickedPosition);
                 }
-                break;
-            }
-            case SUMO_TAG_TAZ: {
-                GNETAZ* TAZ = dynamic_cast<GNETAZ*>(ac);
-                if (TAZ && TAZ->getVertexIndex(clickedPosition, false, false) != -1) {
-                    TAZ->deleteGeometryPoint(clickedPosition);
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_TAZ) {
+                if (objectsUnderCursor.getTAZFront()->getVertexIndex(clickedPosition, false, false) != -1) {
+                    objectsUnderCursor.getTAZFront()->deleteGeometryPoint(clickedPosition);
                 }
-                break;
             }
-            default: {
-                break;
-            }
-        }
-    } else {
-        // check type of of GL object
-        switch (ac->getTagProperty().getTag()) {
-            case SUMO_TAG_JUNCTION: {
-                GNEJunction* junction = dynamic_cast<GNEJunction*>(ac);
-                assert(junction);
-                // obtain number of additionals of junction's childs
-                int numberOfAdditionals = 0;
-                for (auto i : junction->getGNEEdges()) {
-                    numberOfAdditionals += (int)i->getAdditionalChilds().size();
-                    for (auto j : i->getLanes()) {
-                        UNUSED_PARAMETER(j);
-                        numberOfAdditionals += (int)i->getAdditionalChilds().size();
-                    }
-                }
+        } else {
+            // check type of of object under cursor object
+            if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_JUNCTION) {
+                // obtain number of subordinated elements
+                auto subordinatedElements = SubordinatedElements(objectsUnderCursor.getJunctionFront());
                 // Check if junction can be deleted
                 if (myDeleteOptions->forceDeleteAdditionals() || ignoreOptions) {
-                    myViewNet->getNet()->deleteJunction(junction, myViewNet->getUndoList());
+                    myViewNet->getNet()->deleteJunction(objectsUnderCursor.getJunctionFront(), myViewNet->getUndoList());
                 } else {
-                    if (numberOfAdditionals > 0) {
+                    if (subordinatedElements.additionalChildren > 0) {
                         // write warning if netedit is running in testing mode
                         WRITE_DEBUG("Opening FXMessageBox 'Force deletion needed'");
-                        std::string plural = numberOfAdditionals > 1 ? "s" : "";
+                        std::string plural = subordinatedElements.additionalChildren > 1 ? "s" : "";
                         // Open warning DialogBox
-                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + junction->getTagStr()).c_str(), "%s",
-                                              (junction->getTagStr() + " '" + junction->getID() + "' cannot be deleted because owns " +
-                                               toString(numberOfAdditionals) + " additional child" + plural + ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
+                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + objectsUnderCursor.getJunctionFront()->getTagStr()).c_str(), "%s",
+                                              (objectsUnderCursor.getJunctionFront()->getTagStr() + " '" + objectsUnderCursor.getJunctionFront()->getID() + "' cannot be deleted because owns " +
+                                               toString(subordinatedElements.additionalChildren) + " additional child" + plural + ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
                         // write warning if netedit is running in testing mode
                         WRITE_DEBUG("Closed FXMessageBox 'Force deletion needed' with 'OK'");
                     } else {
-                        myViewNet->getNet()->deleteJunction(junction, myViewNet->getUndoList());
+                        myViewNet->getNet()->deleteJunction(objectsUnderCursor.getJunctionFront(), myViewNet->getUndoList());
                     }
                 }
-                break;
-            }
-            case SUMO_TAG_EDGE: {
-                GNEEdge* edge = dynamic_cast<GNEEdge*>(ac);
-                assert(edge);
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_EDGE) {
                 // check if click was over a geometry point or over a shape's edge
-                if (edge->getVertexIndex(clickedPosition, false, false) != -1) {
-                    edge->deleteGeometryPoint(clickedPosition);
+                if (objectsUnderCursor.getEdgeFront()->getVertexIndex(clickedPosition, false, false) != -1) {
+                    objectsUnderCursor.getEdgeFront()->deleteGeometryPoint(clickedPosition);
                 } else {
-                    // obtain additional childs and parents
-                    int numberOfAdditionalChilds = (int)edge->getAdditionalChilds().size();
-                    int numberOfAdditionalParents = (int)edge->getAdditionalParents().size();
-                    // Iterate over lanes and obtain total number of additional childs
-                    for (auto i : edge->getLanes()) {
-                        numberOfAdditionalChilds += (int)i->getAdditionalChilds().size();
-                        numberOfAdditionalParents = (int)i->getAdditionalParents().size();
-                    }
-                    // obtain demand elements childs and parents
-                    int numberOfDemandElementChilds = (int)edge->getDemandElementChilds().size();
-                    int numberOfDemandElementParents = (int)edge->getDemandElementParents().size();
-                    // Iterate over lanes and obtain total number of demand elements childs
-                    for (auto i : edge->getLanes()) {
-                        numberOfDemandElementChilds += (int)i->getDemandElementChilds().size();
-                        numberOfDemandElementParents = (int)i->getDemandElementParents().size();
-                    }
+                    // obtain number of subordinated elements
+                    auto subordinatedElements = SubordinatedElements(objectsUnderCursor.getEdgeFront());
                     // Check if edge can be deleted
                     if ((myDeleteOptions->forceDeleteAdditionals() && !myDeleteOptions->protectDemandElements()) || ignoreOptions) {
                         // when deleting a single edge, keep all unaffected connections as they were
-                        myViewNet->getNet()->deleteEdge(edge, myViewNet->getUndoList(), false);
+                        myViewNet->getNet()->deleteEdge(objectsUnderCursor.getEdgeFront(), myViewNet->getUndoList(), false);
                     } else {
-                        if ((numberOfAdditionalChilds > 0) && !myDeleteOptions->forceDeleteAdditionals()) {
+                        // declare strings to save certain messages used in FXMessageBox to improve code legilibly
+                        std::string tagstr = objectsUnderCursor.getEdgeFront()->getTagStr();
+                        std::string id = objectsUnderCursor.getEdgeFront()->getID();
+                        // check number of additional children
+                        if ((subordinatedElements.additionalChildren > 0) && !myDeleteOptions->forceDeleteAdditionals()) {
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Opening FXMessageBox 'Force deletion needed'");
-                            std::string plural = numberOfAdditionalChilds > 1 ? "s" : "";
+                            std::string plural = subordinatedElements.additionalChildren > 1 ? "s" : "";
                             // Open warning DialogBox
-                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + edge->getTagStr()).c_str(), "%s",
-                                                  (edge->getTagStr() + " '" + edge->getID() + "' cannot be deleted because owns " +
-                                                   toString(numberOfAdditionalChilds) + " additional" + plural + ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
+                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                                  (tagstr + " '" + id + "' cannot be deleted because owns " + toString(subordinatedElements.additionalChildren) + " additional" + plural +
+                                                   ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Closed FXMessageBox 'Force deletion needed' with 'OK'");
-                        } else if ((numberOfAdditionalChilds > 0) && !myDeleteOptions->forceDeleteAdditionals()) {
+                        } else if ((subordinatedElements.additionalChildren > 0) && !myDeleteOptions->forceDeleteAdditionals()) {
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Opening FXMessageBox 'Force deletion needed'");
-                            std::string plural = numberOfAdditionalParents > 1 ? "s" : "";
+                            std::string plural = subordinatedElements.additionalParents > 1 ? "s" : "";
                             // Open warning DialogBox
-                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + edge->getTagStr()).c_str(), "%s",
-                                                  (edge->getTagStr() + " '" + edge->getID() + "' cannot be deleted because is part of " +
-                                                   toString(numberOfAdditionalParents) + " additional" + plural + ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
+                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                                  (tagstr + " '" + id + "' cannot be deleted because is part of " + toString(subordinatedElements.additionalParents) + " additional" + plural +
+                                                   ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Closed FXMessageBox 'Force deletion needed' with 'OK'");
-                        } else if ((numberOfDemandElementChilds > 0) && myDeleteOptions->forceDeleteAdditionals()) {
+                        } else if ((subordinatedElements.demandElementChildren > 0) && myDeleteOptions->protectDemandElements()) {
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Opening FXMessageBox 'Unprotect demand elements'");
-                            std::string plural = numberOfDemandElementChilds > 1 ? "s" : "";
+                            std::string plural = subordinatedElements.demandElementChildren > 1 ? "s" : "";
                             // Open warning DialogBox
-                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + edge->getTagStr()).c_str(), "%s",
-                                                  (edge->getTagStr() + " '" + edge->getID() + "' cannot be deleted because owns " +
-                                                   toString(numberOfDemandElementChilds) + " demand element" + plural + ".\n Uncheck 'Protect demand elements' to force deletion.").c_str());
+                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                                  (tagstr + " '" + id + "' cannot be deleted because owns " + toString(subordinatedElements.demandElementChildren) + " demand element" + plural +
+                                                   ".\n Uncheck 'Protect demand elements' to force deletion.").c_str());
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Closed FXMessageBox 'Unprotect demand elements' with 'OK'");
-                        } else if ((numberOfDemandElementParents > 0) && myDeleteOptions->forceDeleteAdditionals()) {
+                        } else if ((subordinatedElements.demandElementParents > 0) && myDeleteOptions->protectDemandElements()) {
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Opening FXMessageBox 'Unprotect demand elements'");
-                            std::string plural = numberOfDemandElementParents > 1 ? "s" : "";
+                            std::string plural = subordinatedElements.demandElementParents > 1 ? "s" : "";
                             // Open warning DialogBox
-                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + edge->getTagStr()).c_str(), "%s",
-                                                  (edge->getTagStr() + " '" + edge->getID() + "' cannot be deleted because is part of " +
-                                                   toString(numberOfDemandElementParents) + " demand element" + plural + ".\n Uncheck 'Protect demand elements' to force deletion.").c_str());
+                            FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                                  (tagstr + " '" + id + "' cannot be deleted because is part of " + toString(subordinatedElements.demandElementParents) + " demand element" + plural +
+                                                   ".\n Uncheck 'Protect demand elements' to force deletion.").c_str());
                             // write warning if netedit is running in testing mode
                             WRITE_DEBUG("Closed FXMessageBox 'Unprotect demand elements' with 'OK'");
                         } else {
-                            // when deleting a single edge, keep all unaffected connections as they were
-                            myViewNet->getNet()->deleteEdge(edge, myViewNet->getUndoList(), false);
+                            // if all ok, then delete edge
+                            myViewNet->getNet()->deleteEdge(objectsUnderCursor.getEdgeFront(), myViewNet->getUndoList(), false);
                         }
                     }
                 }
-                break;
-            }
-            case SUMO_TAG_LANE: {
-                GNELane* lane = dynamic_cast<GNELane*>(ac);
-                assert(lane);
-                /** check demand elements **/
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_LANE) {
+                // obtain number of subordinated elements
+                auto subordinatedElements = SubordinatedElements(objectsUnderCursor.getLaneFront());
                 // Check if lane can be deleted
-                if (myDeleteOptions->forceDeleteAdditionals() || ignoreOptions) {
+                if ((myDeleteOptions->forceDeleteAdditionals() && !myDeleteOptions->protectDemandElements()) || ignoreOptions) {
                     // when deleting a single lane, keep all unaffected connections as they were
-                    myViewNet->getNet()->deleteLane(lane, myViewNet->getUndoList(), false);
+                    myViewNet->getNet()->deleteLane(objectsUnderCursor.getLaneFront(), myViewNet->getUndoList(), false);
                 } else {
-                    if (lane->getAdditionalChilds().size() == 0) {
-                        // when deleting a single lane, keep all unaffected connections as they were
-                        myViewNet->getNet()->deleteLane(lane, myViewNet->getUndoList(), false);
-                    } else {
+                    // declare strings to save certain messages used in FXMessageBox to improve code legilibly
+                    std::string tagstr = objectsUnderCursor.getLaneFront()->getTagStr();
+                    std::string id = objectsUnderCursor.getLaneFront()->getID();
+                    // check number of additional children
+                    if ((subordinatedElements.additionalChildren > 0) && !myDeleteOptions->forceDeleteAdditionals()) {
                         // write warning if netedit is running in testing mode
                         WRITE_DEBUG("Opening FXMessageBox 'Force deletion needed'");
-                        // open warning box
-                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + lane->getTagStr()).c_str(), "%s",
-                                              (lane->getTagStr() + " '" + lane->getID() + "' cannot be deleted because it has " +
-                                               toString(lane->getAdditionalChilds().size()) + " additional childs.\n Check 'Force deletion of Additionals' to force deletion.").c_str());
+                        std::string plural = subordinatedElements.additionalChildren > 1 ? "s" : "";
+                        // Open warning DialogBox
+                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                              (tagstr + " '" + id + "' cannot be deleted because owns " + toString(subordinatedElements.additionalChildren) + " additional" + plural +
+                                               ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
                         // write warning if netedit is running in testing mode
                         WRITE_DEBUG("Closed FXMessageBox 'Force deletion needed' with 'OK'");
+                    } else if ((subordinatedElements.additionalChildren > 0) && !myDeleteOptions->forceDeleteAdditionals()) {
+                        // write warning if netedit is running in testing mode
+                        WRITE_DEBUG("Opening FXMessageBox 'Force deletion needed'");
+                        std::string plural = subordinatedElements.additionalParents > 1 ? "s" : "";
+                        // Open warning DialogBox
+                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                              (tagstr + " '" + id + "' cannot be deleted because is part of " + toString(subordinatedElements.additionalParents) + " additional" + plural +
+                                               ".\n Check 'Force deletion of additionals' to force deletion.").c_str());
+                        // write warning if netedit is running in testing mode
+                        WRITE_DEBUG("Closed FXMessageBox 'Force deletion needed' with 'OK'");
+                    } else if ((subordinatedElements.demandElementChildren > 0) && myDeleteOptions->protectDemandElements()) {
+                        // write warning if netedit is running in testing mode
+                        WRITE_DEBUG("Opening FXMessageBox 'Unprotect demand elements'");
+                        std::string plural = subordinatedElements.demandElementChildren > 1 ? "s" : "";
+                        // Open warning DialogBox
+                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                              (tagstr + " '" + id + "' cannot be deleted because owns " + toString(subordinatedElements.demandElementChildren) + " demand element" + plural +
+                                               ".\n Uncheck 'Protect demand elements' to force deletion.").c_str());
+                        // write warning if netedit is running in testing mode
+                        WRITE_DEBUG("Closed FXMessageBox 'Unprotect demand elements' with 'OK'");
+                    } else if ((subordinatedElements.demandElementParents > 0) && myDeleteOptions->protectDemandElements()) {
+                        // write warning if netedit is running in testing mode
+                        WRITE_DEBUG("Opening FXMessageBox 'Unprotect demand elements'");
+                        std::string plural = subordinatedElements.demandElementParents > 1 ? "s" : "";
+                        // Open warning DialogBox
+                        FXMessageBox::warning(getViewNet()->getApp(), MBOX_OK, ("Problem deleting " + tagstr).c_str(), "%s",
+                                              (tagstr + " '" + id + "' cannot be deleted because is part of " + toString(subordinatedElements.demandElementParents) + " demand element" + plural +
+                                               ".\n Uncheck 'Protect demand elements' to force deletion.").c_str());
+                        // write warning if netedit is running in testing mode
+                        WRITE_DEBUG("Closed FXMessageBox 'Unprotect demand elements' with 'OK'");
+                    } else {
+                        // if all ok, then delete lane
+                        myViewNet->getNet()->deleteLane(objectsUnderCursor.getLaneFront(), myViewNet->getUndoList(), false);
                     }
                 }
-                break;
-            }
-            case SUMO_TAG_CROSSING: {
-                GNECrossing* crossing = dynamic_cast<GNECrossing*>(ac);
-                assert(crossing);
-                myViewNet->getNet()->deleteCrossing(crossing, myViewNet->getUndoList());
-                break;
-            }
-            case SUMO_TAG_CONNECTION: {
-                GNEConnection* connection = dynamic_cast<GNEConnection*>(ac);
-                assert(connection);
-                myViewNet->getNet()->deleteConnection(connection, myViewNet->getUndoList());
-                break;
-            }
-            default: {
-                // obtain tag property (only for improve code legibility)
-                const auto& tagValue = ac->getTagProperty();
-                if (tagValue.isAdditional()) {
-                    GNEAdditional* additional = dynamic_cast<GNEAdditional*>(ac);
-                    assert(additional);
-                    myViewNet->getNet()->deleteAdditional(additional, myViewNet->getUndoList());
-                } else if (tagValue.isShape()) {
-                    GNEShape* shape = dynamic_cast<GNEShape*>(ac);
-                    assert(shape);
-                    myViewNet->getNet()->deleteShape(shape, myViewNet->getUndoList());
-                } else if (tagValue.isDemandElement()) {
-                    GNEDemandElement* additional = dynamic_cast<GNEDemandElement*>(ac);
-                    assert(additional);
-                    myViewNet->getNet()->deleteDemandElement(additional, myViewNet->getUndoList());
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_CROSSING) {
+                myViewNet->getNet()->deleteCrossing(objectsUnderCursor.getCrossingFront(), myViewNet->getUndoList());
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_CONNECTION) {
+                myViewNet->getNet()->deleteConnection(objectsUnderCursor.getConnectionFront(), myViewNet->getUndoList());
+            } else if (objectsUnderCursor.getAttributeCarrierFront()->getTagProperty().getTag() == SUMO_TAG_TAZ) {
+                myViewNet->getNet()->deleteAdditional(objectsUnderCursor.getTAZFront(), myViewNet->getUndoList());
+            } else if (objectsUnderCursor.getAttributeCarrierFront() && (objectsUnderCursor.getAdditionalFront() == objectsUnderCursor.getAttributeCarrierFront())) {
+                myViewNet->getNet()->deleteAdditional(objectsUnderCursor.getAdditionalFront(), myViewNet->getUndoList());
+            } else if (objectsUnderCursor.getShapeFront() && (objectsUnderCursor.getShapeFront() == objectsUnderCursor.getAttributeCarrierFront())) {
+                myViewNet->getNet()->deleteShape(objectsUnderCursor.getShapeFront(), myViewNet->getUndoList());
+            } else if (objectsUnderCursor.getDemandElementFront() && (objectsUnderCursor.getDemandElementFront() == objectsUnderCursor.getAttributeCarrierFront())) {
+                // we need to check if we're removing the last person plan of a person
+                if (objectsUnderCursor.getDemandElementFront()->getTagProperty().isPersonPlan() && 
+                    (objectsUnderCursor.getDemandElementFront()->getDemandElementParents().front()->getDemandElementChildren().size() == 1)) {
+                    myViewNet->getNet()->deleteDemandElement(objectsUnderCursor.getDemandElementFront()->getDemandElementParents().front(), myViewNet->getUndoList());
+                } else {
+                    myViewNet->getNet()->deleteDemandElement(objectsUnderCursor.getDemandElementFront(), myViewNet->getUndoList());
                 }
-                break;
             }
         }
+        // enable update geometry
+        myViewNet->getNet()->enableUpdateGeometry();
+        // update view to show changes
+        myViewNet->update();
     }
-    // update view to show changes
-    myViewNet->update();
 }
 
 
 GNEDeleteFrame::DeleteOptions*
 GNEDeleteFrame::getDeleteOptions() const {
     return myDeleteOptions;
+}
+
+// ---------------------------------------------------------------------------
+// GNEDeleteFrame::SubordinatedElements - methods
+// ---------------------------------------------------------------------------
+
+GNEDeleteFrame::SubordinatedElements::SubordinatedElements(const GNEJunction* junction) :
+    additionalParents(0),
+    additionalChildren(0),
+    demandElementParents(0),
+    demandElementChildren(0) {
+    // obtain number of additional and demand elements parents and children of junction
+    additionalParents = (int)junction->getAdditionalParents().size();
+    additionalChildren = (int)junction->getAdditionalChildren().size();
+    demandElementParents = (int)junction->getDemandElementParents().size();
+    demandElementChildren = (int)junction->getDemandElementChildren().size();
+    // add the number of subodinated elements of edge children
+    for (const auto& i : junction->getGNEEdges()) {
+        (*this) += SubordinatedElements(i);
+    }
+}
+
+
+GNEDeleteFrame::SubordinatedElements::SubordinatedElements(const GNEEdge* edge) :
+    additionalParents(0),
+    additionalChildren(0),
+    demandElementParents(0),
+    demandElementChildren(0) {
+    // obtain number of additional and demand elements parents and children of junction
+    additionalParents = (int)edge->getAdditionalParents().size();
+    additionalChildren = (int)edge->getAdditionalChildren().size();
+    demandElementParents = (int)edge->getDemandElementParents().size();
+    demandElementChildren = (int)edge->getDemandElementChildren().size();
+    // add the number of subodinated elements of lane children
+    for (const auto& i : edge->getLanes()) {
+        (*this) += SubordinatedElements(i);
+    }
+}
+
+
+GNEDeleteFrame::SubordinatedElements::SubordinatedElements(const GNELane* lane) :
+    additionalParents(0),
+    additionalChildren(0),
+    demandElementParents(0),
+    demandElementChildren(0) {
+    // obtain number of additional and demand elements parents and children of junction
+    additionalParents = (int)lane->getAdditionalParents().size();
+    additionalChildren = (int)lane->getAdditionalChildren().size();
+    demandElementParents = (int)lane->getDemandElementParents().size();
+    demandElementChildren = (int)lane->getDemandElementChildren().size();
+}
+
+
+GNEDeleteFrame::SubordinatedElements::SubordinatedElements(const GNEAdditional* /* additional */) :
+    additionalParents(0),
+    additionalChildren(0),
+    demandElementParents(0),
+    demandElementChildren(0) {
+}
+
+
+GNEDeleteFrame::SubordinatedElements::SubordinatedElements(const GNEDemandElement* /* demandElement */) :
+    additionalParents(0),
+    additionalChildren(0),
+    demandElementParents(0),
+    demandElementChildren(0) {
+}
+
+
+GNEDeleteFrame::SubordinatedElements&
+GNEDeleteFrame::SubordinatedElements::operator+=(const SubordinatedElements& other) {
+    additionalParents += other.additionalParents;
+    additionalChildren += other.additionalChildren;
+    demandElementParents += other.demandElementParents;
+    demandElementChildren += other.demandElementChildren;
+    return *this;
+}
+
+// ---------------------------------------------------------------------------
+// GNEAdditionalFrame - protected methods
+// ---------------------------------------------------------------------------
+
+bool
+GNEDeleteFrame::ACsToDelete() const {
+    // invert selection of elements depending of current supermode
+    if (myViewNet->getEditModes().currentSupermode == GNE_SUPERMODE_NETWORK) {
+        // iterate over junctions
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().junctions) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+            // due we iterate over all junctions, only it's neccesary iterate over incoming edges
+            for (const auto& j : i.second->getGNEIncomingEdges()) {
+                if (j->isAttributeCarrierSelected()) {
+                    return true;
+                }
+                // check lanes
+                for (auto k : j->getLanes()) {
+                    if (k->isAttributeCarrierSelected()) {
+                        return true;
+                    }
+                }
+                // check connections
+                for (const auto& k : j->getGNEConnections()) {
+                    if (k->isAttributeCarrierSelected()) {
+                        return true;
+                    }
+                }
+            }
+            // check crossings
+            for (const auto& j : i.second->getGNECrossings()) {
+                if (j->isAttributeCarrierSelected()) {
+                    return true;
+                }
+            }
+        }
+        // check additionals
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().additionals) {
+            // first check if additional is selectable
+            if (GNEAttributeCarrier::getTagProperties(i.first).isSelectable()) {
+                for (const auto& j : i.second) {
+                    if (j.second->isAttributeCarrierSelected()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        // check polygons
+        for (const auto& i : myViewNet->getNet()->getPolygons()) {
+            GNEShape* shape = dynamic_cast<GNEShape*>(i.second);
+            if (shape->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check POIs
+        for (const auto& i : myViewNet->getNet()->getPOIs()) {
+            GNEShape* shape = dynamic_cast<GNEShape*>(i.second);
+            if (shape->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+    } else {
+        // check routes
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check vehicles
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_VEHICLE)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check trips
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_TRIP)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check flows
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_FLOW)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check route flows
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTEFLOW)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check lane stops
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_STOP_LANE)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check bus stops
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_STOP_BUSSTOP)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check container stops
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_STOP_CONTAINERSTOP)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check chargingstation stops
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_STOP_CHARGINGSTATION)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+        // check parkingarea stops
+        for (const auto& i : myViewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_STOP_PARKINGAREA)) {
+            if (i.second->isAttributeCarrierSelected()) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /****************************************************************************/

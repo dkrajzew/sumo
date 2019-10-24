@@ -65,6 +65,22 @@ public:
     /// @brief Destructor
     ~GNEJunction();
 
+    /// @brief gererate a new ID for an element child
+    std::string generateChildID(SumoXMLTag childTag);
+
+    /// @name Functions related with geometry of element
+    /// @{
+    /// @brief update pre-computed geometry information (including crossings)
+    void updateGeometry();
+
+    /// @brief update pre-computed geometry information without modifying netbuild structures
+    // @note: using an extra function because updateGeometry overrides an abstract virtual function
+    void updateGeometryAfterNetbuild(bool rebuildNBNodeCrossings = false);
+
+    /// @brief Returns position of hierarchical element in view
+    Position getPositionInView() const;
+    /// @}
+
     /// @name inherited from GUIGlObject
     /// @{
     /**@brief Returns an own popup-menu
@@ -90,14 +106,8 @@ public:
     void drawGL(const GUIVisualizationSettings& s) const;
     /// @}
 
-    /// @brief Returns the boundary of the junction
-    Boundary getBoundary() const;
-
     /// @brief Return net build node
     NBNode* getNBNode() const;
-
-    /// @brief Return current position
-    Position getPositionInView() const;
 
     /// @brief return GNEJunction neighbours
     std::vector<GNEJunction*> getJunctionNeighbours() const;
@@ -138,9 +148,6 @@ public:
     /// @brief notify the junction of being selected in tls-mode. (used to control drawing)
     void selectTLS(bool selected);
 
-    /// @brief Update the boundary of the junction
-    void updateGeometry(bool updateGrid);
-
     /// @name functions related with geometry movement
     /// @{
 
@@ -158,11 +165,6 @@ public:
     /// @brief registers completed movement with the undoList
     void commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList);
 
-    /**@brief update shapes of all elements associated to the junction
-     * @note this include the adyacent nodes connected by edges
-     * @note if this function is called during 'Move' mode, connections will not be updated to improve efficiency
-     */
-    void updateShapesAndGeometries(bool updateGrid);
     /// @}
 
     /// @name inherited from GNEAttributeCarrier
@@ -186,20 +188,11 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-    /// @name Function related with Generic Parameters
-    /// @{
-
-    /// @brief return generic parameters in string format
-    std::string getGenericParametersStr() const;
-
-    /// @brief return generic parameters as vector of pairs format
-    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
-
-    /// @brief set generic parameters in string format
-    void setGenericParametersStr(const std::string& value);
-
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
     /// @brief set responsibility for deleting internal strctures
@@ -255,9 +248,6 @@ private:
     /// @brief A reference to the represented junction
     NBNode& myNBNode;
 
-    /// @brief junction boundary
-    Boundary myJunctionBoundary;
-
     /// @brief vector with the GNEEdges vinculated with this junction
     std::vector<GNEEdge*> myGNEEdges;
 
@@ -266,6 +256,9 @@ private:
 
     /// @brief vector with the outgoings GNEEdges vinculated with this junction
     std::vector<GNEEdge*> myGNEOutgoingEdges;
+
+    /// @brief the built crossing objects
+    std::vector<GNECrossing*> myGNECrossings;
 
     /// @brief The maximum size (in either x-, or y-dimension) for determining whether to draw or not
     double myMaxSize;
@@ -286,23 +279,20 @@ private:
     /// @brief whether this junction is selected in tls-mode
     bool myAmTLSSelected;
 
-    /// @brief the built crossing objects
-    std::vector<GNECrossing*> myGNECrossings;
-
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
     void setAttribute(SumoXMLAttr key, const std::string& value);
 
-    /**@brief reposition the node at pos and informs the edges
+    /**@brief reposition the node at pos without updating GRID and informs the edges
     * @param[in] pos The new position
     * @note: those operations are not added to the undoList.
     */
-    void moveJunctionGeometry(const Position& pos, bool updateGrid);
+    void moveJunctionGeometry(const Position& pos);
 
     /// @brief sets junction color depending on circumstances
-    void setColor(const GUIVisualizationSettings& s, bool bubble) const;
+    RGBColor setColor(const GUIVisualizationSettings& s, bool bubble) const;
 
     /// @brief determines color value
-    double getColorValue(const GUIVisualizationSettings& s, bool bubble) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
     /// @brief adds a traffic light
     void addTrafficLight(NBTrafficLightDefinition* tlDef, bool forceInsert);
@@ -315,6 +305,9 @@ private:
 
     /// @brief remove the given connections from all traffic light definitions of this junction
     void removeTLSConnections(std::vector<NBConnection>& connections, GNEUndoList* undoList);
+
+    /// @brief temporarily mirror coordinates in lefthand network to compute correct crossing geometries
+    void mirrorXLeftHand();
 
     /// @brief Invalidated copy constructor.
     GNEJunction(const GNEJunction&) = delete;

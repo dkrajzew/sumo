@@ -74,6 +74,7 @@ NIImporter_SUMO::NIImporter_SUMO(NBNetBuilder& nb)
       myCurrentLane(nullptr),
       myCurrentTL(nullptr),
       myLocation(nullptr),
+      myNetworkVersion(0),
       myHaveSeenInternalEdge(false),
       myAmLefthand(false),
       myCornerDetail(0),
@@ -118,6 +119,7 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
         PROGRESS_DONE_MESSAGE();
     }
     // build edges
+    const double maxSegmentLength = oc.getFloat("geometry.max-segment-length");
     for (std::map<std::string, EdgeAttrs*>::const_iterator i = myEdges.begin(); i != myEdges.end(); ++i) {
         EdgeAttrs* ed = (*i).second;
         // skip internal edges
@@ -136,26 +138,24 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
             continue;
         }
         if (from == to) {
-            WRITE_ERROR("Edge's '" + ed->id + "' from-node and to-node '" + ed->toNode + "' art identical.");
+            WRITE_ERROR("Edge's '" + ed->id + "' from-node and to-node '" + ed->toNode + "' are identical.");
             continue;
         }
-        // edge shape
-        PositionVector geom;
-        if (ed->shape.size() > 0) {
-            geom = ed->shape;
-        } else {
-            // either the edge has default shape consisting only of the two node
-            // positions or we have a legacy network
-            geom = reconstructEdgeShape(ed, from->getPosition(), to->getPosition());
+        if (ed->shape.size() == 0 && maxSegmentLength > 0) {
+            ed->shape.push_back(from->getPosition());
+            ed->shape.push_back(to->getPosition());
+            // shape is already cartesian but we must use a copy because the original will be modified
+            NBNetBuilder::addGeometrySegments(ed->shape, PositionVector(ed->shape), maxSegmentLength);
         }
         // build and insert the edge
         NBEdge* e = new NBEdge(ed->id, from, to,
                                ed->type, ed->maxSpeed,
                                (int) ed->lanes.size(),
                                ed->priority, NBEdge::UNSPECIFIED_WIDTH, NBEdge::UNSPECIFIED_OFFSET,
-                               geom, ed->streetName, "", ed->lsf, true); // always use tryIgnoreNodePositions to keep original shape
+                               ed->shape, ed->streetName, "", ed->lsf, true); // always use tryIgnoreNodePositions to keep original shape
         e->setLoadedLength(ed->length);
-        e->updateParameter(ed->getParametersMap());
+        e->updateParameters(ed->getParametersMap());
+        e->setDistance(ed->distance);
         if (!myNetBuilder.getEdgeCont().insert(e)) {
             WRITE_ERROR("Could not insert edge '" + ed->id + "'.");
             delete e;
@@ -202,7 +202,9 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
                 nbe->addLane2LaneConnection(
                     fromLaneIndex, toEdge, c.toLaneIdx, NBEdge::L2L_VALIDATED,
                     true, c.mayDefinitelyPass, c.keepClear, c.contPos, c.visibility, c.speed, c.customShape, uncontrolled);
-
+                if (c.getParametersMap().size() > 0) {
+                    nbe->getConnectionRef(fromLaneIndex, toEdge, c.toLaneIdx).updateParameters(c.getParametersMap());
+                }
                 // maybe we have a tls-controlled connection
                 if (c.tlID != "" && myRailSignals.count(c.tlID) == 0) {
                     const std::map<std::string, NBTrafficLightDefinition*>& programs = myTLLCont.getPrograms(c.tlID);
@@ -223,7 +225,7 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
             }
             // allow/disallow XXX preferred
             if (!dismissVclasses) {
-                nbe->setPermissions(parseVehicleClasses(lane->allow, lane->disallow), fromLaneIndex);
+                nbe->setPermissions(parseVehicleClasses(lane->allow, lane->disallow, myNetworkVersion), fromLaneIndex);
             }
             // width, offset
             nbe->setLaneWidth(fromLaneIndex, lane->width);
@@ -231,7 +233,8 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
             nbe->setSpeed(fromLaneIndex, lane->maxSpeed);
             nbe->setAcceleration(fromLaneIndex, lane->accelRamp);
             nbe->getLaneStruct(fromLaneIndex).oppositeID = lane->oppositeID;
-            nbe->getLaneStruct(fromLaneIndex).updateParameter(lane->getParametersMap());
+            nbe->getLaneStruct(fromLaneIndex).type = lane->type;
+            nbe->getLaneStruct(fromLaneIndex).updateParameters(lane->getParametersMap());
             if (lane->customShape) {
                 nbe->setLaneShape(fromLaneIndex, lane->shape);
             }
@@ -404,6 +407,7 @@ NIImporter_SUMO::myStartElement(int element,
     switch (element) {
         case SUMO_TAG_NET: {
             bool ok;
+            myNetworkVersion = attrs.getOpt<double>(SUMO_ATTR_VERSION, nullptr, ok, 0);
             myAmLefthand = attrs.getOpt<bool>(SUMO_ATTR_LEFTHAND, nullptr, ok, false);
             myCornerDetail = attrs.getOpt<int>(SUMO_ATTR_CORNERDETAIL, nullptr, ok, 0);
             myLinkDetail = attrs.getOpt<int>(SUMO_ATTR_LINKDETAIL, nullptr, ok, -1);
@@ -476,21 +480,23 @@ void
 NIImporter_SUMO::myEndElement(int element) {
     switch (element) {
         case SUMO_TAG_EDGE:
-            if (myEdges.find(myCurrentEdge->id) != myEdges.end()) {
-                WRITE_ERROR("Edge '" + myCurrentEdge->id + "' occurred at least twice in the input.");
-            } else {
-                myEdges[myCurrentEdge->id] = myCurrentEdge;
+            if (myCurrentEdge != nullptr) {
+                if (myEdges.find(myCurrentEdge->id) != myEdges.end()) {
+                    WRITE_ERROR("Edge '" + myCurrentEdge->id + "' occurred at least twice in the input.");
+                } else {
+                    myEdges[myCurrentEdge->id] = myCurrentEdge;
+                }
+                myCurrentEdge = nullptr;
+                myLastParameterised.pop_back();
             }
-            myCurrentEdge = nullptr;
-            myLastParameterised.pop_back();
             break;
         case SUMO_TAG_LANE:
-            if (myCurrentEdge != nullptr) {
+            if (myCurrentEdge != nullptr && myCurrentLane != nullptr) {
                 myCurrentEdge->maxSpeed = MAX2(myCurrentEdge->maxSpeed, myCurrentLane->maxSpeed);
                 myCurrentEdge->lanes.push_back(myCurrentLane);
+                myLastParameterised.pop_back();
             }
             myCurrentLane = nullptr;
-            myLastParameterised.pop_back();
             break;
         case SUMO_TAG_TLLOGIC:
             if (!myCurrentTL) {
@@ -510,6 +516,10 @@ NIImporter_SUMO::myEndElement(int element) {
             }
             break;
         case SUMO_TAG_CONNECTION:
+            // !!! this just avoids a crash but is not a real check that it was a connection
+            if (!myLastParameterised.empty()) {
+                myLastParameterised.pop_back();
+            }
             break;
         default:
             break;
@@ -553,6 +563,7 @@ NIImporter_SUMO::addEdge(const SUMOSAXAttributes& attrs) {
     myCurrentEdge->length = attrs.getOpt<double>(SUMO_ATTR_LENGTH, id.c_str(), ok, NBEdge::UNSPECIFIED_LOADED_LENGTH);
     myCurrentEdge->maxSpeed = 0;
     myCurrentEdge->streetName = attrs.getOpt<std::string>(SUMO_ATTR_NAME, id.c_str(), ok, "");
+    myCurrentEdge->distance = attrs.getOpt<double>(SUMO_ATTR_DISTANCE, id.c_str(), ok, 0);
     if (myCurrentEdge->streetName != "" && OptionsCont::getOptions().isDefault("output.street-names")) {
         OptionsCont::getOptions().set("output.street-names", "true");
     }
@@ -586,6 +597,7 @@ NIImporter_SUMO::addLane(const SUMOSAXAttributes& attrs) {
     myLastParameterised.push_back(myCurrentLane);
     myCurrentLane->customShape = attrs.getOpt<bool>(SUMO_ATTR_CUSTOMSHAPE, nullptr, ok, false);
     myCurrentLane->shape = attrs.get<PositionVector>(SUMO_ATTR_SHAPE, id.c_str(), ok);
+    myCurrentLane->type = attrs.getOpt<std::string>(SUMO_ATTR_TYPE, id.c_str(), ok, "");
     if (myCurrentEdge->func == EDGEFUNC_CROSSING) {
         // save the width and the lane id of the crossing but don't do anything else
         std::vector<Crossing>& crossings = myPedestrianCrossings[SUMOXMLDefinitions::getJunctionIDFromInternalEdge(myCurrentEdge->id)];
@@ -710,6 +722,9 @@ NIImporter_SUMO::addJunction(const SUMOSAXAttributes& attrs) {
     if (attrs.hasAttribute(SUMO_ATTR_RIGHT_OF_WAY)) {
         node->setRightOfWay(attrs.getRightOfWay(ok));
     }
+    if (attrs.hasAttribute(SUMO_ATTR_FRINGE)) {
+        node->setFringeType(attrs.getFringeType(ok));
+    }
 }
 
 
@@ -742,6 +757,7 @@ NIImporter_SUMO::addConnection(const SUMOSAXAttributes& attrs) {
     conn.visibility = attrs.getOpt<double>(SUMO_ATTR_VISIBILITY_DISTANCE, nullptr, ok, NBEdge::UNSPECIFIED_VISIBILITY_DISTANCE);
     conn.speed = attrs.getOpt<double>(SUMO_ATTR_SPEED, nullptr, ok, NBEdge::UNSPECIFIED_SPEED);
     conn.customShape = attrs.getOpt<PositionVector>(SUMO_ATTR_SHAPE, nullptr, ok, PositionVector::EMPTY);
+    NBNetBuilder::transformCoordinates(conn.customShape, false, myLocation);
     conn.uncontrolled = attrs.getOpt<bool>(SUMO_ATTR_UNCONTROLLED, nullptr, ok, NBEdge::UNSPECIFIED_CONNECTION_UNCONTROLLED, false);
     if (conn.tlID != "") {
         conn.tlLinkIndex = attrs.get<int>(SUMO_ATTR_TLLINKINDEX, nullptr, ok);
@@ -753,6 +769,7 @@ NIImporter_SUMO::addConnection(const SUMOSAXAttributes& attrs) {
         return;
     }
     from->lanes[fromLaneIdx]->connections.push_back(conn);
+    myLastParameterised.push_back(&from->lanes[fromLaneIdx]->connections.back());
 
     // determine crossing priority and tlIndex
     if (myPedestrianCrossings.size() > 0) {
@@ -894,55 +911,11 @@ NIImporter_SUMO::addPhase(const SUMOSAXAttributes& attrs, NBLoadedSUMOTLDef* cur
     //  the minimum and maximum durations
     SUMOTime minDuration = attrs.getOptSUMOTimeReporting(SUMO_ATTR_MINDURATION, id.c_str(), ok, NBTrafficLightDefinition::UNSPECIFIED_DURATION);
     SUMOTime maxDuration = attrs.getOptSUMOTimeReporting(SUMO_ATTR_MAXDURATION, id.c_str(), ok, NBTrafficLightDefinition::UNSPECIFIED_DURATION);
-    int nextPhase = attrs.getOpt<int>(SUMO_ATTR_NEXT, nullptr, ok, -1);
+    std::vector<int> nextPhases = attrs.getOptIntVector(SUMO_ATTR_NEXT, nullptr, ok);
     const std::string name = attrs.getOpt<std::string>(SUMO_ATTR_NAME, nullptr, ok, "");
     if (ok) {
-        currentTL->addPhase(duration, state, minDuration, maxDuration, nextPhase, name);
+        currentTL->addPhase(duration, state, minDuration, maxDuration, nextPhases, name);
     }
-}
-
-
-PositionVector
-NIImporter_SUMO::reconstructEdgeShape(const EdgeAttrs* edge, const Position& from, const Position& to) {
-    PositionVector result;
-    result.push_back(from);
-
-    if (edge->lanes[0]->customShape) {
-        // this is a new network where edge shapes are writen if they exist.
-        result.push_back(to);
-        return result;
-    }
-    const PositionVector& firstLane = edge->lanes[0]->shape;
-
-    // reverse logic of NBEdge::computeLaneShape
-    // !!! this will only work for old-style constant width lanes
-    const int noLanes = (int)edge->lanes.size();
-    double offset;
-    if (edge->lsf == LANESPREAD_RIGHT) {
-        offset = (SUMO_const_laneWidth + SUMO_const_laneOffset) / 2.; // @todo: why is the lane offset counted in here?
-    } else {
-        offset = (SUMO_const_laneWidth) / 2. - (SUMO_const_laneWidth * (double)noLanes - 1) / 2.; ///= -2.; // @todo: actually, when looking at the road networks, the center line is not in the center
-    }
-    for (int i = 1; i < (int)firstLane.size() - 1; i++) {
-        const Position& from = firstLane[i - 1];
-        const Position& me = firstLane[i];
-        const Position& to = firstLane[i + 1];
-        Position offsets = PositionVector::sideOffset(from, me, offset);
-        Position offsets2 = PositionVector::sideOffset(me, to, offset);
-
-        PositionVector l1(from - offsets, me - offsets);
-        l1.extrapolate(100);
-        PositionVector l2(me - offsets2, to - offsets2);
-        l2.extrapolate(100);
-        if (l1.intersects(l2)) {
-            result.push_back(l1.intersectionPosition2D(l2));
-        } else {
-            WRITE_WARNING("Could not reconstruct shape for edge '" + edge->id + "'.");
-        }
-    }
-
-    result.push_back(to);
-    return result;
 }
 
 

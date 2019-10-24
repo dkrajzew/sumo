@@ -126,6 +126,10 @@ fillOptions() {
     oc.addSynonyme("shapefile.id-column", "shape-files.id-name", true);
     oc.addDescription("shapefile.id-column", "Input", "Defines in which column the id can be found");
 
+    oc.doRegister("shapefile.type-columns", new Option_StringVector());
+    oc.addSynonyme("shapefile.type-columns", "shapefile.type-column");
+    oc.addDescription("shapefile.type-columns", "Input", "Defines which columns form the type id (comma separated list)");
+
     oc.doRegister("shapefile.use-running-id", new Option_Bool(false));
     oc.addDescription("shapefile.use-running-id", "Input", "A running number will be used as id");
 
@@ -167,9 +171,9 @@ fillOptions() {
     oc.addSynonyme("prune.keep-list", "prune.ignore", true);
     oc.addDescription("prune.keep-list", "Pruning", "Items in STR will be kept though out of boundary");
 
-    oc.doRegister("prune.explicit", new Option_String(""));
+    oc.doRegister("prune.explicit", new Option_StringVector(StringVector({ "" })));
     oc.addSynonyme("prune.explicit", "remove");
-    oc.addDescription("prune.explicit", "Pruning", "Items with names in STR will be removed");
+    oc.addDescription("prune.explicit", "Pruning", "Items with names in STR[] will be removed");
 
 
     oc.doRegister("offset.x", new Option_Float(0));
@@ -239,7 +243,7 @@ main(int argc, char** argv) {
         }
         if (!oc.isSet("net")) {
             // from the given options
-#ifdef HAVE_PROJ
+#ifdef PROJ_API_FILE
             unsigned numProjections = oc.getBool("simple-projection") + oc.getBool("proj.utm") + oc.getBool("proj.dhdn") + (oc.getString("proj").length() > 1);
             if ((oc.isSet("osm-files") || oc.isSet("dlr-navteq-poly-files") || oc.isSet("dlr-navteq-poi-files")) && numProjections == 0) {
                 oc.set("proj.utm", "true");

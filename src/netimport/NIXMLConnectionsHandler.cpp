@@ -127,12 +127,12 @@ NIXMLConnectionsHandler::myStartElement(int element,
             myErrorMsgHandler->inform("The connection-destination edge '" + to + "' is not known.");
             return;
         }
-        fromEdge->getToNode()->invalidateTLS(myTLLogicCont, true, false);
         // parse optional lane information
         if (attrs.hasAttribute(SUMO_ATTR_LANE) || attrs.hasAttribute(SUMO_ATTR_FROM_LANE) || attrs.hasAttribute(SUMO_ATTR_TO_LANE)) {
             parseLaneBound(attrs, fromEdge, toEdge);
         } else {
             fromEdge->addEdge2EdgeConnection(toEdge);
+            fromEdge->getToNode()->invalidateTLS(myTLLogicCont, true, false);
         }
     }
     if (element == SUMO_TAG_PROHIBITION) {
@@ -202,19 +202,6 @@ NIXMLConnectionsHandler::parseLaneBound(const SUMOSAXAttributes& attrs, NBEdge* 
         return;
     }
     bool ok = true;
-    const bool mayDefinitelyPass = attrs.getOpt<bool>(SUMO_ATTR_PASS, nullptr, ok, false);
-    const bool keepClear = attrs.getOpt<bool>(SUMO_ATTR_KEEP_CLEAR, nullptr, ok, true);
-    const double contPos = attrs.getOpt<double>(SUMO_ATTR_CONTPOS, nullptr, ok, NBEdge::UNSPECIFIED_CONTPOS);
-    const double visibility = attrs.getOpt<double>(SUMO_ATTR_VISIBILITY_DISTANCE, nullptr, ok, NBEdge::UNSPECIFIED_VISIBILITY_DISTANCE);
-    const double speed = attrs.getOpt<double>(SUMO_ATTR_SPEED, nullptr, ok, NBEdge::UNSPECIFIED_SPEED);
-    const bool uncontrolled = attrs.getOpt<bool>(SUMO_ATTR_UNCONTROLLED, nullptr, ok, false);
-    PositionVector customShape = attrs.getOpt<PositionVector>(SUMO_ATTR_SHAPE, nullptr, ok, PositionVector::EMPTY);
-    if (!NBNetBuilder::transformCoordinates(customShape)) {
-        WRITE_ERROR("Unable to project shape for connection from edge '" + from->getID() + "' to edge '" + to->getID() + "'.");
-    }
-    if (!ok) {
-        return;
-    }
     // get the begin and the end lane
     int fromLane;
     int toLane;
@@ -237,8 +224,35 @@ NIXMLConnectionsHandler::parseLaneBound(const SUMOSAXAttributes& attrs, NBEdge* 
         if (from->hasConnectionTo(to, toLane) && from->getToNode()->getType() != NODETYPE_ZIPPER) {
             WRITE_WARNING("Target lane '" + to->getLaneID(toLane) + "' is already connected from '" + from->getID() + "'.");
         }
+
+        NBEdge::Connection defaultCon(fromLane, to, toLane);
+        if (from->getStep() == NBEdge::LANES2LANES_USER) {
+            // maybe we are patching an existing connection
+            std::vector<NBEdge::Connection> existing = from->getConnectionsFromLane(fromLane, to, toLane);
+            if (existing.size() > 0) {
+                assert(existing.size() == 1);
+                defaultCon = existing.front();
+                // remove the original so we can insert the replacement
+                from->removeFromConnections(defaultCon);
+            } else {
+                from->getToNode()->invalidateTLS(myTLLogicCont, true, false);
+            }
+        }
+        const bool mayDefinitelyPass = attrs.getOpt<bool>(SUMO_ATTR_PASS, nullptr, ok, defaultCon.mayDefinitelyPass);
+        const bool keepClear = attrs.getOpt<bool>(SUMO_ATTR_KEEP_CLEAR, nullptr, ok, defaultCon.keepClear);
+        const double contPos = attrs.getOpt<double>(SUMO_ATTR_CONTPOS, nullptr, ok, defaultCon.contPos);
+        const double visibility = attrs.getOpt<double>(SUMO_ATTR_VISIBILITY_DISTANCE, nullptr, ok, defaultCon.visibility);
+        const double speed = attrs.getOpt<double>(SUMO_ATTR_SPEED, nullptr, ok, defaultCon.speed);
+        const bool uncontrolled = attrs.getOpt<bool>(SUMO_ATTR_UNCONTROLLED, nullptr, ok, defaultCon.uncontrolled);
+        PositionVector customShape = attrs.getOpt<PositionVector>(SUMO_ATTR_SHAPE, nullptr, ok, defaultCon.customShape);
+        if (attrs.hasAttribute(SUMO_ATTR_SHAPE) && !NBNetBuilder::transformCoordinates(customShape)) {
+            WRITE_ERROR("Unable to project shape for connection from edge '" + from->getID() + "' to edge '" + to->getID() + "'.");
+        }
+        if (!ok) {
+            return;
+        }
         if (!from->addLane2LaneConnection(fromLane, to, toLane, NBEdge::L2L_USER, true, mayDefinitelyPass,
-                    keepClear, contPos, visibility, speed, customShape, uncontrolled)) {
+                                          keepClear, contPos, visibility, speed, customShape, uncontrolled)) {
             if (OptionsCont::getOptions().getBool("show-errors.connections-first-try")) {
                 WRITE_WARNING("Could not set loaded connection from '" + from->getLaneID(fromLane) + "' to '" + to->getLaneID(toLane) + "'.");
             }
@@ -302,20 +316,21 @@ NIXMLConnectionsHandler::parseLaneDefinition(const SUMOSAXAttributes& attributes
 void
 NIXMLConnectionsHandler::addCrossing(const SUMOSAXAttributes& attrs) {
     bool ok = true;
-    NBNode* node = nullptr;
     EdgeVector edges;
     const std::string nodeID = attrs.get<std::string>(SUMO_ATTR_NODE, nullptr, ok);
-    const double width = attrs.getOpt<double>(SUMO_ATTR_WIDTH, nodeID.c_str(), ok, NBEdge::UNSPECIFIED_WIDTH, true);
+    double width = attrs.getOpt<double>(SUMO_ATTR_WIDTH, nodeID.c_str(), ok, NBEdge::UNSPECIFIED_WIDTH, true);
     const bool discard = attrs.getOpt<bool>(SUMO_ATTR_DISCARD, nodeID.c_str(), ok, false, true);
     int tlIndex = attrs.getOpt<int>(SUMO_ATTR_TLLINKINDEX, nullptr, ok, -1);
     int tlIndex2 = attrs.getOpt<int>(SUMO_ATTR_TLLINKINDEX2, nullptr, ok, -1);
+    NBNode* node = myNodeCont.retrieve(nodeID);
+    if (node == nullptr) {
+        if (!discard && myNodeCont.wasRemoved(nodeID)) {
+            WRITE_ERROR("Node '" + nodeID + "' in crossing is not known.");
+        }
+        return;
+    }
     if (!attrs.hasAttribute(SUMO_ATTR_EDGES)) {
         if (discard) {
-            node = myNodeCont.retrieve(nodeID);
-            if (node == nullptr) {
-                WRITE_ERROR("Node '" + nodeID + "' in crossing is not known.");
-                return;
-            }
             node->discardAllCrossings(true);
             return;
         } else {
@@ -326,22 +341,18 @@ NIXMLConnectionsHandler::addCrossing(const SUMOSAXAttributes& attrs) {
     for (const std::string& id : attrs.get<std::vector<std::string> >(SUMO_ATTR_EDGES, nodeID.c_str(), ok)) {
         NBEdge* edge = myEdgeCont.retrieve(id);
         if (edge == nullptr) {
-            WRITE_ERROR("Edge '" + id + "' for crossing at node '" + nodeID + "' is not known.");
-            return;
-        }
-        if (node == nullptr) {
-            if (edge->getToNode()->getID() == nodeID) {
-                node = edge->getToNode();
-            } else if (edge->getFromNode()->getID() == nodeID) {
-                node = edge->getFromNode();
-            } else {
-                WRITE_ERROR("Edge '" + id + "' does not touch node '" + nodeID + "'.");
+            if (!(discard && myEdgeCont.wasRemoved(id))) {
+                WRITE_ERROR("Edge '" + id + "' for crossing at node '" + nodeID + "' is not known.");
                 return;
+            } else {
+                edge = myEdgeCont.retrieve(id, true);
             }
         } else {
             if (edge->getToNode() != node && edge->getFromNode() != node) {
-                WRITE_ERROR("Edge '" + id + "' does not touch node '" + nodeID + "'.");
-                return;
+                if (!discard) {
+                    WRITE_ERROR("Edge '" + id + "' does not touch node '" + nodeID + "'.");
+                    return;
+                }
             }
         }
         edges.push_back(edge);
@@ -363,8 +374,31 @@ NIXMLConnectionsHandler::addCrossing(const SUMOSAXAttributes& attrs) {
         node->removeCrossing(edges);
     } else {
         if (node->checkCrossingDuplicated(edges)) {
-            WRITE_ERROR("Crossing with edges '" + toString(edges) + "' already exists at node '" + node->getID() + "'.");
-            return;
+            // possibly a diff
+            NBNode::Crossing* existing =  node->getCrossing(edges);
+            if (!(
+                        (attrs.hasAttribute(SUMO_ATTR_WIDTH) && width != existing->width)
+                        || (attrs.hasAttribute(SUMO_ATTR_TLLINKINDEX) && tlIndex != existing->customTLIndex)
+                        || (attrs.hasAttribute(SUMO_ATTR_TLLINKINDEX2) && tlIndex2 != existing->customTLIndex2)
+                        || (attrs.hasAttribute(SUMO_ATTR_PRIORITY) && priority != existing->priority))) {
+                WRITE_ERROR("Crossing with edges '" + toString(edges) + "' already exists at node '" + node->getID() + "'.");
+                return;
+            } else {
+                // replace existing, keep old attributes
+                if (!attrs.hasAttribute(SUMO_ATTR_WIDTH)) {
+                    width = existing->width;
+                }
+                if (!attrs.hasAttribute(SUMO_ATTR_TLLINKINDEX)) {
+                    tlIndex = existing->customTLIndex;
+                }
+                if (!attrs.hasAttribute(SUMO_ATTR_TLLINKINDEX2)) {
+                    tlIndex2 = existing->customTLIndex2;
+                }
+                if (!attrs.hasAttribute(SUMO_ATTR_PRIORITY)) {
+                    priority = existing->priority;
+                }
+                node->removeCrossing(edges);
+            }
         }
         node->addCrossing(edges, width, priority, tlIndex, tlIndex2, customShape);
     }

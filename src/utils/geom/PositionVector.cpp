@@ -381,8 +381,8 @@ PositionVector::positionAtOffset2D(const Position& p1, const Position& p2, doubl
 Boundary
 PositionVector::getBoxBoundary() const {
     Boundary ret;
-    for (const_iterator i = begin(); i != end(); i++) {
-        ret.add(*i);
+    for (const Position& i : *this) {
+        ret.add(i);
     }
     return ret;
 }
@@ -393,10 +393,10 @@ PositionVector::getPolygonCenter() const {
     double x = 0;
     double y = 0;
     double z = 0;
-    for (const_iterator i = begin(); i != end(); i++) {
-        x += (*i).x();
-        y += (*i).y();
-        z += (*i).z();
+    for (const Position& i : *this) {
+        x += i.x();
+        y += i.y();
+        z += i.z();
     }
     return Position(x / (double) size(), y / (double) size(), z / (double)size());
 }
@@ -614,8 +614,32 @@ PositionVector::add(double xoff, double yoff, double zoff) {
 
 
 void
+PositionVector::sub(const Position& offset) {
+    sub(offset.x(), offset.y(), offset.z());
+}
+
+
+void
+PositionVector::sub(double xoff, double yoff, double zoff) {
+    for (int i = 0; i < (int)size(); i++) {
+        (*this)[i].add(-xoff, -yoff, -zoff);
+    }
+}
+
+
+void
 PositionVector::add(const Position& offset) {
     add(offset.x(), offset.y(), offset.z());
+}
+
+
+PositionVector
+PositionVector::added(const Position& offset) const {
+    PositionVector pv;
+    for (auto i1 = begin(); i1 != end(); ++i1) {
+        pv.push_back(*i1 + offset);
+    }
+    return pv;
 }
 
 
@@ -812,6 +836,43 @@ PositionVector::nearest_offset_to_point2D(const Position& p, bool perpendicular)
             }
         }
         seen += (*i).distanceTo2D(*(i + 1));
+    }
+    return nearestPos;
+}
+
+
+double
+PositionVector::nearest_offset_to_point25D(const Position& p, bool perpendicular) const {
+    if (size() == 0) {
+        return INVALID_DOUBLE;
+    }
+    double minDist = std::numeric_limits<double>::max();
+    double nearestPos = GeomHelper::INVALID_OFFSET;
+    double seen = 0;
+    for (const_iterator i = begin(); i != end() - 1; i++) {
+        const double pos =
+            GeomHelper::nearest_offset_on_line_to_point2D(*i, *(i + 1), p, perpendicular);
+        const double dist = pos == GeomHelper::INVALID_OFFSET ? minDist : p.distanceTo2D(positionAtOffset2D(*i, *(i + 1), pos));
+        if (dist < minDist) {
+            const double pos25D = pos * (*i).distanceTo(*(i + 1)) / (*i).distanceTo2D(*(i + 1));
+            nearestPos = pos25D + seen;
+            minDist = dist;
+        }
+        if (perpendicular && i != begin() && pos == GeomHelper::INVALID_OFFSET) {
+            // even if perpendicular is set we still need to check the distance to the inner points
+            const double cornerDist = p.distanceTo2D(*i);
+            if (cornerDist < minDist) {
+                const double pos1 =
+                    GeomHelper::nearest_offset_on_line_to_point2D(*(i - 1), *i, p, false);
+                const double pos2 =
+                    GeomHelper::nearest_offset_on_line_to_point2D(*i, *(i + 1), p, false);
+                if (pos1 == (*(i - 1)).distanceTo2D(*i) && pos2 == 0.) {
+                    nearestPos = seen;
+                    minDist = cornerDist;
+                }
+            }
+        }
+        seen += (*i).distanceTo(*(i + 1));
     }
     return nearestPos;
 }
@@ -1022,7 +1083,7 @@ PositionVector::sideOffset(const Position& beg, const Position& end, const doubl
 
 
 void
-PositionVector::move2side(double amount) {
+PositionVector::move2side(double amount, double maxExtension) {
     if (size() < 2) {
         return;
     }
@@ -1064,7 +1125,7 @@ PositionVector::move2side(double amount) {
                 Position offsets2 = sideOffset(me, to, amount);
                 PositionVector l1(from - offsets, me - offsets);
                 PositionVector l2(me - offsets2, to - offsets2);
-                Position meNew  = l1.intersectionPosition2D(l2[0], l2[1], 100);
+                Position meNew  = l1.intersectionPosition2D(l2[0], l2[1], maxExtension);
                 if (meNew == Position::INVALID) {
                     throw InvalidArgument("no line intersection");
                 }
@@ -1080,7 +1141,7 @@ PositionVector::move2side(double amount) {
 
 
 void
-PositionVector::move2side(std::vector<double> amount) {
+PositionVector::move2side(std::vector<double> amount, double maxExtension) {
     if (size() < 2) {
         return;
     }
@@ -1125,7 +1186,7 @@ PositionVector::move2side(std::vector<double> amount) {
                 Position offsets2 = sideOffset(me, to, amount[i]);
                 PositionVector l1(from - offsets, me - offsets);
                 PositionVector l2(me - offsets2, to - offsets2);
-                Position meNew  = l1.intersectionPosition2D(l2[0], l2[1], 100);
+                Position meNew  = l1.intersectionPosition2D(l2[0], l2[1], maxExtension);
                 if (meNew == Position::INVALID) {
                     throw InvalidArgument("no line intersection");
                 }
@@ -1524,6 +1585,7 @@ PositionVector::interpolateZ(double zStart, double zEnd) const {
     return result;
 }
 
+
 PositionVector
 PositionVector::resample(double maxLength) const {
     PositionVector result;
@@ -1540,6 +1602,7 @@ PositionVector::resample(double maxLength) const {
     }
     return result;
 }
+
 
 double
 PositionVector::offsetAtIndex2D(int index) const {
@@ -1571,5 +1634,48 @@ PositionVector::getMaxGrade(double& maxJump) const {
     return result;
 }
 
-/****************************************************************************/
 
+PositionVector
+PositionVector::bezier(int numPoints) {
+    // inspired by David F. Rogers
+    assert(size() < 33);
+    static const double fac[33] = {
+        1.0, 1.0, 2.0, 6.0, 24.0, 120.0, 720.0, 5040.0, 40320.0, 362880.0, 3628800.0, 39916800.0, 479001600.0,
+        6227020800.0, 87178291200.0, 1307674368000.0, 20922789888000.0, 355687428096000.0, 6402373705728000.0,
+        121645100408832000.0, 2432902008176640000.0, 51090942171709440000.0, 1124000727777607680000.0,
+        25852016738884976640000.0, 620448401733239439360000.0, 15511210043330985984000000.0,
+        403291461126605635584000000.0, 10888869450418352160768000000.0, 304888344611713860501504000000.0,
+        8841761993739701954543616000000.0, 265252859812191058636308480000000.0,
+        8222838654177922817725562880000000.0, 263130836933693530167218012160000000.0
+    };
+    PositionVector ret;
+    const int npts = (int)size();
+    // calculate the points on the Bezier curve
+    const double step = (double) 1.0 / (numPoints - 1);
+    double t = 0.;
+    Position prev;
+    for (int i1 = 0; i1 < numPoints; i1++) {
+        if ((1.0 - t) < 5e-6) {
+            t = 1.0;
+        }
+        double x = 0., y = 0., z = 0.;
+        for (int i = 0; i < npts; i++) {
+            const double ti = (i == 0) ? 1.0 : pow(t, i);
+            const double tni = (npts == i + 1) ? 1.0 : pow(1 - t, npts - i - 1);
+            const double basis = fac[npts - 1] / (fac[i] * fac[npts - 1 - i]) * ti * tni;
+            x += basis * at(i).x();
+            y += basis * at(i).y();
+            z += basis * at(i).z();
+        }
+        t += step;
+        Position current(x, y, z);
+        if (prev != current && !ISNAN(x) && !ISNAN(y) && !ISNAN(z)) {
+            ret.push_back(current);
+        }
+        prev = current;
+    }
+    return ret;
+}
+
+
+/****************************************************************************/

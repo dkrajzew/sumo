@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select calibrator
-netedit.changeAdditional("calibrator")
+netedit.changeElement("calibrator")
 
 # create first calibrator
 netedit.leftClick(referencePosition, 245, 140)
@@ -41,7 +41,7 @@ netedit.leftClick(referencePosition, 170, 270)
 netedit.inspectMode()
 
 # inspect calibrator
-netedit.leftClick(referencePosition, 300, 205)
+netedit.leftClick(referencePosition, 330, 235)
 
 # Change parameter id with a non valid value (Duplicated ID)
 netedit.modifyAttribute(0, "calibrator_gneE3_0", True)
@@ -57,10 +57,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

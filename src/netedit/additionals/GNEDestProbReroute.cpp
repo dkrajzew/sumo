@@ -34,15 +34,17 @@
 // ===========================================================================
 
 GNEDestProbReroute::GNEDestProbReroute(GNERerouterIntervalDialog* rerouterIntervalDialog) :
-    GNEAdditional(rerouterIntervalDialog->getEditedAdditional(), rerouterIntervalDialog->getEditedAdditional()->getViewNet(), GLO_REROUTER, SUMO_TAG_DEST_PROB_REROUTE, "", false),
-    myNewEdgeDestination(rerouterIntervalDialog->getEditedAdditional()->getFirstAdditionalParent()->getEdgeChilds().at(0)) {
+    GNEAdditional(rerouterIntervalDialog->getEditedAdditional(), rerouterIntervalDialog->getEditedAdditional()->getViewNet(), GLO_REROUTER, SUMO_TAG_DEST_PROB_REROUTE, "", false,
+        {}, {}, {}, {rerouterIntervalDialog->getEditedAdditional()}, {}, {}, {}, {}, {}, {}),
+    myNewEdgeDestination(rerouterIntervalDialog->getEditedAdditional()->getAdditionalParents().at(0)->getEdgeChildren().at(0)) {
     // fill dest prob reroute interval with default values
     setDefaultValues();
 }
 
 
 GNEDestProbReroute::GNEDestProbReroute(GNEAdditional* rerouterIntervalParent, GNEEdge* newEdgeDestination, double probability):
-    GNEAdditional(rerouterIntervalParent, rerouterIntervalParent->getViewNet(), GLO_REROUTER, SUMO_TAG_DEST_PROB_REROUTE, "", false),
+    GNEAdditional(rerouterIntervalParent, rerouterIntervalParent->getViewNet(), GLO_REROUTER, SUMO_TAG_DEST_PROB_REROUTE, "", false,
+        {}, {}, {}, {rerouterIntervalParent}, {}, {}, {}, {}, {}, {}),
     myNewEdgeDestination(newEdgeDestination),
     myProbability(probability) {
 }
@@ -63,20 +65,26 @@ GNEDestProbReroute::commitGeometryMoving(GNEUndoList*) {
 }
 
 void
-GNEDestProbReroute::updateGeometry(bool /*updateGrid*/) {
+GNEDestProbReroute::updateGeometry() {
     // Currently this additional doesn't own a Geometry
 }
 
 
 Position
 GNEDestProbReroute::getPositionInView() const {
-    return myFirstAdditionalParent->getPositionInView();
+    return getAdditionalParents().at(0)->getPositionInView();
+}
+
+
+Boundary
+GNEDestProbReroute::getCenteringBoundary() const {
+    return getAdditionalParents().at(0)->getCenteringBoundary();
 }
 
 
 std::string
 GNEDestProbReroute::getParentName() const {
-    return myFirstAdditionalParent->getID();
+    return getAdditionalParents().at(0)->getID();
 }
 
 
@@ -96,12 +104,18 @@ GNEDestProbReroute::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_PROB:
             return toString(myProbability);
         case GNE_ATTR_PARENT:
-            return myFirstAdditionalParent->getID();
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+            return getAdditionalParents().at(0)->getID();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+double 
+GNEDestProbReroute::getAttributeDouble(SumoXMLAttr key) const {
+    throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
 }
 
 
@@ -114,7 +128,7 @@ GNEDestProbReroute::setAttribute(SumoXMLAttr key, const std::string& value, GNEU
         case SUMO_ATTR_ID:
         case SUMO_ATTR_EDGE:
         case SUMO_ATTR_PROB:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -132,11 +146,17 @@ GNEDestProbReroute::isValid(SumoXMLAttr key, const std::string& value) {
             return (myViewNet->getNet()->retrieveEdge(value, false) != nullptr);
         case SUMO_ATTR_PROB:
             return canParse<double>(value) && parse<double>(value) >= 0 && parse<double>(value) <= 1;
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+bool 
+GNEDestProbReroute::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 
@@ -167,8 +187,8 @@ GNEDestProbReroute::setAttribute(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_PROB:
             myProbability = parse<double>(value);
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");

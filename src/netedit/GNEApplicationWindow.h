@@ -132,6 +132,9 @@ public:
     /// @brief set text of the statusBar
     void setStatusBarText(const std::string& statusBarText);
 
+    /// @brief called if the user selects Processing->compute junctions with volatile options
+    long computeJunctionWithVolatileOptions();
+
     /// @brief enable save additionals
     void enableSaveAdditionalsMenu();
 
@@ -227,11 +230,23 @@ public:
     /// @brief called when the command/FXCall save network as is executed
     long onCmdSaveAsNetwork(FXObject*, FXSelector, void*);
 
-    /// @brief called when the upadte/FXCall needs network is executed
+    /// @brief called when the update/FXCall needs network is executed
     long onUpdNeedsNetwork(FXObject*, FXSelector, void*);
 
     /// @brief called when the update/FXCall reload is executed
     long onUpdReload(FXObject*, FXSelector, void*);
+
+    /// @brief called when the update/FXCall save additionals is executed
+    long onUpdSaveAdditionals(FXObject*, FXSelector, void*);
+
+    /// @brief called when the update/FXCall save demand elements is executed
+    long onUpdSaveDemandElements(FXObject*, FXSelector, void*);
+
+    /// @brief called when the update/FXCall undo is executed
+    long onUpdUndo(FXObject* obj, FXSelector sel, void* ptr);
+
+    /// @brief called when the update/FXCall redo is executed
+    long onUpdRedo(FXObject* obj, FXSelector sel, void* ptr);
 
     /// @brief called when the command/FXCall save as plain xml is executed
     long onCmdSaveAsPlainXML(FXObject*, FXSelector, void*);
@@ -262,6 +277,12 @@ public:
     /// @brief called when the command/FXCall clear message windows is executed
     long onCmdClearMsgWindow(FXObject*, FXSelector, void*);
 
+    /// @brief called when user toogle windows checkbox "load additionals"
+    long onCmdLoadAdditionalsInSUMOGUI(FXObject*, FXSelector, void*);
+
+    /// @brief called when user toogle windows checkbox "load demand"
+    long onCmdLoadDemandInSUMOGUI(FXObject*, FXSelector, void*);
+
     /// @brief called when the command/FXCall load thread is executed
     long onLoadThreadEvent(FXObject*, FXSelector, void*);
 
@@ -273,6 +294,9 @@ public:
 
     /// @brief called if the user hits an edit-mode hotkey
     long onCmdSetMode(FXObject* sender, FXSelector sel, void* ptr);
+
+    /// @brief called when user press a process button (or a shortcut)
+    long onCmdProcessButton(FXObject*, FXSelector sel, void*);
 
     /// @brief called if the user hints ctrl + T
     long onCmdOpenSUMOGUI(FXObject* sender, FXSelector sel, void* ptr);
@@ -286,44 +310,20 @@ public:
     /// @brief called if the user hits enter
     long onCmdEnter(FXObject* sender, FXSelector sel, void* ptr);
 
+    /// @brief called if the user hits backspace
+    long onCmdBackspace(FXObject* sender, FXSelector sel, void* ptr);
+
     /// @brief called if the user hits f
     long onCmdFocusFrame(FXObject* sender, FXSelector sel, void* ptr);
 
     /// @brief called if the user press key combination Ctrl + G to toogle grid
     long onCmdToogleGrid(FXObject*, FXSelector, void*);
 
-    /// @brief called if the user press key combination Ctrl + Shift + C to toogle show connections
-    long onCmdToogleShowConnections(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user press key combination Ctrl + Shift + H to toogle elevation
-    long onCmdToogleElevation(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user press key combination Ctrl + Shift + I to toogle select edges
-    long onCmdToogleSelectEdges(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user press key combination Ctrl + Shift + J to toogle chain mode
-    long onCmdToogleChain(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user press key combination Ctrl + Shift + K to toogle two way
-    long onCmdToogleTwoWay(FXObject*, FXSelector, void*);
+    /// @brief called if the user press key combination Alt + <0-9>
+    long onCmdToogleEditOptions(FXObject*, FXSelector, void*);
 
     /// @brief called if the user selects help->Documentation
     long onCmdHelp(FXObject* sender, FXSelector sel, void* ptr);
-
-    /// @brief called if the user selects Processing->compute junctions
-    long onCmdComputeJunctions(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user selects Processing->compute junctions with volatile options
-    long onCmdComputeJunctionsVolatile(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user selects Processing->clean junctions
-    long onCmdCleanJunctions(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user selects Processing->join junctions
-    long onCmdJoinJunctions(FXObject*, FXSelector, void*);
-
-    /// @brief called if the user selects Processing->clear invalid crossings
-    long onCmdCleanInvalidCrossings(FXObject*, FXSelector, void*);
 
     /// @brief called if the user selects Processing->Configure Options
     long onCmdOptions(FXObject*, FXSelector, void*);
@@ -333,6 +333,25 @@ public:
 
     // @brief called when user press Ctrl+Y
     long onCmdRedo(FXObject*, FXSelector, void*);
+
+    /// @brief called when user press Ctrl+Z
+    long onCmdCut(FXObject*, FXSelector, void*);
+
+    // @brief called when user press Ctrl+Y
+    long onCmdCopy(FXObject*, FXSelector, void*);
+
+    // @brief called when user press Ctrl+Y
+    long onCmdPaste(FXObject*, FXSelector, void*);
+
+    // @brief called when user press Ctrl+F1
+    long onCmdSetTemplate(FXObject*, FXSelector, void*);
+
+    // @brief called when user press Ctrl+F2
+    long onCmdCopyTemplate(FXObject*, FXSelector, void*);
+
+    // @brief called when user press Ctrl+F3
+    long onCmdClearTemplate(FXObject*, FXSelector, void*);
+
     /// @}
 
     /// @name inherited from GUIMainWindow
@@ -361,6 +380,15 @@ public:
 
     /// @brief update FXMenuCommands
     void updateSuperModeMenuCommands(int supermode);
+
+    /// @brief disable undo-redo giving a string with the reason
+    void disableUndoRedo(const std::string& reason);
+
+    /// @brief disable undo-redo
+    void enableUndoRedo();
+
+    /// @brief check if undo-redo is enabled
+    const std::string& isUndoRedoEnabled() const;
 
 protected:
     /// @brief FOX needs this for static members
@@ -407,6 +435,9 @@ protected:
     /// @brief Input file pattern
     std::string myConfigPattern;
 
+    /// @brief string to check if undo/redo list is enabled (a String is used to keep the disabling reason)
+    std::string myUndoRedoListEnabled;
+
 private:
     /// @brief struct for menu bar file
     struct MenuBarFile {
@@ -416,15 +447,6 @@ private:
 
         /// @brief build recent files
         void buildRecentFiles(FXMenuPane* fileMenu);
-
-        /// @brief filename for load/save additionals
-        std::string myAdditionalsFile;
-
-        /// @brief filename for load/save TLS Programs
-        std::string myTLSProgramsFile;
-
-        /// @brief filename for load/save demand elemetns
-        std::string myDemandElementsFile;
 
         /// @brief List of recent config files
         FXRecentFiles myRecentConfigs;
@@ -466,88 +488,264 @@ private:
         GNEApplicationWindow* myGNEApp;
     };
 
-    /// @brief struct for network menu commands
-    struct NetworkMenuCommands {
+    /// @brief struct for edit menu commands
+    struct EditMenuCommands {
+
+        /// @brief struct for network menu commands
+        struct NetworkMenuCommands {
+
+            /// @brief constructor
+            NetworkMenuCommands(const EditMenuCommands* editMenuCommandsParent);
+
+            /// @brief build menu commands
+            void buildNetworkMenuCommands(FXMenuPane* editMenu);
+
+            /// @brief show all menu commands
+            void showNetworkMenuCommands();
+
+            /// @brief hide all menu commands
+            void hideNetworkMenuCommands();
+
+            /// @brief menu command for create edge
+            FXMenuCommand* createEdgeMode;
+
+            /// @brief menu command for move mode
+            FXMenuCommand* moveMode;
+
+            /// @brief menu command for delete mode
+            FXMenuCommand* deleteMode;
+
+            /// @brief menu command for inspect mode
+            FXMenuCommand* inspectMode;
+
+            /// @brief menu command for select mode
+            FXMenuCommand* selectMode;
+
+            /// @brief menu command for connect mode
+            FXMenuCommand* connectMode;
+
+            /// @brief menu command for prohibition mode
+            FXMenuCommand* prohibitionMode;
+
+            /// @brief menu command for TLS Mode
+            FXMenuCommand* TLSMode;
+
+            /// @brief menu command for additional mode
+            FXMenuCommand* additionalMode;
+
+            /// @brief menu command for crossing mode
+            FXMenuCommand* crossingMode;
+
+            /// @brief menu command for TAZ mode
+            FXMenuCommand* TAZMode;
+
+            /// @brief menu command for shape mode
+            FXMenuCommand* shapeMode;
+
+        private:
+            /// @brief reference to EditMenuCommands
+            const EditMenuCommands* myEditMenuCommandsParent;
+
+            /// @brief separator between sets of FXMenuCommand
+            FXMenuSeparator* myHorizontalSeparator;
+        };
+
+        /// @brief struct for Demand menu commands
+        struct DemandMenuCommands {
+
+            /// @brief constructor
+            DemandMenuCommands(const EditMenuCommands* editMenuCommandsParent);
+
+            /// @brief build menu commands
+            void buildDemandMenuCommands(FXMenuPane* editMenu);
+
+            /// @brief show all menu commands
+            void showDemandMenuCommands();
+
+            /// @brief hide all menu commands
+            void hideDemandMenuCommands();
+
+            /// @brief menu command for route mode
+            FXMenuCommand* routeMode;
+
+            /// @brief menu command for vehicle mode
+            FXMenuCommand* vehicleMode;
+
+            /// @brief menu command for vehicle type mode
+            FXMenuCommand* vehicleTypeMode;
+
+            /// @brief menu command for stop mode
+            FXMenuCommand* stopMode;
+
+            /// @brief menu command for person type mode
+            FXMenuCommand* personTypeMode;
+
+            /// @brief menu command for person mode
+            FXMenuCommand* personMode;
+
+            /// @brief menu command for person plan mode
+            FXMenuCommand* personPlanMode;
+
+        private:
+            /// @brief reference to EditMenuCommands
+            const EditMenuCommands* myEditMenuCommandsParent;
+
+            /// @brief separator between sets of FXMenuCommand
+            FXMenuSeparator* myHorizontalSeparator;
+        };
 
         /// @brief constructor
-        NetworkMenuCommands(GNEApplicationWindow* GNEApp);
+        EditMenuCommands(GNEApplicationWindow* GNEApp);
 
-        /// @brief build menu commands
-        void buildNetworkMenuCommands(FXMenuPane* editMenu);
-
-        /// @brief show all menu commands
-        void showNetworkMenuCommands();
-
-        /// @brief hide all menu commands
-        void hideNetworkMenuCommands();
-
-        /// @brief menu command for create edge
-        FXMenuCommand* createEdgeMode;
-
-        /// @brief menu command for move mode
-        FXMenuCommand* moveMode;
-
-        /// @brief menu command for delete mode
-        FXMenuCommand* deleteMode;
-
-        /// @brief menu command for inspect mode
-        FXMenuCommand* inspectMode;
-
-        /// @brief menu command for select mode
-        FXMenuCommand* selectMode;
-
-        /// @brief menu command for connect mode
-        FXMenuCommand* connectMode;
-
-        /// @brief menu command for prohibition mode
-        FXMenuCommand* prohibitionMode;
-
-        /// @brief menu command for TLS Mode
-        FXMenuCommand* TLSMode;
-
-        /// @brief menu command for additional mode
-        FXMenuCommand* additionalMode;
-
-        /// @brief menu command for crossing mode
-        FXMenuCommand* crossingMode;
-
-        /// @brief menu command for TAZ mode
-        FXMenuCommand* TAZMode;
-
-        /// @brief menu command for shape mode
-        FXMenuCommand* shapeMode;
+        /// @brief build edit menu commands
+        void buildEditMenuCommands(FXMenuPane* editMenu);
 
     private:
         /// @brief pointer to current GNEApplicationWindows
         GNEApplicationWindow* myGNEApp;
 
-        /// @brief separator between sets of FXMenuCommand
-        FXMenuSeparator* myHorizontalSeparator;
+    public:
+        /// @brief Network Menu Commands
+        NetworkMenuCommands networkMenuCommands;
+
+        /// @brief Demand Menu Commands
+        DemandMenuCommands demandMenuCommands;
+
+        /// @brief FXMenuCommand for undo last change
+        FXMenuCommand* undoLastChange;
+
+        /// @brief FXMenuCommand for redo last change
+        FXMenuCommand* redoLastChange;
+
+        /// @brief FXMenuCommand for edit view scheme
+        FXMenuCommand* editViewScheme;
+
+        /// @brief FXMenuCommand for edit view port
+        FXMenuCommand* editViewPort;
+
+        /// @brief FXMenuCommand for toogle grid
+        FXMenuCommand* toogleGrid;
+
+        /// @brief menu check for load additionals in SUMO GUI
+        FXMenuCheck *loadAdditionalsInSUMOGUI;
+
+        /// @brief menu check for load demand in SUMO GUI
+        FXMenuCheck *loadDemandInSUMOGUI;
+
+        /// @brief FXMenuCommand for open in SUMO GUI
+        FXMenuCommand* openInSUMOGUI;
     };
 
-    /// @brief struct for Demand menu commands
-    struct DemandMenuCommands {
+    /// @brief struct for processing menu commands
+    struct ProcessingMenuCommands {
 
         /// @brief constructor
-        DemandMenuCommands(GNEApplicationWindow* GNEApp);
+        ProcessingMenuCommands(GNEApplicationWindow* GNEApp);
 
         /// @brief build menu commands
-        void buildDemandMenuCommands(FXMenuPane* editMenu);
+        void buildProcessingMenuCommands(FXMenuPane* editMenu);
+
+        /// @brief show network processing menu commands
+        void showNetworkProcessingMenuCommands();
+
+        /// @brief show network processing menu commands
+        void hideNetworkProcessingMenuCommands();
+
+        /// @brief show demand processing menu commands
+        void showDemandProcessingMenuCommands();
+
+        /// @brief show demand processing menu commands
+        void hideDemandProcessingMenuCommands();
+
+        /// @name Processing FXMenuCommands for Network mode
+        /// @{
+        /// @brief FXMenuCommand for compute network
+        FXMenuCommand* computeNetwork;
+
+        /// @brief FXMenuCommand for compute network with volatile options
+        FXMenuCommand* computeNetworkVolatile;
+
+        /// @brief FXMenuCommand for clean junctions without edges
+        FXMenuCommand* cleanJunctions;
+
+        /// @brief FXMenuCommand for join selected junctions
+        FXMenuCommand* joinJunctions;
+
+        /// @brief FXMenuCommand for clear invalid crosings
+        FXMenuCommand* clearInvalidCrossings;
+        /// @}
+
+        /// @name Processing FXMenuCommands for Demand mode
+        /// @{
+        /// @brief FXMenuCommand for compute demand elements
+        FXMenuCommand* computeDemand;
+
+        /// @brief FXMenuCommand for clean routes without vehicles
+        FXMenuCommand* cleanRoutes;
+
+        /// @brief FXMenuCommand for join routes
+        FXMenuCommand* joinRoutes;
+
+        /// @brief FXMenuCommand for clear invalid demand elements
+        FXMenuCommand* clearInvalidDemandElements;
+        /// @}
+
+        /// @brief FXMenuCommand for open option menus
+        FXMenuCommand* optionMenus;
+
+    private:
+        /// @brief pointer to current GNEApplicationWindows
+        GNEApplicationWindow* myGNEApp;
+    };
+
+    /// @brief struct for locate menu commands
+    struct LocateMenuCommands {
+
+        /// @brief constructor
+        LocateMenuCommands(GNEApplicationWindow* GNEApp);
+
+        /// @brief build menu commands
+        void buildLocateMenuCommands(FXMenuPane* locateMenu);
+
+    private:
+        /// @brief pointer to current GNEApplicationWindows
+        GNEApplicationWindow* myGNEApp;
+    };
+
+    /// @brief struct for windows menu commands
+    struct WindowsMenuCommands {
+
+        /// @brief constructor
+        WindowsMenuCommands(GNEApplicationWindow* GNEApp);
+
+        /// @brief build menu commands
+        void buildWindowsMenuCommands(FXMenuPane* windowsMenu);
+
+    private:
+        /// @brief pointer to current GNEApplicationWindows
+        GNEApplicationWindow* myGNEApp;
+    };
+
+    /// @brief struct for supermode commands
+    struct SupermodeCommands {
+
+        /// @brief constructor
+        SupermodeCommands(GNEApplicationWindow* GNEApp);
+
+        /// @brief build menu commands
+        void buildSupermodeCommands(FXMenuPane* editMenu);
 
         /// @brief show all menu commands
-        void showDemandMenuCommands();
+        void showSupermodeCommands();
 
         /// @brief hide all menu commands
-        void hideDemandMenuCommands();
+        void hideSupermodeCommands();
 
-        /// @brief menu command for route mode
-        FXMenuCommand* routeMode;
+        /// @brief FXMenuCommand for network supermode
+        FXMenuCommand* networkMode;
 
-        /// @brief menu command for vehicle mode
-        FXMenuCommand* vehicleMode;
-
-        /// @brief menu command for vehicle type mode
-        FXMenuCommand* vehicleTypeMode;
+        /// @brief FXMenuCommand for demand supermode
+        FXMenuCommand* demandMode;
 
     private:
         /// @brief pointer to current GNEApplicationWindows
@@ -566,11 +764,20 @@ private:
     /// @brief File Menu Commands
     FileMenuCommands myFileMenuCommands;
 
-    /// @brief Network Menu Commands
-    NetworkMenuCommands myNetworkMenuCommands;
+    /// @brief Edit Menu Commands
+    EditMenuCommands myEditMenuCommands;
 
-    /// @brief Demand Menu Commands
-    DemandMenuCommands myDemandMenuCommands;
+    /// @brief Edit Menu Commands
+    ProcessingMenuCommands myProcessingMenuCommands;
+
+    /// @brief Locate Menu Commands
+    LocateMenuCommands myLocateMenuCommands;
+
+    /// @brief Windows Menu Commands
+    WindowsMenuCommands myWindowsMenuCommands;
+
+    /// @brief Supermode Commands
+    SupermodeCommands mySupermodeCommands;
 
     /// @brief pointer to current view net
     GNEViewNet* myViewNet;
@@ -591,10 +798,13 @@ private:
     void closeAllWindows();
 
     /// @brief warns about unsaved changes and gives the user the option to abort
-    bool continueWithUnsavedChanges();
+    bool continueWithUnsavedChanges(const std::string &operation);
 
     /// @brief warns about unsaved changes in additionals and gives the user the option to abort
-    bool continueWithUnsavedAdditionalChanges();
+    bool continueWithUnsavedAdditionalChanges(const std::string &operation);
+
+    /// @brief warns about unsaved changes in demand elements and gives the user the option to abort
+    bool continueWithUnsavedDemandElementChanges(const std::string &operation);
 };
 
 

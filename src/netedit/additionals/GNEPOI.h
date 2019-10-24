@@ -89,6 +89,9 @@ public:
     /// @brief Destructor
     ~GNEPOI();
 
+    /// @brief gererate a new ID for an element child
+    std::string generateChildID(SumoXMLTag childTag);
+
     /// @name functions for edit geometry
     /// @{
     /// @brief begin movement (used when user click over edge to start a movement, to avoid problems with problems with GL Tree)
@@ -113,7 +116,10 @@ public:
     /// @name inherited from GNEShape
     /// @{
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    Boundary getCenteringBoundary() const;
 
     /**@brief writte shape element into a xml file
     * @param[in] device device in which write parameters of additional element
@@ -126,9 +132,6 @@ public:
     /// @brief Returns the numerical id of the object
     GUIGlID getGlID() const;
     /// @}
-
-    /// @brief get GNELane
-    GNELane* getLane() const;
 
     /// @name inherited from GUIGlObject
     /// @{
@@ -154,9 +157,6 @@ public:
      * @see GUIGlObject::getParameterWindow
      */
     GUIParameterTableWindow* getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView& parent);
-
-    /// @brief Returns the boundary to which the view shall be centered in order to show the object
-    Boundary getCenteringBoundary() const;
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -186,28 +186,16 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-    /// @name Function related with generic parameters
-    /// @{
-
-    /// @brief return generic parameters in string format
-    std::string getGenericParametersStr() const;
-
-    /// @brief return generic parameters as vector of pairs format
-    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
-
-    /// @brief set generic parameters in string format
-    void setGenericParametersStr(const std::string& value);
-
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
 protected:
     /// @brief Position of POI in GEO coordinates (Only used by POIs that aren't placed over lanes)
     Position myGEOPosition;
-
-    /// @brief GNElane in which this POILane is placed (Only used by POIs placed over lanes)
-    GNELane* myGNELane;
 
 private:
     /// @brief position used for move POILanes
@@ -215,6 +203,9 @@ private:
 
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);
+
+    /// @brief get GUIGlObject associated to this GNEShape
+    const GUIGlObject* getGUIGlObject() const;
 
     /// @brief Invalidated copy constructor.
     GNEPOI(const GNEPOI&) = delete;

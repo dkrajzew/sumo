@@ -54,6 +54,8 @@
 #include "locate_junction.xpm"
 #include "locate_edge.xpm"
 #include "locate_vehicle.xpm"
+#include "locate_route.xpm"
+#include "locate_stop.xpm"
 #include "locate_person.xpm"
 #include "locate_tls.xpm"
 #include "locate_add.xpm"
@@ -119,8 +121,14 @@
 #include "lock.xpm"
 #include "add.xpm"
 #include "remove.xpm"
-#include "neteditarrowleft.xpm"
-#include "neteditarrowright.xpm"
+
+#include "arrowup.xpm"
+#include "arrowdown.xpm"
+#include "arrowleft.xpm"
+#include "arrowright.xpm"
+
+#include "bigarrowleft.xpm"
+#include "bigarrowright.xpm"
 
 #include "lanebike.xpm"
 #include "lanebus.xpm"
@@ -149,10 +157,17 @@
 #include "moderoute.xpm"
 #include "modevehicle.xpm"
 #include "modevehicletype.xpm"
+#include "modestop.xpm"
+#include "modepersontype.xpm"
+#include "modeperson.xpm"
+#include "modepersonplan.xpm"
 
 #include "computejunctions.xpm"
 #include "cleanjunctions.xpm"
 #include "joinjunctions.xpm"
+#include "computedemand.xpm"
+#include "cleanroutes.xpm"
+#include "joinroutes.xpm"
 #include "options.xpm"
 
 #include "junction.xpm"
@@ -189,11 +204,27 @@
 #include "taz.xpm"
 #include "tazedge.xpm"
 
-#include "flow.xpm"
 #include "route.xpm"
 #include "vtype.xpm"
+#include "ptype.xpm"
 #include "vehicle.xpm"
 #include "trip.xpm"
+#include "flow.xpm"
+#include "routeflow.xpm"
+#include "stopelement.xpm"
+#include "person.xpm"
+#include "personflow.xpm"
+#include "persontripfromto.xpm"
+#include "persontripbusstop.xpm"
+#include "walkedges.xpm"
+#include "walkfromto.xpm"
+#include "walkbusstop.xpm"
+#include "walkroute.xpm"
+#include "ridefromto.xpm"
+#include "ridebusstop.xpm"
+#include "personbusstop.xpm"
+#include "personcontainerstop.xpm"
+#include "personlanestop.xpm"
 
 #include "vclass_ignoring.xpm"
 #include "vclass_private.xpm"
@@ -221,6 +252,35 @@
 #include "vclass_ship.xpm"
 #include "vclass_custom1.xpm"
 #include "vclass_custom2.xpm"
+
+#include "vshape_pedestrian.xpm"
+#include "vshape_bicycle.xpm"
+#include "vshape_moped.xpm"
+#include "vshape_motorcycle.xpm"
+#include "vshape_passenger.xpm"
+#include "vshape_passenger_sedan.xpm"
+#include "vshape_passenger_hatchback.xpm"
+#include "vshape_passenger_wagon.xpm"
+#include "vshape_passenger_van.xpm"
+#include "vshape_delivery.xpm"
+#include "vshape_truck.xpm"
+#include "vshape_truck_semitrailer.xpm"
+#include "vshape_truck_1trailer.xpm"
+#include "vshape_bus.xpm"
+#include "vshape_bus_coach.xpm"
+#include "vshape_bus_flexible.xpm"
+#include "vshape_bus_trolley.xpm"
+#include "vshape_rail.xpm"
+#include "vshape_rail_car.xpm"
+#include "vshape_rail_cargo.xpm"
+#include "vshape_e_vehicle.xpm"
+#include "vshape_ant.xpm"
+#include "vshape_ship.xpm"
+#include "vshape_emergency.xpm"
+#include "vshape_firebrigade.xpm"
+#include "vshape_police.xpm"
+#include "vshape_rickshaw.xpm"
+#include "vshape_unknown.xpm"
 
 #include "accept.xpm"
 #include "cancel.xpm"
@@ -280,6 +340,8 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_LOCATEJUNCTION] = new FXXPMIcon(a, locate_junction_xpm);
     myIcons[ICON_LOCATEEDGE] = new FXXPMIcon(a, locate_edge_xpm);
     myIcons[ICON_LOCATEVEHICLE] = new FXXPMIcon(a, locate_vehicle_xpm);
+    myIcons[ICON_LOCATEROUTE] = new FXXPMIcon(a, locate_route_xpm);
+    myIcons[ICON_LOCATESTOP] = new FXXPMIcon(a, locate_stop_xpm);
     myIcons[ICON_LOCATEPERSON] = new FXXPMIcon(a, locate_person_xpm);
     myIcons[ICON_LOCATETLS] = new FXXPMIcon(a, locate_tls_xpm);
     myIcons[ICON_LOCATEADD] = new FXXPMIcon(a, locate_add_xpm);
@@ -340,8 +402,13 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_LOCK] = new FXXPMIcon(a, lock_xpm);
     myIcons[ICON_ADD] = new FXXPMIcon(a, add_xpm);
     myIcons[ICON_REMOVE] = new FXXPMIcon(a, remove_xpm);
-    myIcons[ICON_NETEDITARROWLEFT] = new FXXPMIcon(a, netEditArrowLeft_xmp);
-    myIcons[ICON_NETEDITARROWRIGHT] = new FXXPMIcon(a, netEditArrowRight_xmp);
+    myIcons[ICON_BIGARROWLEFT] = new FXXPMIcon(a, bigarrowleft_xmp);
+    myIcons[ICON_BIGARROWRIGHT] = new FXXPMIcon(a, bigarrowright_xmp);
+
+    myIcons[ICON_ARROW_UP] = new FXXPMIcon(a, arrowup_xpm);
+    myIcons[ICON_ARROW_DOWN] = new FXXPMIcon(a, arrowdown_xpm);
+    myIcons[ICON_ARROW_LEFT] = new FXXPMIcon(a, arrowleft_xpm);
+    myIcons[ICON_ARROW_RIGHT] = new FXXPMIcon(a, arrowright_xpm);
 
     myIcons[ICON_LANEPEDESTRIAN] = new FXXPMIcon(a, lanepedestrian);
     myIcons[ICON_LANEBUS] = new FXXPMIcon(a, lanebus);
@@ -370,10 +437,18 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_MODEROUTE] = new FXXPMIcon(a, moderoute_xpm);
     myIcons[ICON_MODEVEHICLE] = new FXXPMIcon(a, modevehicle_xpm);
     myIcons[ICON_MODEVEHICLETYPE] = new FXXPMIcon(a, modevehicletype_xpm);
+    myIcons[ICON_MODESTOP] = new FXXPMIcon(a, modestop_xpm);
+    myIcons[ICON_MODEPERSONTYPE] = new FXXPMIcon(a, modepersontype_xpm);
+    myIcons[ICON_MODEPERSON] = new FXXPMIcon(a, modeperson_xpm);
+    myIcons[ICON_MODEPERSONPLAN] = new FXXPMIcon(a, modepersonplan_xpm);
 
-    myIcons[ICON_CLEANJUNCTIONS] = new FXXPMIcon(a, cleanjunctions_xpm);
     myIcons[ICON_COMPUTEJUNCTIONS] = new FXXPMIcon(a, computejunctions_xpm);
+    myIcons[ICON_CLEANJUNCTIONS] = new FXXPMIcon(a, cleanjunctions_xpm);
     myIcons[ICON_JOINJUNCTIONS] = new FXXPMIcon(a, joinjunctions_xpm);
+    myIcons[ICON_COMPUTEDEMAND] = new FXXPMIcon(a, computedemand_xpm);
+    myIcons[ICON_CLEANROUTES] = new FXXPMIcon(a, cleanroutes_xpm);
+    myIcons[ICON_JOINROUTES] = new FXXPMIcon(a, joinroutes_xpm);
+
     myIcons[ICON_OPTIONS] = new FXXPMIcon(a, options_xpm);
 
     myIcons[ICON_JUNCTION] = new FXXPMIcon(a, junction_xpm);
@@ -410,11 +485,27 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_TAZ] = new FXXPMIcon(a, taz_xpm);
     myIcons[ICON_TAZEDGE] = new FXXPMIcon(a, tazedge_xpm);
 
-    myIcons[ICON_FLOW] = new FXXPMIcon(a, flow_xpm);
     myIcons[ICON_ROUTE] = new FXXPMIcon(a, route_xpm);
     myIcons[ICON_VTYPE] = new FXXPMIcon(a, vtype_xpm);
+    myIcons[ICON_PTYPE] = new FXXPMIcon(a, ptype_xpm);
     myIcons[ICON_VEHICLE] = new FXXPMIcon(a, vehicle_xpm);
     myIcons[ICON_TRIP] = new FXXPMIcon(a, trip_xpm);
+    myIcons[ICON_FLOW] = new FXXPMIcon(a, flow_xpm);
+    myIcons[ICON_ROUTEFLOW] = new FXXPMIcon(a, routeflow_xpm);
+    myIcons[ICON_STOPELEMENT] = new FXXPMIcon(a, stopelement_xpm);
+    myIcons[ICON_PERSON] = new FXXPMIcon(a, person_xpm);
+    myIcons[ICON_PERSONFLOW] = new FXXPMIcon(a, personflow_xpm);
+    myIcons[ICON_PERSONTRIP_FROMTO] = new FXXPMIcon(a, persontripfromto_xpm);
+    myIcons[ICON_PERSONTRIP_BUSSTOP] = new FXXPMIcon(a, persontripbusstop_xpm);
+    myIcons[ICON_WALK_EDGES] = new FXXPMIcon(a, walkedges_xpm);
+    myIcons[ICON_WALK_FROMTO] = new FXXPMIcon(a, walkfromto_xpm);
+    myIcons[ICON_WALK_BUSSTOP] = new FXXPMIcon(a, walkbusstop_xpm);
+    myIcons[ICON_WALK_ROUTE] = new FXXPMIcon(a, walkroute_xpm);
+    myIcons[ICON_RIDE_FROMTO] = new FXXPMIcon(a, ridefromto_xpm);
+    myIcons[ICON_RIDE_BUSSTOP] = new FXXPMIcon(a, ridebusstop_xpm);
+    myIcons[ICON_PERSON_BUSSTOP] = new FXXPMIcon(a, personbusstop_xpm);
+    myIcons[ICON_PERSON_CONTAINERSTOP] = new FXXPMIcon(a, personcontainerstop_xpm);
+    myIcons[ICON_PERSON_LANESTOP] = new FXXPMIcon(a, personlanestop_xpm);
 
     myIcons[ICON_VCLASS_IGNORING] = new FXXPMIcon(a, vclass_ignoring_xpm);
     myIcons[ICON_VCLASS_PRIVATE] = new FXXPMIcon(a, vclass_private_xpm);
@@ -442,6 +533,35 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_VCLASS_SHIP] = new FXXPMIcon(a, vclass_ship_xpm);
     myIcons[ICON_VCLASS_CUSTOM1] = new FXXPMIcon(a, vclass_custom1_xpm);
     myIcons[ICON_VCLASS_CUSTOM2] = new FXXPMIcon(a, vclass_custom2_xpm);
+
+    myIcons[ICON_VSHAPE_PEDESTRIAN] = new FXXPMIcon(a, vshape_pedestrian_xpm);
+    myIcons[ICON_VSHAPE_BICYCLE] = new FXXPMIcon(a, vshape_bicycle_xpm);
+    myIcons[ICON_VSHAPE_MOPED] = new FXXPMIcon(a, vshape_moped_xpm);
+    myIcons[ICON_VSHAPE_MOTORCYCLE] = new FXXPMIcon(a, vshape_motorcycle_xpm);
+    myIcons[ICON_VSHAPE_PASSENGER] = new FXXPMIcon(a, vshape_passenger_xpm);
+    myIcons[ICON_VSHAPE_PASSENGER_SEDAN] = new FXXPMIcon(a, vshape_passenger_sedan_xpm);
+    myIcons[ICON_VSHAPE_PASSENGER_HATCHBACK] = new FXXPMIcon(a, vshape_passenger_hatchback_xpm);
+    myIcons[ICON_VSHAPE_PASSENGER_WAGON] = new FXXPMIcon(a, vshape_passenger_wagon_xpm);
+    myIcons[ICON_VSHAPE_PASSENGER_VAN] = new FXXPMIcon(a, vshape_passenger_van_xpm);
+    myIcons[ICON_VSHAPE_DELIVERY] = new FXXPMIcon(a, vshape_delivery_xpm);
+    myIcons[ICON_VSHAPE_TRUCK] = new FXXPMIcon(a, vshape_truck_xpm);
+    myIcons[ICON_VSHAPE_TRUCK_SEMITRAILER] = new FXXPMIcon(a, vshape_truck_semitrailer_xpm);
+    myIcons[ICON_VSHAPE_TRUCK_1TRAILER] = new FXXPMIcon(a, vshape_truck_1trailer_xpm);
+    myIcons[ICON_VSHAPE_BUS] = new FXXPMIcon(a, vshape_bus_xpm);
+    myIcons[ICON_VSHAPE_BUS_COACH] = new FXXPMIcon(a, vshape_bus_coach_xpm);
+    myIcons[ICON_VSHAPE_BUS_FLEXIBLE] = new FXXPMIcon(a, vshape_bus_flexible_xpm);
+    myIcons[ICON_VSHAPE_BUS_TROLLEY] = new FXXPMIcon(a, vshape_bus_trolley_xpm);
+    myIcons[ICON_VSHAPE_RAIL] = new FXXPMIcon(a, vshape_rail_xpm);
+    myIcons[ICON_VSHAPE_RAIL_CAR] = new FXXPMIcon(a, vshape_rail_car_xpm);
+    myIcons[ICON_VSHAPE_RAIL_CARGO] = new FXXPMIcon(a, vshape_rail_cargo_xpm);
+    myIcons[ICON_VSHAPE_E_VEHICLE] = new FXXPMIcon(a, vshape_e_vehicle_xpm);
+    myIcons[ICON_VSHAPE_ANT] = new FXXPMIcon(a, vshape_ant_xpm);
+    myIcons[ICON_VSHAPE_SHIP] = new FXXPMIcon(a, vshape_ship_xpm);
+    myIcons[ICON_VSHAPE_EMERGENCY] = new FXXPMIcon(a, vshape_emergency_xpm);
+    myIcons[ICON_VSHAPE_FIREBRIGADE] = new FXXPMIcon(a, vshape_firebrigade_xpm);
+    myIcons[ICON_VSHAPE_POLICE] = new FXXPMIcon(a, vshape_police_xpm);
+    myIcons[ICON_VSHAPE_RICKSHAW] = new FXXPMIcon(a, vshape_rickshaw_xpm);
+    myIcons[ICON_VSHAPE_UNKNOWN] = new FXXPMIcon(a, vshape_unknown_xpm);
 
     myIcons[ICON_OK] = new FXXPMIcon(a, accept_xpm);    // @todo create ok icon
     myIcons[ICON_ACCEPT] = new FXXPMIcon(a, accept_xpm);

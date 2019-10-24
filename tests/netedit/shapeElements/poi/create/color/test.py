@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poi")
+netedit.changeElement("poi")
 
 # change color using dialog
-netedit.changeColorUsingDialog(2, 5)
+netedit.changeColorUsingDialog(3, 5)
 
 # create poi
 netedit.leftClick(referencePosition, 100, 50)
 
 # change color manually (invalid)
-netedit.modifyShapeDefaultValue(3, "Vlue")
+netedit.changeDefaultValue(4, "Vlue")
 
 # try to create POI
 netedit.leftClick(referencePosition, 150, 50)
 
 # change color manually (valid)
-netedit.modifyShapeDefaultValue(3, "blue")
+netedit.changeDefaultValue(4, "blue")
 
 # create POI
 netedit.leftClick(referencePosition, 200, 50)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

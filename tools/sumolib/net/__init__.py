@@ -26,6 +26,7 @@ from __future__ import absolute_import
 import sys
 import math
 import heapq
+import gzip
 from xml.sax import handler, parse
 from copy import copy
 from collections import defaultdict
@@ -88,7 +89,7 @@ class TLS:
 
 class Phase:
 
-    def __init__(self, duration, state, minDur=-1, maxDur=-1, next=-1, name=""):
+    def __init__(self, duration, state, minDur=-1, maxDur=-1, next=[], name=""):
         self.duration = duration
         self.state = state
         self.minDur = minDur  # minimum duration (only for actuated tls)
@@ -98,7 +99,7 @@ class Phase:
 
     def __repr__(self):
         name = "" if self.name == "" else ", name='%s'" % self.name
-        next = "" if self.next == "" else ", next='%s'" % self.next
+        next = "" if len(self.next) == 0 else ", next='%s'" % self.next
         return ("Phase(duration=%s, state='%s', minDur=%s, maxDur=%s%s%s" %
                 (self.duration, self.state, self.minDur, self.maxDur, name, next))
 
@@ -112,7 +113,7 @@ class TLSProgram:
         self._phases = []
         self._params = {}
 
-    def addPhase(self, state, duration, minDur=-1, maxDur=-1, next=-1, name=""):
+    def addPhase(self, state, duration, minDur=-1, maxDur=-1, next=[], name=""):
         self._phases.append(Phase(duration, state, minDur, maxDur, next, name))
 
     def toXML(self, tlsID):
@@ -122,14 +123,19 @@ class TLSProgram:
             minDur = '' if p.minDur < 0 else ' minDur="%s"' % p.minDur
             maxDur = '' if p.maxDur < 0 else ' maxDur="%s"' % p.maxDur
             name = '' if p.name == '' else ' name="%s"' % p.name
-            next = '' if p.next < 0 else ' next="%s"' % p.next
+            next = '' if len(p.next) == 0 else ' next="%s"' % ' '.join(map(str, p.next))
             ret += '    <phase duration="%s" state="%s"%s%s%s%s/>\n' % (
                 p.duration, p.state, minDur, maxDur, name, next)
+        for k, v in self._params.items():
+            ret += '    <param key="%s" value="%s"/>\n' % (k, v)
         ret += '  </tlLogic>\n'
         return ret
 
     def getPhases(self):
         return self._phases
+
+    def getType(self):
+        return self._type
 
     def setParam(self, key, value):
         self._params[key] = value
@@ -156,7 +162,8 @@ class Net:
         self._tlss = []
         self._ranges = [[10000, -10000], [10000, -10000]]
         self._roundabouts = []
-        self._rtree = None
+        self._rtreeEdges = None
+        self._rtreeLanes = None
         self._allLanes = []
         self._origIdx = None
         self.hasWarnedAboutMissingRTree = False
@@ -250,28 +257,33 @@ class Net:
 
     def _initRTree(self, shapeList, includeJunctions=True):
         import rtree  # noqa
-        self._rtree = rtree.index.Index()
-        self._rtree.interleaved = True
+        result = rtree.index.Index()
+        result.interleaved = True
         for ri, shape in enumerate(shapeList):
-            self._rtree.add(ri, shape.getBoundingBox(includeJunctions))
+            result.add(ri, shape.getBoundingBox(includeJunctions))
+        return result
 
     # Please be aware that the resulting list of edges is NOT sorted
-    def getNeighboringEdges(self, x, y, r=0.1, includeJunctions=True):
+    def getNeighboringEdges(self, x, y, r=0.1, includeJunctions=True,
+                            allowFallback=True):
         edges = []
         try:
-            if self._rtree is None:
-                self._initRTree(self._edges, includeJunctions)
-            for i in self._rtree.intersection((x - r, y - r, x + r, y + r)):
+            if self._rtreeEdges is None:
+                self._rtreeEdges = self._initRTree(self._edges, includeJunctions)
+            for i in self._rtreeEdges.intersection((x - r, y - r, x + r, y + r)):
                 e = self._edges[i]
                 d = sumolib.geomhelper.distancePointToPolygon(
                     (x, y), e.getShape(includeJunctions))
                 if d < r:
                     edges.append((e, d))
         except ImportError:
-            if not self.hasWarnedAboutMissingRTree:
-                print(
-                    "Warning: Module 'rtree' not available. Using brute-force fallback")
-                self.hasWarnedAboutMissingRTree = True
+            if allowFallback:
+                if not self.hasWarnedAboutMissingRTree:
+                    sys.stderr.write("Warning: Module 'rtree' not available. Using brute-force fallback\n")
+                    self.hasWarnedAboutMissingRTree = True
+            else:
+                sys.stderr.write("Error: Module 'rtree' not available.\n")
+                sys.exit(1)
 
             for the_edge in self._edges:
                 d = sumolib.geomhelper.distancePointToPolygon(
@@ -280,21 +292,29 @@ class Net:
                     edges.append((the_edge, d))
         return edges
 
-    def getNeighboringLanes(self, x, y, r=0.1, includeJunctions=True):
+    def getNeighboringLanes(self, x, y, r=0.1, includeJunctions=True,
+                            allowFallback=True):
         lanes = []
         try:
-            if self._rtree is None:
-                if not self._allLanes:
-                    for the_edge in self._edges:
-                        self._allLanes += the_edge.getLanes()
-                self._initRTree(self._allLanes, includeJunctions)
-            for i in self._rtree.intersection((x - r, y - r, x + r, y + r)):
+            if self._rtreeLanes is None:
+                for the_edge in self._edges:
+                    self._allLanes += the_edge.getLanes()
+                self._rtreeLanes = self._initRTree(self._allLanes, includeJunctions)
+            for i in self._rtreeLanes.intersection((x - r, y - r, x + r, y + r)):
                 lane = self._allLanes[i]
                 d = sumolib.geomhelper.distancePointToPolygon(
                     (x, y), lane.getShape(includeJunctions))
                 if d < r:
                     lanes.append((lane, d))
         except ImportError:
+            if allowFallback:
+                if not self.hasWarnedAboutMissingRTree:
+                    sys.stderr.write("Warning: Module 'rtree' not available. Using brute-force fallback\n")
+                    self.hasWarnedAboutMissingRTree = True
+            else:
+                sys.stderr.write("Error: Module 'rtree' not available.\n")
+                sys.exit(1)
+
             for the_edge in self._edges:
                 for lane in the_edge.getLanes():
                     d = sumolib.geomhelper.distancePointToPolygon(
@@ -418,15 +438,13 @@ class Net:
 
     def getGeoProj(self):
         import pyproj
-        p1 = self._location["projParameter"].split()
-        params = {}
-        for p in p1:
-            ps = p.split("=")
-            if len(ps) == 2:
-                params[ps[0]] = ps[1]
-            else:
-                params[ps[0]] = True
-        return pyproj.Proj(projparams=params)
+        try:
+            return pyproj.Proj(projparams=self._location["projParameter"])
+        except RuntimeError:
+            if hasattr(pyproj.datadir, 'set_data_dir'):
+                pyproj.datadir.set_data_dir('/usr/share/proj')
+                return pyproj.Proj(projparams=self._location["projParameter"])
+            raise
 
     def getLocationOffset(self):
         """ offset to be added after converting from geo-coordinates to UTM"""
@@ -460,7 +478,7 @@ class Net:
                             for p in l.getShape3D()]
             e.rebuildShape()
 
-    def getShortestPath(self, fromEdge, toEdge, maxCost=1e400):
+    def getShortestPath(self, fromEdge, toEdge, maxCost=1e400, vClass=None):
         q = [(0, fromEdge.getID(), fromEdge, ())]
         seen = set()
         dist = {fromEdge: fromEdge.getLength()}
@@ -474,13 +492,13 @@ class Net:
                 return path, cost
             if cost > maxCost:
                 return None, cost
-            for e2, conn in e1.getOutgoing().items():
+            for e2, conn in e1.getAllowedOutgoing(vClass).items():
                 if e2 not in seen:
                     newCost = cost + e2.getLength()
                     if self.hasInternal:
                         minInternalCost = 1e400
                         for c in conn:
-                            if c.getViaLaneID() is not None:
+                            if c.getViaLaneID() != "":
                                 minInternalCost = min(minInternalCost, self.getLane(c.getViaLaneID()).getLength())
                         if minInternalCost < 1e400:
                             newCost += minInternalCost
@@ -644,7 +662,7 @@ class NetReader(handler.ContentHandler):
                 attrs['state'], int(attrs['duration']),
                 int(attrs['minDur']) if 'minDur' in attrs else -1,
                 int(attrs['maxDur']) if 'maxDur' in attrs else -1,
-                int(attrs['next']) if 'next' in attrs else -1,
+                map(int, attrs['next'].split()) if 'next' in attrs else [],
                 attrs['name'] if 'name' in attrs else ""
             )
         if name == 'roundabout':
@@ -657,7 +675,7 @@ class NetReader(handler.ContentHandler):
                 self._currentEdge.setParam(attrs['key'], attrs['value'])
             elif self._currentNode is not None:
                 self._currentNode.setParam(attrs['key'], attrs['value'])
-            elif self._currentProgram is not None:
+            elif self._withPhases and self._currentProgram is not None:
                 self._currentProgram.setParam(attrs['key'], attrs['value'])
 
     def endElement(self, name):
@@ -721,5 +739,8 @@ def readNet(filename, **others):
         'withPedestrianConnections' : import connections between sidewalks, crossings (default False)
     """
     netreader = NetReader(**others)
-    parse(filename, netreader)
+    try:
+        parse(gzip.open(filename), netreader)
+    except IOError:
+        parse(filename, netreader)
     return netreader.getNet()

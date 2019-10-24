@@ -20,12 +20,8 @@
 // ===========================================================================
 #include <config.h>
 
-#include <iostream>
 #include <utils/gui/windows/GUIAppEnum.h>
-#include <utils/gui/images/GUIIconSubSys.h>
 #include <utils/gui/div/GUIDesigns.h>
-#include <utils/common/MsgHandler.h>
-#include <utils/options/OptionsCont.h>
 #include <netedit/changes/GNEChange_Additional.h>
 #include <netedit/changes/GNEChange_DemandElement.h>
 #include <netedit/GNENet.h>
@@ -94,7 +90,7 @@ GNECalibratorDialog::GNECalibratorDialog(GNECalibrator* editedCalibrator) :
     // create add buton and label for flows in right frame
     FXHorizontalFrame* buttonAndLabelFlow = new FXHorizontalFrame(columnRight, GUIDesignAuxiliarHorizontalFrame);
     myAddFlow = new FXButton(buttonAndLabelFlow, "", GUIIconSubSys::getIcon(ICON_ADD), this, MID_GNE_CALIBRATORDIALOG_ADD_FLOW, GUIDesignButtonIcon);
-    myLabelFlow = new FXLabel(buttonAndLabelFlow, ("Add new " + toString(SUMO_TAG_CALIBRATORFLOW) + "s").c_str(), nullptr, GUIDesignLabelThick);
+    myLabelFlow = new FXLabel(buttonAndLabelFlow, ("Add new " + toString(SUMO_TAG_FLOW_CALIBRATOR) + "s").c_str(), nullptr, GUIDesignLabelThick);
 
     // Create table in right frame
     myFlowList = new FXTable(columnRight, this, MID_GNE_CALIBRATORDIALOG_TABLE_FLOW, GUIDesignTableAdditionals);
@@ -163,13 +159,13 @@ GNECalibratorDialog::onCmdAddRoute(FXObject*, FXSelector, void*) {
 long
 GNECalibratorDialog::onCmdClickedRoute(FXObject*, FXSelector, void*) {
     // check if some delete button was pressed
-    for (int i = 0; i < (int)myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE).size(); i++) {
+    for (int i = 0; i < (int)myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE).size(); i++) {
         // obtain rerouter
         GNEDemandElement* routeToEdit = myEditedAdditional->getViewNet()->getNet()->retrieveDemandElement(SUMO_TAG_ROUTE, myRouteList->getItem(i, 0)->getText().text());
         if (myRouteList->getItem(i, 2)->hasFocus()) {
             // find all flows that contains route to delete as "route" parameter
             std::vector<GNEAdditional*> calibratorFlowsToErase;
-            for (auto j : myEditedAdditional->getAdditionalChilds()) {
+            for (auto j : myEditedAdditional->getAdditionalChildren()) {
                 if (j->getAttribute(SUMO_ATTR_ROUTE) == myRouteList->getItem(i, 0)->getText().text()) {
                     calibratorFlowsToErase.push_back(j);
                 }
@@ -179,9 +175,9 @@ GNECalibratorDialog::onCmdClickedRoute(FXObject*, FXSelector, void*) {
                 // write warning if netedit is running in testing mode
                 WRITE_DEBUG("Opening FXMessageBox of type 'question'");
                 // open question dialog box
-                std::string message = ("Deletio n of " + toString(SUMO_TAG_ROUTE) + " '" + myRouteList->getItem(i, 0)->getText().text() + "' will remove " +
-                                       toString(calibratorFlowsToErase.size()) + " " + toString(SUMO_TAG_CALIBRATORFLOW) + (calibratorFlowsToErase.size() > 1 ? ("s") : ("")) + ". Continue?");
-                FXuint answer = FXMessageBox::question(getApp(), MBOX_YES_NO, ("Remove " + toString(SUMO_TAG_CALIBRATORFLOW) + "s").c_str(), "%s",  message.c_str());
+                const std::string msg = ("Deletion of " + toString(SUMO_TAG_ROUTE) + " '" + myRouteList->getItem(i, 0)->getText().text() + "' will remove " +
+                                         toString(calibratorFlowsToErase.size()) + " " + toString(SUMO_TAG_FLOW_CALIBRATOR) + (calibratorFlowsToErase.size() > 1 ? ("s") : ("")) + ". Continue?");
+                FXuint answer = FXMessageBox::question(getApp(), MBOX_YES_NO, ("Remove " + toString(SUMO_TAG_FLOW_CALIBRATOR) + "s").c_str(), "%s", msg.c_str());
                 if (answer != 1) { //1:yes, 2:no, 4:esc
                     // write warning if netedit is running in testing mode
                     if (answer == 2) {
@@ -230,14 +226,14 @@ GNECalibratorDialog::onCmdClickedRoute(FXObject*, FXSelector, void*) {
 long
 GNECalibratorDialog::onCmdAddFlow(FXObject*, FXSelector, void*) {
     // only add flow if there is at least a GNERoute (There is always a Vehicle Type)
-    if (myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE).size() > 0) {
+    if (myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE).size() > 0) {
         // create new calibrator and configure it with GNECalibratorFlowDialog
         GNECalibratorFlowDialog(new GNECalibratorFlow(myEditedAdditional), false);
         // update flows table
         updateFlowTable();
         return 1;
     } else {
-        throw ProcessError("myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE) cannot be empty");
+        throw ProcessError("myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE) cannot be empty");
     }
 }
 
@@ -245,16 +241,16 @@ GNECalibratorDialog::onCmdAddFlow(FXObject*, FXSelector, void*) {
 long
 GNECalibratorDialog::onCmdClickedFlow(FXObject*, FXSelector, void*) {
     // check if some delete button was pressed
-    for (int i = 0; i < (int)myEditedAdditional->getAdditionalChilds().size(); i++) {
+    for (int i = 0; i < (int)myEditedAdditional->getAdditionalChildren().size(); i++) {
         if (myFlowList->getItem(i, 2)->hasFocus()) {
             // remove flow of calibrator flows
-            myEditedAdditional->getViewNet()->getUndoList()->add(new GNEChange_Additional(myEditedAdditional->getAdditionalChilds().at(i), false), true);
+            myEditedAdditional->getViewNet()->getUndoList()->add(new GNEChange_Additional(myEditedAdditional->getAdditionalChildren().at(i), false), true);
             // update flows table
             updateFlowTable();
             return 1;
         } else if (myFlowList->getItem(i, 0)->hasFocus() || myFlowList->getItem(i, 1)->hasFocus()) {
             // modify flow of calibrator flows (temporal)
-            GNECalibratorFlowDialog(myEditedAdditional->getAdditionalChilds().at(i), true);
+            GNECalibratorFlowDialog(myEditedAdditional->getAdditionalChildren().at(i), true);
             // update flows table
             updateFlowTable();
             return 1;
@@ -268,8 +264,8 @@ GNECalibratorDialog::onCmdClickedFlow(FXObject*, FXSelector, void*) {
 long
 GNECalibratorDialog::onCmdAddVehicleType(FXObject*, FXSelector, void*) {
     // create a new Vehicle Type and configure it with GNEVehicleTypeDialog
-    std::string vehicleTypeID = myEditedAdditional->getViewNet()->getNet()->generateDemandElementID(SUMO_TAG_VTYPE);
-    GNEVehicleTypeDialog(new GNEVehicleType(myEditedAdditional->getViewNet(), vehicleTypeID), false);
+    std::string vehicleTypeID = myEditedAdditional->getViewNet()->getNet()->generateDemandElementID("", SUMO_TAG_VTYPE);
+    GNEVehicleTypeDialog(new GNEVehicleType(myEditedAdditional->getViewNet(), vehicleTypeID, SVC_PASSENGER, SUMO_TAG_VTYPE), false);
     // update vehicle types table
     updateVehicleTypeTable();
     return 1;
@@ -279,7 +275,7 @@ GNECalibratorDialog::onCmdAddVehicleType(FXObject*, FXSelector, void*) {
 long
 GNECalibratorDialog::onCmdClickedVehicleType(FXObject*, FXSelector, void*) {
     // check if some delete button was pressed
-    for (int i = 0; i < (int)myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_VTYPE).size(); i++) {
+    for (int i = 0; i < (int)myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_VTYPE).size(); i++) {
         // obtain vehicle type
         GNEDemandElement* vType = myEditedAdditional->getViewNet()->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, myVehicleTypeList->getItem(i, 0)->getText().text());
         // Make sure that default vehicle isn't edited
@@ -290,16 +286,16 @@ GNECalibratorDialog::onCmdClickedVehicleType(FXObject*, FXSelector, void*) {
         } else if (myVehicleTypeList->getItem(i, 2)->hasFocus()) {
             // find all flows that contains vehicle type to delete as "vehicle type" parameter
             std::vector<GNEAdditional*> calibratorFlowsToErase;
-            for (auto j : myEditedAdditional->getAdditionalChilds()) {
+            for (auto j : myEditedAdditional->getAdditionalChildren()) {
                 if (j->getAttribute(SUMO_ATTR_TYPE) == myVehicleTypeList->getItem(i, 0)->getText().text()) {
                     calibratorFlowsToErase.push_back(j);
                 }
             }
             // if there are flows that has vehicle type to remove as "vehicle type" parameter
             if (calibratorFlowsToErase.size() > 0) {
-                std::string message = ("Deletion of " + toString(SUMO_TAG_VTYPE) + " '" + myVehicleTypeList->getItem(i, 0)->getText().text() + "' will remove " +
-                                       toString(calibratorFlowsToErase.size()) + " " + toString(SUMO_TAG_CALIBRATORFLOW) + (calibratorFlowsToErase.size() > 1 ? ("s") : ("")) + ". Continue?");
-                FXuint answer = FXMessageBox::question(getApp(), MBOX_YES_NO, ("Remove " + toString(SUMO_TAG_CALIBRATORFLOW) + "s").c_str(), "%s", message.c_str());
+                const std::string msg = ("Deletion of " + toString(SUMO_TAG_VTYPE) + " '" + myVehicleTypeList->getItem(i, 0)->getText().text() + "' will remove " +
+                                         toString(calibratorFlowsToErase.size()) + " " + toString(SUMO_TAG_FLOW_CALIBRATOR) + (calibratorFlowsToErase.size() > 1 ? ("s") : ("")) + ". Continue?");
+                FXuint answer = FXMessageBox::question(getApp(), MBOX_YES_NO, ("Remove " + toString(SUMO_TAG_FLOW_CALIBRATOR) + "s").c_str(), "%s", msg.c_str());
                 if (answer != 1) { //1:yes, 2:no, 4:esc
                     // write warning if netedit is running in testing mode
                     if (answer == 2) {
@@ -350,7 +346,7 @@ GNECalibratorDialog::updateRouteTable() {
     // clear table
     myRouteList->clearItems();
     // set number of rows
-    myRouteList->setTableSize(int(myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE).size()), 3);
+    myRouteList->setTableSize(int(myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE).size()), 3);
     // Configure list
     myRouteList->setVisibleColumns(4);
     myRouteList->setColumnWidth(0, 136);
@@ -364,7 +360,7 @@ GNECalibratorDialog::updateRouteTable() {
     int indexRow = 0;
     FXTableItem* item = nullptr;
     // iterate over routes
-    for (auto i : myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE)) {
+    for (auto i : myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE)) {
         // Set ID
         item = new FXTableItem(toString(i.second->getAttribute(SUMO_ATTR_ID)).c_str());
         myRouteList->setItem(indexRow, 0, item);
@@ -389,7 +385,7 @@ GNECalibratorDialog::updateFlowTable() {
     // clear table
     myFlowList->clearItems();
     // set number of rows
-    myFlowList->setTableSize(int(myEditedAdditional->getAdditionalChilds().size()), 3);
+    myFlowList->setTableSize(int(myEditedAdditional->getAdditionalChildren().size()), 3);
     // Configure list
     myFlowList->setVisibleColumns(3);
     myFlowList->setColumnWidth(0, 136);
@@ -403,7 +399,7 @@ GNECalibratorDialog::updateFlowTable() {
     int indexRow = 0;
     FXTableItem* item = nullptr;
     // iterate over flows
-    for (auto i : myEditedAdditional->getAdditionalChilds()) {
+    for (auto i : myEditedAdditional->getAdditionalChildren()) {
         // Set vehicle type
         item = new FXTableItem(i->getAttribute(SUMO_ATTR_TYPE).c_str());
         myFlowList->setItem(indexRow, 0, item);
@@ -428,7 +424,7 @@ GNECalibratorDialog::updateVehicleTypeTable() {
     // clear table
     myVehicleTypeList->clearItems();
     // set number of rows
-    myVehicleTypeList->setTableSize(int(myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_VTYPE).size()), 3);
+    myVehicleTypeList->setTableSize(int(myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_VTYPE).size()), 3);
     // Configure list
     myVehicleTypeList->setVisibleColumns(4);
     myVehicleTypeList->setColumnWidth(0, 136);
@@ -442,7 +438,7 @@ GNECalibratorDialog::updateVehicleTypeTable() {
     int indexRow = 0;
     FXTableItem* item = nullptr;
     // iterate over vehicle types
-    for (auto i : myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_VTYPE)) {
+    for (auto i : myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_VTYPE)) {
         // Set id
         item = new FXTableItem(i.second->getAttribute(SUMO_ATTR_ID).c_str());
         myVehicleTypeList->setItem(indexRow, 0, item);
@@ -469,14 +465,14 @@ GNECalibratorDialog::updateVehicleTypeTable() {
 void
 GNECalibratorDialog::updateFlowAndLabelButton() {
     // disable AddFlow button if no route is defined
-    if (myEditedAdditional->getViewNet()->getNet()->getDemandElementByType(SUMO_TAG_ROUTE).size() == 0) {
+    if (myEditedAdditional->getViewNet()->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_ROUTE).size() == 0) {
         myAddFlow->disable();
         myFlowList->disable();
         myLabelFlow->setText("No routes defined");
     } else {
         myAddFlow->enable();
         myFlowList->enable();
-        myLabelFlow->setText(("Add new " + toString(SUMO_TAG_CALIBRATORFLOW) + "s").c_str());
+        myLabelFlow->setText(("Add new " + toString(SUMO_TAG_FLOW_CALIBRATOR) + "s").c_str());
     }
 }
 

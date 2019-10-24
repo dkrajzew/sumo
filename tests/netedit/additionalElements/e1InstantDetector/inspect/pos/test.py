@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select E1
-netedit.changeAdditional("instantInductionLoop")
+netedit.changeElement("instantInductionLoop")
 
 # create E1
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 140)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first E1
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 140)
 
 # Change parameter friendlyPos with a non valid value (dummy)
 netedit.modifyAttribute(2, "dummyFriendlyPos", True)
@@ -57,10 +57,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

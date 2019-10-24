@@ -50,6 +50,8 @@
 #include "NBDistrictCont.h"
 #include "NBTypeCont.h"
 
+//#define DEBUG_GUESS_ROUNDABOUT
+#define DEBUG_EDGE_ID "301241681#2"
 
 // ===========================================================================
 // method definitions
@@ -177,7 +179,7 @@ NBEdgeCont::ignoreFilterMatch(NBEdge* edge) {
     }
     // check whether the edge is a named edge to keep
     if (!myRemoveEdgesAfterJoining && myEdges2Keep.size() != 0) {
-        if (find(myEdges2Keep.begin(), myEdges2Keep.end(), edge->getID()) == myEdges2Keep.end()) {
+        if (myEdges2Keep.count(edge->getID()) == 0) {
             // explicit whitelisting may be combined additively with other filters
             if (myVehicleClasses2Keep == 0 && myVehicleClasses2Remove == 0
                     && myTypes2Keep.size() == 0 && myTypes2Remove.size() == 0
@@ -191,7 +193,7 @@ NBEdgeCont::ignoreFilterMatch(NBEdge* edge) {
     }
     // check whether the edge is a named edge to remove
     if (myEdges2Remove.size() != 0) {
-        if (find(myEdges2Remove.begin(), myEdges2Remove.end(), edge->getID()) != myEdges2Remove.end()) {
+        if (myEdges2Remove.count(edge->getID()) != 0) {
             return true;
         }
     }
@@ -641,11 +643,11 @@ NBEdgeCont::splitAt(NBDistrictCont& dc,
         }
     }
     if (myRemoveEdgesAfterJoining) {
-        if (find(myEdges2Keep.begin(), myEdges2Keep.end(), edge->getID()) != myEdges2Keep.end()) {
+        if (myEdges2Keep.count(edge->getID()) != 0) {
             myEdges2Keep.insert(one->getID());
             myEdges2Keep.insert(two->getID());
         }
-        if (find(myEdges2Remove.begin(), myEdges2Remove.end(), edge->getID()) != myEdges2Remove.end()) {
+        if (myEdges2Remove.count(edge->getID()) != 0) {
             myEdges2Remove.insert(one->getID());
             myEdges2Remove.insert(two->getID());
         }
@@ -653,9 +655,14 @@ NBEdgeCont::splitAt(NBDistrictCont& dc,
     // erase the splitted edge
     patchRoundabouts(edge, one, two, myRoundabouts);
     patchRoundabouts(edge, one, two, myGuessedRoundabouts);
+    const std::string oldID = edge->getID();
     erase(dc, edge);
-    insert(one, true);
-    insert(two, true);
+    if (!insert(one, true)) {
+        WRITE_ERROR("Could not insert edge '" + one->getID() + "' before split of edge '" + oldID + "'");
+    };
+    if (!insert(two, true)) {
+        WRITE_ERROR("Could not insert edge '" + two->getID() + "' after split of edge '" + oldID + "'");
+    }
     myEdgesSplit++;
     return true;
 }
@@ -708,12 +715,28 @@ NBEdgeCont::removeUnwishedEdges(NBDistrictCont& dc) {
 
 
 void
-NBEdgeCont::splitGeometry(NBNodeCont& nc) {
-    for (EdgeCont::iterator i = myEdges.begin(); i != myEdges.end(); ++i) {
-        if ((*i).second->getGeometry().size() < 3) {
+NBEdgeCont::splitGeometry(NBDistrictCont& dc, NBNodeCont& nc) {
+    // make a copy of myEdges because splitting will modify it
+    EdgeCont edges = myEdges;
+    for (auto& item : edges) {
+        NBEdge* edge = item.second;
+        if (edge->getGeometry().size() < 3) {
             continue;
         }
-        (*i).second->splitGeometry(*this, nc);
+        PositionVector geom = edge->getGeometry();
+        const std::string id = edge->getID();
+        double offset = 0;
+        for (int i = 1; i < (int)geom.size() - 1; i++) {
+            offset += geom[i - 1].distanceTo(geom[i]);
+            std::string nodeID = id + "." + toString((int)offset);
+            if (!nc.insert(nodeID, geom[i])) {
+                WRITE_WARNING("Could not split geometry of edge '" + id + "' at index " + toString(i));
+                continue;
+            }
+            NBNode* node = nc.retrieve(nodeID);
+            splitAt(dc, edge, node, edge->getID(), nodeID, edge->getNumLanes(), edge->getNumLanes());
+            edge = retrieve(nodeID);
+        }
     }
 }
 
@@ -727,10 +750,13 @@ NBEdgeCont::reduceGeometries(const double minDist) {
 
 
 void
-NBEdgeCont::checkGeometries(const double maxAngle, const double minRadius, bool fix) {
+NBEdgeCont::checkGeometries(const double maxAngle, const double minRadius, bool fix, bool fixRailways, bool silent) {
     if (maxAngle > 0 || minRadius > 0) {
-        for (EdgeCont::iterator i = myEdges.begin(); i != myEdges.end(); ++i) {
-            (*i).second->checkGeometry(maxAngle, minRadius, fix);
+        for (auto& item : myEdges) {
+            if (isSidewalk(item.second->getPermissions()) || isForbidden(item.second->getPermissions())) {
+                continue;
+            }
+            item.second->checkGeometry(maxAngle, minRadius, fix || (fixRailways && isRailway(item.second->getPermissions())), silent);
         }
     }
 }
@@ -850,6 +876,22 @@ void
 NBEdgeCont::computeEdgeShapes(double smoothElevationThreshold) {
     for (EdgeCont::iterator i = myEdges.begin(); i != myEdges.end(); i++) {
         (*i).second->computeEdgeShape(smoothElevationThreshold);
+    }
+    // equalize length of opposite edges
+    for (EdgeCont::iterator i = myEdges.begin(); i != myEdges.end(); i++) {
+        NBEdge* edge = i->second;
+        const std::string& oppositeID = edge->getLanes().back().oppositeID;
+        if (oppositeID != "" && oppositeID != "-") {
+            NBEdge* oppEdge = retrieve(oppositeID.substr(0, oppositeID.rfind("_")));
+            if (oppEdge == nullptr || oppEdge->getLaneID(oppEdge->getNumLanes() - 1) != oppositeID) {
+                continue;
+            }
+            if (fabs(oppEdge->getLength() - edge->getLength()) > NUMERICAL_EPS) {
+                double avgLength = (oppEdge->getLength() + edge->getLength()) / 2;
+                edge->setAverageLengthWithOpposite(avgLength);
+                oppEdge->setAverageLengthWithOpposite(avgLength);
+            }
+        }
     }
 }
 
@@ -1011,24 +1053,43 @@ void
 NBEdgeCont::addPostProcessConnection(const std::string& from, int fromLane, const std::string& to, int toLane, bool mayDefinitelyPass,
                                      bool keepClear, double contPos, double visibility, double speed,
                                      const PositionVector& customShape, bool uncontrolled, bool warnOnly) {
-    myConnections.push_back(PostProcessConnection(from, fromLane, to, toLane, mayDefinitelyPass, keepClear, contPos, visibility, speed, customShape, uncontrolled, warnOnly));
+    myConnections[from].push_back(PostProcessConnection(from, fromLane, to, toLane, mayDefinitelyPass, keepClear, contPos, visibility, speed, customShape, uncontrolled, warnOnly));
 }
 
+bool
+NBEdgeCont::hasPostProcessConnection(const std::string& from, const std::string& to) {
+    if (myConnections.count(from) == 0) {
+        return false;
+    } else {
+        if (to == "") {
+            // wildcard
+            return true;
+        }
+        for (const auto& ppc : myConnections[from]) {
+            if (ppc.to == to) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
 
 void
 NBEdgeCont::recheckPostProcessConnections() {
     const bool warnOnly = OptionsCont::getOptions().exists("ignore-errors.connections") && OptionsCont::getOptions().getBool("ignore-errors.connections");
-    for (std::vector<PostProcessConnection>::const_iterator i = myConnections.begin(); i != myConnections.end(); ++i) {
-        NBEdge* from = retrievePossiblySplit((*i).from, true);
-        NBEdge* to = retrievePossiblySplit((*i).to, false);
-        if (from == nullptr || to == nullptr ||
-                !from->addLane2LaneConnection((*i).fromLane, to, (*i).toLane, NBEdge::L2L_USER, true, (*i).mayDefinitelyPass,
-                                              (*i).keepClear, (*i).contPos, (*i).visibility, (*i).speed, (*i).customShape, (*i).uncontrolled)) {
-            const std::string msg = "Could not insert connection between '" + (*i).from + "' and '" + (*i).to + "' after build.";
-            if (warnOnly || (*i).warnOnly) {
-                WRITE_WARNING(msg);
-            } else {
-                WRITE_ERROR(msg);
+    for (const auto& item : myConnections) {
+        for (std::vector<PostProcessConnection>::const_iterator i = item.second.begin(); i != item.second.end(); ++i) {
+            NBEdge* from = retrievePossiblySplit((*i).from, true);
+            NBEdge* to = retrievePossiblySplit((*i).to, false);
+            if (from == nullptr || to == nullptr ||
+                    !from->addLane2LaneConnection((*i).fromLane, to, (*i).toLane, NBEdge::L2L_USER, true, (*i).mayDefinitelyPass,
+                                                  (*i).keepClear, (*i).contPos, (*i).visibility, (*i).speed, (*i).customShape, (*i).uncontrolled)) {
+                const std::string msg = "Could not insert connection between '" + (*i).from + "' and '" + (*i).to + "' after build.";
+                if (warnOnly || (*i).warnOnly) {
+                    WRITE_WARNING(msg);
+                } else {
+                    WRITE_ERROR(msg);
+                }
             }
         }
     }
@@ -1103,10 +1164,14 @@ NBEdgeCont::guessRoundabouts() {
     // step 1: keep only those edges which have no turnarounds and which are not
     // part of a loaded roundabout
     std::set<NBEdge*> candidates;
+    SVCPermissions valid = SVCAll & ~SVC_PEDESTRIAN;
     for (EdgeCont::const_iterator i = myEdges.begin(); i != myEdges.end(); ++i) {
         NBEdge* e = (*i).second;
         NBNode* const to = e->getToNode();
-        if (e->getTurnDestination() == nullptr && to->getConnectionTo(e->getFromNode()) == nullptr && loadedRoundaboutEdges.count(e) == 0) {
+        if (e->getTurnDestination() == nullptr 
+                && to->getConnectionTo(e->getFromNode()) == nullptr 
+                && loadedRoundaboutEdges.count(e) == 0
+                && (e->getPermissions() & valid) != 0) {
             candidates.insert(e);
         }
     }
@@ -1126,25 +1191,76 @@ NBEdgeCont::guessRoundabouts() {
         }
         loopEdges.push_back(e);
         bool doLoop = true;
-        do {
+#ifdef DEBUG_GUESS_ROUNDABOUT
+        gDebugFlag1 = false;
+#endif
+        do { 
+#ifdef DEBUG_GUESS_ROUNDABOUT
+            if (e->getID() == DEBUG_EDGE_ID || gDebugFlag1) {
+                std::cout << " e=" << e->getID() << " loopEdges=" << toString(loopEdges) << "\n";
+                gDebugFlag1 = true;
+            }
+#endif
             visited.insert(e);
             const EdgeVector& edges = e->getToNode()->getEdges();
+            if (e->getToNode()->getType() == NODETYPE_RIGHT_BEFORE_LEFT && !e->getToNode()->typeWasGuessed()) {
+                doLoop = false;
+#ifdef DEBUG_GUESS_ROUNDABOUT
+                if (gDebugFlag1) std::cout << " rbl\n"; gDebugFlag1 = false;
+#endif
+                break;
+            }
             if (edges.size() < 2) {
                 doLoop = false;
+#ifdef DEBUG_GUESS_ROUNDABOUT
+                if (gDebugFlag1) std::cout << " deadend\n"; gDebugFlag1 = false;
+#endif
                 break;
             }
             if (e->getTurnDestination() != nullptr || e->getToNode()->getConnectionTo(e->getFromNode()) != nullptr) {
                 // do not follow turn-arounds while in a (tentative) loop
                 doLoop = false;
+#ifdef DEBUG_GUESS_ROUNDABOUT
+                if (gDebugFlag1) std::cout << " turn\n"; gDebugFlag1 = false;
+#endif
                 break;
             }
             EdgeVector::const_iterator me = std::find(edges.begin(), edges.end(), e);
             NBContHelper::nextCW(edges, me);
             NBEdge* left = *me;
-            double angle = fabs(NBHelpers::relAngle(e->getAngleAtNode(e->getToNode()), left->getAngleAtNode(e->getToNode())));
-            if (angle >= 90) {
-                // roundabouts do not have sharp turns (or they wouldn't be called 'round')
+            while ((left->getPermissions() & valid) == 0 && left != e) {
+                NBContHelper::nextCW(edges, me);
+                left = *me;
+            }
+            if (left == e) {
+                // no usable continuation edge found
                 doLoop = false;
+#ifdef DEBUG_GUESS_ROUNDABOUT
+                if (gDebugFlag1) std::cout << " noContinuation\n"; gDebugFlag1 = false;
+#endif
+                break;
+            }
+            NBContHelper::nextCW(edges, me);
+            NBEdge* nextLeft = *me;
+            double angle = fabs(NBHelpers::relAngle(e->getAngleAtNode(e->getToNode()), left->getAngleAtNode(e->getToNode())));
+            double nextAngle = nextLeft == e ? 180 : fabs(NBHelpers::relAngle(e->getAngleAtNode(e->getToNode()), nextLeft->getAngleAtNode(e->getToNode())));
+#ifdef DEBUG_GUESS_ROUNDABOUT
+            if (gDebugFlag1) std::cout << "   angle=" << angle << " nextAngle=" << nextAngle << "\n";
+#endif
+            if (angle >= 120 
+                    || (angle >= 90 && 
+                        // if the edges are long or the junction shape is small we should expect roundness (low angles)
+                        (MAX2(e->getLength(), left->getLength()) > 5 
+                         || e->getLaneShape(0).back().distanceTo2D(left->getLaneShape(0).front()) < 10
+                         // there should be no straigher edge further left
+                         || (nextAngle < 45)
+                         ))) {
+                // roundabouts do not have sharp turns (or they wouldn't be called 'round')
+                // however, if the roundabout is very small then most of the roundness may be in the junction so the angle may be as high as 120
+                doLoop = false;
+#ifdef DEBUG_GUESS_ROUNDABOUT
+                if (gDebugFlag1) std::cout << " angle=" << angle << "\n"; gDebugFlag1 = false;
+#endif
                 break;
             }
             EdgeVector::const_iterator loopClosed = std::find(loopEdges.begin(), loopEdges.end(), left);
@@ -1166,6 +1282,9 @@ NBEdgeCont::guessRoundabouts() {
                 }
                 if (attachments < 3) {
                     doLoop = false;
+#ifdef DEBUG_GUESS_ROUNDABOUT
+                    if (gDebugFlag1) std::cout << " attachments=" << attachments << "\n"; gDebugFlag1 = false;
+#endif
                 }
                 break;
             }
@@ -1177,6 +1296,9 @@ NBEdgeCont::guessRoundabouts() {
                 e = left;
             }
         } while (doLoop);
+#ifdef DEBUG_GUESS_ROUNDABOUT
+        gDebugFlag1 = false;
+#endif
         if (doLoop) {
             // check form factor to avoid elongated shapes (circle: 1, square: ~0.79)
             if (formFactor(loopEdges) > 0.6) {
@@ -1215,6 +1337,18 @@ NBEdgeCont::addRoundabout(const EdgeSet& roundabout) {
             WRITE_WARNING("Ignoring duplicate roundabout: " + toString(roundabout));
         } else {
             myRoundabouts.insert(roundabout);
+        }
+    }
+}
+
+void
+NBEdgeCont::removeRoundabout(const NBNode* node) {
+    for (auto it = myRoundabouts.begin(); it != myRoundabouts.end(); ++it) {
+        for (NBEdge* e : *it) {
+            if (e->getToNode() == node) {
+                myRoundabouts.erase(it);
+                return;
+            }
         }
     }
 }
@@ -1290,27 +1424,30 @@ NBEdgeCont::generateStreetSigns() {
 
 
 int
-NBEdgeCont::guessSidewalks(double width, double minSpeed, double maxSpeed, bool fromPermissions) {
-    int sidewalksCreated = 0;
-    const std::vector<std::string> edges = OptionsCont::getOptions().getStringVector("sidewalks.guess.exclude");
+NBEdgeCont::guessSpecialLanes(SUMOVehicleClass svc, double width, double minSpeed, double maxSpeed, bool fromPermissions, const std::string& excludeOpt) {
+    int lanesCreated = 0;
+    std::vector<std::string> edges;
+    if (excludeOpt != "") {
+        edges = OptionsCont::getOptions().getStringVector(excludeOpt);
+    }
     std::set<std::string> exclude(edges.begin(), edges.end());
     for (EdgeCont::iterator it = myEdges.begin(); it != myEdges.end(); it++) {
         NBEdge* edge = it->second;
         if (// not excluded
             exclude.count(edge->getID()) == 0
             // does not yet have a sidewalk
-            && edge->getPermissions(0) != SVC_PEDESTRIAN
+            && !edge->hasRestrictedLane(svc)
             && (
                 // guess.from-permissions
-                (fromPermissions && (edge->getPermissions() & SVC_PEDESTRIAN) != 0)
+                (fromPermissions && (edge->getPermissions() & svc) != 0)
                 // guess from speed
                 || (!fromPermissions && edge->getSpeed() > minSpeed && edge->getSpeed() <= maxSpeed)
             )) {
-            edge->addSidewalk(width);
-            sidewalksCreated += 1;
+            edge->addRestrictedLane(width, svc);
+            lanesCreated += 1;
         }
     }
-    return sidewalksCreated;
+    return lanesCreated;
 }
 
 
@@ -1431,6 +1568,16 @@ NBEdgeCont::checkGrade(double threshold) const {
     }
 }
 
+int
+NBEdgeCont::joinLanes(SVCPermissions perms) {
+    int affectedEdges = 0;
+    for (auto item : myEdges) {
+        if (item.second->joinLanes(perms)) {
+            affectedEdges++;
+        }
+    }
+    return affectedEdges;
+}
 
 EdgeVector
 NBEdgeCont::getAllEdges() const {
@@ -1440,6 +1587,12 @@ NBEdgeCont::getAllEdges() const {
         result.push_back(item.second);
     }
     return result;
+}
+
+RouterEdgeVector
+NBEdgeCont::getAllRouterEdges() const {
+    EdgeVector all = getAllEdges();
+    return RouterEdgeVector(all.begin(), all.end());
 }
 
 /****************************************************************************/

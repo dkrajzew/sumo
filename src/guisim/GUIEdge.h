@@ -59,7 +59,8 @@ public:
      */
     GUIEdge(const std::string& id, int numericalID,
             const SumoXMLEdgeFunc function,
-            const std::string& streetName, const std::string& edgeType, int priority);
+            const std::string& streetName, const std::string& edgeType, int priority,
+            double distance);
 
 
     /// @brief Destructor.
@@ -124,6 +125,8 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief Returns the street name
+    const std::string getOptionalName() const;
 
     /** @brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)

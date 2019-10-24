@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select chargingStation
-netedit.changeAdditional("chargingStation")
+netedit.changeElement("chargingStation")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(9, "reference center")
+netedit.changeDefaultValue(10, "reference center")
 
 # create chargingStation in mode "reference center"
 netedit.leftClick(referencePosition, 250, 250)
@@ -69,10 +69,10 @@ netedit.undo(referencePosition, 10)
 netedit.redo(referencePosition, 10)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

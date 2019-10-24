@@ -80,6 +80,7 @@ public:
 
         inline void reset() {
             effort = std::numeric_limits<double>::max();
+            heuristicEffort = std::numeric_limits<double>::max();
             visited = false;
         }
 
@@ -122,7 +123,7 @@ public:
     /** @brief Builds the route between the given edges using the minimum effort at the given time
      * if from == to, return the shortest looped route */
     bool computeLooped(const E* from, const E* to, const V* const vehicle,
-                         SUMOTime msTime, std::vector<const E*>& into, bool silent = false) {
+                       SUMOTime msTime, std::vector<const E*>& into, bool silent = false) {
         if (from != to) {
             return compute(from, to, vehicle, msTime, into, silent);
         }
@@ -131,7 +132,7 @@ public:
         const SUMOVehicleClass vClass = vehicle == 0 ? SVC_IGNORING : vehicle->getVClass();
         for (const std::pair<const E*, const E*>& follower : from->getViaSuccessors(vClass)) {
             std::vector<const E*> tmp;
-            compute(follower.first, to, vehicle, msTime, tmp, false);
+            compute(follower.first, to, vehicle, msTime, tmp, true);
             if (tmp.size() > 0) {
                 double effort = recomputeCosts(tmp, vehicle, msTime);
                 if (effort < minEffort) {
@@ -257,8 +258,8 @@ template<class E, class V>
 class SUMOAbstractRouterPermissions : public SUMOAbstractRouter<E, V> {
 public:
     /// Constructor
-    SUMOAbstractRouterPermissions(const std::string& type, bool unbuildIsWarning, 
-            typename SUMOAbstractRouter<E, V>::Operation operation = nullptr, typename SUMOAbstractRouter<E, V>::Operation ttOperation = nullptr) :
+    SUMOAbstractRouterPermissions(const std::string& type, bool unbuildIsWarning,
+        typename SUMOAbstractRouter<E, V>::Operation operation = nullptr, typename SUMOAbstractRouter<E, V>::Operation ttOperation = nullptr) :
         SUMOAbstractRouter<E, V>(type, unbuildIsWarning, operation, ttOperation) {
     }
 
@@ -271,6 +272,39 @@ public:
             return true;
         }
         return edge->prohibits(vehicle);
+    }
+
+    void prohibit(const std::vector<E*>& toProhibit) {
+        myProhibited = toProhibit;
+    }
+
+protected:
+    std::vector<E*> myProhibited;
+
+};
+
+
+template<class E, class V>
+class SUMOAbstractRouterRestrictions : public SUMOAbstractRouter<E, V> {
+public:
+    /// Constructor
+    SUMOAbstractRouterRestrictions(const std::string& type, bool unbuildIsWarning,
+        typename SUMOAbstractRouter<E, V>::Operation operation = nullptr, typename SUMOAbstractRouter<E, V>::Operation ttOperation = nullptr) :
+        SUMOAbstractRouter<E, V>(type, unbuildIsWarning, operation, ttOperation) {
+    }
+
+    /// Destructor
+    virtual ~SUMOAbstractRouterRestrictions() {
+    }
+
+    bool isProhibited(const E* const edge, const V* const vehicle) const {
+        if (std::find(myProhibited.begin(), myProhibited.end(), edge) != myProhibited.end()) {
+            return true;
+        }
+        if (edge->prohibits(vehicle)) {
+            return true;
+        }
+        return edge->restricts(vehicle);
     }
 
     void prohibit(const std::vector<E*>& toProhibit) {

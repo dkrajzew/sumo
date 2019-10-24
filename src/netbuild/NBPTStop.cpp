@@ -41,6 +41,7 @@ NBPTStop::NBPTStop(std::string ptStopId, Position position, std::string edgeId, 
     myName(name),
     myPermissions(svcPermissions),
     myBidiStop(nullptr),
+    myIsLoose(origEdgeId == ""),
     myIsMultipleStopPositions(false) {
 }
 
@@ -164,7 +165,7 @@ NBPTStop::getLength() const {
 
 
 bool
-NBPTStop::setEdgeId(std::string edgeId, NBEdgeCont& ec) {
+NBPTStop::setEdgeId(std::string edgeId, const NBEdgeCont& ec) {
     myEdgeId = edgeId;
     return findLaneAndComputeBusStopExtent(ec);
 }
@@ -195,12 +196,12 @@ NBPTStop::setMyPTStopLength(double myPTStopLength) {
 
 
 bool
-NBPTStop::findLaneAndComputeBusStopExtent(NBEdgeCont& ec) {
+NBPTStop::findLaneAndComputeBusStopExtent(const NBEdgeCont& ec) {
     NBEdge* edge = ec.getByID(myEdgeId);
     if (edge != nullptr) {
         int laneNr = -1;
         for (const auto& it : edge->getLanes()) {
-            if ((it.permissions & getPermissions()) > 0) {
+            if ((it.permissions & getPermissions()) == getPermissions()) {
                 ++laneNr;
                 break;
             }
@@ -214,7 +215,7 @@ NBPTStop::findLaneAndComputeBusStopExtent(NBEdgeCont& ec) {
             return true;
         }
     }
-    return false;
+    return myEdgeId == ""; // loose stop. Try later when processing lines
 }
 
 

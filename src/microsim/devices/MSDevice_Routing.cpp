@@ -122,10 +122,14 @@ MSDevice_Routing::checkOptions(OptionsCont& oc) {
 void
 MSDevice_Routing::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     const OptionsCont& oc = OptionsCont::getOptions();
-    if (v.getParameter().wasSet(VEHPARS_FORCE_REROUTE) || equippedByDefaultAssignmentOptions(oc, "rerouting", v, false)) {
+    const bool equip = equippedByDefaultAssignmentOptions(oc, "rerouting", v, false);
+    if (v.getParameter().wasSet(VEHPARS_FORCE_REROUTE) || equip) {
         // route computation is enabled
-        const SUMOTime period = string2time(oc.getString("device.rerouting.period"));
-        const SUMOTime prePeriod = string2time(oc.getString("device.rerouting.pre-period"));
+        // for implicitly equipped vehicles (trips, flows), option probability
+        // can still be used to disable periodic rerouting after insertion for
+        // parts of the fleet
+        const SUMOTime period = equip || oc.isDefault("device.rerouting.probability") ? string2time(oc.getString("device.rerouting.period")) : 0;
+        const SUMOTime prePeriod = MAX2((SUMOTime)0, string2time(oc.getString("device.rerouting.pre-period")));
         MSRoutingEngine::initWeightUpdate();
         // build the device
         into.push_back(new MSDevice_Routing(v, "routing_" + v.getID(), period, prePeriod));
@@ -145,10 +149,6 @@ MSDevice_Routing::MSDevice_Routing(SUMOVehicle& holder, const std::string& id,
         // if we don't update the edge weights, we might as well reroute now and hopefully use our threads better
         const SUMOTime execTime = MSRoutingEngine::hasEdgeUpdates() ? holder.getParameter().depart : -1;
         MSNet::getInstance()->getInsertionEvents()->addEvent(myRerouteCommand, execTime);
-        if (myPreInsertionPeriod == 0) {
-            // the event will deschedule and destroy itself so it does not need to be stored
-            myRerouteCommand = nullptr;
-        }
     }
 }
 
@@ -162,11 +162,14 @@ MSDevice_Routing::~MSDevice_Routing() {
 
 
 bool
-MSDevice_Routing::notifyEnter(SUMOVehicle& /*veh*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_Routing::notifyEnter(SUMOTrafficObject& /*veh*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     if (reason == MSMoveReminder::NOTIFICATION_DEPARTED) {
         // clean up pre depart rerouting
         if (myRerouteCommand != nullptr) {
             myRerouteCommand->deschedule();
+        } else if (myPreInsertionPeriod > 0 && myHolder.getDepartDelay() > myPreInsertionPeriod) {
+            // pre-insertion rerouting was disabled. Reroute once if insertion was delayed
+            reroute(MSNet::getInstance()->getCurrentTimeStep());
         }
         myRerouteCommand = nullptr;
         // build repetition trigger if routing shall be done more often
@@ -188,6 +191,10 @@ MSDevice_Routing::preInsertionReroute(const SUMOTime currentTime) {
     if (mySkipRouting == currentTime) {
         return DELTA_T;
     }
+    if (myPreInsertionPeriod == 0) {
+        // the event will deschedule and destroy itself so it does not need to be stored
+        myRerouteCommand = nullptr;
+    }
     const MSEdge* source = *myHolder.getRoute().begin();
     const MSEdge* dest = myHolder.getRoute().getLastEdge();
     if (source->isTazConnector() && dest->isTazConnector()) {
@@ -202,6 +209,12 @@ MSDevice_Routing::preInsertionReroute(const SUMOTime currentTime) {
     } catch (ProcessError&) {
         myRerouteCommand = nullptr;
         throw;
+    }
+    // avoid repeated pre-insertion rerouting when the departure edge is fix and
+    // the departure lane does not depend on the route
+    if (myPreInsertionPeriod > 0 && !source->isTazConnector() && myHolder.getParameter().departLaneProcedure != DEPART_LANE_BEST_FREE) {
+        myRerouteCommand = nullptr;
+        return 0;
     }
     return myPreInsertionPeriod;
 }

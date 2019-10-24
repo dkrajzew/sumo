@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select chargingStation
-netedit.changeAdditional("chargingStation")
+netedit.changeElement("chargingStation")
 
 # create chargingStation in mode "reference left"
 netedit.leftClick(referencePosition, 250, 250)
@@ -38,13 +38,13 @@ netedit.leftClick(referencePosition, 250, 250)
 netedit.deleteMode()
 
 # delete created chargingStation
-netedit.leftClick(referencePosition, 260, 250)
+netedit.leftClick(referencePosition, 260, 255)
 
 # delete first loaded chargingStation
-netedit.leftClick(referencePosition, 450, 250)
+netedit.leftClick(referencePosition, 450, 255)
 
 # delete lane with the second loaded chargingStation
-netedit.leftClick(referencePosition, 200, 200)
+netedit.leftClick(referencePosition, 200, 220)
 
 # Check undo
 netedit.undo(referencePosition, 3)
@@ -56,19 +56,19 @@ netedit.deleteMode()
 netedit.changeAutomaticallyDeleteAdditionals(referencePosition)
 
 # try to delete lane with the second loaded charging station (doesn't allowed)
-netedit.leftClick(referencePosition, 200, 200)
+netedit.leftClick(referencePosition, 200, 220)
 
 # wait warning
-netedit.waitAutomaticallyDeleteAdditionalsWarning()
+netedit.waitDeleteWarning()
 
 # check redo
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

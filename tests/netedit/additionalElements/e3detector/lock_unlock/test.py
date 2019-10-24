@@ -32,20 +32,20 @@ netedit.setZoom("25", "0", "25")
 netedit.additionalMode()
 
 # select E3
-netedit.changeAdditional("e3Detector")
+netedit.changeElement("e3Detector")
 
 # create E3
 netedit.leftClick(referencePosition, 250, 250)
 
 # select entry detector
-netedit.changeAdditional("detEntry")
+netedit.changeElement("detEntry")
 
 # Create Entry detector (for saving)
 netedit.selectAdditionalChild(6, 0)
 netedit.leftClick(referencePosition, 500, 250)
 
 # select entry detector
-netedit.changeAdditional("detExit")
+netedit.changeElement("detExit")
 
 # Create detExit detector (for saving)
 netedit.selectAdditionalChild(6, 0)
@@ -64,7 +64,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 250, 100)
 
 # block additional
-netedit.modifyBoolAttribute(11, True)
+netedit.modifyBoolAttribute(11, False)
 
 # change to move mode
 netedit.moveMode()
@@ -79,7 +79,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 250, 100)
 
 # unblock additional
-netedit.modifyBoolAttribute(11, True)
+netedit.modifyBoolAttribute(11, False)
 
 # change to move mode
 netedit.moveMode()
@@ -92,10 +92,10 @@ netedit.undo(referencePosition, 8)
 netedit.redo(referencePosition, 8)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

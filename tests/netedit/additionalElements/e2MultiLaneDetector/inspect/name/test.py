@@ -32,18 +32,18 @@ netedit.rebuildNetwork()
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2MultilaneDetector")
+netedit.changeElement("e2MultilaneDetector")
 
 # create E2 with default parameters
-netedit.leftClick(referencePosition, 190, 240)
-netedit.leftClick(referencePosition, 440, 240)
+netedit.leftClick(referencePosition, 190, 255)
+netedit.leftClick(referencePosition, 440, 255)
 netedit.typeEnter()
 
 # go to additional mode
 netedit.inspectMode()
 
 # inspect E2
-netedit.leftClick(referencePosition, 320, 240)
+netedit.leftClick(referencePosition, 320, 255)
 
 # Change parameter name with an non valid value
 netedit.modifyAttribute(5, "%%%;:..&&%$%$", True)
@@ -56,10 +56,10 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

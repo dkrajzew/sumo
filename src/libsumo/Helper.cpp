@@ -23,6 +23,7 @@
 #include <config.h>
 
 #include <utils/geom/GeomHelper.h>
+#include <utils/geom/GeoConvHelper.h>
 #include <microsim/MSNet.h>
 #include <microsim/MSVehicleControl.h>
 #include <microsim/MSTransportableControl.h>
@@ -130,6 +131,9 @@ Helper::subscribe(const int commandId, const std::string& id, const std::vector<
 
 void
 Helper::handleSubscriptions(const SUMOTime t) {
+    for (auto& wrapper : myWrapper) {
+        wrapper.second->clear();
+    }
     for (const libsumo::Subscription& s : mySubscriptions) {
         if (s.beginTime > t) {
             continue;
@@ -153,7 +157,6 @@ Helper::handleSingleSubscription(const Subscription& s) {
     } else {
         objIDs.insert(s.id);
     }
-    const int numVars = s.contextDomain > 0 && s.variables.size() == 1 && s.variables[0] == libsumo::TRACI_ID_LIST ? 0 : (int)s.variables.size();
     if (myWrapper.empty()) {
         myWrapper[libsumo::CMD_GET_EDGE_VARIABLE] = Edge::makeWrapper();
         myWrapper[libsumo::CMD_GET_INDUCTIONLOOP_VARIABLE] = InductionLoop::makeWrapper();
@@ -175,14 +178,30 @@ Helper::handleSingleSubscription(const Subscription& s) {
         throw TraCIException("Unsupported command specified");
     }
     std::shared_ptr<VariableWrapper> handler = wrapper->second;
+    VariableWrapper* container = handler.get();
+    if (s.contextDomain > 0) {
+        handler->setContext(s.id);
+        auto containerWrapper = myWrapper.find(s.commandId + 0x20);
+        if (containerWrapper == myWrapper.end()) {
+            throw TraCIException("Unsupported domain specified");
+        }
+        container = containerWrapper->second.get();
+    } else {
+        handler->setContext("");
+    }
     for (const std::string& objID : objIDs) {
-        if (numVars > 0) {
+        if (!s.variables.empty()) {
             for (const int variable : s.variables) {
-                handler->handle(objID, variable, handler.get());
+                handler->handle(objID, variable, container);
             }
         } else {
-            if (!handler->handle(objID, libsumo::LAST_STEP_VEHICLE_NUMBER, handler.get())) {
-                handler->handle(objID, libsumo::TRACI_ID_LIST, handler.get());
+            if (s.contextDomain == 0 && getCommandId == libsumo::CMD_GET_VEHICLE_VARIABLE) {
+                // default for vehicles is edge id and lane position
+                handler->handle(objID, VAR_ROAD_ID, container);
+                handler->handle(objID, VAR_LANEPOSITION, container);
+            } else if (s.contextDomain > 0 || !handler->handle(objID, libsumo::LAST_STEP_VEHICLE_NUMBER, container)) {
+                // default for detectors is vehicle number, for all others (and contexts) id list
+                handler->handle(objID, libsumo::TRACI_ID_LIST, container);
             }
         }
     }
@@ -220,8 +239,11 @@ Helper::makeTraCIPositionVector(const PositionVector& positionVector) {
 PositionVector
 Helper::makePositionVector(const TraCIPositionVector& vector) {
     PositionVector pv;
-    for (int i = 0; i < (int)vector.size(); i++) {
-        pv.push_back(Position(vector[i].x, vector[i].y));
+    for (const TraCIPosition& pos : vector) {
+        if (std::isnan(pos.x) || std::isnan(pos.y)) {
+            throw libsumo::TraCIException("NaN-Value in shape.");
+        }
+        pv.push_back(Position(pos.x, pos.y));
     }
     return pv;
 }
@@ -249,7 +271,7 @@ Helper::makeTraCIPosition(const Position& position, const bool includeZ) {
     TraCIPosition p;
     p.x = position.x();
     p.y = position.y();
-    p.z = includeZ ? position.z() : Position::INVALID.z();
+    p.z = includeZ ? position.z() : INVALID_DOUBLE_VALUE;
     return p;
 }
 
@@ -288,26 +310,54 @@ Helper::getLaneChecking(const std::string& edgeID, int laneIndex, double pos) {
 
 
 std::pair<MSLane*, double>
-Helper::convertCartesianToRoadMap(Position pos) {
-    /// XXX use rtree instead
+Helper::convertCartesianToRoadMap(const Position& pos, const SUMOVehicleClass vClass) {
+    const PositionVector shape({ pos });
     std::pair<MSLane*, double> result;
-    std::vector<std::string> allEdgeIds;
-    double minDistance = std::numeric_limits<double>::max();
-
-    allEdgeIds = MSNet::getInstance()->getEdgeControl().getEdgeNames();
-    for (std::vector<std::string>::iterator itId = allEdgeIds.begin(); itId != allEdgeIds.end(); itId++) {
-        const std::vector<MSLane*>& allLanes = MSEdge::dictionary((*itId))->getLanes();
-        for (std::vector<MSLane*>::const_iterator itLane = allLanes.begin(); itLane != allLanes.end(); itLane++) {
-            const double newDistance = (*itLane)->getShape().distance2D(pos);
-            if (newDistance < minDistance) {
-                minDistance = newDistance;
-                result.first = (*itLane);
+    double range = 1000.;
+    const Boundary& netBounds = GeoConvHelper::getFinal().getConvBoundary();
+    const double maxRange = MAX2(1001., netBounds.getWidth() + netBounds.getHeight() + netBounds.distanceTo2D(pos));
+    while (range < maxRange) {
+        std::set<std::string> laneIds;
+        collectObjectsInRange(libsumo::CMD_GET_LANE_VARIABLE, shape, range, laneIds);
+        double minDistance = std::numeric_limits<double>::max();
+        for (const std::string& laneID : laneIds) {
+            MSLane* const lane = MSLane::dictionary(laneID);
+            if (lane->allowsVehicleClass(vClass)) {
+                // @todo this may be a place where 3D is required but 2D is used
+                const double newDistance = lane->getShape().distance2D(pos);
+                if (newDistance < minDistance) {
+                    minDistance = newDistance;
+                    result.first = lane;
+                }
             }
         }
+        if (minDistance < std::numeric_limits<double>::max()) {
+            result.second = result.first->interpolateGeometryPosToLanePos(result.first->getShape().nearest_offset_to_point2D(pos, false));
+            break;
+        }
+        range *= 2;
     }
-    // @todo this may be a place where 3D is required but 2D is delivered
-    result.second = result.first->getShape().nearest_offset_to_point2D(pos, false);
     return result;
+}
+
+
+MSVehicle*
+Helper::getVehicle(const std::string& id) {
+    SUMOVehicle* sumoVehicle = MSNet::getInstance()->getVehicleControl().getVehicle(id);
+    if (sumoVehicle == nullptr) {
+        throw TraCIException("Vehicle '" + id + "' is not known.");
+    }
+    MSVehicle* v = dynamic_cast<MSVehicle*>(sumoVehicle);
+    if (v == nullptr) {
+        throw TraCIException("Vehicle '" + id + "' is not a micro-simulation vehicle.");
+    }
+    return v;
+}
+
+
+const MSVehicleType&
+Helper::getVehicleType(const std::string& vehicleID) {
+    return getVehicle(vehicleID)->getVehicleType();
 }
 
 
@@ -473,7 +523,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
             // Specifies maximal downstream distance for vehicles in context subscription result
             upstreamDist = s.filterUpstreamDist;
         }
-        MSVehicle* v = libsumo::Vehicle::getVehicle(s.id);
+        MSVehicle* v = getVehicle(s.id);
         if (!v->isOnRoad()) {
             return;
         }
@@ -504,7 +554,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
             if (s.activeFilters & SUBS_FILTER_LEAD_FOLLOW) {
                 // Return leader and follower on the specified lanes in context subscription result.
                 for (int offset : filterLanes) {
-                    MSLane* lane = v->getLane()->getParallelLane(offset);
+                    MSLane* lane = v->getLane()->getParallelLane(offset, false);
                     if (lane != nullptr) {
                         // this is a non-opposite lane
                         MSVehicle* leader = lane->getLeader(v, v->getPositionOnLane(), v->getBestLanesContinuation(lane), downstreamDist).first;
@@ -594,7 +644,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
             // This is to remember the lanes checked in the driving direction of the vehicle (their opposites can be added in a second pass)
             auto checkedLanesInDrivingDir = std::make_shared<LaneCoverageInfo>();
             for (int offset : filterLanes) {
-                MSLane* lane = vehLane->getParallelLane(offset);
+                MSLane* lane = vehLane->getParallelLane(offset, false);
                 if (lane != nullptr) {
 #ifdef DEBUG_SURROUNDING
                     std::cout << "Checking for surrounding vehicles starting on lane '" << lane->getID() << "' at index " << offset << std::endl;
@@ -608,7 +658,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
                     fuseLaneCoverage(checkedLanesInDrivingDir, checkedLanes);
                 } else if (!disregardOppositeDirection && offset > 0) {
                     // Check opposite edge, too
-                    assert(vehLane->getIndex() + (unsigned int) offset >= vehEdge->getLanes().size()); // index points beyond this edge
+                    assert(vehLane->getIndex() + offset >= (int)vehEdge->getLanes().size()); // index points beyond this edge
                     const MSEdge* opposite = vehEdge->getOppositeEdge();
                     if (opposite == nullptr) {
 #ifdef DEBUG_SURROUNDING
@@ -648,12 +698,11 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
                     // Collect vehicles from opposite lanes
                     if (nOpp > 0) {
                         for (auto& laneCov : *checkedLanesInDrivingDir) {
-                            const MSLane* lane = laneCov.first;
-                            if (lane == nullptr || lane->getEdge().getOppositeEdge() == nullptr) {
+                            const MSLane* const l = laneCov.first;
+                            if (l == nullptr || l->getEdge().getOppositeEdge() == nullptr) {
                                 continue;
                             }
-                            const MSEdge* edge = &(lane->getEdge());
-                            const MSEdge* opposite = edge->getOppositeEdge();
+                            const MSEdge* opposite = l->getEdge().getOppositeEdge();
                             const std::pair<double, double>& range = laneCov.second;
                             auto leftMostOppositeLaneIt = opposite->getLanes().rbegin();
                             for (auto oppositeLaneIt = leftMostOppositeLaneIt;
@@ -663,7 +712,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
                                 }
                                 // Add vehicles from corresponding range on opposite direction
                                 const MSLane* oppositeLane = *oppositeLaneIt;
-                                auto new_vehs = oppositeLane->getVehiclesInRange(lane->getLength() - range.second, lane->getLength() - range.first);
+                                auto new_vehs = oppositeLane->getVehiclesInRange(l->getLength() - range.second, l->getLength() - range.first);
                                 vehs.insert(new_vehs.begin(), new_vehs.end());
                             }
                         }
@@ -715,7 +764,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
             // Only return vehicles of the given vClass in context subscription result
             auto i = objIDs.begin();
             while (i != objIDs.end()) {
-                MSVehicle* veh = libsumo::Vehicle::getVehicle(*i);
+                MSVehicle* veh = getVehicle(*i);
                 if ((veh->getVehicleType().getVehicleClass() & s.filterVClasses) == 0) {
                     i = objIDs.erase(i);
                 } else {
@@ -727,7 +776,7 @@ Helper::applySubscriptionFilters(const Subscription& s, std::set<std::string>& o
             // Only return vehicles of the given vType in context subscription result
             auto i = objIDs.begin();
             while (i != objIDs.end()) {
-                MSVehicle* veh = libsumo::Vehicle::getVehicle(*i);
+                MSVehicle* veh = getVehicle(*i);
                 if (s.filterVTypes.find(veh->getVehicleType().getID()) == s.filterVTypes.end()) {
                     i = objIDs.erase(i);
                 } else {
@@ -777,6 +826,7 @@ Helper::postProcessRemoteControl() {
 bool
 Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveNetwork, const std::string& origID, const double angle,
                     double speed, const ConstMSEdgeVector& currentRoute, const int routePosition, MSLane* currentLane, double currentLanePos, bool onRoad,
+                    SUMOVehicleClass vClass,
                     double& bestDistance, MSLane** lane, double& lanePos, int& routeOffset, ConstMSEdgeVector& edges) {
     // collect edges around the vehicle/person
     const MSEdge* const currentRouteEdge = currentRoute[routePosition];
@@ -850,23 +900,28 @@ Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveN
 
 
         // weight the lanes...
-        const std::vector<MSLane*>& lanes = e->getLanes();
         const bool perpendicular = false;
-        for (std::vector<MSLane*>::const_iterator k = lanes.begin(); k != lanes.end(); ++k) {
-            MSLane* lane = *k;
+        for (MSLane* const l : e->getLanes()) {
+            if (!l->allowsVehicleClass(vClass)) {
+                continue;
+            }
             double langle = 180.;
             double dist = FAR_AWAY;
             double perpendicularDist = FAR_AWAY;
-            double off = lane->getShape().nearest_offset_to_point2D(pos, true);
+            // add some slack to avoid issues from tiny gaps between consecutive lanes
+            const double slack = POSITION_EPS;
+            PositionVector laneShape = l->getShape();
+			laneShape.extrapolate2D(slack);
+            double off = laneShape.nearest_offset_to_point2D(pos, true);
             if (off != GeomHelper::INVALID_OFFSET) {
-                perpendicularDist = lane->getShape().distance2D(pos, true);
+                perpendicularDist = laneShape.distance2D(pos, true);
             }
-            off = lane->getShape().nearest_offset_to_point2D(pos, perpendicular);
+            off = l->getShape().nearest_offset_to_point2D(pos, perpendicular);
             if (off != GeomHelper::INVALID_OFFSET) {
-                dist = lane->getShape().distance2D(pos, perpendicular);
-                langle = GeomHelper::naviDegree(lane->getShape().rotationAtOffset(off));
+                dist = l->getShape().distance2D(pos, perpendicular);
+                langle = GeomHelper::naviDegree(l->getShape().rotationAtOffset(off));
             }
-            bool sameEdge = onRoad && &lane->getEdge() == &currentLane->getEdge() && currentRouteEdge->getLength() > currentLanePos + SPEED2DIST(speed);
+            bool sameEdge = onRoad && e == &currentLane->getEdge() && currentRouteEdge->getLength() > currentLanePos + SPEED2DIST(speed);
             /*
             const MSEdge* rNextEdge = nextEdge;
             while(rNextEdge==0&&lane->getEdge().getPurpose()==MSEdge::EDGEFUNCTION_INTERNAL) {
@@ -875,25 +930,26 @@ Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveN
             }
             */
             double dist2 = dist;
-            if (mayLeaveNetwork && dist != perpendicularDist) {
+            if (mayLeaveNetwork && fabs(dist - perpendicularDist) > slack) {
                 // ambiguous mapping. Don't trust this
                 dist2 = FAR_AWAY;
             }
             const double angleDiff = (angle == INVALID_DOUBLE_VALUE ? 0 : GeomHelper::getMinAngleDiff(angle, langle));
 #ifdef DEBUG_MOVEXY_ANGLE
-            std::cout << lane->getID() << " lAngle:" << langle << " lLength=" << lane->getLength()
-                      << " angleDiff:" << angleDiff
-                      << " off:" << off
+            std::cout << std::setprecision(gPrecision)
+                      << " candLane=" << l->getID() << " lAngle=" << langle << " lLength=" << l->getLength()
+                      << " angleDiff=" << angleDiff
+                      << " off=" << off
                       << " pDist=" << perpendicularDist
                       << " dist=" << dist
                       << " dist2=" << dist2
                       << "\n";
-            std::cout << lane->getID() << " param=" << lane->getParameter(SUMO_PARAM_ORIGID, lane->getID()) << " origID='" << origID << "\n";
+            std::cout << l->getID() << " param=" << l->getParameter(SUMO_PARAM_ORIGID, lane->getID()) << " origID='" << origID << "\n";
 #endif
-            lane2utility[lane] = LaneUtility(
+            lane2utility.emplace(l, LaneUtility(
                                      dist2, perpendicularDist, off, angleDiff,
-                                     lane->getParameter(SUMO_PARAM_ORIGID, lane->getID()) == origID,
-                                     onRoute, sameEdge, prevEdge, nextEdge);
+                                     l->getParameter(SUMO_PARAM_ORIGID, l->getID()) == origID,
+                                     onRoute, sameEdge, prevEdge, nextEdge));
             // update scaling value
             maxDist = MAX2(maxDist, MIN2(dist, SUMO_const_laneWidth));
 
@@ -903,9 +959,9 @@ Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveN
     // get the best lane given the previously computed values
     double bestValue = 0;
     MSLane* bestLane = nullptr;
-    for (std::map<MSLane*, LaneUtility>::iterator i = lane2utility.begin(); i != lane2utility.end(); ++i) {
-        MSLane* l = (*i).first;
-        const LaneUtility& u = (*i).second;
+    for (const auto& it : lane2utility) {
+        MSLane* const l = it.first;
+        const LaneUtility& u = it.second;
         double distN = u.dist > 999 ? -10 : 1. - (u.dist / maxDist);
         double angleDiffN = 1. - (u.angleDiff / 180.);
         double idN = u.ID ? 1 : 0;
@@ -936,7 +992,7 @@ Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveN
     const LaneUtility& u = lane2utility.find(bestLane)->second;
     bestDistance = u.dist;
     *lane = bestLane;
-    lanePos = bestLane->getShape().nearest_offset_to_point2D(pos, false);
+    lanePos = bestLane->getShape().nearest_offset_to_point25D(pos, false);
     const MSEdge* prevEdge = u.prevEdge;
     if (u.onRoute) {
         ConstMSEdgeVector::const_iterator prevEdgePos = std::find(currentRoute.begin(), currentRoute.end(), prevEdge);
@@ -954,7 +1010,7 @@ Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveN
         }
         routeOffset = 0;
 #ifdef DEBUG_MOVEXY_ANGLE
-        std::cout << "internal2: lane=" << bestLane->getID() << " prev=" << Named::getIDSecure(u.prevEdge) << " next=" << Named::getIDSecure(u.nextEdge) << "\n";;
+        std::cout << SIMTIME << " internal2: lane=" << bestLane->getID() << " prev=" << Named::getIDSecure(u.prevEdge) << " next=" << Named::getIDSecure(u.nextEdge) << "\n";
 #endif
     }
     return true;
@@ -962,7 +1018,7 @@ Helper::moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveN
 
 
 bool
-Helper::findCloserLane(const MSEdge* edge, const Position& pos, double& bestDistance, MSLane** lane) {
+Helper::findCloserLane(const MSEdge* edge, const Position& pos, SUMOVehicleClass vClass, double& bestDistance, MSLane** lane) {
     if (edge == nullptr) {
         return false;
     }
@@ -970,6 +1026,9 @@ Helper::findCloserLane(const MSEdge* edge, const Position& pos, double& bestDist
     bool newBest = false;
     for (std::vector<MSLane*>::const_iterator k = lanes.begin(); k != lanes.end() && bestDistance > POSITION_EPS; ++k) {
         MSLane* candidateLane = *k;
+        if (!candidateLane->allowsVehicleClass(vClass)) {
+            continue;
+        }
         const double dist = candidateLane->getShape().distance2D(pos); // get distance
 #ifdef DEBUG_MOVEXY
         std::cout << "   b at lane " << candidateLane->getID() << " dist:" << dist << " best:" << bestDistance << std::endl;
@@ -988,6 +1047,7 @@ Helper::findCloserLane(const MSEdge* edge, const Position& pos, double& bestDist
 bool
 Helper::moveToXYMap_matchingRoutePosition(const Position& pos, const std::string& origID,
         const ConstMSEdgeVector& currentRoute, int routeIndex,
+        SUMOVehicleClass vClass,
         double& bestDistance, MSLane** lane, double& lanePos, int& routeOffset) {
     //std::cout << "moveToXYMap_matchingRoutePosition pos=" << pos << "\n";
     routeOffset = 0;
@@ -1001,10 +1061,10 @@ Helper::moveToXYMap_matchingRoutePosition(const Position& pos, const std::string
         while (prev != nullptr) {
             // check internal edge(s)
             const MSEdge* internalCand = prev->getInternalFollowingEdge(cand);
-            findCloserLane(internalCand, pos, bestDistance, lane);
+            findCloserLane(internalCand, pos, vClass, bestDistance, lane);
             prev = internalCand;
         }
-        if (findCloserLane(cand, pos, bestDistance, lane)) {
+        if (findCloserLane(cand, pos, vClass, bestDistance, lane)) {
             routeOffset = i;
         }
         prev = cand;
@@ -1018,12 +1078,12 @@ Helper::moveToXYMap_matchingRoutePosition(const Position& pos, const std::string
         while (prev != nullptr) {
             // check internal edge(s)
             const MSEdge* internalCand = prev->getInternalFollowingEdge(next);
-            if (findCloserLane(internalCand, pos, bestDistance, lane)) {
+            if (findCloserLane(internalCand, pos, vClass, bestDistance, lane)) {
                 routeOffset = i;
             }
             prev = internalCand;
         }
-        if (findCloserLane(cand, pos, bestDistance, lane)) {
+        if (findCloserLane(cand, pos, vClass, bestDistance, lane)) {
             routeOffset = i;
         }
         next = cand;
@@ -1053,7 +1113,7 @@ Helper::moveToXYMap_matchingRoutePosition(const Position& pos, const std::string
     // check position, stuff, we should have the best lane along the route
     lanePos = MAX2(0., MIN2(double((*lane)->getLength() - POSITION_EPS),
                             (*lane)->interpolateGeometryPosToLanePos(
-                                (*lane)->getShape().nearest_offset_to_point2D(pos, false))));
+                                (*lane)->getShape().nearest_offset_to_point25D(pos, false))));
     //std::cout << SIMTIME << " moveToXYMap_matchingRoutePosition vehicle=" << veh.getID() << " currLane=" << veh.getLane()->getID() << " routeOffset=" << routeOffset << " edges=" << toString(edges) << " lane=" << (*lane)->getID() << "\n";
 #ifdef DEBUG_MOVEXY
     std::cout << "  b ok lane " << (*lane)->getID() << " lanePos:" << lanePos << std::endl;
@@ -1063,34 +1123,42 @@ Helper::moveToXYMap_matchingRoutePosition(const Position& pos, const std::string
 
 
 Helper::SubscriptionWrapper::SubscriptionWrapper(VariableWrapper::SubscriptionHandler handler, SubscriptionResults& into, ContextSubscriptionResults& context)
-    : VariableWrapper(handler), myResults(into), myContextResults(context), myActiveResults(into) {
+    : VariableWrapper(handler), myResults(into), myContextResults(context), myActiveResults(&into) {
 
 }
 
 
 void
 Helper::SubscriptionWrapper::setContext(const std::string& refID) {
-    myActiveResults = refID == "" ? myResults : myContextResults[refID];
+    myActiveResults = refID == "" ? &myResults : &myContextResults[refID];
+}
+
+
+void
+Helper::SubscriptionWrapper::clear() {
+    myActiveResults = &myResults;
+    myResults.clear();
+    myContextResults.clear();
 }
 
 
 bool
 Helper::SubscriptionWrapper::wrapDouble(const std::string& objID, const int variable, const double value) {
-    myActiveResults[objID][variable] = std::make_shared<TraCIDouble>(value);
+    (*myActiveResults)[objID][variable] = std::make_shared<TraCIDouble>(value);
     return true;
 }
 
 
 bool
 Helper::SubscriptionWrapper::wrapInt(const std::string& objID, const int variable, const int value) {
-    myActiveResults[objID][variable] = std::make_shared<TraCIInt>(value);
+    (*myActiveResults)[objID][variable] = std::make_shared<TraCIInt>(value);
     return true;
 }
 
 
 bool
 Helper::SubscriptionWrapper::wrapString(const std::string& objID, const int variable, const std::string& value) {
-    myActiveResults[objID][variable] = std::make_shared<TraCIString>(value);
+    (*myActiveResults)[objID][variable] = std::make_shared<TraCIString>(value);
     return true;
 }
 
@@ -1099,21 +1167,28 @@ bool
 Helper::SubscriptionWrapper::wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value) {
     auto sl = std::make_shared<TraCIStringList>();
     sl->value = value;
-    myActiveResults[objID][variable] = sl;
+    (*myActiveResults)[objID][variable] = sl;
     return true;
 }
 
 
 bool
 Helper::SubscriptionWrapper::wrapPosition(const std::string& objID, const int variable, const TraCIPosition& value) {
-    myActiveResults[objID][variable] = std::make_shared<TraCIPosition>(value);
+    (*myActiveResults)[objID][variable] = std::make_shared<TraCIPosition>(value);
     return true;
 }
 
 
 bool
 Helper::SubscriptionWrapper::wrapColor(const std::string& objID, const int variable, const TraCIColor& value) {
-    myActiveResults[objID][variable] = std::make_shared<TraCIColor>(value);
+    (*myActiveResults)[objID][variable] = std::make_shared<TraCIColor>(value);
+    return true;
+}
+
+
+bool
+Helper::SubscriptionWrapper::wrapRoadPosition(const std::string& objID, const int variable, const TraCIRoadPosition& value) {
+    (*myActiveResults)[objID][variable] = std::make_shared<TraCIRoadPosition>(value);
     return true;
 }
 

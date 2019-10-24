@@ -30,6 +30,7 @@
 #include <utils/common/ToString.h>
 #include <utils/common/StringUtils.h>
 #include <utils/common/MsgHandler.h>
+#include <utils/geom/GeoConvHelper.h>
 #include <utils/vehicle/SUMOVTypeParameter.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
@@ -64,7 +65,11 @@ ROPerson::addTrip(const ROEdge* const from, const ROEdge* const to, const SVCPer
     RONet* net = RONet::getInstance();
     SUMOVehicleParameter pars;
     pars.departProcedure = DEPART_TRIGGERED;
-
+    if (departPos != 0) {
+        pars.departPosProcedure = DEPART_POS_GIVEN;
+        pars.departPos = departPos;
+        pars.parametersSet |= VEHPARS_DEPARTPOS_SET;
+    }
     for (StringTokenizer st(vTypes); st.hasNext();) {
         pars.vtypeid = st.next();
         pars.parametersSet |= VEHPARS_VTYPE_SET;
@@ -164,7 +169,7 @@ ROPerson::Walk::saveAsXML(OutputDevice& os, const bool extended) const {
     if (dep != 0.) {
         os.writeAttr(SUMO_ATTR_DEPARTPOS, dep);
     }
-    if (arr != 0.) {
+    if (arr != 0. && destStop == "") {
         os.writeAttr(SUMO_ATTR_ARRIVALPOS, arr);
     }
     if (destStop != "") {
@@ -177,6 +182,14 @@ ROPerson::Walk::saveAsXML(OutputDevice& os, const bool extended) const {
     os.closeTag(comment);
 }
 
+ROPerson::PlanItem*
+ROPerson::PersonTrip::clone() const {
+    PersonTrip* result = new PersonTrip(from, to, modes, dep, arr, stopDest, walkFactor);
+    for (auto* item : myTripItems) {
+        result->myTripItems.push_back(item->clone());
+    }
+    return result;
+}
 
 void
 ROPerson::PersonTrip::saveVehicles(OutputDevice& os, OutputDevice* const typeos, bool asAlternatives, OptionsCont& options) const {
@@ -185,12 +198,86 @@ ROPerson::PersonTrip::saveVehicles(OutputDevice& os, OutputDevice* const typeos,
     }
 }
 
+void
+ROPerson::PersonTrip::saveAsXML(OutputDevice& os, const bool extended, const bool asTrip, const bool writeGeoTrip) const {
+    if (asTrip) {
+        os.openTag(SUMO_TAG_PERSONTRIP);
+        if (writeGeoTrip) {
+            Position fromPos = from->getLanes()[0]->getShape().positionAtOffset2D(getDepartPos());
+            if (GeoConvHelper::getFinal().usingGeoProjection()) {
+                os.setPrecision(gPrecisionGeo);
+                GeoConvHelper::getFinal().cartesian2geo(fromPos);
+                os.writeAttr(SUMO_ATTR_FROMLONLAT, fromPos);
+                os.setPrecision(gPrecision);
+            } else {
+                os.writeAttr(SUMO_ATTR_FROMXY, fromPos);
+            }
+        } else {
+            os.writeAttr(SUMO_ATTR_FROM, from->getID());
+        }
+        if (writeGeoTrip) {
+            Position toPos = to->getLanes()[0]->getShape().positionAtOffset2D(MIN2(getArrivalPos(), to->getLanes()[0]->getShape().length2D()));
+            if (GeoConvHelper::getFinal().usingGeoProjection()) {
+                os.setPrecision(gPrecisionGeo);
+                GeoConvHelper::getFinal().cartesian2geo(toPos);
+                os.writeAttr(SUMO_ATTR_TOLONLAT, toPos);
+                os.setPrecision(gPrecision);
+            } else {
+                os.writeAttr(SUMO_ATTR_TOXY, toPos);
+            }
+        } else {
+            os.writeAttr(SUMO_ATTR_TO, to->getID());
+        }
+        std::vector<std::string> allowedModes;
+        if ((modes & SVC_BUS) != 0) {
+            allowedModes.push_back("public");
+        }
+        if ((modes & SVC_PASSENGER) != 0) {
+            allowedModes.push_back("car");
+        }
+        if ((modes & SVC_BICYCLE) != 0) {
+            allowedModes.push_back("bicycle");
+        }
+        if (allowedModes.size() > 0) {
+            os.writeAttr(SUMO_ATTR_MODES, toString(allowedModes));
+        }
+        if (!writeGeoTrip) {
+            if (dep != 0 && dep != std::numeric_limits<double>::infinity()) {
+                os.writeAttr(SUMO_ATTR_DEPARTPOS, dep);
+            }
+            if (arr != 0 && arr != std::numeric_limits<double>::infinity()) {
+                os.writeAttr(SUMO_ATTR_ARRIVALPOS, arr);
+            }
+        }
+        if (getStopDest() != "") {
+            os.writeAttr(SUMO_ATTR_BUS_STOP, getStopDest());
+        }
+        if (walkFactor != 1) {
+            os.writeAttr(SUMO_ATTR_WALKFACTOR, walkFactor);
+        }
+        os.closeTag();
+    } else {
+        for (std::vector<TripItem*>::const_iterator it = myTripItems.begin(); it != myTripItems.end(); ++it) {
+            (*it)->saveAsXML(os, extended);
+        }
+    }
+}
+
+SUMOTime
+ROPerson::PersonTrip::getDuration() const {
+    SUMOTime result = 0;
+    for (TripItem* tItem : myTripItems) {
+        result += tItem->getDuration();
+    }
+    return result;
+}
 
 bool
-ROPerson::computeIntermodal(const RORouterProvider& provider, PersonTrip* const trip, const ROVehicle* const veh, MsgHandler* const errorHandler) {
+ROPerson::computeIntermodal(SUMOTime time, const RORouterProvider& provider,
+                            PersonTrip* const trip, const ROVehicle* const veh, MsgHandler* const errorHandler) {
     std::vector<ROIntermodalRouter::TripItem> result;
     provider.getIntermodalRouter().compute(trip->getOrigin(), trip->getDestination(), trip->getDepartPos(), trip->getArrivalPos(), trip->getStopDest(),
-                                           getType()->maxSpeed * trip->getWalkFactor(), veh, trip->getModes(), getParameter().depart, result);
+                                           getType()->maxSpeed * trip->getWalkFactor(), veh, trip->getModes(), time, result);
     bool carUsed = false;
     for (std::vector<ROIntermodalRouter::TripItem>::const_iterator it = result.begin(); it != result.end(); ++it) {
         if (!it->edges.empty()) {
@@ -221,15 +308,16 @@ void
 ROPerson::computeRoute(const RORouterProvider& provider,
                        const bool /* removeLoops */, MsgHandler* errorHandler) {
     myRoutingSuccess = true;
+    SUMOTime time = getParameter().depart;
     for (std::vector<PlanItem*>::iterator it = myPlan.begin(); it != myPlan.end(); ++it) {
         if ((*it)->needsRouting()) {
             PersonTrip* trip = static_cast<PersonTrip*>(*it);
             std::vector<ROVehicle*>& vehicles = trip->getVehicles();
             if (vehicles.empty()) {
-                computeIntermodal(provider, trip, nullptr, errorHandler);
+                computeIntermodal(time, provider, trip, nullptr, errorHandler);
             } else {
                 for (std::vector<ROVehicle*>::iterator v = vehicles.begin(); v != vehicles.end();) {
-                    if (!computeIntermodal(provider, trip, *v, errorHandler)) {
+                    if (!computeIntermodal(time, provider, trip, *v, errorHandler)) {
                         v = vehicles.erase(v);
                     } else {
                         ++v;
@@ -237,6 +325,7 @@ ROPerson::computeRoute(const RORouterProvider& provider,
                 }
             }
         }
+        time += (*it)->getDuration();
     }
 }
 
@@ -244,8 +333,12 @@ ROPerson::computeRoute(const RORouterProvider& provider,
 void
 ROPerson::saveAsXML(OutputDevice& os, OutputDevice* const typeos, bool asAlternatives, OptionsCont& options) const {
     // write the person's vehicles
-    for (std::vector<PlanItem*>::const_iterator it = myPlan.begin(); it != myPlan.end(); ++it) {
-        (*it)->saveVehicles(os, typeos, asAlternatives, options);
+    const bool writeTrip = options.exists("write-trips") && options.getBool("write-trips");
+    const bool writeGeoTrip = writeTrip && options.getBool("write-trips.geo");
+    if (!writeTrip) {
+        for (std::vector<PlanItem*>::const_iterator it = myPlan.begin(); it != myPlan.end(); ++it) {
+            (*it)->saveVehicles(os, typeos, asAlternatives, options);
+        }
     }
 
     if (typeos != nullptr && getType() != nullptr && !getType()->saved) {
@@ -261,7 +354,7 @@ ROPerson::saveAsXML(OutputDevice& os, OutputDevice* const typeos, bool asAlterna
     getParameter().write(os, options, SUMO_TAG_PERSON);
 
     for (std::vector<PlanItem*>::const_iterator it = myPlan.begin(); it != myPlan.end(); ++it) {
-        (*it)->saveAsXML(os, asAlternatives);
+        (*it)->saveAsXML(os, asAlternatives, writeTrip, writeGeoTrip);
     }
 
     // write params

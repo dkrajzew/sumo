@@ -68,6 +68,9 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.doRegister("default.sidewalk-width", new Option_Float((double) 2.0));
     oc.addDescription("default.sidewalk-width", "Building Defaults", "The default width of added sidewalks");
 
+    oc.doRegister("default.bikelane-width", new Option_Float((double) 1.0));
+    oc.addDescription("default.bikelane-width", "Building Defaults", "The default width of added bike lanes");
+
     oc.doRegister("default.crossing-width", new Option_Float((double) 4.0));
     oc.addDescription("default.crossing-width", "Building Defaults", "The default width of a pedestrian crossing");
 
@@ -82,6 +85,9 @@ NBFrame::fillOptions(bool forNetgen) {
 
     oc.doRegister("default.right-of-way", new Option_String("default"));
     oc.addDescription("default.right-of-way", "Building Defaults", "The default algorithm for computing right of way rules ('default', 'edgePriority')");
+
+    oc.doRegister("junctions.right-before-left.speed-threshold", new Option_Float(49 / 3.6));
+    oc.addDescription("junctions.right-before-left.speed-threshold", "Junctions", "Allow building right-before-left junctions when the incoming edge speeds are below FLOAT (m/s)");
 
     // register the data processing options
     oc.doRegister("no-internal-links", new Option_Bool(false)); // !!! not described
@@ -124,12 +130,20 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.addSynonyme("geometry.remove", "remove-geometry", true);
         oc.addDescription("geometry.remove", "Processing", "Replace nodes which only define edge geometry by geometry points (joins edges)");
 
-        oc.doRegister("geometry.remove.keep-edges.explicit", new Option_String());
+        oc.doRegister("geometry.remove.keep-edges.explicit", new Option_StringVector());
         oc.addDescription("geometry.remove.keep-edges.explicit", "Processing", "Ensure that the given list of edges is not modified");
 
         oc.doRegister("geometry.remove.keep-edges.input-file", new Option_FileName());
         oc.addDescription("geometry.remove.keep-edges.input-file", "Processing",
                           "Ensure that the edges in FILE are not modified (Each id on a single line. Selection files from SUMO-GUI are also supported)");
+
+        oc.doRegister("geometry.remove.min-length", new Option_Float(0));
+        oc.addDescription("geometry.remove.min-length", "Processing",
+                          "Allow merging edges with differing attributes when their length is below min-length");
+
+        oc.doRegister("geometry.remove.width-tolerance", new Option_Float(0));
+        oc.addDescription("geometry.remove.width-tolerance", "Processing",
+                          "Allow merging edges with differing lane widths if the difference is below FLOAT");
 
         oc.doRegister("geometry.max-segment-length", new Option_Float(0));
         oc.addDescription("geometry.max-segment-length", "Processing", "splits geometry to restrict segment length");
@@ -146,6 +160,9 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.doRegister("geometry.min-radius.fix", new Option_Bool(false));
         oc.addDescription("geometry.min-radius.fix", "Processing", "Straighten edge geometries to avoid turning radii less than geometry.min-radius");
 
+        oc.doRegister("geometry.min-radius.fix.railways", new Option_Bool(true));
+        oc.addDescription("geometry.min-radius.fix.railways", "Processing", "Straighten edge geometries to avoid turning radii less than geometry.min-radius (only railways)");
+
         oc.doRegister("geometry.junction-mismatch-threshold", new Option_Float(20));
         oc.addDescription("geometry.junction-mismatch-threshold", "Processing", "Warn if the junction shape is to far away from the original node position");
 
@@ -158,6 +175,11 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.doRegister("geometry.avoid-overlap", new Option_Bool(true));
         oc.addDescription("geometry.avoid-overlap", "Processing", "Modify edge geometries to avoid overlap at junctions");
 
+        oc.doRegister("join-lanes", new Option_Bool(false));
+        oc.addDescription("join-lanes", "Processing", "join adjacent lanes that have the same permissions and which do not admit lane-changing (sidewalks and disallowed lanes)");
+
+        oc.doRegister("ptline.match-dist", new Option_Float(100));
+        oc.addDescription("ptline.match-dist", "Processing", "Matches stops outside the road network to the referencing pt line when below the given distance");
         // railway processing options
 
         oc.doRegister("railway.topology.repair", new Option_Bool(false));
@@ -230,8 +252,8 @@ NBFrame::fillOptions(bool forNetgen) {
                       "Determines the maximal distance for joining junctions (defaults to 10)");
 
     if (!forNetgen) {
-        oc.doRegister("junctions.join-exclude", new Option_String());
-        oc.addDescription("junctions.join-exclude", "Junctions", "Interprets STR as list of junctions to exclude from joining");
+        oc.doRegister("junctions.join-exclude", new Option_StringVector());
+        oc.addDescription("junctions.join-exclude", "Junctions", "Interprets STR[] as list of junctions to exclude from joining");
 
         oc.doRegister("speed.offset", new Option_Float(0));
         oc.addDescription("speed.offset", "Processing", "Modifies all edge speeds by adding FLOAT");
@@ -308,9 +330,29 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.addDescription("sidewalks.guess.from-permissions", "Pedestrian",
                       "Add sidewalks for edges that allow pedestrians on any of their lanes regardless of speed");
 
-    oc.doRegister("sidewalks.guess.exclude", new Option_String());
+    oc.doRegister("sidewalks.guess.exclude", new Option_StringVector());
     oc.addDescription("sidewalks.guess.exclude", "Pedestrian",
                       "Do not guess sidewalks for the given list of edges");
+
+    oc.doRegister("bikelanes.guess", new Option_Bool(false));
+    oc.addDescription("bikelanes.guess", "Bicycle",
+                      "Guess bike lanes based on edge speed");
+
+    oc.doRegister("bikelanes.guess.max-speed", new Option_Float((double) 22.22));
+    oc.addDescription("bikelanes.guess.max-speed", "Bicycle",
+                      "Add bike lanes for edges with a speed equal or below the given limit");
+
+    oc.doRegister("bikelanes.guess.min-speed", new Option_Float((double) 5.8));
+    oc.addDescription("bikelanes.guess.min-speed", "Bicycle",
+                      "Add bike lanes for edges with a speed above the given limit");
+
+    oc.doRegister("bikelanes.guess.from-permissions", new Option_Bool(false));
+    oc.addDescription("bikelanes.guess.from-permissions", "Bicycle",
+                      "Add bike lanes for edges that allow bicycles on any of their lanes regardless of speed");
+
+    oc.doRegister("bikelanes.guess.exclude", new Option_StringVector());
+    oc.addDescription("bikelanes.guess.exclude", "Bicycle",
+                      "Do not guess bikelanes for the given list of edges");
 
     oc.doRegister("crossings.guess", new Option_Bool(false));
     oc.addDescription("crossings.guess", "Pedestrian",
@@ -325,13 +367,13 @@ NBFrame::fillOptions(bool forNetgen) {
 
     // tls setting options
     // explicit tls
-    oc.doRegister("tls.set", new Option_String());
+    oc.doRegister("tls.set", new Option_StringVector());
     oc.addSynonyme("tls.set", "explicite-tls", true);
-    oc.addDescription("tls.set", "TLS Building", "Interprets STR as list of junctions to be controlled by TLS");
+    oc.addDescription("tls.set", "TLS Building", "Interprets STR[] as list of junctions to be controlled by TLS");
 
-    oc.doRegister("tls.unset", new Option_String());
+    oc.doRegister("tls.unset", new Option_StringVector());
     oc.addSynonyme("tls.unset", "explicite-no-tls", true);
-    oc.addDescription("tls.unset", "TLS Building", "Interprets STR as list of junctions to be not controlled by TLS");
+    oc.addDescription("tls.unset", "TLS Building", "Interprets STR[] as list of junctions to be not controlled by TLS");
 
     // tls-guessing
     oc.doRegister("tls.guess", new Option_Bool(false));
@@ -347,8 +389,9 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.addDescription("tls.taz-nodes", "TLS Building", "Sets district nodes as tls-controlled"); // !!! describe
     }
 
-    oc.doRegister("tls-guess.joining", new Option_Bool(false));
-    oc.addDescription("tls-guess.joining", "TLS Building", "Includes node clusters into guess"); // !!! describe
+    oc.doRegister("tls.guess.joining", new Option_Bool(false));
+    oc.addSynonyme("tls.guess.joining", "tls-guess.joining", true);
+    oc.addDescription("tls.guess.joining", "TLS Building", "Includes node clusters into guess"); // !!! describe
 
     oc.doRegister("tls.join", new Option_Bool(false));
     oc.addSynonyme("tls.join", "try-join-tls", true);
@@ -413,13 +456,13 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.addDescription("tls.scramble.time", "TLS Building", "Use INT as green phase duration for pedestrian scramble phase (s).");
 
     // tls-shifts
-    oc.doRegister("tls.half-offset", new Option_String());
+    oc.doRegister("tls.half-offset", new Option_StringVector());
     oc.addSynonyme("tls.half-offset", "tl-logics.half-offset", true);
-    oc.addDescription("tls.half-offset", "TLS Building", "TLSs in STR will be shifted by half-phase");
+    oc.addDescription("tls.half-offset", "TLS Building", "TLSs in STR[] will be shifted by half-phase");
 
-    oc.doRegister("tls.quarter-offset", new Option_String());
+    oc.doRegister("tls.quarter-offset", new Option_StringVector());
     oc.addSynonyme("tls.quarter-offset", "tl-logics.quarter-offset", true);
-    oc.addDescription("tls.quarter-offset", "TLS Building", "TLSs in STR will be shifted by quarter-phase");
+    oc.addDescription("tls.quarter-offset", "TLS Building", "TLSs in STR[] will be shifted by quarter-phase");
 
     // tls type
     oc.doRegister("tls.default-type", new Option_String("static"));
@@ -439,13 +482,13 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.addSynonyme("keep-edges.min-speed", "edges-min-speed", true);
     oc.addDescription("keep-edges.min-speed", "Edge Removal", "Only keep edges with speed in meters/second > FLOAT");
 
-    oc.doRegister("remove-edges.explicit", new Option_String());
+    oc.doRegister("remove-edges.explicit", new Option_StringVector());
     oc.addSynonyme("remove-edges.explicit", "remove-edges");
-    oc.addDescription("remove-edges.explicit", "Edge Removal", "Remove edges in STR");
+    oc.addDescription("remove-edges.explicit", "Edge Removal", "Remove edges in STR[]");
 
-    oc.doRegister("keep-edges.explicit", new Option_String());
+    oc.doRegister("keep-edges.explicit", new Option_StringVector());
     oc.addSynonyme("keep-edges.explicit", "keep-edges");
-    oc.addDescription("keep-edges.explicit", "Edge Removal", "Only keep edges in STR or those which are kept due to other keep-edges or remove-edges options");
+    oc.addDescription("keep-edges.explicit", "Edge Removal", "Only keep edges in STR[] or those which are kept due to other keep-edges or remove-edges options");
 
     oc.doRegister("keep-edges.input-file", new Option_FileName());
     oc.addDescription("keep-edges.input-file", "Edge Removal", "Only keep edges in FILE (Each id on a single line. Selection files from SUMO-GUI are also supported) or those which are kept due to other keep-edges or remove-edges options");
@@ -458,27 +501,27 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.addDescription("keep-edges.postload", "Edge Removal", "Remove edges after joining");
     }
 
-    oc.doRegister("keep-edges.in-boundary", new Option_String());
+    oc.doRegister("keep-edges.in-boundary", new Option_StringVector());
     oc.addDescription("keep-edges.in-boundary", "Edge Removal", "Only keep edges which are located within the given boundary (given either as CARTESIAN corner coordinates <xmin,ymin,xmax,ymax> or as polygon <x0,y0,x1,y1,...>)");
 
-    oc.doRegister("keep-edges.in-geo-boundary", new Option_String());
+    oc.doRegister("keep-edges.in-geo-boundary", new Option_StringVector());
     oc.addDescription("keep-edges.in-geo-boundary", "Edge Removal", "Only keep edges which are located within the given boundary (given either as GEODETIC corner coordinates <lon-min,lat-min,lon-max,lat-max> or as polygon <lon0,lat0,lon1,lat1,...>)");
 
     if (!forNetgen) {
-        oc.doRegister("keep-edges.by-vclass", new Option_String());
-        oc.addDescription("keep-edges.by-vclass", "Edge Removal", "Only keep edges which allow one of the vclasss in STR");
+        oc.doRegister("keep-edges.by-vclass", new Option_StringVector());
+        oc.addDescription("keep-edges.by-vclass", "Edge Removal", "Only keep edges which allow one of the vclasss in STR[]");
 
-        oc.doRegister("remove-edges.by-vclass", new Option_String());
-        oc.addDescription("remove-edges.by-vclass", "Edge Removal", "Remove edges which allow only vclasses from STR");
+        oc.doRegister("remove-edges.by-vclass", new Option_StringVector());
+        oc.addDescription("remove-edges.by-vclass", "Edge Removal", "Remove edges which allow only vclasses from STR[]");
 
-        oc.doRegister("keep-edges.by-type", new Option_String());
-        oc.addDescription("keep-edges.by-type", "Edge Removal", "Only keep edges where type is in STR");
+        oc.doRegister("keep-edges.by-type", new Option_StringVector());
+        oc.addDescription("keep-edges.by-type", "Edge Removal", "Only keep edges where type is in STR[]");
 
         oc.doRegister("keep-edges.components", new Option_Integer(0));
         oc.addDescription("keep-edges.components", "Edge Removal", "Only keep the INT largest weakly connected components");
 
-        oc.doRegister("remove-edges.by-type", new Option_String());
-        oc.addDescription("remove-edges.by-type", "Edge Removal", "Remove edges where type is in STR");
+        oc.doRegister("remove-edges.by-type", new Option_StringVector());
+        oc.addDescription("remove-edges.by-type", "Edge Removal", "Remove edges where type is in STR[]");
 
         oc.doRegister("remove-edges.isolated", new Option_Bool(false));
         oc.addSynonyme("remove-edges.isolated", "remove-isolated", true);
@@ -491,10 +534,10 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.addSynonyme("keep-nodes-unregulated", "keep-unregulated");
     oc.addDescription("keep-nodes-unregulated", "Unregulated Nodes", "All nodes will be unregulated");
 
-    oc.doRegister("keep-nodes-unregulated.explicit", new Option_String());
+    oc.doRegister("keep-nodes-unregulated.explicit", new Option_StringVector());
     oc.addSynonyme("keep-nodes-unregulated.explicit", "keep-unregulated.explicit");
     oc.addSynonyme("keep-nodes-unregulated.explicit", "keep-unregulated.nodes", true);
-    oc.addDescription("keep-nodes-unregulated.explicit", "Unregulated Nodes", "Do not regulate nodes in STR");
+    oc.addDescription("keep-nodes-unregulated.explicit", "Unregulated Nodes", "Do not regulate nodes in STR[]");
 
     oc.doRegister("keep-nodes-unregulated.district-nodes", new Option_Bool(false));
     oc.addSynonyme("keep-nodes-unregulated.district-nodes", "keep-unregulated.district-nodes");
@@ -521,11 +564,11 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.addSynonyme("ramps.ramp-length", "ramp-guess.ramp-length", true);
         oc.addDescription("ramps.ramp-length", "Ramp Guessing", "Use FLOAT as ramp-length");
 
-        oc.doRegister("ramps.set", new Option_String());
+        oc.doRegister("ramps.set", new Option_StringVector());
         oc.addSynonyme("ramps.set", "ramp-guess.explicite", true);
         oc.addDescription("ramps.set", "Ramp Guessing", "Tries to handle the given edges as ramps");
 
-        oc.doRegister("ramps.unset", new Option_String());
+        oc.doRegister("ramps.unset", new Option_StringVector());
         oc.addDescription("ramps.unset", "Ramp Guessing", "Do not consider the given edges as ramps");
 
         oc.doRegister("ramps.no-split", new Option_Bool(false));
@@ -540,12 +583,6 @@ NBFrame::checkOptions() {
     OptionsCont& oc = OptionsCont::getOptions();
     bool ok = true;
     //
-    if (!oc.isDefault("tls-guess.joining")) {
-        WRITE_WARNING("'--tls-guess.joining' was joined with '--tls.join'.\n Please use '--tls.join' in future only.");
-        if (!oc.isSet("tls.join")) {
-            oc.set("tls.join", "true");
-        }
-    }
     if (!SUMOXMLDefinitions::TrafficLightTypes.hasString(oc.getString("tls.default-type"))) {
         WRITE_ERROR("unsupported value '" + oc.getString("tls.default-type") + "' for option '--tls.default-type'");
         ok = false;
@@ -577,7 +614,7 @@ NBFrame::checkOptions() {
         // make sure the option is set so heuristics cannot ignore it
         oc.set("no-internal-links", "false");
     }
-    if (oc.getFloat("junctions.small-radius") > oc.getFloat("default.junctions.radius")) {
+    if (oc.getFloat("junctions.small-radius") > oc.getFloat("default.junctions.radius") && oc.getFloat("default.junctions.radius") >= 0) {
         WRITE_ERROR("option 'default.junctions.radius' cannot be smaller than option 'junctions.small-radius'");
         ok = false;
     }
@@ -589,6 +626,9 @@ NBFrame::checkOptions() {
             !SUMOXMLDefinitions::RightOfWayValues.hasString(oc.getString("default.right-of-way"))) {
         WRITE_ERROR("default.right-of-way must be one of '" + toString(SUMOXMLDefinitions::RightOfWayValues.getStrings()) + "'");
         ok = false;
+    }
+    if (oc.isDefault("railway.topology.repair") && oc.getBool("railway.topology.repair.connect-straight")) {
+        oc.set("railway.topology.repair", "true");
     }
     return ok;
 }

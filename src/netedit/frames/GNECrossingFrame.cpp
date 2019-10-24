@@ -20,7 +20,6 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/foxtools/MFXUtils.h>
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/div/GUIDesigns.h>
 #include <netedit/changes/GNEChange_Crossing.h>
@@ -50,7 +49,7 @@ FXDEFMAP(GNECrossingFrame::CrossingParameters) CrossingParametersMap[] = {
 };
 
 FXDEFMAP(GNECrossingFrame::CreateCrossing) CreateCrossingMap[] = {
-    FXMAPFUNC(SEL_COMMAND, MID_GNE_CROSSINGFRAME_CREATECROSSING,    GNECrossingFrame::CreateCrossing::onCmdCreateCrossing),
+    FXMAPFUNC(SEL_COMMAND, MID_GNE_CREATE,  GNECrossingFrame::CreateCrossing::onCmdCreateCrossing),
 };
 
 // Object implementation
@@ -203,13 +202,13 @@ GNECrossingFrame::CrossingParameters::CrossingParameters(GNECrossingFrame* cross
     // create label and checkbox for Priority
     crossingParameter = new FXHorizontalFrame(this, GUIDesignAuxiliarHorizontalFrame);
     myCrossingPriorityLabel = new FXLabel(crossingParameter, toString(SUMO_ATTR_PRIORITY).c_str(), nullptr, GUIDesignLabelAttribute);
-    myCrossingPriorityCheckButton = new FXCheckButton(crossingParameter, "", this, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButtonAttribute);
+    myCrossingPriorityCheckButton = new FXCheckButton(crossingParameter, "", this, MID_GNE_SET_ATTRIBUTE, GUIDesignCheckButton);
     myCrossingPriorityLabel->disable();
     myCrossingPriorityCheckButton->disable();
     // create label and textfield for width
     crossingParameter = new FXHorizontalFrame(this, GUIDesignAuxiliarHorizontalFrame);
     myCrossingWidthLabel = new FXLabel(crossingParameter, toString(SUMO_ATTR_WIDTH).c_str(), nullptr, GUIDesignLabelAttribute);
-    myCrossingWidth = new FXTextField(crossingParameter, GUIDesignTextFieldNCol, this, MID_GNE_SET_ATTRIBUTE, GUIDesignTextFieldReal);
+    myCrossingWidth = new FXTextField(crossingParameter, GUIDesignTextFieldNCol, this, MID_GNE_SET_ATTRIBUTE, GUIDesignTextField);
     myCrossingWidthLabel->disable();
     myCrossingWidth->disable();
     // Create help button
@@ -229,6 +228,7 @@ GNECrossingFrame::CrossingParameters::enableCrossingParameters(bool hasTLS) {
     myCrossingEdgesLabel->enable();
     myCrossingEdges->enable();
     myCrossingPriorityLabel->enable();
+    // only enable priority check button if junction's crossing doesn't have TLS
     if (hasTLS) {
         myCrossingPriorityCheckButton->disable();
     } else {
@@ -239,8 +239,12 @@ GNECrossingFrame::CrossingParameters::enableCrossingParameters(bool hasTLS) {
     myHelpCrossingAttribute->enable();
     // set values of parameters
     onCmdSetAttribute(nullptr, 0, nullptr);
-    myCrossingPriorityCheckButton->setCheck(hasTLS ? true :
-                                            GNEAttributeCarrier::parse<bool>(tagProperties.getDefaultValue(SUMO_ATTR_PRIORITY)));
+    // Crossings placed in junctinos with TLS always has priority
+    if (hasTLS) {
+        myCrossingPriorityCheckButton->setCheck(TRUE);
+    } else {
+        myCrossingPriorityCheckButton->setCheck(GNEAttributeCarrier::parse<bool>(tagProperties.getDefaultValue(SUMO_ATTR_PRIORITY)));
+    }
     myCrossingWidth->setText(tagProperties.getDefaultValue(SUMO_ATTR_WIDTH).c_str());
     myCrossingWidth->setTextColor(FXRGB(0, 0, 0));
 }
@@ -456,7 +460,7 @@ GNECrossingFrame::CreateCrossing::CreateCrossing(GNECrossingFrame* crossingFrame
     FXGroupBox(crossingFrameParent->myContentFrame, "Create", GUIDesignGroupBoxFrame),
     myCrossingFrameParent(crossingFrameParent) {
     // Create groupbox for create crossings
-    myCreateCrossingButton = new FXButton(this, "Create crossing", 0, this, MID_GNE_CROSSINGFRAME_CREATECROSSING, GUIDesignButton);
+    myCreateCrossingButton = new FXButton(this, "Create crossing", 0, this, MID_GNE_CREATE, GUIDesignButton);
     myCreateCrossingButton->disable();
 }
 

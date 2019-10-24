@@ -18,7 +18,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
 import os
-import subprocess
 import sys
 import time
 sys.path.append(os.path.join(
@@ -26,17 +25,13 @@ sys.path.append(os.path.join(
 import traci  # noqa
 import sumolib  # noqa
 
-sumoBinary = sumolib.checkBinary('sumo-gui')
-
-PORT = sumolib.miscutils.getFreeSocketPort()
-sumoProcess = subprocess.Popen(
-    "%s -S -Q -c sumo.sumocfg --window-size 500,500 --window-pos 50,50 --remote-port %s" %
-    (sumoBinary, PORT), shell=True, stdout=sys.stdout)
-traci.init(PORT)
+traci.start([sumolib.checkBinary('sumo-gui')] +
+            "-S -Q -c sumo.sumocfg --window-size 500,500 --window-pos 50,50".split())
 for step in range(3):
     print("step", step)
     traci.simulationStep()
 time.sleep(1)  # give the gui a chance to draw itself
+print("hasGUI", traci.hasGUI())
 print("views", traci.gui.getIDList())
 viewID = traci.gui.DEFAULT_VIEW
 print("examining", viewID)
@@ -53,8 +48,8 @@ for step in range(3, 6):
     print("step", step)
     traci.simulationStep()
     print(traci.gui.getSubscriptionResults(viewID))
+traci.gui.setBoundary(viewID, 0, 0, 500, 500)
 traci.gui.screenshot(viewID, "out.png", 500, 500)
 traci.gui.screenshot(viewID, "test.blub")
-traci.gui.setBoundary(viewID, 0, 0, 500, 500)
+traci.simulationStep()
 traci.close()
-sumoProcess.wait()

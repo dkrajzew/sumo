@@ -29,34 +29,34 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select busStop
-netedit.changeAdditional("busStop")
+netedit.changeElement("busStop")
 
 # set invalid lenght (dummy)
-netedit.modifyAdditionalDefaultValue(8, "dummyLenght")
+netedit.changeDefaultValue(10, "dummyLenght")
 
 # try to create busstop with invalid lenght
 netedit.leftClick(referencePosition, 500, 250)
 
 # set invalid lenght (negative)
-netedit.modifyAdditionalDefaultValue(8, "-20")
+netedit.changeDefaultValue(10, "-20")
 
 # try to create busstop with invalid lenght
 netedit.leftClick(referencePosition, 500, 250)
 
 # Change length
-netedit.modifyAdditionalDefaultValue(8, "5")
+netedit.changeDefaultValue(10, "5")
 
 # create busStop in mode "reference left"
 netedit.leftClick(referencePosition, 500, 250)
 
 # change reference to right
-netedit.modifyAdditionalDefaultValue(6, "reference right")
+netedit.changeDefaultValue(8, "reference right")
 
 # create busStop in mode "reference right"
 netedit.leftClick(referencePosition, 230, 250)
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(6, "reference center")
+netedit.changeDefaultValue(8, "reference center")
 
 # create busStop in mode "reference center"
 netedit.leftClick(referencePosition, 425, 250)
@@ -66,10 +66,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.selectMode()
 
 # select first polygon
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 105, 70)
 
 # select second polygon
-netedit.leftClick(referencePosition, 300, 50)
+netedit.leftClick(referencePosition, 305, 70)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first polygon
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 105, 70)
 
 # Change boolean parameter 7
 netedit.modifyBoolAttribute(7, False)
@@ -48,10 +48,10 @@ netedit.undo(referencePosition, 23)
 netedit.redo(referencePosition, 23)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

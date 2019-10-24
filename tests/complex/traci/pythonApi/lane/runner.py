@@ -21,10 +21,7 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
@@ -42,8 +39,7 @@ print("allowed", traci.lane.getAllowed(laneID))
 print("disallowed", traci.lane.getDisallowed(laneID))
 print("linkNum", traci.lane.getLinkNumber(laneID))
 print("links", traci.lane.getLinks(laneID))
-if not traci.isLibsumo():
-    print("linksExtended", traci.lane.getLinks(laneID, extended=True))
+print("linksExtended", traci.lane.getLinks(laneID, extended=True))
 print("shape", traci.lane.getShape(laneID))
 print("edge", traci.lane.getEdgeID(laneID))
 print("CO2", traci.lane.getCO2Emission(laneID))

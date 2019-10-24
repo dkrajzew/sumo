@@ -22,7 +22,7 @@ from .exceptions import TraCIException
 
 class Phase:
 
-    def __init__(self, duration, state, minDur=-1, maxDur=-1, next=-1, name=""):
+    def __init__(self, duration, state, minDur=-1, maxDur=-1, next=tuple(), name=""):
         self.duration = duration
         self.state = state
         self.minDur = minDur  # minimum duration (only for actuated tls)
@@ -81,7 +81,8 @@ def _readLogics(result):
             state = result.readTypedString()
             minDur = result.readTypedDouble()
             maxDur = result.readTypedDouble()
-            next = result.readTypedInt()
+            numNext = result.readCompound()
+            next = tuple([result.readTypedInt() for ___ in range(numNext)])
             name = result.readTypedString()
             logic.phases.append(Phase(duration, state, minDur, maxDur, next, name))
         numParams = result.readCompound()
@@ -116,6 +117,7 @@ _RETURN_VALUE_FUNC = {tc.TL_RED_YELLOW_GREEN_STATE: Storage.readString,
                       tc.TL_CONTROLLED_LINKS: _readLinks,
                       tc.TL_CURRENT_PROGRAM: Storage.readString,
                       tc.TL_CURRENT_PHASE: Storage.readInt,
+                      tc.VAR_PERSON_NUMBER: Storage.readInt,
                       tc.VAR_NAME: Storage.readString,
                       tc.TL_NEXT_SWITCH: Storage.readDouble,
                       tc.TL_PHASE_DURATION: Storage.readDouble}
@@ -201,6 +203,17 @@ class TrafficLightDomain(Domain):
         """
         return self._getUniversal(tc.TL_PHASE_DURATION, tlsID)
 
+    def getServedPersonCount(self, tlsID, index):
+        """getPhase(string, int) -> int
+        Returns the number of persons that would be served in the given phase
+        """
+        self._connection._beginMessage(
+            self._cmdGetID, tc.VAR_PERSON_NUMBER, tlsID, 1 + 4)
+        self._connection._string += struct.pack("!Bi", tc.TYPE_INTEGER, index)
+        result = self._connection._checkResult(
+            self._cmdGetID, tc.VAR_PERSON_NUMBER, tlsID)
+        return result.readInt()
+
     def setRedYellowGreenState(self, tlsID, state):
         """setRedYellowGreenState(string, string) -> None
 
@@ -216,8 +229,8 @@ class TrafficLightDomain(Domain):
         Sets the state for the given tls and link index. The state must be one
         of rRgGyYoOu for red, red-yellow, green, yellow, off, where lower case letters mean that the stream has
         to decelerate.
-        The link index is shown the gui when setting the appropriate junctino
-        visualization optin.
+        The link index is shown in the GUI when setting the appropriate junction
+        visualization option.
         """
         fullState = list(self.getRedYellowGreenState(tlsID))
         if tlsLinkIndex >= len(fullState):
@@ -272,7 +285,10 @@ class TrafficLightDomain(Domain):
         length = 1 + 4 + 1 + 4 + \
             len(tls.programID) + 1 + 4 + 1 + 4 + 1 + 4  # tls parameter
         for p in tls.phases:
-            length += 1 + 4 + 1 + 8 + 1 + 4 + len(p.state) + 1 + 8 + 1 + 8 + 1 + 4 + 1 + 4 + len(p.name)
+            length += (1 + 4 + 1 + 8 + 1 + 4 + len(p.state)
+                       + 1 + 8 + 1 + 8  # minDur, maxDur
+                       + 1 + 4 + len(p.next) * (1 + 4)
+                       + 1 + 4 + len(p.name))
         length += 1 + 4  # subparams
         for k, v in tls.subParameter.items():
             length += 1 + 4 + 4 + len(k) + 4 + len(v)
@@ -286,15 +302,13 @@ class TrafficLightDomain(Domain):
         for p in tls.phases:
             self._connection._string += struct.pack("!BiBd", tc.TYPE_COMPOUND, 6, tc.TYPE_DOUBLE, p.duration)
             self._connection._packString(p.state)
-            self._connection._string += struct.pack("!BdBdBi", tc.TYPE_DOUBLE, p.minDur, tc.TYPE_DOUBLE, p.maxDur,
-                                                    tc.TYPE_INTEGER, p.next)
+            self._connection._string += struct.pack("!BdBd", tc.TYPE_DOUBLE, p.minDur, tc.TYPE_DOUBLE, p.maxDur)
+            self._connection._string += struct.pack("!Bi", tc.TYPE_COMPOUND, len(p.next))
+            for n in p.next:
+                self._connection._string += struct.pack("!Bi", tc.TYPE_INTEGER, n)
             self._connection._packString(p.name)
         # subparams
         self._connection._string += struct.pack("!Bi", tc.TYPE_COMPOUND, len(tls.subParameter))
         for par in tls.subParameter.items():
             self._connection._packStringList(par)
         self._connection._sendExact()
-
-
-TrafficLightDomain()
-TrafficLightDomain("trafficlights", "trafficlight")

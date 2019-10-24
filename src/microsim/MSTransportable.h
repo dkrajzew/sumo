@@ -30,6 +30,7 @@
 #include <utils/geom/PositionVector.h>
 #include <utils/geom/Boundary.h>
 #include <utils/router/SUMOAbstractRouter.h>
+#include <utils/vehicle/SUMOTrafficObject.h>
 
 
 // ===========================================================================
@@ -43,6 +44,7 @@ class MSVehicleType;
 class OutputDevice;
 class SUMOVehicleParameter;
 class SUMOVehicle;
+class MSTransportableDevice;
 
 typedef std::vector<const MSEdge*> ConstMSEdgeVector;
 
@@ -54,7 +56,7 @@ typedef std::vector<const MSEdge*> ConstMSEdgeVector;
   *
   * The class holds a simulated moveable object
   */
-class MSTransportable {
+class MSTransportable : public SUMOTrafficObject {
 public:
     enum StageType {
         WAITING_FOR_DEPART = 0,
@@ -83,6 +85,11 @@ public:
         /// returns the destination stop (if any)
         MSStoppingPlace* getDestinationStop() const {
             return myDestinationStop;
+        }
+
+        /// returns the origin stop (if any). only needed for Stage_Trip
+        virtual const MSStoppingPlace* getOriginStop() const {
+            return nullptr;
         }
 
         double getArrivalPos() const {
@@ -129,8 +136,8 @@ public:
         /// logs end of the step
         virtual void setArrived(MSNet* net, MSTransportable* transportable, SUMOTime now);
 
-        /// Whether the transportable waits for a vehicle of the line specified.
-        virtual bool isWaitingFor(const std::string& line) const;
+        /// Whether the transportable waits for the given vehicle
+        virtual bool isWaitingFor(const SUMOVehicle* vehicle) const;
 
         /// @brief Whether the transportable waits for a vehicle
         virtual bool isWaiting4Vehicle() const {
@@ -162,6 +169,8 @@ public:
 
         void setDestination(const MSEdge* newDestination, MSStoppingPlace* newDestStop);
 
+        /// @brief get travel distance in this stage
+        virtual double getDistance() const = 0;
 
         /** @brief Called on writing tripinfo output
          * @param[in] os The stream to write the information into
@@ -187,6 +196,8 @@ public:
          * @exception IOError not yet implemented
          */
         virtual void endEventOutput(const MSTransportable& transportable, SUMOTime t, OutputDevice& os) const = 0;
+
+        virtual Stage* clone() const = 0;
 
     protected:
         /// the next edge to reach by getting transported
@@ -222,19 +233,33 @@ public:
     class Stage_Trip : public Stage {
     public:
         /// constructor
-        Stage_Trip(const MSEdge* origin, const MSEdge* destination, MSStoppingPlace* toStop, const SUMOTime duration, const SVCPermissions modeSet,
-                   const std::string& vTypes, const double speed, const double walkFactor, const double departPosLat, const bool hasArrivalPos, const double arrivalPos);
+        Stage_Trip(const MSEdge* origin, MSStoppingPlace* fromStop,
+                   const MSEdge* destination, MSStoppingPlace* toStop,
+                   const SUMOTime duration, const SVCPermissions modeSet,
+                   const std::string& vTypes, const double speed, const double walkFactor,
+                   const double departPosLat, const bool hasArrivalPos, const double arrivalPos);
 
         /// destructor
         virtual ~Stage_Trip();
 
+        Stage* clone() const;
+
         const MSEdge* getEdge() const;
+
+        const MSStoppingPlace* getOriginStop() const {
+            return myOriginStop;
+        }
 
         double getEdgePos(SUMOTime now) const;
 
         Position getPosition(SUMOTime now) const;
 
         double getAngle(SUMOTime now) const;
+
+        double getDistance() const {
+            // invalid
+            return -1;
+        }
 
         std::string getStageDescription() const {
             return "trip";
@@ -283,6 +308,9 @@ public:
         /// the origin edge
         const MSEdge* myOrigin;
 
+        /// the origin edge
+        const MSStoppingPlace* myOriginStop;
+
         /// the time the trip should take (applies to only walking)
         SUMOTime myDuration;
 
@@ -322,11 +350,13 @@ public:
     class Stage_Waiting : public Stage {
     public:
         /// constructor
-        Stage_Waiting(const MSEdge* destination, SUMOTime duration, SUMOTime until,
+        Stage_Waiting(const MSEdge* destination, MSStoppingPlace* toStop, SUMOTime duration, SUMOTime until,
                       double pos, const std::string& actType, const bool initial);
 
         /// destructor
         virtual ~Stage_Waiting();
+
+        Stage* clone() const;
 
         /// abort this stage (TraCI)
         void abort(MSTransportable*);
@@ -337,6 +367,11 @@ public:
         Position getPosition(SUMOTime now) const;
 
         double getAngle(SUMOTime now) const;
+
+        /// @brief get travel distance in this stage
+        double getDistance() const {
+            return 0;
+        }
 
         SUMOTime getWaitingTime(SUMOTime now) const;
 
@@ -421,8 +456,13 @@ public:
 
         double getAngle(SUMOTime now) const;
 
-        /// Whether the person waits for a vehicle of the line specified.
-        bool isWaitingFor(const std::string& line) const;
+        /// @brief get travel distance in this stage
+        double getDistance() const {
+            return myVehicleDistance;
+        }
+
+        /// Whether the person waits for the given vehicle
+        bool isWaitingFor(const SUMOVehicle* vehicle) const;
 
         /// @brief Whether the person waits for a vehicle
         bool isWaiting4Vehicle() const;
@@ -462,6 +502,14 @@ public:
             return myLines;
         }
 
+        std::string getIntendedVehicleID() const {
+            return myIntendedVehicleID;
+        }
+
+        SUMOTime getIntendedDepart() const {
+            return myIntendedDepart;
+        }
+
     protected:
         /// the lines  to choose from
         const std::set<std::string> myLines;
@@ -492,6 +540,49 @@ public:
         Stage_Driving& operator=(const Stage_Driving&);
 
     };
+
+    /// @name inherited from SUMOTrafficObject
+    /// @{
+    bool isVehicle() const {
+        return false;
+    }
+
+    bool isStopped() const {
+        return getCurrentStageType() == WAITING;
+    }
+
+    double getSlope() const;
+
+    double getChosenSpeedFactor() const {
+        return 1.0;
+    }
+
+    SUMOVehicleClass getVClass() const;
+
+    double getMaxSpeed() const;
+
+    SUMOTime getWaitingTime() const;
+
+    double getPreviousSpeed() const {
+        return getSpeed();
+    }
+
+    double getAcceleration() const {
+        return 0.0;
+    }
+
+    double getPositionOnLane() const {
+        return getEdgePos();
+    }
+
+    double getBackPositionOnLane(const MSLane* /*lane*/) const {
+        return getEdgePos();
+    }
+
+    Position getPosition(const double /*offset*/) const {
+        return getPosition();
+    }
+    /// @}
 
     /// the structure holding the plan of a transportable
     typedef std::vector<MSTransportable::Stage*> MSTransportablePlan;
@@ -622,9 +713,9 @@ public:
      */
     virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const = 0;
 
-    /// @brief Whether the transportable waits for a vehicle of the line specified.
-    bool isWaitingFor(const std::string& line) const {
-        return (*myStep)->isWaitingFor(line);
+    /// Whether the transportable waits for the given vehicle in the current step
+    bool isWaitingFor(const SUMOVehicle* vehicle) const {
+        return (*myStep)->isWaitingFor(vehicle);
     }
 
     /// @brief Whether the transportable waits for a vehicle
@@ -689,6 +780,15 @@ public:
     /// @brief adapt plan when the vehicle reroutes and now stops at replacement instead of orig
     void rerouteParkingArea(MSStoppingPlace* orig, MSStoppingPlace* replacement);
 
+    /// @brief Returns a device of the given type if it exists or 0
+    MSTransportableDevice* getDevice(const std::type_info& type) const;
+
+    /** @brief Returns this vehicle's devices
+     * @return This vehicle's devices
+     */
+    inline const std::vector<MSTransportableDevice*>& getDevices() const {
+        return myDevices;
+    }
 
 protected:
     /// @brief the offset for computing positions when standing at an edge
@@ -709,6 +809,9 @@ protected:
 
     /// the iterator over the route
     MSTransportablePlan::iterator myStep;
+
+    /// @brief The devices this transportable has
+    std::vector<MSTransportableDevice*> myDevices;
 
 private:
     /// @brief Invalidated copy constructor.

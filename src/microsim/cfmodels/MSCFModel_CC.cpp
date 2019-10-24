@@ -175,6 +175,15 @@ MSCFModel_CC::finalizeSpeed(MSVehicle* const veh, double vPos) const {
     //call processNextStop() to ensure vehicle removal in case of crash
     veh->processNextStop(vPos);
 
+    //check whether the vehicle has collided and set the flag in case
+    if (!vars->crashed) {
+        std::list<MSVehicle::Stop> stops = veh->getMyStops();
+        for (auto s : stops)
+            if (s.collision) {
+                vars->crashed = true;
+            }
+    }
+
     if (vars->activeController != Plexe::DRIVER) {
         veh->setChosenSpeedFactor(vars->ccDesiredSpeed / veh->getLane()->getSpeedLimit());
     }
@@ -212,7 +221,7 @@ MSCFModel_CC::followSpeed(const MSVehicle* const veh, double speed, double gap2p
 }
 
 double
-MSCFModel_CC::insertionFollowSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double predMaxDecel) const {
+MSCFModel_CC::insertionFollowSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double predMaxDecel, const MSVehicle* const /*pred*/) const {
     UNUSED_PARAMETER(veh);
     UNUSED_PARAMETER(gap2pred);
     UNUSED_PARAMETER(predSpeed);
@@ -306,7 +315,7 @@ MSCFModel_CC::_v(const MSVehicle* const veh, double gap2pred, double egoSpeed, d
     double time;
     const double currentTime = STEPS2TIME(MSNet::getInstance()->getCurrentTimeStep() + DELTA_T);
 
-    if (vars->crashed || vars->crashedVictim) {
+    if (vars->crashed) {
         return 0;
     }
     if (vars->activeController == Plexe::DRIVER || !vars->useFixedAcceleration) {
@@ -782,7 +791,7 @@ void MSCFModel_CC::setParameter(MSVehicle* veh, const std::string& key, const st
             if (vars->engine) {
                 delete vars->engine;
             }
-            int engineModel = StringUtils::toInt(value.c_str());;
+            int engineModel = StringUtils::toInt(value.c_str());
             switch (engineModel) {
                 case CC_ENGINE_MODEL_REALISTIC: {
                     vars->engine = new RealisticEngineModel();
@@ -1034,15 +1043,6 @@ void MSCFModel_CC::getRadarMeasurements(const MSVehicle* veh, double& distance, 
         distance = l.second;
         SUMOVehicle* leader = MSNet::getInstance()->getVehicleControl().getVehicle(l.first);
         relativeSpeed = leader->getSpeed() - veh->getSpeed();
-    }
-}
-
-void MSCFModel_CC::setCrashed(const MSVehicle* veh, bool crashed, bool victim) const {
-    CC_VehicleVariables* vars = (CC_VehicleVariables*) veh->getCarFollowVariables();
-    if (victim) {
-        vars->crashedVictim = crashed;
-    } else {
-        vars->crashed = crashed;
     }
 }
 

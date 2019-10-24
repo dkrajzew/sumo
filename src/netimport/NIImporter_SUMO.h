@@ -206,7 +206,7 @@ private:
     struct LaneAttrs : public Parameterised {
         /// @brief The maximum velocity allowed on this lane
         double maxSpeed;
-        /// @brief This lane's shape (needed to reconstruct edge shape for legacy networks)
+        /// @brief This lane's shape (may be custom)
         PositionVector shape;
         /// @brief This lane's connections
         std::vector<Connection> connections;
@@ -226,6 +226,8 @@ private:
         std::string oppositeID;
         /// @brief Whether this lane has a custom shape
         bool customShape;
+        /// @brief the type of this lane
+        std::string type;
     };
 
 
@@ -261,6 +263,8 @@ private:
         LaneSpreadFunction lsf;
         /// @brief This edge's vehicle specific stop offsets (used for lanes, that do not have a specified stopOffset)
         std::map<SVCPermissions, double> stopOffsets;
+        /// @brief The position at the start of this edge (kilometrage/mileage)
+        double distance;
     };
 
 
@@ -354,6 +358,9 @@ private:
     /// @brief element to receive parameters
     std::vector<Parameterised*> myLastParameterised;
 
+    /// @brief the loaded network version
+    double myNetworkVersion;
+
     /// @brief whether the loaded network contains internal lanes
     bool myHaveSeenInternalEdge;
 
@@ -390,13 +397,6 @@ private:
      * @param[in] lane_id The ID of the lane
      */
     LaneAttrs* getLaneAttrsFromID(EdgeAttrs* edge, std::string lane_id);
-
-    /** @brief reconstructs the edge shape from the node positions and the given lane shapes
-     * since we do not know the original LaneSpreadFunction this is only an
-     * approximation
-     * @param[in] lanes The list of lane attributes
-     */
-    static PositionVector reconstructEdgeShape(const EdgeAttrs* edge, const Position& from, const Position& to);
 
     /// @brief read position from the given attributes, attribute errors to id
     static Position readPosition(const SUMOSAXAttributes& attrs, const std::string& id, bool& ok);

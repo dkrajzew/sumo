@@ -97,14 +97,14 @@ RODUAFrame::addImportOptions() {
     oc.addSynonyme("weight-attribute", "measure", true);
     oc.addDescription("weight-attribute", "Input", "Name of the xml attribute which gives the edge weight");
 
-    oc.doRegister("phemlight-path", new Option_FileName("./PHEMlight/"));
-    oc.addDescription("phemlight-path", "Input", "Determines where to load PHEMlight definitions from.");
-
     // register further processing options
     // ! The subtopic "Processing" must be initialised earlier !
     oc.doRegister("weights.expand", new Option_Bool(false));
     oc.addSynonyme("weights.expand", "expand-weights", true);
     oc.addDescription("weights.expand", "Processing", "Expand weights behind the simulation's end");
+
+    oc.doRegister("weights.random-factor", new Option_Float(1.));
+    oc.addDescription("weights.random-factor", "Processing", "Edge weights for routing are dynamically disturbed by a random factor drawn uniformly from [1,FLOAT)");
 
     oc.doRegister("routing-algorithm", new Option_String("dijkstra"));
     oc.addDescription("routing-algorithm", "Processing", "Select among routing algorithms ['dijkstra', 'astar', 'CH', 'CHWrapper']");
@@ -168,8 +168,9 @@ RODUAFrame::addDUAOptions() {
     oc.doRegister("persontrip.walkfactor", new Option_Float(double(0.75)));
     oc.addDescription("persontrip.walkfactor", "Processing", "Use FLOAT as a factor on pedestrian maximum speed during intermodal routing");
 
-    oc.doRegister("persontrip.transfer.car-walk", new Option_String("parkingAreas"));
-    oc.addDescription("persontrip.transfer.car-walk", "Processing", "Where are mode changes from car to walking allowed (possible values: 'parkingAreas', 'ptStops', 'allJunctions' and combinations)");
+    oc.doRegister("persontrip.transfer.car-walk", new Option_StringVector(StringVector({ "parkingAreas" })));
+    oc.addDescription("persontrip.transfer.car-walk", "Processing",
+                      "Where are mode changes from car to walking allowed (possible values: 'parkingAreas', 'ptStops', 'allJunctions' and combinations)");
 
 }
 

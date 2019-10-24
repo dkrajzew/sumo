@@ -68,6 +68,10 @@ const int VTYPEPARS_LATALIGNMENT_SET = 1 << 21;
 const int VTYPEPARS_MINGAP_LAT_SET = 1 << 22;
 const int VTYPEPARS_ACTIONSTEPLENGTH_SET = 1 << 23;
 const int VTYPEPARS_HASDRIVERSTATE_SET = 1 << 24;
+const int VTYPEPARS_CARRIAGE_LENGTH_SET = 1 << 25;
+const int VTYPEPARS_LOCOMOTIVE_LENGTH_SET = 1 << 26;
+const int VTYPEPARS_CARRIAGE_GAP_SET = 1 << 27;
+const int VTYPEPARS_MANEUVER_ANGLE_TIMES_SET = 1 << 28;
 
 
 const int VTYPEPARS_DEFAULT_EMERGENCYDECEL_DEFAULT = -1;
@@ -82,12 +86,63 @@ const int VTYPEPARS_DEFAULT_EMERGENCYDECEL_DECEL = -2;
  */
 class SUMOVTypeParameter : public Parameterised {
 public:
+    /// @brief struct for default values that depend of VClass
+    struct VClassDefaultValues {
+        /// @brief parameter constructor
+        VClassDefaultValues(SUMOVehicleClass vClass);
+
+        /// @brief The physical vehicle length
+        double length;
+
+        /// @brief This class' free space in front of the vehicle itself
+        double minGap;
+
+        /// @brief The vehicle type's maximum speed [m/s]
+        double maxSpeed;
+
+        /// @brief This class' width
+        double width;
+
+        /// @brief This class' height
+        double height;
+
+        /// @brief This class' shape
+        SUMOVehicleShape shape;
+
+        /// @brief The emission class of this vehicle
+        SUMOEmissionClass emissionClass;
+
+        /// @brief The factor by which the maximum speed may deviate from the allowed max speed on the street
+        Distribution_Parameterized speedFactor;
+
+        /// @brief The person capacity of the vehicle
+        int personCapacity;
+
+        /// @brief The container capacity of the vehicle
+        int containerCapacity;
+
+        /// @brief 3D model file for this class
+        std::string osgFile;
+
+        /// @brief the length of train carriages
+        double carriageLength;
+
+        /// @brief the length of train locomotive
+        double locomotiveLength;
+
+    private:
+        /// @brief default constructor
+        VClassDefaultValues();
+    };
+
     /** @brief Constructor
      *
      * Initialises the structure with default values
      */
     SUMOVTypeParameter(const std::string& vtid, const SUMOVehicleClass vc = SVC_IGNORING);
 
+    /// @brief virtual destructor
+    virtual ~SUMOVTypeParameter() {};
 
     /** @brief Returns whether the given parameter was set
      * @param[in] what The parameter which one asks for
@@ -97,18 +152,12 @@ public:
         return (parametersSet & what) != 0;
     }
 
-
     /** @brief Writes the vtype
      *
      * @param[in, out] dev The device to write into
      * @exception IOError not yet implemented
      */
     void write(OutputDevice& dev) const;
-
-    /** @brief Validates stored car-following parameter
-     */
-    void validateCFParameter() const;
-
 
     /** @brief Returns the named value from the map, or the default if it is not contained there
      * @param[in] attr The corresponding xml attribute
@@ -131,6 +180,13 @@ public:
      */
     double getLCParam(const SumoXMLAttr attr, const double defaultValue) const;
 
+    /** @brief Returns the named value from the map, or the default if it is not contained there
+     * @param[in] attr The corresponding xml attribute
+     * @param[in] defaultValue The value to return if the given map does not contain the named variable
+     * @return The named value from the map or the default if it does not exist there
+     */
+    std::string getLCParamString(const SumoXMLAttr attr, const std::string& defaultValue) const;
+
     /// @brief sub-model parameters
     typedef std::map<SumoXMLAttr, std::string> SubParams;
 
@@ -144,37 +200,58 @@ public:
      */
     double getJMParam(const SumoXMLAttr attr, const double defaultValue) const;
 
+    /** @brief Returns the named value from the map, or the default if it is not contained there
+     * @param[in] attr The corresponding xml attribute
+     * @param[in] defaultValue The value to return if the given map does not contain the named variable
+     * @return The named value from the map or the default if it does not exist there
+     */
+    std::string getJMParamString(const SumoXMLAttr attr, const std::string defaultValue) const;
+
+    void cacheParamRestrictions(const std::vector<std::string>& restrictionKeys);
 
     /// @brief The vehicle type's id
     std::string id;
 
     /// @brief The physical vehicle length
     double length;
+
     /// @brief This class' free space in front of the vehicle itself
     double minGap;
+
     /// @brief The vehicle type's maximum speed [m/s]
     double maxSpeed;
+
     /// @brief The vehicle type's default actionStepLength [ms], i.e. the interval between two control actions.
     ///        The default value of 0ms. induces the value to be traced from MSGlobals::gActionStepLength
     SUMOTime actionStepLength;
+
     /// @brief The probability when being added to a distribution without an explicit probability
     double defaultProbability;
+
     /// @brief The factor by which the maximum speed may deviate from the allowed max speed on the street
     Distribution_Parameterized speedFactor;
+
     /// @brief The emission class of this vehicle
     SUMOEmissionClass emissionClass;
+
     /// @brief The color
     RGBColor color;
+
     /// @brief The vehicle's class
     SUMOVehicleClass vehicleClass;
+
     /// @brief The vehicle's impatience (willingness to obstruct others)
     double impatience;
+
     /// @brief The person capacity of the vehicle
     int personCapacity;
+
     /// @brief The container capacity of the vehicle
     int containerCapacity;
+
     /// @brief The time a person needs to board the vehicle
     SUMOTime boardingDuration;
+
     /// @brief The time a container needs to get loaded on the vehicle
     SUMOTime loadingDuration;
 
@@ -206,8 +283,10 @@ public:
 
     /// @brief Car-following parameter
     SubParams cfParameter;
+
     /// @brief Lane-changing parameter
     SubParams lcParameter;
+
     /// @brief Junction-model parameter
     SubParams jmParameter;
 
@@ -216,8 +295,10 @@ public:
 
     /// @brief The vehicle type's maximum lateral speed [m/s]
     double maxSpeedLat;
+
     /// @brief The vehicles desired lateral alignment
     LateralAlignment latAlignment;
+
     /// @brief The vehicle type's minimum lateral gap [m]
     double minGapLat;
 
@@ -229,12 +310,14 @@ public:
     /// @brief Information for the router which parameter were set
     int parametersSet;
 
-
     /// @brief Information whether this type was already saved (needed by routers)
     mutable bool saved;
 
     /// @brief Information whether this is a type-stub, being only referenced but not defined (needed by routers)
     bool onlyReferenced;
+
+    /// @brief cached value of parameters which may restrict access to certain edges
+    std::vector<double> paramRestrictions;
 
     /** @brief Returns the default acceleration for the given vehicle class
      * This needs to be a function because the actual value is stored in the car following model
@@ -268,6 +351,36 @@ public:
     /// @brief return the default parameters, this is a function due to the http://www.parashift.com/c++-faq/static-init-order.html
     static const SUMOVTypeParameter& getDefault();
 
+    /// @brief Map of manoeuver angles versus the times (entry, exit) to execute the manoeuver 
+    std::map<int, std::pair<SUMOTime, SUMOTime>>  myManoeuverAngleTimes;
+
+/** @brief Initialise the default mapping between manoeuver angle and times dependant on vehicle class
+ *  @param[in] vclass The vehicle class
+ *  @note  These default values were 'informed' by a paper by Purnawan, and Yousif:
+ *  @note    usir.salford.ac.uk/id/eprint/9729/3/Paper_Kassel_%28Seminar%29.pdf (no reverse park values in paper)
+ *  @note    truck values were simply doubled - all are modifiable in the vehicle type definition and there is no limit to the no of triplets
+ *    TODO:
+ *        optionality for 90 degree bay entry (forwards or reverse) not implemented - probably should be a driver propensity
+ *        the defaults assume reverse entry - a reverse manoeuvre has to happen and there will be a small difference in timings depending whether its reverse in or out
+ */
+    void setManoeuverAngleTimes(const SUMOVehicleClass vclass);
+
+    /** @brief Returns the time that will be needed for the vehicle type to execute the (entry) manoeuvre (and be blocking the lane)
+     * @param[in] angle The angle, in degrees through which the vehicle needs to manoeuver (0-180 degrees)
+     * @return The SUMOTime value
+     */
+    SUMOTime getEntryManoeuvreTime(const int angle) const;
+
+    /** @brief Returns the time that will be needed for the vehicle type to execute the (exit) manoeuvre (and be blocking the lane)
+      * @param[in] angle The angle, in degrees through which the vehicle needs to manoeuver (0-180 degrees)
+      * @return The SUMOTime value
+      */
+    SUMOTime getExitManoeuvreTime(const int angle) const;
+
+    /** @brief Returns myManoeuverAngleTimes as a string for xml output
+     *  @return A string of , separated triplets (angle entry-time exit-time)
+     */
+    std::string getManoeuverAngleTimesS() const;
 };
 
 #endif

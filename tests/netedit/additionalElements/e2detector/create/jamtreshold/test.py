@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2Detector")
+netedit.changeElement("e2Detector")
 
 # set invalid jam threshold (dummy)
-netedit.modifyAdditionalDefaultValue(9, "dummyJamTreshold")
+netedit.changeDefaultValue(10, "dummyJamTreshold")
 
 # try to create E2 with invalid jam threshold
 netedit.leftClick(referencePosition, 450, 220)
 
 # set invalid jam threshold
-netedit.modifyAdditionalDefaultValue(9, "-30")
+netedit.changeDefaultValue(10, "-30")
 
 # try to create E2 with invalid jam threshold
 netedit.leftClick(referencePosition, 450, 220)
 
 # set valid jam threshold
-netedit.modifyAdditionalDefaultValue(9, "15.5")
+netedit.changeDefaultValue(10, "15.5")
 
 # create E2 with valid jam threshold
 netedit.leftClick(referencePosition, 450, 220)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

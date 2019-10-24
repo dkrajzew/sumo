@@ -116,21 +116,26 @@ MSVehicleTransfer::checkInsertions(SUMOTime time) {
         const MSEdge* e = desc.myVeh->getEdge();
         const MSEdge* nextEdge = desc.myVeh->succEdge(1);
 
-        const double departPos = desc.myParking ? desc.myVeh->getPositionOnLane() : 0;
 
         if (desc.myParking) {
+            MSParkingArea* pa = desc.myVeh->getCurrentParkingArea();
+            const double departPos = pa != nullptr ? pa->getInsertionPosition(*desc.myVeh) : desc.myVeh->getPositionOnLane();
             // handle parking vehicles
             if (desc.myVeh->getLane()->isInsertionSuccess(desc.myVeh, 0, departPos, desc.myVeh->getLateralPositionOnLane(),
                     false, MSMoveReminder::NOTIFICATION_PARKING)) {
                 MSNet::getInstance()->informVehicleStateListener(desc.myVeh, MSNet::VEHICLE_STATE_ENDING_PARKING);
                 desc.myVeh->getLane()->removeParking(desc.myVeh);
+                // at this point we are in the lane, blocking traffic & if required we configure the exit manoeuvre
+                if (MSGlobals::gModelParkingManoeuver && desc.myVeh->setExitManoeuvre() ) {
+                    MSNet::getInstance()->informVehicleStateListener(desc.myVeh, MSNet::VEHICLE_STATE_MANEUVERING);
+                }
                 i = vehInfos.erase(i);
             } else {
                 // blocked from entering the road
                 if (!desc.myVeh->signalSet(MSVehicle::VEH_SIGNAL_BLINKER_LEFT | MSVehicle::VEH_SIGNAL_BLINKER_RIGHT)) {
                     // signal wish to re-enter the road
                     desc.myVeh->switchOnSignal(MSNet::getInstance()->lefthand() ? MSVehicle::VEH_SIGNAL_BLINKER_RIGHT : MSVehicle::VEH_SIGNAL_BLINKER_LEFT);
-                    if (desc.myVeh->getCurrentParkingArea() != nullptr) {
+                    if (pa) {
                         // update freePosition so other vehicles can help with insertion
                         desc.myVeh->getCurrentParkingArea()->notifyEgressBlocked();
                     }
@@ -138,6 +143,7 @@ MSVehicleTransfer::checkInsertions(SUMOTime time) {
                 i++;
             }
         } else {
+            const double departPos = 0;
             // get the lane on which this vehicle should continue
             // first select all the lanes which allow continuation onto nextEdge
             //   then pick the one which is least occupied

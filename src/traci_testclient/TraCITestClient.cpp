@@ -657,6 +657,8 @@ TraCITestClient::testAPI() {
     answerLog << "    effort: " << edge.getEffort(edgeID, 0) << "\n";
     answerLog << "    laneNumber: " << edge.getLaneNumber(edgeID) << "\n";
     answerLog << "    streetName: " << edge.getStreetName(edgeID) << "\n";
+    edge.setMaxSpeed(edgeID, 42);
+    answerLog << "    maxSpeed: " << lane.getMaxSpeed(edgeID+"_0") << "\n";
 
     // lane
     answerLog << "  lane:\n";
@@ -692,6 +694,8 @@ TraCITestClient::testAPI() {
     } catch (libsumo::TraCIException& e) {
         answerLog << "    caught TraCIException(" << e.what() << ")\n";
     }
+    lane.setMaxSpeed(laneID, 42);
+    answerLog << "    maxSpeed: " << lane.getMaxSpeed(laneID) << "\n";
     // poi
     answerLog << "  POI:\n";
     answerLog << "    getIDList: " << joinToString(poi.getIDList(), " ") << "\n";
@@ -719,6 +723,17 @@ TraCITestClient::testAPI() {
         shapeStr2 += pos.getString() + " ";
     }
     answerLog << "    getShape after modification: " << shapeStr2 << "\n";
+
+    // junction
+    answerLog << "  junction:\n";
+    answerLog << "    getIDList: " << joinToString(junction.getIDList(), " ") << "\n";
+    answerLog << "    getIDCount: " << junction.getIDCount() << "\n";
+    std::vector<libsumo::TraCIPosition> junctionShape = junction.getShape("n_m4");
+    std::string junctionShapeStr;
+    for (auto pos : junctionShape) {
+        junctionShapeStr += pos.getString() + " ";
+    }
+    answerLog << "    getShape: " << junctionShapeStr << "\n";
 
     // route
     answerLog << "  route:\n";
@@ -749,6 +764,7 @@ TraCITestClient::testAPI() {
     answerLog << "    setMaxSpeedLat: " << vehicletype.getMaxSpeedLat("t1") << "\n";
     vehicletype.setLateralAlignment("t1", "compact");
     answerLog << "    getLateralAlignment: " << vehicletype.getLateralAlignment("t1") << "\n";
+    answerLog << "    getPersonCapacity: " << vehicletype.getPersonCapacity("t1") << "\n";
     answerLog << "    copy type 't1' to 't1_copy' and set accel to 100.\n";
     vehicletype.copy("t1", "t1_copy");
     answerLog << "    getIDList: " << joinToString(vehicletype.getIDList(), " ") << "\n";
@@ -770,14 +786,17 @@ TraCITestClient::testAPI() {
     answerLog << "    getLanePosition: " << vehicle.getLanePosition("0") << "\n";
     answerLog << "    getLateralLanePosition: " << vehicle.getLateralLanePosition("0") << "\n";
     answerLog << "    getSpeed: " << vehicle.getSpeed("0") << "\n";
+    answerLog << "    getLateralSpeed: " << vehicle.getLateralSpeed("0") << "\n";
     answerLog << "    getAcceleration: " << vehicle.getAcceleration("0") << "\n";
     answerLog << "    getSpeedMode: " << vehicle.getSpeedMode("0") << "\n";
     answerLog << "    getSlope: " << vehicle.getSlope("0") << "\n";
     answerLog << "    getLine: " << vehicle.getLine("0") << "\n";
     answerLog << "    getVia: " << joinToString(vehicle.getVia("0"), ",") << "\n";
+    answerLog << "    getPersonCapacity: " << vehicle.getPersonCapacity("0") << "\n";
     vehicle.setMaxSpeed("0", 30);
     answerLog << "    getMaxSpeed: " << vehicle.getMaxSpeed("0") << "\n";
     answerLog << "    isRouteValid: " << vehicle.isRouteValid("0") << "\n";
+    answerLog << "    getStopState: " << vehicle.getStopState("0") << "\n";
     vehicle.setParameter("0", "meaningOfLife", "42");
     answerLog << "    param: " << vehicle.getParameter("0", "meaningOfLife") << "\n";
     libsumo::TraCIColor col1;
@@ -845,6 +864,14 @@ TraCITestClient::testAPI() {
 
     // simulation
     answerLog << "  simulation:\n";
+    answerLog << "    convert2D: " << simulation.convert2D("e_m5", 0).getString() << "\n";
+    answerLog << "    convert2DGeo: " << simulation.convert2D("e_m5", 0, 0, true).getString() << "\n";
+    answerLog << "    convert3D: " << simulation.convert3D("e_m5", 0).getString() << "\n";
+    answerLog << "    convert3DGeo: " << simulation.convert3D("e_m5", 0, 0, true).getString() << "\n";
+    answerLog << "    convertRoad: " << simulation.convertRoad(2500, 500).getString() << "\n";
+    answerLog << "    convertRoadBus: " << simulation.convertRoad(2500, 500, false, "bus").getString() << "\n";
+    answerLog << "    convertGeo: " << simulation.convertGeo(2500, 500).getString() << "\n";
+    answerLog << "    convertCartesian: " << simulation.convertGeo(12, 52, true).getString() << "\n";
     answerLog << "    getDistance2D_air: " << simulation.getDistance2D(2500, 500, 2000, 500, false, false) << "\n";
     answerLog << "    getDistance2D_driving: " << simulation.getDistance2D(2500, 500, 2000, 500, false, true) << "\n";
     answerLog << "    getDistanceRoad_air: " << simulation.getDistanceRoad("e_m5", 0, "e_m4", 0, false) << "\n";
@@ -852,7 +879,10 @@ TraCITestClient::testAPI() {
     answerLog << "    getCurrentTime: " << simulation.getCurrentTime() << "\n";
     answerLog << "    getDeltaT: " << simulation.getDeltaT() << "\n";
     answerLog << "    parkingArea param: " << simulation.getParameter("park1", "parkingArea.capacity") << "\n";
+    answerLog << "    busStopWaiting: " << simulation.getBusStopWaiting("bs1") << "\n";
+    answerLog << "    busStopWaitingIDs: " << joinToString(simulation.getBusStopWaitingIDList("bs1"), " ") << "\n";
     answerLog << "    subscribe to road and pos of vehicle '1':\n";
+    answerLog << "    findRoute: " << joinToString(simulation.findRoute("e_m5", "e_m4").edges, " ") << "\n";
     std::vector<int> vars;
     vars.push_back(libsumo::VAR_ROAD_ID);
     vars.push_back(libsumo::VAR_LANEPOSITION);
@@ -873,6 +903,28 @@ TraCITestClient::testAPI() {
         answerLog << "      vehicle=" << it->first << " pos=" << it->second[libsumo::VAR_LANEPOSITION]->getString() << "\n";
     }
 
+    answerLog << "    subscribe to vehicles around vehicle '1':\n";
+    std::vector<int> vars3;
+    vars3.push_back(libsumo::VAR_SPEED);
+    vehicle.subscribeContext("1", libsumo::CMD_GET_VEHICLE_VARIABLE, 1000, vars3, 0, 100);
+    //vehicle.addSubscriptionFilterTurn();
+    //vehicle.addSubscriptionFilterDownstreamDistance(1000);
+    //vehicle.addSubscriptionFilterUpstreamDistance(1000);
+    //vehicle.addSubscriptionFilterVClass(std::vector<std::string>({"passenger"}));
+    //vehicle.addSubscriptionFilterLanes(std::vector<int>({0, 1, 2}));
+    //vehicle.addSubscriptionFilterLeadFollow(std::vector<int>({0, 1, 2}));
+    //vehicle.addSubscriptionFilterLanes(std::vector<int>({0}));
+    //vehicle.addSubscriptionFilterLeadFollow(std::vector<int>({0}));
+    //vehicle.addSubscriptionFilterCFManeuver();
+    vehicle.addSubscriptionFilterLCManeuver(1);
+
+    simulationStep();
+    answerLog << "    context subscription results:\n";
+    libsumo::SubscriptionResults result5 = vehicle.getContextSubscriptionResults("1");
+    for (auto item : result5) {
+        answerLog << "      vehicle=" << item.first << "\n";
+    }
+
     // person
     answerLog << "  person:\n";
     person.setWidth("p0", 1);
@@ -886,7 +938,7 @@ TraCITestClient::testAPI() {
     answerLog << "    getTypeID: " << person.getTypeID("p0") << "\n";
     answerLog << "    getWaitingTime: " << person.getWaitingTime("p0") << "\n";
     answerLog << "    getNextEdge: " << person.getNextEdge("p0") << "\n";
-    answerLog << "    getStage: " << person.getStage("p0") << "\n";
+    answerLog << "    getStage: " << person.getStage("p0").description << "\n";
     answerLog << "    getRemainingStages: " << person.getRemainingStages("p0") << "\n";
     answerLog << "    getVehicle: " << person.getVehicle("p0") << "\n";
     answerLog << "    getEdges: " << joinToString(person.getEdges("p0"), " ") << "\n";
@@ -909,13 +961,19 @@ TraCITestClient::testAPI() {
     person.appendWalkingStage("p1", walkEdges, -20);
     person.appendWaitingStage("p1", 5);
     person.appendDrivingStage("p1", "e_vu2", "BusLine42");
-    // expect 4 stages due to the initial waiting-for-departure stage
+    libsumo::TraCIStage stage(libsumo::STAGE_WALKING);
+    stage.edges.push_back("e_vu2");
+    stage.edges.push_back("e_vo2");
+    stage.arrivalPos = -10;
+    person.appendStage("p1", stage);
+    simulationStep();
+    // expect 5 stages due to the initial waiting-for-departure stage
     answerLog << "    getRemainingStages: " << person.getRemainingStages("p1") << "\n";
     person.removeStage("p1", 3);
     answerLog << "    getRemainingStages: " << person.getRemainingStages("p1") << "\n";
     person.removeStages("p1");
     answerLog << "    getRemainingStages: " << person.getRemainingStages("p1") << "\n";
-    answerLog << "    getStage: " << person.getStage("p1") << "\n";
+    answerLog << "    getStage: " << person.getStage("p1").description << "\n";
     walkEdges.push_back("e_m5");
     person.appendWalkingStage("p1", walkEdges, -20);
     simulationStep();
@@ -973,6 +1031,8 @@ TraCITestClient::testAPI() {
     args.push_back("net.net.xml");
     args.push_back("-r");
     args.push_back("input_routes.rou.xml");
+    args.push_back("-a");
+    args.push_back("input_additional.add.xml");
     args.push_back("--no-step-log");
     load(args);
     simulationStep();

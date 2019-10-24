@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select busStop
-netedit.changeAdditional("busStop")
+netedit.changeElement("busStop")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(6, "reference center")
+netedit.changeDefaultValue(8, "reference center")
 
 # create busStop in mode "reference center"
 netedit.leftClick(referencePosition, 250, 270)
@@ -50,7 +50,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 350, 275)
 
 # block additional
-netedit.modifyBoolAttribute(10, True)
+netedit.modifyBoolAttribute(7, True)
 
 # change to move mode
 netedit.moveMode()
@@ -65,7 +65,7 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 350, 275)
 
 # unblock additional
-netedit.modifyBoolAttribute(10, True)
+netedit.modifyBoolAttribute(7, True)
 
 # change to move mode
 netedit.moveMode()
@@ -78,10 +78,10 @@ netedit.undo(referencePosition, 5)
 netedit.redo(referencePosition, 5)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

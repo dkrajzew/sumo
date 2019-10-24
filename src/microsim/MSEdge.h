@@ -37,6 +37,7 @@
 #include <utils/common/SUMOVehicleClass.h>
 #include <utils/geom/Boundary.h>
 #include <utils/vehicle/SUMOVehicle.h>
+#include <utils/vehicle/SUMOTrafficObject.h>
 #include "MSNet.h"
 
 
@@ -94,7 +95,8 @@ public:
      * @param[in] streetName The street name for that edge
      */
     MSEdge(const std::string& id, int numericalID, const SumoXMLEdgeFunc function,
-           const std::string& streetName, const std::string& edgeType, int priority);
+           const std::string& streetName, const std::string& edgeType, int priority,
+           double distance);
 
 
     /// @brief Destructor.
@@ -150,9 +152,10 @@ public:
      *
      * @param[in] lane The base lane
      * @param[in] offset The offset of the result lane
+     * @param[in] includeOpposte Whether an opposite direction lane may be returned
      * @todo This method searches for the given in the container; probably, this could be done faster
      */
-    MSLane* parallelLane(const MSLane* const lane, int offset) const;
+    MSLane* parallelLane(const MSLane* const lane, int offset, bool includeOpposite = true) const;
 
 
     /** @brief Returns this edge's lanes
@@ -222,6 +225,11 @@ public:
     }
 
     /// @brief return whether this edge is an internal edge
+    inline bool isNormal() const {
+        return myFunction == EDGEFUNC_NORMAL;
+    }
+
+    /// @brief return whether this edge is an internal edge
     inline bool isInternal() const {
         return myFunction == EDGEFUNC_INTERNAL;
     }
@@ -273,6 +281,12 @@ public:
      */
     int getPriority() const {
         return myPriority;
+    }
+
+    /** @brief Returns the kilometrage/mileage at the start of the edge
+     */
+    double getDistance() const {
+        return myDistance;
     }
     /// @}
 
@@ -589,7 +603,7 @@ public:
      * @caution Only the first lane is considered
      * @return The maximum velocity on this edge for the given vehicle
      */
-    double getVehicleMaxSpeed(const SUMOVehicle* const veh) const;
+    double getVehicleMaxSpeed(const SUMOTrafficObject* const veh) const;
 
 
     virtual void addPerson(MSTransportable* p) const {
@@ -802,9 +816,9 @@ protected:
     AllowedLanesByTarget myAllowedTargets;
 
     /// @brief The intersection of lane permissions for this edge
-    SVCPermissions myMinimumPermissions;
+    SVCPermissions myMinimumPermissions = SVCAll;
     /// @brief The union of lane permissions for this edge
-    SVCPermissions myCombinedPermissions;
+    SVCPermissions myCombinedPermissions = 0;
     /// @}
 
     /// @brief the real-world name of this edge (need not be unique)
@@ -815,6 +829,9 @@ protected:
 
     /// @brief the priority of the edge (used during network creation)
     const int myPriority;
+
+    /// @brief the kilometrage/mileage at the start of the edge
+    const double myDistance;
 
     /// Edge width [m]
     double myWidth;

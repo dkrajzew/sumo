@@ -332,7 +332,7 @@ TRACI_CONST int TYPE_UBYTE = 0x07;
 TRACI_CONST int TYPE_BYTE = 0x08;
 // 32 bit signed integer
 TRACI_CONST int TYPE_INTEGER = 0x09;
-// double
+// double precision float
 TRACI_CONST int TYPE_DOUBLE = 0x0B;
 // 8 bit ASCII string
 TRACI_CONST int TYPE_STRING = 0x0C;
@@ -340,6 +340,8 @@ TRACI_CONST int TYPE_STRING = 0x0C;
 TRACI_CONST int TYPE_STRINGLIST = 0x0E;
 // compound object
 TRACI_CONST int TYPE_COMPOUND = 0x0F;
+// list of double precision floats
+TRACI_CONST int TYPE_DOUBLELIST = 0x10;
 // color (four ubytes)
 TRACI_CONST int TYPE_COLOR = 0x11;
 
@@ -399,6 +401,10 @@ TRACI_CONST int STAGE_WAITING = 0x01;
 TRACI_CONST int STAGE_WALKING = 0x02;
 // person riding / container being transported
 TRACI_CONST int STAGE_DRIVING = 0x03;
+// person accessing stopping place
+TRACI_CONST int STAGE_ACCESS = 0x04;
+// stage for encoding abstract travel demand
+TRACI_CONST int STAGE_TRIP = 0x05;
 
 // ****************************************
 // Stop Flags
@@ -482,10 +488,6 @@ TRACI_CONST int FILTER_TYPE_VCLASS = 0x08;
 
 // Only return vehicles of the given vType in context subscription result
 TRACI_CONST int FILTER_TYPE_VTYPE = 0x09;
-
-
-
-
 
 // ****************************************
 // VARIABLE TYPES (for CMD_GET_*_VARIABLE)
@@ -604,6 +606,9 @@ TRACI_CONST int VAR_SLOPE = 0x36;
 // speed (get: vehicle)
 TRACI_CONST int VAR_SPEED = 0x40;
 
+// lateral speed (get: vehicle)
+TRACI_CONST int VAR_SPEED_LAT = 0x32;
+
 // maximum allowed/possible speed (get: vehicle types, lanes, set: edges, lanes)
 TRACI_CONST int VAR_MAXSPEED = 0x41;
 
@@ -706,8 +711,14 @@ TRACI_CONST int VAR_CURRENT_TRAVELTIME = 0x5a;
 // signals state (get/set: vehicle)
 TRACI_CONST int VAR_SIGNALS = 0x5b;
 
-// new lane/position along (set: vehicle)
+// vehicle: new lane/position along (set: vehicle)
 TRACI_CONST int VAR_MOVE_TO = 0x5c;
+
+// polygon: add dynamics (set: polygon)
+TRACI_CONST int VAR_ADD_DYNAMICS = 0x5c;
+
+// vehicle: highlight (set: vehicle, poi)
+TRACI_CONST int VAR_HIGHLIGHT = 0x6c;
 
 // driver imperfection (set: vehicle)
 TRACI_CONST int VAR_IMPERFECTION = 0x5d;
@@ -791,8 +802,16 @@ TRACI_CONST int VAR_NOISEEMISSION = 0x66;
 // current person number (get: vehicle)
 TRACI_CONST int VAR_PERSON_NUMBER = 0x67;
 
+// person capacity (vehicle , vehicle type)
+TRACI_CONST int VAR_PERSON_CAPACITY = 0x38;
+
+TRACI_CONST int VAR_BUS_STOP_ID_LIST = 0x9f;
+
 // number of persons waiting at a defined bus stop (get: simulation)
 TRACI_CONST int VAR_BUS_STOP_WAITING = 0x67;
+
+// ids of persons waiting at a defined bus stop (get: simulation)
+TRACI_CONST int VAR_BUS_STOP_WAITING_IDS = 0xef;
 
 // current leader together with gap (get: vehicle)
 TRACI_CONST int VAR_LEADER = 0x68;
@@ -881,6 +900,12 @@ TRACI_CONST int VAR_PARKING_STARTING_VEHICLES_NUMBER = 0x6c;
 // ids of vehicles starting to park (get: simulation)
 TRACI_CONST int VAR_PARKING_STARTING_VEHICLES_IDS = 0x6d;
 
+// number of vehicles maneuvering (get: simulation)
+TRACI_CONST int VAR_PARKING_MANEUVERING_VEHICLES_NUMBER = 0x3a;
+
+// ids of vehicles maneuvering (get: simulation)
+TRACI_CONST int VAR_PARKING_MANEUVERING_VEHICLES_IDS = 0x3b;
+
 // number of vehicles ending to park (get: simulation)
 TRACI_CONST int VAR_PARKING_ENDING_VEHICLES_NUMBER = 0x6e;
 
@@ -959,6 +984,9 @@ TRACI_CONST int VAR_VEHICLE = 0xc3;
 
 // append a person stage (person)
 TRACI_CONST int APPEND_STAGE = 0xc4;
+
+// replace a person stage (person)
+TRACI_CONST int REPLACE_STAGE = 0xcd;
 
 // append a person stage (person)
 TRACI_CONST int REMOVE_STAGE = 0xc5;

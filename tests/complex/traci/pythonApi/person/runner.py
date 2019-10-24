@@ -21,21 +21,20 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-    traci.vehicle.addFull = traci.vehicle.add
-    traci.vehicle.add = traci.vehicle.addLegacy
-else:
-    import traci  # noqa
-    traci._vehicle.VehicleDomain.addFull = traci._vehicle.VehicleDomain.add
-    traci._vehicle.VehicleDomain.add = traci._vehicle.VehicleDomain.addLegacy
+import traci  # noqa
 import sumolib  # noqa
 
 
 def step():
-    s = traci.simulation.getCurrentTime() / 1000
+    s = traci.simulation.getTime()
     traci.simulationStep()
     return s
+
+
+def print_remaining_plan(personID, comment=""):
+    print("remaining stages for '%s' %s" % (personID, comment))
+    for i in range(traci.person.getRemainingStages(personID)):
+        print("  %s: %s" % (i, traci.person.getStage(personID, i)))
 
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg", "--fcd-output", "fcd.xml"])
@@ -116,7 +115,7 @@ traci.person.removeStages("newPerson")
 traci.person.appendDrivingStage("newPerson", "1o", "B42")
 
 traci.route.add("r0", ["3si", "1o"])
-traci.vehicle.add("veh0", "r0", traci.constants.DEPARTFLAG_TRIGGERED, pos=230)
+traci.vehicle.addLegacy("veh0", "r0", traci.constants.DEPARTFLAG_TRIGGERED, pos=230)
 traci.vehicle.setLine("veh0", "B42")
 traci.vehicle.setStop("veh0", "3si", 235, laneIndex=2, startPos=230, duration=1)
 
@@ -134,7 +133,7 @@ print("riding in vehicle: '%s'" % traci.vehicle.getParameter("veh0", "device.per
 print("riding in vehicle (direct): '%s'" % traci.vehicle.getPersonIDList("veh0"))
 print("persons on edge %s at time %s: %s" % (
     traci.person.getRoadID("newPerson"),
-    traci.simulation.getCurrentTime() / 1000.0,
+    traci.simulation.getTime(),
     traci.edge.getLastStepPersonIDs(traci.person.getRoadID("newPerson"))))
 
 traci.person.removeStages("newPerson")
@@ -184,7 +183,7 @@ traci.person.add(personTT2, "2fi", 10)
 traci.person.appendWalkingStage(personTT2, ["2fi"], -20)
 for i in range(5):
     print("%s person=%s edge=%s pos=%s" % (
-        traci.simulation.getCurrentTime() / 1000,
+        traci.simulation.getTime(),
         personTT2,
         traci.person.getRoadID(personTT2),
         traci.person.getLanePosition(personTT2)))
@@ -194,9 +193,61 @@ traci.person.removeStage(personTT2, 0)
 print("  %s new edges edges=%s" % (personTT2, traci.person.getEdges(personTT2)))
 for i in range(5):
     print("%s person=%s edge=%s pos=%s" % (
-        traci.simulation.getCurrentTime() / 1000,
+        traci.simulation.getTime(),
         personTT2,
         traci.person.getRoadID(personTT2),
         traci.person.getLanePosition(personTT2)))
     step()
+
+
+# appendStage
+traci.person.add("p3", "1fi", -10)
+stage = traci.simulation.Stage(
+    type=traci.constants.STAGE_WALKING,
+    vType="", line="", destStop="",
+    edges=["1fi", "1si"],
+    travelTime=-1, cost=-1, length=-1,
+    intended="", depart=-1, departPos=-20, arrivalPos=10,
+    description="foo")
+stage2 = traci.simulation.Stage(
+    type=traci.constants.STAGE_WALKING,
+    vType="car", line="", destStop="",
+    edges=["1fi", "1o"],
+    travelTime=-1, cost=-1, length=-1,
+    intended="", depart=-1, departPos=-20, arrivalPos=10,
+    description="foo")
+stage3 = traci.simulation.Stage(
+    type=traci.constants.STAGE_WALKING,
+    vType="car", line="", destStop="",
+    edges=["1o", "3o"],
+    travelTime=-1, cost=-1, length=-1,
+    intended="", depart=-1, departPos=-20, arrivalPos=10,
+    description="foo")
+stage4 = traci.simulation.Stage(
+    type=traci.constants.STAGE_WALKING,
+    vType="car", line="", destStop="",
+    edges=["1o", "4o"],
+    travelTime=-1, cost=-1, length=-1,
+    intended="", depart=-1, departPos=-20, arrivalPos=10,
+    description="foo")
+
+traci.person.appendStage("p3", stage)
+for i in range(10):
+    traci.simulationStep()
+
+remaining = traci.person.getRemainingStages("p3")
+assert(remaining == 1)
+# replace current stage
+print_remaining_plan("p3", "(before replacement of current stage")
+traci.person.replaceStage("p3", 0, stage2)
+print_remaining_plan("p3", "(after replacement")
+# replace later stage
+traci.person.appendStage("p3", stage3)
+print_remaining_plan("p3", "(before replacement of next stage")
+traci.person.replaceStage("p3", 1, stage4)
+print_remaining_plan("p3", "(after replacement")
+
+for i in range(41):
+    traci.simulationStep()
+
 traci.close()

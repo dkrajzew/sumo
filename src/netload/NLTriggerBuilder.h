@@ -231,6 +231,10 @@ public:
                                  const std::string& base);
     //@}
 
+
+    MSStoppingPlace* getCurrentStop();
+
+
 protected:
     /// @name building methods
     ///
@@ -272,7 +276,7 @@ protected:
      * @exception InvalidArgument If the stop can not be added to the net (is duplicate)
      */
     virtual void buildStoppingPlace(MSNet& net, std::string id, std::vector<std::string> lines, MSLane* lane,
-                                    double frompos, double topos, const SumoXMLTag element, std::string string);
+                                    double frompos, double topos, const SumoXMLTag element, std::string string, int personCapacity);
 
     /** @brief Builds a charging station
      *
@@ -306,7 +310,9 @@ protected:
     virtual MSCalibrator* buildCalibrator(MSNet& net,
                                           const std::string& id, MSEdge* edge, MSLane* lane, double pos,
                                           const std::string& file, const std::string& outfile,
-                                          const SUMOTime freq, const MSRouteProbe* probe);
+                                          const SUMOTime freq,
+                                          const MSRouteProbe* probe,
+                                          const std::string& vTypes);
 
     /** @brief builds a mesoscopic calibrator
      *
@@ -322,7 +328,9 @@ protected:
     virtual METriggeredCalibrator* buildMECalibrator(MSNet& net,
             const std::string& id, const MSEdge* edge, double pos,
             const std::string& file, const std::string& outfile,
-            const SUMOTime freq, MSRouteProbe* probe);
+            const SUMOTime freq,
+            MSRouteProbe* probe,
+            const std::string& vTypes);
 
 
     /** @brief builds an rerouter

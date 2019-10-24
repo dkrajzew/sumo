@@ -77,6 +77,8 @@ public:
         /// destructor
         ~MSPersonStage_Walking();
 
+        Stage* clone() const;
+
         /// proceeds to the next step
         virtual void proceed(MSNet* net, MSTransportable* person, SUMOTime now, Stage* previous);
 
@@ -95,6 +97,11 @@ public:
         Position getPosition(SUMOTime now) const;
 
         double getAngle(SUMOTime now) const;
+
+        /// @brief get travel distance in this stage
+        double getDistance() const {
+            return walkDistance();
+        }
 
         SUMOTime getWaitingTime(SUMOTime now) const;
 
@@ -189,6 +196,9 @@ public:
         /// the time the person is walking
         SUMOTime myWalkingTime;
 
+        /// the time the person entered the edge
+        SUMOTime myLastEdgeEntryTime;
+
         /// @brief The route of the person
         ConstMSEdgeVector myRoute;
 
@@ -243,6 +253,8 @@ public:
         /// destructor
         ~MSPersonStage_Driving();
 
+        Stage* clone() const;
+
         /// proceeds to the next step
         virtual void proceed(MSNet* net, MSTransportable* person, SUMOTime now, Stage* previous);
 
@@ -280,6 +292,8 @@ public:
         /// destructor
         ~MSPersonStage_Access();
 
+        Stage* clone() const;
+
         /// proceeds to the next step
         virtual void proceed(MSNet* net, MSTransportable* person, SUMOTime now, Stage* previous);
 
@@ -290,6 +304,11 @@ public:
         Position getPosition(SUMOTime now) const;
 
         double getAngle(SUMOTime now) const;
+
+        /// @brief get travel distance in this stage
+        double getDistance() const {
+            return myDist;
+        }
 
         /** @brief Called on writing tripinfo output
         *

@@ -28,14 +28,21 @@ try:
     import flake8  # noqa
     HAVE_FLAKE = True
 except ImportError:
+    print("Python flake not found. Python style checking is disabled.")
     HAVE_FLAKE = False
 try:
     import autopep8  # noqa
     HAVE_AUTOPEP = True
 except ImportError:
     HAVE_AUTOPEP = False
+try:
+    with open(os.devnull, 'w') as devnull:
+        subprocess.check_call(['astyle', '--version'], stdout=devnull)
+    HAVE_ASTYLE = True
+except (OSError, subprocess.CalledProcessError):
+    HAVE_ASTYLE = False
 
-_SOURCE_EXT = [".h", ".cpp", ".py", ".pyw", ".pl", ".java", ".am", ".cs"]
+_SOURCE_EXT = set([".h", ".cpp", ".py", ".pyw", ".pl", ".java", ".am", ".cs"])
 _TESTDATA_EXT = [".xml", ".prog", ".csv",
                  ".complex", ".dfrouter", ".duarouter", ".jtrrouter", ".marouter",
                  ".astar", ".chrouter", ".internal", ".tcl", ".txt",
@@ -116,7 +123,7 @@ class PropertyReader(xml.sax.handler.ContentHandler):
             return
         self._haveFixed = False
         idx = 0
-        if ext in (".cpp", ".h"):
+        if ext in (".cpp", ".h", ".java"):
             if lines[idx] == SEPARATOR:
                 year = lines[idx + 2][17:21]
                 end = idx + 9
@@ -145,22 +152,21 @@ class PropertyReader(xml.sax.handler.ContentHandler):
             if lines[idx][:5] == '# -*-':
                 idx += 1
             license = EPL_HEADER.replace("//   ", "# ").replace("// ", "# ").replace("\n//", "")
-            end = idx + 7
+            end = lines.index("\n", idx)
             if len(lines) < 13:
                 print(self._file, "is too short (%s lines, at least 13 required for valid header)" % len(lines))
                 return
             year = lines[idx + 1][16:20]
             license = license.replace("2001", year).replace(SEPARATOR, "")
             if "module" in lines[idx + 2]:
-                end += 2
                 fileLicense = "".join(lines[idx:idx + 2]) + "".join(lines[idx + 4:end])
             else:
                 fileLicense = "".join(lines[idx:end])
             if fileLicense != license:
-                print(self._file, "invalid license")
+                print(self._file, "different license:")
+                print(fileLicense)
                 if options.verbose:
                     print("!!%s!!" % os.path.commonprefix([fileLicense, license]))
-                    print(fileLicense)
                     print(license)
             self.checkDoxyLines(lines, end + 1, "#")
         if self._haveFixed:
@@ -249,18 +255,23 @@ class PropertyReader(xml.sax.handler.ContentHandler):
                 subprocess.call(["flake8", "--max-line-length", "120", self._file])
             if HAVE_AUTOPEP and self._fix:
                 subprocess.call(["autopep8", "--max-line-length", "120", "--in-place", self._file])
+        if ext in (".cpp", ".h", ".java") and HAVE_ASTYLE and self._fix:
+            subprocess.call(["astyle", "--style=java", "--unpad-paren", "--pad-header", "--pad-oper",
+                             "--add-brackets", "--indent-switches", "--align-pointer=type",
+                             "-n", os.path.abspath(self._file)])
+            subprocess.call(["sed", "-i", "-e", '$a\\', self._file])
 
 
 optParser = OptionParser()
 optParser.add_option("-v", "--verbose", action="store_true",
                      default=False, help="tell me what you are doing")
 optParser.add_option("-f", "--fix", action="store_true",
-                     default=False, help="fix invalid svn properties")
+                     default=False, help="fix invalid svn properties, run astyle and autopep8")
 optParser.add_option("-s", "--skip-pep", action="store_true",
                      default=False, help="skip autopep8 and flake8 tests")
 optParser.add_option("-d", "--directory", help="check given subdirectory of sumo tree")
-optParser.add_option("-x", "--exclude", default="contributed",
-                     help="comma-separated list of (sub-)paths to exclude from pep checks")
+optParser.add_option("-x", "--exclude", default="contributed,foreign",
+                     help="comma-separated list of (sub-)paths to exclude from pep and astyle checks")
 (options, args) = optParser.parse_args()
 seen = set()
 sumoRoot = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -274,6 +285,9 @@ for repoRoot in repoRoots:
     if options.verbose:
         print("checking", repoRoot)
     propRead = PropertyReader(options.fix, not options.skip_pep)
+    if os.path.isfile(repoRoot):
+        propRead.checkFile(repoRoot)
+        continue
     try:
         oldDir = os.getcwd()
         os.chdir(repoRoot)

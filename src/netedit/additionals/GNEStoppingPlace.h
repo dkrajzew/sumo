@@ -24,6 +24,11 @@
 
 #include "GNEAdditional.h"
 
+// ===========================================================================
+// value definitions
+// ===========================================================================
+const int STOPPINGPLACE_STARTPOS_SET = 1;
+const int STOPPINGPLACE_ENDPOS_SET = 2;
 
 // ===========================================================================
 // class definitions
@@ -43,11 +48,13 @@ public:
      * @param[in] lane Lane of this StoppingPlace belongs
      * @param[in] startPos Start position of the StoppingPlace
      * @param[in] endPos End position of the StoppingPlace
-     * @param[in] nam Name of stoppingPlace
+     * @param[in] parametersSet Variable used to save flags STOPPINGPLACE_STARTPOS_SET and STOPPINGPLACE_ENDPOS_SET
+     * @param[in] name Name of stoppingPlace
      * @param[in] friendlyPos enable or disable friendly position
      * @param[in] block movement enable or disable additional movement
      */
-    GNEStoppingPlace(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GNELane* lane, const std::string& startPos, const std::string& endPos, const std::string& name, bool friendlyPosition, bool blockMovement);
+    GNEStoppingPlace(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GNELane* lane, double startPos, double endPos,
+                    int parametersSet, const std::string& name, bool friendlyPosition, bool blockMovement);
 
     /// @brief Destructor
     ~GNEStoppingPlace();
@@ -63,27 +70,6 @@ public:
     /// @brief fix additional problem
     void fixAdditionalProblem();
     /// @}
-
-    /**@brief check if the position of an stoppingPlace over a lane is valid (without modifications)
-    * @param[in] startPosStr Start position of stoppingPlace in string format
-    * @param[in] endPosStr End position of stoppingPlace in string format
-    * @param[in] laneLength Length of the lane
-    * @param[in] friendlyPos Attribute of stoppingPlace
-    * @return true if the stoppingPlace position is valid, false in otherweise
-    */
-    static bool checkStoppinPlacePosition(const std::string& startPosStr, const std::string& endPosStr, const double laneLength, const bool friendlyPos);
-
-    /**@brief check if the position of an stoppingPlace over a la can be fixed
-    * @param[in] startPosStr Start position of stoppingPlace in string format (note: it can be modified)
-    * @param[in] endPosStr End position of stoppingPlace in string format (note: it can be modified)
-    * @param[in] laneLength Length of the lane in which stopping place is placed
-    * @param[in] friendlyPos boolean attribute of stoppingPlace
-    * @return true if the stoppingPlace position was sucesfully fixed, false in other case
-    */
-    static bool fixStoppinPlacePosition(std::string& startPosStr, std::string& endPosStr, const double laneLength, const bool friendlyPos);
-
-    /// @brief get Lane
-    GNELane* getLane() const;
 
     /// @brief get start Position
     double getStartPosition() const;
@@ -104,10 +90,13 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    virtual void updateGeometry(bool updateGrid) = 0;
+    virtual void updateGeometry() = 0;
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    virtual Boundary getCenteringBoundary() const = 0;
     /// @}
 
     /// @name inherited from GNEAdditional
@@ -131,6 +120,12 @@ public:
      */
     virtual std::string getAttribute(SumoXMLAttr key) const = 0;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
      * @param[in] key The attribute key
      * @param[in] value The new value
@@ -145,6 +140,11 @@ public:
      */
     virtual bool isValid(SumoXMLAttr key, const std::string& value) = 0;
 
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    virtual bool isAttributeEnabled(SumoXMLAttr key) const = 0;
+
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
 
@@ -153,14 +153,14 @@ public:
     /// @}
 
 protected:
-    /// @brief The lane in which this lane is placed
-    GNELane* myLane;
-
     /// @brief The relative start position this stopping place is located at (optional, if empty takes 0)
-    std::string  myStartPosition;
+    double myStartPosition;
 
     /// @brief The  position this stopping place is located at (optional, if empty takes the lane lenght)
-    std::string myEndPosition;
+    double myEndPosition;
+
+    /// @brief Variable used for set/unset start/endPositions
+    int myParametersSet;
 
     /// @brief Flag for friendly position
     bool myFriendlyPosition;

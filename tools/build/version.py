@@ -34,19 +34,30 @@ GITDIR = '.git'
 GITFILE = "index"
 
 
-def gitDescribe(commit="HEAD", gitDir=None):
+def gitDescribe(commit="HEAD", gitDir=None, commitPrefix="+", padZero=True):
     command = ["git", "describe", "--long", "--always", commit]
     if gitDir:
         command[1:1] = ["--git-dir=" + gitDir]
-    d = subprocess.check_output(command, universal_newlines=True).strip()
+    try:
+        d = subprocess.check_output(command, universal_newlines=True).strip()
+    except subprocess.CalledProcessError:
+        # try to find the version in the config.h
+        configFile = join(dirname(__file__), '..', '..', 'src', 'config.h.cmake')
+        if exists(configFile):
+            config = open(configFile).read()
+            if "//#define HAVE_VERSION_H" in config:
+                version = config.find("VERSION_STRING") + 16
+                if version > 16:
+                    return "v" + config[version:config.find('"\n', version)] + "-" + (10 * "0")
+        return UNKNOWN_REVISION
     if "-" in d:
         # remove the "g" in describe output
         d = d.replace("-g", "-")
         m1 = d.find("-") + 1
         m2 = d.find("-", m1)
-        diff = max(0, 4 - (m2 - m1))
+        diff = max(0, 4 - (m2 - m1)) if padZero else 0
         # prefix the number of commits with a "+" and pad with 0
-        d = d[:m1].replace("-", "+") + (diff * "0") + d[m1:]
+        d = d[:m1].replace("-", commitPrefix) + (diff * "0") + d[m1:]
     return d
 
 

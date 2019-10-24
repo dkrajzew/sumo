@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2Detector")
+netedit.changeElement("e2Detector")
 
 # Change block movement
-netedit.modifyAdditionalDefaultBoolValue(12)
+netedit.changeDefaultBoolValue(13)
 
 # create E2 with different block movement
 netedit.leftClick(referencePosition, 300, 220)
@@ -42,10 +42,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

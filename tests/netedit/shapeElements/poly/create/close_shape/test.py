@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # change close shape
-netedit.modifyShapeDefaultBoolValue(14)
+netedit.changeDefaultBoolValue(15)
 
 # create open polygon that will be automatically closed
 netedit.createSquaredPoly(referencePosition, 200, 50, 100, False)
@@ -39,10 +39,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

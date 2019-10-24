@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2Detector")
+netedit.changeElement("e2Detector")
 
 # set invalid time threshold (dummy)
-netedit.modifyAdditionalDefaultValue(7, "dummyTimeTreshold")
+netedit.changeDefaultValue(8, "dummyTimeTreshold")
 
 # try to create E2 with invalid time threshold
 netedit.leftClick(referencePosition, 250, 220)
 
 # set invalid time threshold (negative)
-netedit.modifyAdditionalDefaultValue(7, "-12")
+netedit.changeDefaultValue(8, "-12")
 
 # try to create E2 with invalid time threshold
 netedit.leftClick(referencePosition, 250, 220)
 
 # set valid time threshold
-netedit.modifyAdditionalDefaultValue(7, "10.5")
+netedit.changeDefaultValue(8, "10.5")
 
 # create E2 with valid time threshold
 netedit.leftClick(referencePosition, 250, 220)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

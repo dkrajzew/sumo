@@ -37,6 +37,7 @@
 // class declarations
 // ===========================================================================
 class SUMOVehicle;
+class SUMOTrafficObject;
 
 
 // ===========================================================================
@@ -57,7 +58,7 @@ class MSDevice_SSM : public MSVehicleDevice {
 
 private:
     /// All currently existing SSM devices
-    static std::set<MSDevice_SSM*>* instances;
+    static std::set<MSDevice_SSM*, ComparatorNumericalIdLess>* myInstances;
 
 public:
     /// @brief Different types of encounters corresponding to relative positions of the vehicles.
@@ -111,8 +112,60 @@ public:
         ENCOUNTER_TYPE_FOLLOWING_PASSED = 18, //!< ENCOUNTER_TYPE_FOLLOWING_PASSED
         // The encounter has been a merging situation, but is not active any more
         ENCOUNTER_TYPE_MERGING_PASSED = 19, //!< ENCOUNTER_TYPE_FOLLOWING_PASSED
+        // Ego vehicle and foe are driving in opposite directions towards each other on the same lane (or sequence of consecutive lanes)
+        ENCOUNTER_TYPE_ONCOMING = 20,
         // Collision (currently unused, might be differentiated further)
         ENCOUNTER_TYPE_COLLISION = 111 //!< ENCOUNTER_TYPE_COLLISION
+    };
+
+    static std::string toString(EncounterType type) {
+        switch (type) {
+            case (ENCOUNTER_TYPE_NOCONFLICT_AHEAD):
+                return ("NOCONFLICT_AHEAD");
+            case (ENCOUNTER_TYPE_FOLLOWING):
+                return ("FOLLOWING");
+            case (ENCOUNTER_TYPE_FOLLOWING_FOLLOWER):
+                return ("FOLLOWING_FOLLOWER");
+            case (ENCOUNTER_TYPE_FOLLOWING_LEADER):
+                return ("FOLLOWING_LEADER");
+            case (ENCOUNTER_TYPE_ON_ADJACENT_LANES):
+                return ("ON_ADJACENT_LANES");
+            case (ENCOUNTER_TYPE_MERGING):
+                return ("MERGING");
+            case (ENCOUNTER_TYPE_MERGING_LEADER):
+                return ("MERGING_LEADER");
+            case (ENCOUNTER_TYPE_MERGING_FOLLOWER):
+                return ("MERGING_FOLLOWER");
+            case (ENCOUNTER_TYPE_MERGING_ADJACENT):
+                return ("MERGING_ADJACENT");
+            case (ENCOUNTER_TYPE_CROSSING):
+                return ("CROSSING");
+            case (ENCOUNTER_TYPE_CROSSING_LEADER):
+                return ("CROSSING_LEADER");
+            case (ENCOUNTER_TYPE_CROSSING_FOLLOWER):
+                return ("CROSSING_FOLLOWER");
+            case (ENCOUNTER_TYPE_EGO_ENTERED_CONFLICT_AREA):
+                return ("EGO_ENTERED_CONFLICT_AREA");
+            case (ENCOUNTER_TYPE_FOE_ENTERED_CONFLICT_AREA):
+                return ("FOE_ENTERED_CONFLICT_AREA");
+            case (ENCOUNTER_TYPE_EGO_LEFT_CONFLICT_AREA):
+                return ("EGO_LEFT_CONFLICT_AREA");
+            case (ENCOUNTER_TYPE_FOE_LEFT_CONFLICT_AREA):
+                return ("FOE_LEFT_CONFLICT_AREA");
+            case (ENCOUNTER_TYPE_BOTH_ENTERED_CONFLICT_AREA):
+                return ("BOTH_ENTERED_CONFLICT_AREA");
+            case (ENCOUNTER_TYPE_BOTH_LEFT_CONFLICT_AREA):
+                return ("BOTH_LEFT_CONFLICT_AREA");
+            case (ENCOUNTER_TYPE_FOLLOWING_PASSED):
+                return ("FOLLOWING_PASSED");
+            case (ENCOUNTER_TYPE_MERGING_PASSED):
+                return ("MERGING_PASSED");
+            case (ENCOUNTER_TYPE_ONCOMING):
+                return ("ONCOMING");
+            case (ENCOUNTER_TYPE_COLLISION):
+                return ("COLLISION");
+        }
+        return ("UNKNOWN");
     };
 
 private:
@@ -172,7 +225,11 @@ private:
         struct compare {
             typedef bool value_type;
             bool operator()(Encounter* e1, Encounter* e2) {
-                return e1->begin <= e2->begin;
+                if (e1->begin == e2->begin) {
+                    return e1->foeID > e2->foeID;
+                } else {
+                    return e1->begin > e2->begin;
+                }
             };
         };
 
@@ -270,6 +327,7 @@ private:
     /// corresponding to the encounter might occur. Each FoeInfo ends up in a call to updateEncounter() and
     /// is deleted there.
     struct FoeInfo {
+        virtual ~FoeInfo() {};
         const MSLane* egoConflictLane;
         double egoDistToConflictLane;
     };
@@ -278,8 +336,20 @@ private:
     //       findSurroundingVehicles() would then deliver a vector of such foeCollectors
     //       (one for each possible egoConflictLane) instead of a map vehicle->foeInfo
     //       This could be helpful to resolve the resolution for several different
-    //	 	 projected conflicts with the same foe.
+    //          projected conflicts with the same foe.
 
+
+    /// @brief Auxiliary structure used to handle upstream scanning start points
+    /// Upstream scan has to be started after downstream scan is completed, see #5644
+    struct UpstreamScanStartInfo {
+        UpstreamScanStartInfo(const MSEdge* edge, double pos, double range, double egoDistToConflictLane, const MSLane* egoConflictLane) :
+            edge(edge), pos(pos), range(range), egoDistToConflictLane(egoDistToConflictLane), egoConflictLane(egoConflictLane) {};
+        const MSEdge* edge;
+        double pos;
+        double range;
+        double egoDistToConflictLane;
+        const MSLane* egoConflictLane;
+    };
 
     typedef std::priority_queue<Encounter*, std::vector<Encounter*>, Encounter::compare> EncounterQueue;
     typedef std::vector<Encounter*> EncounterVector;
@@ -307,7 +377,7 @@ public:
 
     /** @brief returns all currently existing SSM devices
      */
-    static const std::set<MSDevice_SSM*>& getInstances();
+    static const std::set<MSDevice_SSM*, ComparatorNumericalIdLess>& getInstances();
 
     /** @brief This is called once per time step in MSNet::writeOutput() and
      *         collects the surrounding vehicles, updates information on encounters
@@ -351,11 +421,11 @@ public:
 
     /** @brief Collects all vehicles within range 'range' upstream of the position 'pos' on the edge 'edge' into foeCollector
      */
-    static void getUpstreamVehicles(const MSEdge* edge, double pos, double range, double egoDistToConflictLane, const MSLane* const egoConflictLane, FoeInfoMap& foeCollector, std::set<const MSJunction*>& seenJunctions);
+    static void getUpstreamVehicles(const UpstreamScanStartInfo& scanStart, FoeInfoMap& foeCollector, std::set<const MSLane*>& seenLanes, const std::set<const MSJunction*>& routeJunctions);
 
     /** @brief Collects all vehicles on the junction into foeCollector
      */
-    static void getVehiclesOnJunction(const MSJunction*, double egoDistToConflictLane, const MSLane* const egoConflictLane, FoeInfoMap& foeCollector);
+    static void getVehiclesOnJunction(const MSJunction*, const MSLane* egoJunctionLane, double egoDistToConflictLane, const MSLane* const egoConflictLane, FoeInfoMap& foeCollector, std::set<const MSLane*>& seenLanes);
 
 
     /// @name Methods called on vehicle movement / state change, overwriting MSDevice
@@ -370,7 +440,7 @@ public:
      *
      * @return Always true to keep the device as it cannot be thrown away
      */
-    bool notifyMove(SUMOVehicle& veh, double oldPos,
+    bool notifyMove(SUMOTrafficObject& veh, double oldPos,
                     double newPos, double newSpeed);
 
 
@@ -383,7 +453,7 @@ public:
      * @see MSMoveReminder::notifyEnter
      * @see MSMoveReminder::Notification
      */
-    bool notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
+    bool notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
 
 
     /** @brief Called whenever the holder leaves a lane
@@ -394,7 +464,7 @@ public:
      * @param[in] enteredLane The lane entered.
      * @return True if it did not leave the net.
      */
-    bool notifyLeave(SUMOVehicle& veh, double lastPos,
+    bool notifyLeave(SUMOTrafficObject& veh, double lastPos,
                      MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
     /// @}
 
@@ -472,9 +542,11 @@ private:
      */
     void flushGlobalMeasures();
 
-    /** @brief Updates the encounter (adds a new trajectory point) and deletes the foeInfo.
+    /** @brief Updates the encounter (adds a new trajectory point).
+     *  @return Returns false for new encounters, which should not be kept (if one vehicle has
+     *          already left the conflict zone at encounter creation). True, otherwise.
      */
-    void updateEncounter(Encounter* e, FoeInfo* foeInfo);
+    bool updateEncounter(Encounter* e, FoeInfo* foeInfo);
 
     /** @brief Updates an encounter, which was classified as ENCOUNTER_TYPE_NOCONFLICT_AHEAD
      *         this may be the case because the foe is out of the detection range but the encounter
@@ -585,11 +657,11 @@ private:
      *         for estimated leaving times, current deceleration is extrapolated, and acceleration is neglected.
      *         Returns 0.0 if no deceleration is required by the follower to avoid a crash, INVALID if collision is detected.
      *  @param[in] eInfo infos on the encounter. Used variables:
-     *  			 dEntry1,dEntry2 The distances to the conflict area entry
-     *  			 dExit1,dExit2 The distances to the conflict area exit
-     *  			 v1,v2 The current speeds
-     *  			 tEntry1,tEntry2 The estimated conflict entry times (including extrapolation of current acceleration)
-     *  		     tExit1,tExit2 The estimated conflict exit times (including extrapolation of current acceleration)
+     *               dEntry1,dEntry2 The distances to the conflict area entry
+     *               dExit1,dExit2 The distances to the conflict area exit
+     *               v1,v2 The current speeds
+     *               tEntry1,tEntry2 The estimated conflict entry times (including extrapolation of current acceleration)
+     *               tExit1,tExit2 The estimated conflict exit times (including extrapolation of current acceleration)
      */
     static double computeDRAC(const EncounterApproachInfo& eInfo);
 

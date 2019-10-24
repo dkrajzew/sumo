@@ -34,6 +34,7 @@
 #include <microsim/MSEdge.h>
 #include <microsim/MSJunction.h>
 #include <utils/geom/Position.h>
+#include <utils/geom/GeomHelper.h>
 #include <microsim/MSNet.h>
 #include <microsim/MSInternalJunction.h>
 #include <microsim/traffic_lights/MSTrafficLightLogic.h>
@@ -127,6 +128,10 @@ GUIJunctionWrapper::getCenteringBoundary() const {
     return b;
 }
 
+const std::string
+GUIJunctionWrapper::getOptionalName() const {
+    return myJunction.getParameter("name", "");
+}
 
 void
 GUIJunctionWrapper::drawGL(const GUIVisualizationSettings& s) const {
@@ -136,13 +141,12 @@ GUIJunctionWrapper::drawGL(const GUIVisualizationSettings& s) const {
         if (s.scale * exaggeration >= s.junctionSize.minSize) {
             glPushMatrix();
             glPushName(getGlID());
-            const double colorValue = getColorValue(s);
-            GLHelper::setColor(s.junctionColorer.getScheme().getColor(colorValue));
+            const double colorValue = getColorValue(s, s.junctionColorer.getActive());
+            const RGBColor color = s.junctionColorer.getScheme().getColor(colorValue);
+            GLHelper::setColor(color);
 
             // recognize full transparency and simply don't draw
-            GLfloat color[4];
-            glGetFloatv(GL_CURRENT_COLOR, color);
-            if (color[3] != 0) {
+            if (color.alpha() != 0) {
                 PositionVector shape = myJunction.getShape();
                 shape.closePolygon();
                 if (exaggeration > 1) {
@@ -177,8 +181,8 @@ GUIJunctionWrapper::drawGL(const GUIVisualizationSettings& s) const {
             const std::string& name = active->getCurrentPhaseDef().getName();
             GLHelper::drawTextSettings(s.tlsPhaseIndex, toString(index), myJunction.getPosition(), s.scale, s.angle);
             if (name != "") {
-                const Position lower = myJunction.getPosition() - Position(0, 0.8 * s.tlsPhaseIndex.scaledSize(s.scale));
-                GLHelper::drawTextSettings(s.tlsPhaseIndex, name, lower, s.scale, s.angle);
+                const Position offset = Position(0, 0.8 * s.tlsPhaseIndex.scaledSize(s.scale)).rotateAround2D(DEG2RAD(-s.angle), Position(0, 0));
+                GLHelper::drawTextSettings(s.tlsPhaseIndex, name, myJunction.getPosition() - offset, s.scale, s.angle);
             }
         }
     }
@@ -186,8 +190,8 @@ GUIJunctionWrapper::drawGL(const GUIVisualizationSettings& s) const {
 
 
 double
-GUIJunctionWrapper::getColorValue(const GUIVisualizationSettings& s) const {
-    switch (s.junctionColorer.getActive()) {
+GUIJunctionWrapper::getColorValue(const GUIVisualizationSettings& /* s */, int activeScheme) const {
+    switch (activeScheme) {
         case 0:
             if (myAmWaterway) {
                 return 1;
@@ -243,7 +247,7 @@ GUIJunctionWrapper::getColorValue(const GUIVisualizationSettings& s) const {
 #ifdef HAVE_OSG
 void
 GUIJunctionWrapper::updateColor(const GUIVisualizationSettings& s) {
-    const double colorValue = getColorValue(s);
+    const double colorValue = getColorValue(s, s.junctionColorer.getActive());
     const RGBColor& col = s.junctionColorer.getScheme().getColor(colorValue);
     osg::Vec4ubArray* colors = dynamic_cast<osg::Vec4ubArray*>(myGeom->getColorArray());
     (*colors)[0].set(col.red(), col.green(), col.blue(), col.alpha());

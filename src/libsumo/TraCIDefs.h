@@ -40,37 +40,42 @@
 // ===========================================================================
 
 #define LIBSUMO_SUBSCRIPTION_API \
-static void subscribe(const std::string& objID, const std::vector<int>& vars = std::vector<int>(), double beginTime = libsumo::INVALID_DOUBLE_VALUE, double endTime = libsumo::INVALID_DOUBLE_VALUE); \
-static void subscribeContext(const std::string& objID, int domain, double range, const std::vector<int>& vars = std::vector<int>(), double beginTime = libsumo::INVALID_DOUBLE_VALUE, double endTime = libsumo::INVALID_DOUBLE_VALUE); \
+static void subscribe(const std::string& objectID, const std::vector<int>& varIDs = std::vector<int>(), double begin = libsumo::INVALID_DOUBLE_VALUE, double end = libsumo::INVALID_DOUBLE_VALUE); \
+static void subscribeContext(const std::string& objectID, int domain, double range, const std::vector<int>& varIDs = std::vector<int>(), double begin = libsumo::INVALID_DOUBLE_VALUE, double end = libsumo::INVALID_DOUBLE_VALUE); \
+static void unsubscribeContext(const std::string& objectID, int domain, double range); \
 static const SubscriptionResults getAllSubscriptionResults(); \
-static const TraCIResults getSubscriptionResults(const std::string& objID); \
+static const TraCIResults getSubscriptionResults(const std::string& objectID); \
 static const ContextSubscriptionResults getAllContextSubscriptionResults(); \
-static const SubscriptionResults getContextSubscriptionResults(const std::string& objID);
+static const SubscriptionResults getContextSubscriptionResults(const std::string& objectID);
 
 #define LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(CLASS, DOMAIN) \
 void \
-CLASS::subscribe(const std::string& objID, const std::vector<int>& vars, double beginTime, double endTime) { \
-    libsumo::Helper::subscribe(CMD_SUBSCRIBE_##DOMAIN##_VARIABLE, objID, vars, beginTime, endTime); \
+CLASS::subscribe(const std::string& objectID, const std::vector<int>& varIDs, double begin, double end) { \
+    libsumo::Helper::subscribe(CMD_SUBSCRIBE_##DOMAIN##_VARIABLE, objectID, varIDs, begin, end); \
 } \
 void \
-CLASS::subscribeContext(const std::string& objID, int domain, double range, const std::vector<int>& vars, double beginTime, double endTime) { \
-    libsumo::Helper::subscribe(CMD_SUBSCRIBE_##DOMAIN##_CONTEXT, objID, vars, beginTime, endTime, domain, range); \
+CLASS::subscribeContext(const std::string& objectID, int domain, double range, const std::vector<int>& varIDs, double begin, double end) { \
+    libsumo::Helper::subscribe(CMD_SUBSCRIBE_##DOMAIN##_CONTEXT, objectID, varIDs, begin, end, domain, range); \
+} \
+void \
+CLASS::unsubscribeContext(const std::string& objectID, int domain, double range) { \
+    libsumo::Helper::subscribe(CMD_SUBSCRIBE_##DOMAIN##_CONTEXT, objectID, std::vector<int>(), libsumo::INVALID_DOUBLE_VALUE, libsumo::INVALID_DOUBLE_VALUE, domain, range); \
 } \
 const SubscriptionResults \
 CLASS::getAllSubscriptionResults() { \
     return mySubscriptionResults; \
 } \
 const TraCIResults \
-CLASS::getSubscriptionResults(const std::string& objID) { \
-    return mySubscriptionResults[objID]; \
+CLASS::getSubscriptionResults(const std::string& objectID) { \
+    return mySubscriptionResults[objectID]; \
 } \
 const ContextSubscriptionResults \
 CLASS::getAllContextSubscriptionResults() { \
     return myContextSubscriptionResults; \
 } \
 const SubscriptionResults \
-CLASS::getContextSubscriptionResults(const std::string& objID) { \
-    return myContextSubscriptionResults[objID]; \
+CLASS::getContextSubscriptionResults(const std::string& objectID) { \
+    return myContextSubscriptionResults[objectID]; \
 }
 
 
@@ -108,7 +113,7 @@ struct TraCIPosition : TraCIResult {
         os << "TraCIPosition(" << x << "," << y << "," << z << ")";
         return os.str();
     }
-    double x, y, z;
+    double x = INVALID_DOUBLE_VALUE, y = INVALID_DOUBLE_VALUE, z = INVALID_DOUBLE_VALUE;
 };
 
 /** @struct TraCIRoadPosition
@@ -122,7 +127,7 @@ struct TraCIRoadPosition : TraCIResult {
     }
     std::string edgeID;
     double pos;
-    int laneIndex;
+    int laneIndex = INVALID_INT_VALUE;
 };
 
 /** @struct TraCIColor
@@ -203,21 +208,24 @@ typedef std::map<std::string, SubscriptionResults> ContextSubscriptionResults;
 class TraCIPhase {
 public:
     TraCIPhase() {}
-    TraCIPhase(const double _duration, const std::string& _state, const double _minDur = libsumo::INVALID_DOUBLE_VALUE, const double _maxDur = libsumo::INVALID_DOUBLE_VALUE, const int _next = -1, const std::string& _name = "")
-        : duration(_duration), state(_state), minDur(_minDur), maxDur(_maxDur), next(_next), name(_name) {}
+    TraCIPhase(const double _duration, const std::string& _state, const double _minDur = libsumo::INVALID_DOUBLE_VALUE,
+               const double _maxDur = libsumo::INVALID_DOUBLE_VALUE,
+               const std::vector<int>& _next = std::vector<int>(),
+               const std::string& _name = "") :
+        duration(_duration), state(_state), minDur(_minDur), maxDur(_maxDur), next(_next), name(_name) {}
     ~TraCIPhase() {}
 
     double duration;
     std::string state;
     double minDur, maxDur;
-    int next;
+    std::vector<int> next;
     std::string name;
 };
 }
 
 
 #ifdef SWIG
-%template(TraCIPhaseVector) std::vector<libsumo::TraCIPhase>;
+%template(TraCIPhaseVector) std::vector<libsumo::TraCIPhase>; // *NOPAD*
 #endif
 
 
@@ -225,10 +233,16 @@ namespace libsumo {
 class TraCILogic {
 public:
     TraCILogic() {}
-    TraCILogic(const std::string& _programID, const int _type, const int _currentPhaseIndex)
-        : programID(_programID), type(_type), currentPhaseIndex(_currentPhaseIndex) {}
+    TraCILogic(const std::string& _programID, const int _type, const int _currentPhaseIndex,
+               const std::vector<libsumo::TraCIPhase>& _phases = std::vector<libsumo::TraCIPhase>())
+        : programID(_programID), type(_type), currentPhaseIndex(_currentPhaseIndex), phases(_phases) {}
     ~TraCILogic() {}
 
+#ifndef SWIGJAVA
+    std::vector<TraCIPhase> getPhases() {
+        return phases;
+    }
+#endif
     std::string programID;
     int type;
     int currentPhaseIndex;
@@ -331,7 +345,7 @@ struct TraCIBestLanesData {
 class TraCIStage {
 public:
     TraCIStage() {} // only to make swig happy
-    TraCIStage(int _type) : type(_type), depart(-1) {}
+    TraCIStage(int type) : type(type) {}
     /// @brief The type of stage (walking, driving, ...)
     int type;
     /// @brief The vehicle type when using a private car or bike
@@ -347,17 +361,17 @@ public:
     /// @brief effort needed
     double cost;
     /// @brief length in m
-    double length;
+    double length = INVALID_DOUBLE_VALUE;
     /// @brief id of the intended vehicle for public transport ride
-    std::string intended;
-    /// @brief intended depart time for public transport ride or -1
-    double depart;
+    std::string intended = "";
+    /// @brief intended depart time for public transport ride or INVALID_DOUBLE_VALUE
+    double depart = INVALID_DOUBLE_VALUE;
     /// @brief position on the lane when starting the stage
-    double departPos;
+    double departPos = INVALID_DOUBLE_VALUE;
     /// @brief position on the lane when ending the stage
-    double arrivalPos;
+    double arrivalPos = INVALID_DOUBLE_VALUE;
     /// @brief arbitrary description string
-    std::string description;
+    std::string description = "";
 };
 }
 

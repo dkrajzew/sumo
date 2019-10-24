@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import os
 import sys
 import socket
+import io
 import collections
 from optparse import OptionParser
 import xml.sax
@@ -32,8 +33,6 @@ except ImportError:
     haveLxml = False
 
 import xsd
-
-PY3 = sys.version_info > (3,)
 
 
 class NestingHandler(xml.sax.handler.ContentHandler):
@@ -150,13 +149,9 @@ class CSVWriter(NestingHandler):
                 else:
                     outfilename = os.path.splitext(
                         options.source)[0] + "%s.csv" % root
-                self.outfiles[root] = open(outfilename, 'w')
-            if (PY3):
-                self.outfiles[root].write(str.encode(
-                    options.separator.join(map(self.quote, attrFinder.attrs[root])) + "\n"))
-            else:
-                self.outfiles[root].write(
-                    options.separator.join(map(self.quote, attrFinder.attrs[root])) + "\n")
+                self.outfiles[root] = getOutStream(outfilename)
+            self.outfiles[root].write(
+                options.separator.join(map(self.quote, attrFinder.attrs[root])) + u"\n")
 
     def quote(self, s):
         return "%s%s%s" % (self.options.quotechar, s, self.options.quotechar)
@@ -195,12 +190,8 @@ class CSVWriter(NestingHandler):
             # self.haveUnsavedValues)
             if name in self.attrFinder.depthTags[root][self.depth()]:
                 if self.haveUnsavedValues:
-                    if(PY3):
-                        self.outfiles[root].write(str.encode(self.options.separator.join(
-                            [self.quote(self.currentValues[a]) for a in self.attrFinder.attrs[root]]) + "\n"))
-                    else:
-                        self.outfiles[root].write(self.options.separator.join(
-                            [self.quote(self.currentValues[a]) for a in self.attrFinder.attrs[root]]) + "\n")
+                    self.outfiles[root].write(self.options.separator.join(
+                        [self.quote(self.currentValues[a]) for a in self.attrFinder.attrs[root]]) + u"\n")
                     self.haveUnsavedValues = False
                 for a in self.attrFinder.tagAttrs[name]:
                     a2 = self.attrFinder.renamedAttrs.get((name, a), a)
@@ -219,10 +210,10 @@ def getSocketStream(port, mode='rb'):
 def getOutStream(output):
     if output.isdigit():
         return getSocketStream(int(output), 'wb')
-    return open(output, 'wb')
+    return io.open(output, 'w', encoding="utf8")
 
 
-def get_options():
+def get_options(arglist=None):
     optParser = OptionParser(
         usage=os.path.basename(sys.argv[0]) + " [<options>] <input_file_or_port>")
     optParser.add_option("-s", "--separator", default=";",
@@ -235,7 +226,7 @@ def get_options():
     optParser.add_option("-p", "--split", action="store_true",
                          default=False, help="split in different files for the first hierarchy level")
     optParser.add_option("-o", "--output", help="base name for output")
-    options, args = optParser.parse_args()
+    options, args = optParser.parse_args(arglist)
     if len(args) != 1:
         optParser.print_help()
         sys.exit()
@@ -250,14 +241,13 @@ def get_options():
     else:
         options.source = args[0]
     if options.output and options.output.isdigit() and options.split:
-        print(
-            "it is not possible to use splitting together with stream output", file=sys.stderr)
+        print("it is not possible to use splitting together with stream output", file=sys.stderr)
         sys.exit()
     return options
 
 
-def main():
-    options = get_options()
+def main(args=None):
+    options = get_options(args)
     # get attributes
     attrFinder = AttrFinder(options.xsd, options.source, options.split)
     # write csv

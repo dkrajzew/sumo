@@ -474,15 +474,13 @@ private:
 
 protected:
     /// constructor
-    NIImporter_Vissim(NBNetBuilder& nb, const std::string& file);
+    NIImporter_Vissim(NBNetBuilder& nb);
 
     /// destructor
     ~NIImporter_Vissim();
 
     /// loads the vissim file
     void load(const OptionsCont& options);
-
-    void loadXML(const OptionsCont& options, NBNetBuilder& nb);
 
     bool admitContinue(const std::string& tag);
 
@@ -580,8 +578,6 @@ private:
 
     NBNetBuilder& myNetBuilder;
 
-    bool myInputIsLegacyFormat;
-
 private:
     /// @brief Invalidated copy constructor.
     NIImporter_Vissim(const NIImporter_Vissim&);
@@ -605,6 +601,8 @@ private:
         VISSIM_TAG_LINKS,
         VISSIM_TAG_POINTS3D,
         VISSIM_TAG_POINT3D,
+        VISSIM_TAG_LINKPOLYPOINT,
+        VISSIM_TAG_LINKPOLYPTS,
         VISSIM_TAG_FROM,
         VISSIM_TAG_TO,
         VISSIM_TAG_VEHICLE_INPUT,

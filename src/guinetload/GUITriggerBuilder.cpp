@@ -70,12 +70,12 @@ GUITriggerBuilder::buildRerouter(MSNet& net, const std::string& id,
 
 void
 GUITriggerBuilder::buildStoppingPlace(MSNet& net, std::string id, std::vector<std::string> lines, MSLane* lane,
-                                      double frompos, double topos, const SumoXMLTag element, std::string name) {
+                                      double frompos, double topos, const SumoXMLTag element, std::string name, int personCapacity) {
     if (element == SUMO_TAG_CONTAINER_STOP) {
         //TODO: shall we also allow names for container stops? might make sense [GL March '17]
-        myCurrentStop = new GUIContainerStop(id, lines, *lane, frompos, topos);
+        myCurrentStop = new GUIContainerStop(id, lines, *lane, frompos, topos, name, personCapacity);
     } else {
-        myCurrentStop = new GUIBusStop(id, lines, *lane, frompos, topos, name);
+        myCurrentStop = new GUIBusStop(id, lines, *lane, frompos, topos, name, personCapacity);
     }
     if (!net.addStoppingPlace(element, myCurrentStop)) {
         delete myCurrentStop;
@@ -112,6 +112,7 @@ GUITriggerBuilder::buildChargingStation(MSNet& net, const std::string& id, MSLan
         delete chargingStation;
         throw InvalidArgument("Could not build charging station '" + id + "'; probably declared twice.");
     }
+    myCurrentStop = chargingStation;
     static_cast<GUINet&>(net).getVisualisationSpeedUp().addAdditionalGLObject(chargingStation);
 }
 
@@ -122,8 +123,9 @@ GUITriggerBuilder::buildCalibrator(MSNet& net, const std::string& id,
                                    const std::string& file,
                                    const std::string& outfile,
                                    const SUMOTime freq,
-                                   const MSRouteProbe* probe) {
-    GUICalibrator* cali = new GUICalibrator(id, edge, lane, pos, file, outfile, freq, probe);
+                                   const MSRouteProbe* probe,
+                                   const std::string& vTypes) {
+    GUICalibrator* cali = new GUICalibrator(id, edge, lane, pos, file, outfile, freq, probe, vTypes);
     static_cast<GUINet&>(net).getVisualisationSpeedUp().addAdditionalGLObject(cali);
     return cali;
 }

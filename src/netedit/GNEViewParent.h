@@ -41,6 +41,7 @@ class GNEDeleteFrame;
 class GNEDialogACChooser;
 class GNEInspectorFrame;
 class GNENet;
+class GNEFrame;
 class GNEPolygonFrame;
 class GNEProhibitionFrame;
 class GNERouteFrame;
@@ -50,6 +51,10 @@ class GNETLSEditorFrame;
 class GNEUndoList;
 class GNEVehicleFrame;
 class GNEVehicleTypeFrame;
+class GNEStopFrame;
+class GNEPersonTypeFrame;
+class GNEPersonFrame;
+class GNEPersonPlanFrame;
 
 // ===========================================================================
 // class declarations
@@ -96,6 +101,9 @@ public:
     /// @brief hide all frames
     void hideAllFrames();
 
+    /// @brief get current frame (note: it can be null)
+    GNEFrame* getCurrentShownFrame() const;
+
     /// @brief get frame for GNE_NMODE_INSPECT
     GNEInspectorFrame* getInspectorFrame() const;
 
@@ -138,6 +146,18 @@ public:
     /// @brief get frame for GNE_DMODE_VEHICLETYPE
     GNEVehicleTypeFrame* getVehicleTypeFrame() const;
 
+    /// @brief get frame for GNE_DMODE_STOP
+    GNEStopFrame* getStopFrame() const;
+
+    /// @brief get frame for GNE_DMODE_PERSONTYPE
+    GNEPersonTypeFrame* getPersonTypeFrame() const;
+
+    /// @brief get frame for GNE_DMODE_PERSON
+    GNEPersonFrame* getPersonFrame() const;
+
+    /// @brief get frame for GNE_DMODE_PERSONFRAME
+    GNEPersonPlanFrame* getPersonPlanFrame() const;
+
     /// @brief show frames area if at least a GNEFrame is showed
     /// @note this function is called in GNEFrame::Show();
     void showFramesArea();
@@ -154,6 +174,9 @@ public:
 
     /// @brief remove created chooser dialog
     void eraseACChooserDialog(GNEDialogACChooser* chooserDialog);
+
+    /// @brief update toolbar undo/redo buttons (called when user press Ctrl+Z/Y)
+    void updateUndoRedoButtons();
 
     /// @name FOX-callbacks
     /// @{
@@ -177,8 +200,7 @@ public:
     /// @}
 
 protected:
-    /// @brief FOX needs this
-    GNEViewParent() {}
+	FOX_CONSTRUCTOR(GNEViewParent)
 
 private:
     /// @brief struct for Frames
@@ -194,6 +216,9 @@ private:
 
         /// @brief return true if at least there is a frame shown
         bool isFrameShown() const;
+
+        /// @brief get current frame show
+        GNEFrame* getCurrentShownFrame() const;
 
         /// @brief frame for GNE_NMODE_INSPECT
         GNEInspectorFrame* inspectorFrame;
@@ -236,6 +261,18 @@ private:
 
         /// @brief frame for GNE_DMODE_VEHICLETYPE
         GNEVehicleTypeFrame* vehicleTypeFrame;
+
+        /// @brief frame for GNE_DMODE_STOP
+        GNEStopFrame* stopFrame;
+
+        /// @brief frame for GNE_DMODE_PERSON
+        GNEPersonFrame* personFrame;
+
+        /// @brief frame for GNE_DMODE_PERSONTYPE
+        GNEPersonTypeFrame* personTypeFrame;
+
+        /// @brief frame for GNE_DMODE_PERSONPLAN
+        GNEPersonPlanFrame* personPlanFrame;
     };
 
     /// @brief struct for ACChoosers dialog
@@ -246,25 +283,34 @@ private:
         /// @brief destructor
         ~ACChoosers();
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate junctions
         GNEDialogACChooser* ACChooserJunction;
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate edges
         GNEDialogACChooser* ACChooserEdges;
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate vehicles
+        GNEDialogACChooser* ACChooserVehicles;
+
+        /// @brief pointer to ACChooser dialog used for locate routes
+        GNEDialogACChooser* ACChooserRoutes;
+
+        /// @brief pointer to ACChooser dialog used for locate stops
+        GNEDialogACChooser* ACChooserStops;
+
+        /// @brief pointer to ACChooser dialog used for locate TLSs
         GNEDialogACChooser* ACChooserTLS;
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate additional
         GNEDialogACChooser* ACChooserAdditional;
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate POIs
         GNEDialogACChooser* ACChooserPOI;
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate Polygons
         GNEDialogACChooser* ACChooserPolygon;
 
-        /// @brief pointer to ACChooser dialog
+        /// @brief pointer to ACChooser dialog used for locate Prohibitions
         GNEDialogACChooser* ACChooserProhibition;
     };
 
@@ -276,6 +322,12 @@ private:
 
     /// @brief frame to hold GNEFrames
     FXHorizontalFrame* myFramesArea;
+
+    /// @brief toolbar undo button
+    FXButton *myUndoButton;
+
+    /// @brief toolbar redo button
+    FXButton *myRedoButton;
 
     /// @brief Splitter to divide ViewNet und GNEFrames
     FXSplitter* myFramesSplitter;

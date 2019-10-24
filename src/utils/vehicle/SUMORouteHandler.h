@@ -50,23 +50,32 @@ class SUMOVTypeParameter;
  */
 class SUMORouteHandler : public SUMOSAXHandler {
 public:
+    /// @brief enum for stops
+    enum StopPos {
+        STOPPOS_VALID,
+        STOPPOS_INVALID_STARTPOS,
+        STOPPOS_INVALID_ENDPOS,
+        STOPPOS_INVALID_LANELENGTH
+    };
+
     /// @brief standard constructor
-    SUMORouteHandler(const std::string& file, const std::string& expectedRoot);
+    SUMORouteHandler(const std::string& file, const std::string& expectedRoot, const bool hardFail);
 
     /// @brief standard destructor
     virtual ~SUMORouteHandler();
 
-    /// @brief Returns the last loaded depart time
-    SUMOTime getLastDepart() const;
+    /**@brief check start and end position of a stop
+     * @brief return */
+    static StopPos checkStopPos(double& startPos, double& endPos, const double laneLength, const double minLength, const bool friendlyPos);
 
-    /// @brief check start and end position of a stop
-    static bool checkStopPos(double& startPos, double& endPos, const double laneLength,
-                             const double minLength, const bool friendlyPos);
+    /// @brief check if start and end position of a stop is valid
+    static bool isStopPosValid(const double startPos, const double endPos, const double laneLength, const double minLength, const bool friendlyPos);
 
     /// @brief returns the first departure time that was ever read
-    SUMOTime getFirstDepart() const {
-        return myFirstDepart;
-    }
+    SUMOTime getFirstDepart() const;
+
+    /// @brief Returns the last loaded depart time
+    SUMOTime getLastDepart() const;
 
 protected:
     /// @name inherited from GenericSAXHandler
@@ -82,7 +91,6 @@ protected:
     virtual void myStartElement(int element,
                                 const SUMOSAXAttributes& attrs);
 
-
     /** @brief Called when a closing tag occurs
      *
      * @param[in] element ID of the currently opened element
@@ -92,6 +100,8 @@ protected:
     virtual void myEndElement(int element);
     //@}
 
+    /// @name open element functions
+    //@{
 
     /// @brief opens a type distribution for reading
     virtual void openVehicleTypeDistribution(const SUMOSAXAttributes& attrs) = 0;
@@ -102,11 +112,21 @@ protected:
     /// @brief opens a route for reading
     virtual void openRoute(const SUMOSAXAttributes& attrs) = 0;
 
+    /// @brief opens a flow for reading
+    virtual void openFlow(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief opens a trip for reading
+    virtual void openTrip(const SUMOSAXAttributes& attrs) = 0;
+    //@}
+
+    /// @name close element functions
+    //@{
+
     /**closes (ends) the building of a route.
      * Afterwards no edges may be added to it;
      * this method may throw exceptions when
      * a) the route is empty or
-     * b) another route with the same id already exists 
+     * b) another route with the same id already exists
      */
     virtual void closeRoute(const bool mayBeDisconnected = false) = 0;
 
@@ -118,18 +138,28 @@ protected:
 
     /// @brief Ends the processing of a vehicle
     virtual void closeVehicle() = 0;
-    
-    /// @brief Ends the processing of a vehicle type (by default empty)
-    virtual void closeVType() {}
+
+    /// @brief Ends the processing of a vehicle type
+    virtual void closeVType() = 0;
 
     /// @brief Ends the processing of a person
     virtual void closePerson() = 0;
+
+    /// @brief Ends the processing of a person
+    virtual void closePersonFlow() = 0;
 
     /// @brief Ends the processing of a container
     virtual void closeContainer() = 0;
 
     /// @brief Ends the processing of a flow
     virtual void closeFlow() = 0;
+
+    /// @brief Ends the processing of a trip
+    virtual void closeTrip() = 0;
+    //@}
+
+    /// @name add element functions
+    //@{
 
     /// @brief Processing of a stop
     virtual void addStop(const SUMOSAXAttributes& attrs) = 0;
@@ -139,6 +169,23 @@ protected:
 
     /// @brief add a fully specified walk
     virtual void addWalk(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief Processing of a person
+    virtual void addPerson(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief Processing of a container
+    virtual void addContainer(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief Processing of a ride
+    virtual void addRide(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief Processing of a transport
+    virtual void addTransport(const SUMOSAXAttributes& attrs) = 0;
+
+    /// @brief Processing of a tranship
+    virtual void addTranship(const SUMOSAXAttributes& attrs) = 0;
+
+    //@}
 
     /// @brief Checks whether the route file is sorted by departure time if needed
     bool checkLastDepart();
@@ -153,6 +200,9 @@ protected:
     bool parseStop(SUMOVehicleParameter::Stop& stop, const SUMOSAXAttributes& attrs, std::string errorSuffix, MsgHandler* const errorOutput);
 
 protected:
+    /// @brief flag to enable or disable hard fails
+    const bool myHardFail;
+
     /// @brief Parameter of the current vehicle, trip, person, container or flow
     SUMOVehicleParameter* myVehicleParameter;
 
@@ -180,6 +230,9 @@ protected:
     /// @brief The currently parsed vehicle type
     SUMOVTypeParameter* myCurrentVType;
 
+    /// @brief Parameterised used for saving loaded generic parameters that aren't saved in Vehicles or Vehicle Types
+    Parameterised myLoadedParameterised;
+
     /// @brief generates numerical ids
     IDSupplier myIdSupplier;
 
@@ -197,11 +250,10 @@ protected:
 
 private:
     /// @brief Invalidated copy constructor
-    SUMORouteHandler(const SUMORouteHandler& s);
+    SUMORouteHandler(const SUMORouteHandler& s) = delete;
 
     /// @brief Invalidated assignment operator
-    SUMORouteHandler& operator=(const SUMORouteHandler& s);
-
+    SUMORouteHandler& operator=(const SUMORouteHandler& s) = delete;
 };
 
 

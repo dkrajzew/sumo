@@ -37,6 +37,9 @@ class PositionVector;
 class RGBColor;
 class MSEdge;
 class MSPerson;
+class MSVehicle;
+class MSVehicleType;
+
 
 // ===========================================================================
 // type definitions
@@ -118,7 +121,10 @@ public:
 
     static MSEdge* getEdge(const std::string& edgeID);
     static const MSLane* getLaneChecking(const std::string& edgeID, int laneIndex, double pos);
-    static std::pair<MSLane*, double> convertCartesianToRoadMap(Position pos);
+    static std::pair<MSLane*, double> convertCartesianToRoadMap(const Position& pos, const SUMOVehicleClass vClass);
+
+    static MSVehicle* getVehicle(const std::string& id);
+    static const MSVehicleType& getVehicleType(const std::string& vehicleID);
 
     static void findObjectShape(int domain, const std::string& id, PositionVector& shape);
 
@@ -152,13 +158,15 @@ public:
     /// @{
     static bool moveToXYMap(const Position& pos, double maxRouteDistance, bool mayLeaveNetwork, const std::string& origID, const double angle,
                             double speed, const ConstMSEdgeVector& currentRoute, const int routePosition, MSLane* currentLane, double currentLanePos, bool onRoad,
+                            SUMOVehicleClass vClass,
                             double& bestDistance, MSLane** lane, double& lanePos, int& routeOffset, ConstMSEdgeVector& edges);
 
     static bool moveToXYMap_matchingRoutePosition(const Position& pos, const std::string& origID,
             const ConstMSEdgeVector& currentRoute, int routeIndex,
+            SUMOVehicleClass vClass,
             double& bestDistance, MSLane** lane, double& lanePos, int& routeOffset);
 
-    static bool findCloserLane(const MSEdge* edge, const Position& pos, double& bestDistance, MSLane** lane);
+    static bool findCloserLane(const MSEdge* edge, const Position& pos, SUMOVehicleClass vClass, double& bestDistance, MSLane** lane);
 
     class LaneUtility {
     public:
@@ -166,7 +174,6 @@ public:
                     bool onRoute_, bool sameEdge_, const MSEdge* prevEdge_, const MSEdge* nextEdge_) :
             dist(dist_), perpendicularDist(perpendicularDist_), lanePos(lanePos_), angleDiff(angleDiff_), ID(ID_),
             onRoute(onRoute_), sameEdge(sameEdge_), prevEdge(prevEdge_), nextEdge(nextEdge_) {}
-        LaneUtility() {}
         ~LaneUtility() {}
 
         double dist;
@@ -181,20 +188,22 @@ public:
     };
     /// @}
 
-    class SubscriptionWrapper : public VariableWrapper {
+    class SubscriptionWrapper final : public VariableWrapper {
     public:
         SubscriptionWrapper(VariableWrapper::SubscriptionHandler handler, SubscriptionResults& into, ContextSubscriptionResults& context);
         void setContext(const std::string& refID);
+        void clear();
         bool wrapDouble(const std::string& objID, const int variable, const double value);
         bool wrapInt(const std::string& objID, const int variable, const int value);
         bool wrapString(const std::string& objID, const int variable, const std::string& value);
         bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value);
         bool wrapPosition(const std::string& objID, const int variable, const TraCIPosition& value);
         bool wrapColor(const std::string& objID, const int variable, const TraCIColor& value);
+        bool wrapRoadPosition(const std::string& objID, const int variable, const TraCIRoadPosition& value);
     private:
-        SubscriptionResults myResults;
-        ContextSubscriptionResults myContextResults;
-        SubscriptionResults& myActiveResults;
+        SubscriptionResults& myResults;
+        ContextSubscriptionResults& myContextResults;
+        SubscriptionResults* myActiveResults;
     private:
         /// @brief Invalidated assignment operator
         SubscriptionWrapper& operator=(const SubscriptionWrapper& s) = delete;

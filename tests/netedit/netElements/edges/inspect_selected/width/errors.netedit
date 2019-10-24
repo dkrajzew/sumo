@@ -1,4 +1,5 @@
-Debug: Selected item 'DEFAULT_VEHTYPE' in VTypeSelector
+Debug: Selected item 'DEFAULT_VEHTYPE' in DemandElementSelector
+Debug: Selected item 'DEFAULT_PEDTYPE' in DemandElementSelector
 Debug: Adding busStop 'busStop1' in GNEChange_Additional
 Debug: Additionals has to be saved
 Debug: Current saving Status: net saved, additionals unsaved, demand elements saved
@@ -30,6 +31,7 @@ Debug: ObjectsUnderCursor: GUIGlObjects: 1, AttributeCarriers: 1, NetElements: 1
 Debug: ObjectsUnderCursor: swapped Lanes to edges
 Debug: ObjectsUnderCursor: GUIGlObjects: 1, AttributeCarriers: 1, NetElements: 1, Additionals: 0, DemandElements: 0, Shapes: 0, Junctions: 0, Edges: 1, Lanes: 1, Crossings: 0, Connections: 0, TAZs: 0, POIs: 0, Polys: 0
 Debug: ObjectsUnderCursor: swapped Lanes to edges
+Debug: Value 'dummyWidth' for attribute width of edge isn't valid
 Debug: Setting new attribute width '-1' into lane 'gneE2_0'
 Debug: net has to be saved
 Debug: Current saving Status: net unsaved, additionals unsaved, demand elements saved
@@ -38,19 +40,8 @@ Debug: Setting new attribute width '-1' into edge 'gneE2'
 Debug: Setting new attribute width '-1' into lane 'gneE3_0'
 Debug: Setting new attribute width '-1' into lane 'gneE3_1'
 Debug: Setting new attribute width '-1' into edge 'gneE3'
-Debug: Setting new attribute width '-1' into lane 'gneE2_0'
-Debug: Setting new attribute width '-1' into lane 'gneE2_1'
-Debug: Setting new attribute width '-1' into edge 'gneE2'
-Debug: Setting new attribute width '-1' into lane 'gneE3_0'
-Debug: Setting new attribute width '-1' into lane 'gneE3_1'
-Debug: Setting new attribute width '-1' into edge 'gneE3'
 Debug: Value '-2' for attribute width of edge isn't valid
-Debug: Setting new attribute width '-1' into lane 'gneE2_0'
-Debug: Setting new attribute width '-1' into lane 'gneE2_1'
-Debug: Setting new attribute width '-1' into edge 'gneE2'
-Debug: Setting new attribute width '-1' into lane 'gneE3_0'
-Debug: Setting new attribute width '-1' into lane 'gneE3_1'
-Debug: Setting new attribute width '-1' into edge 'gneE3'
+Debug: Value 'default' for attribute width of edge isn't valid
 Debug: Setting new attribute width '4' into lane 'gneE2_0'
 Debug: Setting new attribute width '4' into lane 'gneE2_1'
 Debug: Setting new attribute width '4' into edge 'gneE2'
@@ -59,7 +50,8 @@ Debug: Setting new attribute width '4' into lane 'gneE3_1'
 Debug: Setting new attribute width '4' into edge 'gneE3'
 Debug: Key F5 (Compute) pressed
 Debug: ObjectsUnderCursor: GUIGlObjects: 0, AttributeCarriers: 0, NetElements: 0, Additionals: 0, DemandElements: 0, Shapes: 0, Junctions: 0, Edges: 0, Lanes: 0, Crossings: 0, Connections: 0, TAZs: 0, POIs: 0, Polys: 0
-Debug: Keys Ctrl + Z (Undo) pressed
+Debug: Keys Ctrl+Z (Undo) pressed
+Debug: Calling GNEUndoList::undo()
 Debug: Setting previous attribute width '-1.00' into edge 'gneE3'
 Debug: Setting previous attribute width '-1.00' into lane 'gneE3_1'
 Debug: Setting previous attribute width '-1.00' into lane 'gneE3_0'
@@ -68,7 +60,8 @@ Debug: Setting previous attribute width '-1.00' into lane 'gneE2_1'
 Debug: Setting previous attribute width '-1.00' into lane 'gneE2_0'
 Debug: Key F5 (Compute) pressed
 Debug: ObjectsUnderCursor: GUIGlObjects: 0, AttributeCarriers: 0, NetElements: 0, Additionals: 0, DemandElements: 0, Shapes: 0, Junctions: 0, Edges: 0, Lanes: 0, Crossings: 0, Connections: 0, TAZs: 0, POIs: 0, Polys: 0
-Debug: Keys Ctrl + Y (Redo) pressed
+Debug: Keys Ctrl+Y (Redo) pressed
+Debug: Calling GNEUndoList::redo()
 Debug: Setting new attribute width '4' into lane 'gneE2_0'
 Debug: Setting new attribute width '4' into lane 'gneE2_1'
 Debug: Setting new attribute width '4' into edge 'gneE2'
@@ -120,5 +113,7 @@ Debug: Deleting unreferenced junction 'gneJ0' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ1' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ2' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ3' in GNENet destructor
+Debug: Deleting unreferenced vType 'DEFAULT_BIKETYPE' in GNENet destructor
 Debug: Deleting unreferenced vType 'DEFAULT_VEHTYPE' in GNENet destructor
+Debug: Deleting unreferenced pType 'DEFAULT_PEDTYPE' in GNENet destructor
 Debug: Deleting net builder in GNENet destructor

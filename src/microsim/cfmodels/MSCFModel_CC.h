@@ -105,7 +105,7 @@ public:
      * for safe speed constraints
      *
      */
-    virtual double insertionFollowSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double predMaxDecel) const;
+    virtual double insertionFollowSpeed(const MSVehicle* const veh, double speed, double gap2pred, double predSpeed, double predMaxDecel, const MSVehicle* const pred = 0) const;
 
 
     /** @brief Computes the vehicle's safe speed for approaching a non-moving obstacle (no dawdling)
@@ -241,15 +241,6 @@ public:
      * @brief return the data that is currently being measured by the radar
      */
     void getRadarMeasurements(const MSVehicle* veh, double& distance, double& relativeSpeed) const;
-
-    /**
-     * @brief tells the module that in the last timestep the car has crashed (or not)
-     *
-     * @param[in] veh the vehicle
-     * @param[in] crashed whether the car has crashed or not
-     * @param[in] victim whether the car was the victim or not
-     */
-    void setCrashed(const MSVehicle* veh, bool crashed, bool victim = false) const;
 
     /**
      * @brief returns the ACC computed acceleration when the faked

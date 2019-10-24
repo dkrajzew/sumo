@@ -111,7 +111,7 @@ protected:
      * @exception InvalidArgument If the stop can not be added to the net (is duplicate)
      */
     virtual void buildStoppingPlace(MSNet& net, std::string id, std::vector<std::string> lines, MSLane* lane,
-                                    double frompos, double topos, const SumoXMLTag element, std::string string);
+                                    double frompos, double topos, const SumoXMLTag element, std::string string, int personCapacity);
 
 
     /** @brief Builds a parking area
@@ -172,7 +172,8 @@ protected:
     virtual MSCalibrator* buildCalibrator(MSNet& net,
                                           const std::string& id, MSEdge* edge, MSLane* lane, double pos,
                                           const std::string& file, const std::string& outfile,
-                                          const SUMOTime freq, const MSRouteProbe* probe);
+                                          const SUMOTime freq, const MSRouteProbe* probe,
+                                          const std::string& vTypes);
     /// @}
 
 

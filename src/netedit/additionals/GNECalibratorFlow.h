@@ -48,7 +48,7 @@ public:
     GNECalibratorFlow(GNEAdditional* calibratorParent, GNEDemandElement* vehicleType, GNEDemandElement* route, const std::string& vehsPerHour, const std::string& speed,
                       const RGBColor& color, const std::string& departLane, const std::string& departPos, const std::string& departSpeed, const std::string& arrivalLane,
                       const std::string& arrivalPos, const std::string& arrivalSpeed, const std::string& line, int personNumber, int containerNumber, bool reroute,
-                      const std::string& departPosLat, const std::string& arrivalPosLat, double begin, double end);
+                      const std::string& departPosLat, const std::string& arrivalPosLat, SUMOTime begin, SUMOTime end);
 
     /// @brief destructor
     ~GNECalibratorFlow();
@@ -66,10 +66,13 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    Boundary getCenteringBoundary() const;
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -94,6 +97,12 @@ public:
     */
     std::string getAttribute(SumoXMLAttr key) const;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
     * @param[in] key The attribute key
     * @param[in] value The new value
@@ -108,6 +117,11 @@ public:
     * @param[in] undoList The undoList on which to register changes
     */
     bool isValid(SumoXMLAttr key, const std::string& value);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
 
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
@@ -171,10 +185,10 @@ protected:
     /// @name specific of flows
     /// @{
     /// @brief time step begin
-    double myBegin;
+    SUMOTime myBegin;
 
     /// @brief time step end
-    double myEnd;
+    SUMOTime myEnd;
     /// @}
 
 private:

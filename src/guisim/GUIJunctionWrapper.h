@@ -103,6 +103,8 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief Returns the value for generic parameter 'name' or ''
+    const std::string getOptionalName() const;
 
     /** @brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -140,7 +142,7 @@ public:
 #endif
 
 private:
-    double getColorValue(const GUIVisualizationSettings& s) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
 private:
     /// @brief A reference to the represented junction

@@ -21,7 +21,6 @@
 // ===========================================================================
 #include <config.h>
 
-#include <utils/foxtools/MFXUtils.h>
 #include <utils/geom/GeomHelper.h>
 #include <utils/gui/div/GUIParameterTableWindow.h>
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
@@ -200,7 +199,7 @@ GNEInternalLane::colorForLinksState(FXuint state) {
         try {
             return GUIVisualizationSettings::getLinkColor((LinkState)state);
         } catch (ProcessError&) {
-            std::cout << "invalid link state='" << state << "'\n";
+            WRITE_WARNING("invalid link state='" + toString(state) + "'");
             return RGBColor::BLACK;
         }
     }

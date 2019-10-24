@@ -84,11 +84,8 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
     }
 
     // MODIFYING THE SETS OF NODES AND EDGES
-
-    long before = SysUtils::getCurrentMillis();
-
-
     // Removes edges that are connecting the same node
+    long before = SysUtils::getCurrentMillis();
     PROGRESS_BEGIN_MESSAGE("Removing self-loops");
     myNodeCont.removeSelfLoops(myDistrictCont, myEdgeCont, myTLLCont);
     PROGRESS_TIME_MESSAGE(before);
@@ -126,15 +123,22 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
     if (oc.exists("ptline-output") && oc.isSet("ptline-output")) {
         before = SysUtils::getCurrentMillis();
         PROGRESS_BEGIN_MESSAGE("Revising public transport stops based on pt lines");
-        myPTLineCont.process(myEdgeCont);
+        myPTLineCont.process(myEdgeCont, myPTStopCont);
         PROGRESS_TIME_MESSAGE(before);
     }
 
-    if (oc.exists("ptline-output") && oc.isSet("ptline-output") && oc.exists("ptline-clean-up") && oc.getBool("ptline-clean-up")) {
-        before = SysUtils::getCurrentMillis();
-        PROGRESS_BEGIN_MESSAGE("Cleaning up public transport stops that are not served by any line");
-        myPTStopCont.postprocess(myPTLineCont.getServedPTStops());
-        PROGRESS_TIME_MESSAGE(before);
+    if (oc.exists("ptline-output") && oc.isSet("ptline-output")) {
+        if (oc.exists("ptline-clean-up") && oc.getBool("ptline-clean-up")) {
+            before = SysUtils::getCurrentMillis();
+            PROGRESS_BEGIN_MESSAGE("Cleaning up public transport stops that are not served by any line");
+            myPTStopCont.postprocess(myPTLineCont.getServedPTStops());
+            PROGRESS_TIME_MESSAGE(before);
+        } else {
+            int numDeletedStops = myPTStopCont.cleanupDeleted(myEdgeCont);
+            if (numDeletedStops > 0) {
+                WRITE_WARNING("Removed " + toString(numDeletedStops) + " pt stops because they could not be assigned to the network");
+            }
+        }
     }
 
     if (oc.exists("ptstop-output") && oc.isSet("ptstop-output")) {
@@ -149,6 +153,10 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
         NBTurningDirectionsComputer::computeTurnDirections(myNodeCont, false);
         NBRailwayTopologyAnalyzer::makeAllBidi(*this);
     } else if (oc.exists("railway.topology.repair") && oc.getBool("railway.topology.repair")) {
+        // correct railway angles for angle-based connectivity heuristic
+        myEdgeCont.checkGeometries(0,
+                oc.getFloat("geometry.min-radius"), false,
+                oc.getBool("geometry.min-radius.fix.railways"),true);
         NBTurningDirectionsComputer::computeTurnDirections(myNodeCont, false);
         NBRailwayTopologyAnalyzer::repairTopology(*this);
     }
@@ -157,7 +165,7 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
         NBRailwayTopologyAnalyzer::analyzeTopology(*this);
     }
 
-    if (oc.getBool("junctions.join") || (oc.exists("ramps.guess") && oc.getBool("ramps.guess"))) {
+    if (oc.getBool("junctions.join") || (oc.exists("ramps.guess") && oc.getBool("ramps.guess")) || oc.getBool("tls.guess.joining")) {
         // preliminary geometry computations to determine the length of edges
         // This depends on turning directions and sorting of edge list
         // in case junctions are joined geometry computations have to be repeated
@@ -199,6 +207,14 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
     if (numJoined > 0) {
         // bit of a misnomer since we're already done
         WRITE_MESSAGE(" Joined " + toString(numJoined) + " junction cluster(s).");
+    }
+    //
+    if (mayAddOrRemove && oc.exists("join-lanes") && oc.getBool("join-lanes")) {
+        before = SysUtils::getCurrentMillis();
+        PROGRESS_BEGIN_MESSAGE("Joining lanes");
+        const int num = myEdgeCont.joinLanes(SVC_IGNORING) + myEdgeCont.joinLanes(SVC_PEDESTRIAN);
+        PROGRESS_TIME_MESSAGE(before);
+        WRITE_MESSAGE("   Joined lanes on " + toString(num) + " edges.");
     }
     //
     if (mayAddOrRemove) {
@@ -249,10 +265,10 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
         PROGRESS_DONE_MESSAGE();
     }
     //
-    if (mayAddOrRemove &&  oc.exists("geometry.split") && oc.getBool("geometry.split")) {
+    if (mayAddOrRemove && oc.exists("geometry.split") && oc.getBool("geometry.split")) {
         before = SysUtils::getCurrentMillis();
         PROGRESS_BEGIN_MESSAGE("Splitting geometry edges");
-        myEdgeCont.splitGeometry(myNodeCont);
+        myEdgeCont.splitGeometry(myDistrictCont, myNodeCont);
         PROGRESS_TIME_MESSAGE(before);
     }
     // turning direction
@@ -300,12 +316,23 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
             }
         }
     }
+    // guess bike lanes
+    if (mayAddOrRemove && ((oc.getBool("bikelanes.guess") || oc.getBool("bikelanes.guess.from-permissions")))) {
+        const int bikelanes = myEdgeCont.guessSpecialLanes(SVC_BICYCLE, oc.getFloat("default.bikelane-width"),
+                              oc.getFloat("bikelanes.guess.min-speed"),
+                              oc.getFloat("bikelanes.guess.max-speed"),
+                              oc.getBool("bikelanes.guess.from-permissions"),
+                              "bikelanes.guess.exclude");
+        WRITE_MESSAGE("Guessed " + toString(bikelanes) + " bike lanes.");
+    }
+
     // guess sidewalks
     if (mayAddOrRemove && ((oc.getBool("sidewalks.guess") || oc.getBool("sidewalks.guess.from-permissions")))) {
-        const int sidewalks = myEdgeCont.guessSidewalks(oc.getFloat("default.sidewalk-width"),
+        const int sidewalks = myEdgeCont.guessSpecialLanes(SVC_PEDESTRIAN, oc.getFloat("default.sidewalk-width"),
                               oc.getFloat("sidewalks.guess.min-speed"),
                               oc.getFloat("sidewalks.guess.max-speed"),
-                              oc.getBool("sidewalks.guess.from-permissions"));
+                              oc.getBool("sidewalks.guess.from-permissions"),
+                              "sidewalks.guess.exclude");
         WRITE_MESSAGE("Guessed " + toString(sidewalks) + " sidewalks.");
     }
 
@@ -324,7 +351,8 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
         myEdgeCont.checkGeometries(
             DEG2RAD(oc.getFloat("geometry.max-angle")),
             oc.getFloat("geometry.min-radius"),
-            oc.getBool("geometry.min-radius.fix"));
+            oc.getBool("geometry.min-radius.fix"),
+            oc.getBool("geometry.min-radius.fix.railways"));
     }
 
     // GEOMETRY COMPUTATION
@@ -484,7 +512,7 @@ NBNetBuilder::compute(OptionsCont& oc, const std::set<std::string>& explicitTurn
     //
     before = SysUtils::getCurrentMillis();
     PROGRESS_BEGIN_MESSAGE("Computing node logics");
-    myNodeCont.computeLogics(myEdgeCont, oc);
+    myNodeCont.computeLogics(myEdgeCont);
     PROGRESS_TIME_MESSAGE(before);
     //
     before = SysUtils::getCurrentMillis();
@@ -676,30 +704,34 @@ NBNetBuilder::transformCoordinates(PositionVector& from, bool includeInBoundary,
         for (int i = 0; i < (int) from.size(); i++) {
             transformCoordinate(copy[i], false);
         }
-        // check lengths and insert new points where needed (in the original
-        // coordinate system)
-        int inserted = 0;
-        for (int i = 0; i < (int)copy.size() - 1; i++) {
-            Position start = from[i + inserted];
-            Position end = from[i + inserted + 1];
-            double length = copy[i].distanceTo(copy[i + 1]);
-            const Position step = (end - start) * (maxLength / length);
-            int steps = 0;
-            while (length > maxLength) {
-                length -= maxLength;
-                steps++;
-                from.insert(from.begin() + i + inserted + 1, start + (step * steps));
-                inserted++;
-            }
-        }
-        // now perform the transformation again so that height mapping can be
-        // performed for the new points
+        addGeometrySegments(from, copy, maxLength);
     }
     bool ok = true;
     for (int i = 0; i < (int) from.size(); i++) {
         ok = ok && transformCoordinate(from[i], includeInBoundary, from_srs);
     }
     return ok;
+}
+
+int 
+NBNetBuilder::addGeometrySegments(PositionVector& from, const PositionVector& cartesian, const double maxLength) {
+    // check lengths and insert new points where needed (in the original
+    // coordinate system)
+    int inserted = 0;
+    for (int i = 0; i < (int)cartesian.size() - 1; i++) {
+        Position start = from[i + inserted];
+        Position end = from[i + inserted + 1];
+        double length = cartesian[i].distanceTo(cartesian[i + 1]);
+        const Position step = (end - start) * (maxLength / length);
+        int steps = 0;
+        while (length > maxLength) {
+            length -= maxLength;
+            steps++;
+            from.insert(from.begin() + i + inserted + 1, start + (step * steps));
+            inserted++;
+        }
+    }
+    return inserted;
 }
 
 

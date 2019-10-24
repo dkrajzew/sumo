@@ -102,12 +102,9 @@ Simulation::close() {
 }
 
 
-LIBSUMO_SUBSCRIPTION_IMPLEMENTATION(Simulation, SIM)
-
-
 void
-Simulation::subscribe(const std::vector<int>& vars, double beginTime, double endTime) {
-    libsumo::Helper::subscribe(CMD_SUBSCRIBE_SIM_VARIABLE, "", vars, beginTime, endTime);
+Simulation::subscribe(const std::vector<int>& varIDs, double begin, double end) {
+    libsumo::Helper::subscribe(CMD_SUBSCRIBE_SIM_VARIABLE, "", varIDs, begin, end);
 }
 
 
@@ -260,6 +257,14 @@ Simulation::getEndingTeleportIDList() {
     return Helper::getVehicleStateChanges(MSNet::VEHICLE_STATE_ENDING_TELEPORT);
 }
 
+std::vector<std::string>
+Simulation::getBusStopIDList() {
+    std::vector<std::string> result;
+    for (const auto pair : MSNet::getInstance()->getStoppingPlaces(SUMO_TAG_BUS_STOP)) {
+        result.push_back(pair.first);
+    }
+    return result;
+}
 
 int
 Simulation::getBusStopWaiting(const std::string& id) {
@@ -268,6 +273,17 @@ Simulation::getBusStopWaiting(const std::string& id) {
         throw TraCIException("Unknown bus stop '" + id + "'.");
     }
     return s->getTransportableNumber();
+}
+
+std::vector<std::string>
+Simulation::getBusStopWaitingIDList(const std::string& id) {
+    MSStoppingPlace* s = MSNet::getInstance()->getStoppingPlace(id, SUMO_TAG_BUS_STOP);
+    std::vector<MSTransportable*> transportables = s->getTransportables();
+    std::vector<std::string> result;
+    for (std::vector<MSTransportable*>::iterator it = transportables.begin(); it != transportables.end(); it++) {
+        result.push_back((*it)->getID());
+    }
+    return result;
 }
 
 
@@ -303,7 +319,7 @@ Simulation::getMinExpectedNumber() {
 
 TraCIPosition
 Simulation::convert2D(const std::string& edgeID, double pos, int laneIndex, bool toGeo) {
-    Position result = Helper::getLaneChecking(edgeID, laneIndex, pos)->getShape().positionAtOffset(pos);
+    Position result = Helper::getLaneChecking(edgeID, laneIndex, pos)->geometryPositionAtOffset(pos);
     if (toGeo) {
         GeoConvHelper::getFinal().cartesian2geo(result);
     }
@@ -314,7 +330,7 @@ Simulation::convert2D(const std::string& edgeID, double pos, int laneIndex, bool
 
 TraCIPosition
 Simulation::convert3D(const std::string& edgeID, double pos, int laneIndex, bool toGeo) {
-    Position result = Helper::getLaneChecking(edgeID, laneIndex, pos)->getShape().positionAtOffset(pos);
+    Position result = Helper::getLaneChecking(edgeID, laneIndex, pos)->geometryPositionAtOffset(pos);
     if (toGeo) {
         GeoConvHelper::getFinal().cartesian2geo(result);
     }
@@ -323,12 +339,16 @@ Simulation::convert3D(const std::string& edgeID, double pos, int laneIndex, bool
 
 
 TraCIRoadPosition
-Simulation::convertRoad(double x, double y, bool isGeo) {
+Simulation::convertRoad(double x, double y, bool isGeo, const std::string& vClass) {
     Position pos(x, y);
     if (isGeo) {
         GeoConvHelper::getFinal().x2cartesian_const(pos);
     }
-    std::pair<MSLane*, double> roadPos = libsumo::Helper::convertCartesianToRoadMap(pos);
+    if (!SumoVehicleClassStrings.hasString(vClass)) {
+        throw TraCIException("Unknown vehicle class '" + vClass + "'.");
+    }
+    const SUMOVehicleClass vc = SumoVehicleClassStrings.get(vClass);
+    std::pair<MSLane*, double> roadPos = libsumo::Helper::convertCartesianToRoadMap(pos, vc);
     if (roadPos.first == nullptr) {
         throw TraCIException("Cannot convert position to road.");
     }
@@ -361,8 +381,8 @@ Simulation::getDistance2D(double x1, double y1, double x2, double y2, bool isGeo
         GeoConvHelper::getFinal().x2cartesian_const(pos2);
     }
     if (isDriving) {
-        std::pair<const MSLane*, double> roadPos1 = libsumo::Helper::convertCartesianToRoadMap(pos1);
-        std::pair<const MSLane*, double> roadPos2 = libsumo::Helper::convertCartesianToRoadMap(pos2);
+        std::pair<const MSLane*, double> roadPos1 = libsumo::Helper::convertCartesianToRoadMap(pos1, SVC_IGNORING);
+        std::pair<const MSLane*, double> roadPos2 = libsumo::Helper::convertCartesianToRoadMap(pos2, SVC_IGNORING);
         if ((roadPos1.first == roadPos2.first) && (roadPos1.second <= roadPos2.second)) {
             // same edge
             return roadPos2.second - roadPos1.second;
@@ -407,9 +427,9 @@ Simulation::getDistanceRoad(const std::string& edgeID1, double pos1, const std::
             return distance + route.getDistanceBetween(roadPos1.second, roadPos2.second, &roadPos1.first->getEdge(), &roadPos2.first->getEdge());
         }
     } else {
-        Position pos1 = roadPos1.first->getShape().positionAtOffset(roadPos1.second);
-        Position pos2 = roadPos2.first->getShape().positionAtOffset(roadPos2.second);
-        return pos1.distanceTo(pos2);
+        const Position p1 = roadPos1.first->geometryPositionAtOffset(roadPos1.second);
+        const Position p2 = roadPos2.first->geometryPositionAtOffset(roadPos2.second);
+        return p1.distanceTo(p2);
     }
 }
 
@@ -482,19 +502,21 @@ Simulation::findIntermodalRoute(const std::string& from, const std::string& to,
     }
     for (StringTokenizer st(modes); st.hasNext();) {
         const std::string mode = st.next();
-        if (mode == "car") {
+        if (mode == toString(PERSONMODE_CAR)) {
             pars.push_back(new SUMOVehicleParameter());
             pars.back()->vtypeid = DEFAULT_VTYPE_ID;
             pars.back()->id = mode;
             modeSet |= SVC_PASSENGER;
-        } else if (mode == "bicycle") {
+        } else if (mode == toString(PERSONMODE_BICYCLE)) {
             pars.push_back(new SUMOVehicleParameter());
             pars.back()->vtypeid = DEFAULT_BIKETYPE_ID;
             pars.back()->id = mode;
             modeSet |= SVC_BICYCLE;
-        } else if (mode == "public") {
+        } else if (mode == toString(PERSONMODE_PUBLIC)) {
             pars.push_back(nullptr);
             modeSet |= SVC_BUS;
+        } else if (mode == toString(PERSONMODE_WALK)) {
+            // do nothing
         } else {
             throw TraCIException("Unknown person mode '" + mode + "'.");
         }
@@ -599,6 +621,10 @@ Simulation::getParameter(const std::string& objectID, const std::string& key) {
             return toString(cs->getTotalCharged());
         } else if (attrName == toString(SUMO_ATTR_NAME)) {
             return toString(cs->getMyName());
+        } else if (attrName == "lane") {
+            return cs->getLane().getID();
+        } else if (cs->knowsParameter(attrName)) {
+            return cs->getParameter(attrName);
         } else {
             throw TraCIException("Invalid chargingStation parameter '" + attrName + "'");
         }
@@ -611,9 +637,13 @@ Simulation::getParameter(const std::string& objectID, const std::string& key) {
         if (attrName == "capacity") {
             return toString(pa->getCapacity());
         } else if (attrName == "occupancy") {
-            return toString(pa->getOccupancy());
+            return toString(pa->getOccupancyIncludingBlocked());
         } else if (attrName == toString(SUMO_ATTR_NAME)) {
             return toString(pa->getMyName());
+        } else if (attrName == "lane") {
+            return pa->getLane().getID();
+        } else if (pa->knowsParameter(attrName)) {
+            return pa->getParameter(attrName);
         } else {
             throw TraCIException("Invalid parkingArea parameter '" + attrName + "'");
         }
@@ -625,6 +655,10 @@ Simulation::getParameter(const std::string& objectID, const std::string& key) {
         }
         if (attrName == toString(SUMO_ATTR_NAME)) {
             return toString(bs->getMyName());
+        } else if (attrName == "lane") {
+            return bs->getLane().getID();
+        } else if (bs->knowsParameter(attrName)) {
+            return bs->getParameter(attrName);
         } else {
             throw TraCIException("Invalid busStop parameter '" + attrName + "'");
         }

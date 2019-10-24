@@ -76,6 +76,8 @@ public:
         /// destructor
         ~MSContainerStage_Driving();
 
+        Stage* clone() const;
+
         /// proceeds to the next step
         virtual void proceed(MSNet* net, MSTransportable* container, SUMOTime now, Stage* previous);
 
@@ -113,6 +115,8 @@ public:
         /// destructor
         ~MSContainerStage_Tranship();
 
+        Stage* clone() const;
+
         /// proceeds to the next step
         virtual void proceed(MSNet* net, MSTransportable* container, SUMOTime now, Stage* previous);
 
@@ -133,6 +137,9 @@ public:
 
         /// Returns the angle of the container
         double getAngle(SUMOTime now) const;
+
+        /// @brief get travel distance in this stage
+        double getDistance() const;
 
         /// Returns the time the container spent waiting
         SUMOTime getWaitingTime(SUMOTime now) const;

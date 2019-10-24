@@ -23,14 +23,7 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-    traci.vehicle.addFull = traci.vehicle.add
-    traci.vehicle.add = traci.vehicle.addLegacy
-else:
-    import traci  # noqa
-    traci._vehicle.VehicleDomain.addFull = traci._vehicle.VehicleDomain.add
-    traci._vehicle.VehicleDomain.add = traci._vehicle.VehicleDomain.addLegacy
+import traci  # noqa
 import sumolib  # noqa
 
 
@@ -46,21 +39,21 @@ egoID = "ego"
 def printNeighInfo():
     print("Neigh infos for ego:")
     rightFollowers = traci.vehicle.getRightFollowers(egoID)
-    print("  rightFollowers:\n  %s" % str(rightFollowers))
+    print("  rightFollowers:\n  %s" % sorted(rightFollowers))
     rightLeaders = traci.vehicle.getRightLeaders(egoID)
-    print("  rightLeaders:\n  %s" % str(rightLeaders))
+    print("  rightLeaders:\n  %s" % sorted(rightLeaders))
     leftFollowers = traci.vehicle.getLeftFollowers(egoID)
-    print("  leftFollowers:\n  %s" % str(leftFollowers))
+    print("  leftFollowers:\n  %s" % sorted(leftFollowers))
     leftLeaders = traci.vehicle.getLeftLeaders(egoID)
-    print("  leftLeaders:\n  %s" % str(leftLeaders))
+    print("  leftLeaders:\n  %s" % sorted(leftLeaders))
     rightFollowersBlocking = traci.vehicle.getRightFollowers(egoID, True)
-    print("  rightFollowers (only blocking):\n  %s" % str(rightFollowersBlocking))
+    print("  rightFollowers (only blocking):\n  %s" % sorted(rightFollowersBlocking))
     rightLeadersBlocking = traci.vehicle.getRightLeaders(egoID, True)
-    print("  rightLeaders (only blocking):\n  %s" % str(rightLeadersBlocking))
+    print("  rightLeaders (only blocking):\n  %s" % sorted(rightLeadersBlocking))
     leftFollowersBlocking = traci.vehicle.getLeftFollowers(egoID, True)
-    print("  leftFollowers (only blocking):\n  %s" % str(leftFollowersBlocking))
+    print("  leftFollowers (only blocking):\n  %s" % sorted(leftFollowersBlocking))
     leftLeadersBlocking = traci.vehicle.getLeftLeaders(egoID, True)
-    print("  leftLeaders (only blocking):\n  %s" % str(leftLeadersBlocking))
+    print("  leftLeaders (only blocking):\n  %s" % sorted(leftLeadersBlocking))
     sys.stdout.flush()
 
 
@@ -79,6 +72,6 @@ for i in range(2):
 while egoID in traci.vehicle.getIDList():
     printNeighInfo()
     print("step", step())
-
+step()
 # done
 traci.close()

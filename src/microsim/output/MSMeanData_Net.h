@@ -97,7 +97,7 @@ public:
          * @see MSMoveReminder
          * @see MSMoveReminder::notifyLeave
          */
-        bool notifyLeave(SUMOVehicle& veh, double lastPos, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
+        bool notifyLeave(SUMOTrafficObject& veh, double lastPos, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
 
 
         /** @brief Computes current values and adds them to their sums
@@ -113,7 +113,7 @@ public:
          * @see MSMoveReminder::notifyEnter
          * @see MSMoveReminder::Notification
          */
-        bool notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
+        bool notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
         //@}
 
         bool isEmpty() const;
@@ -133,7 +133,7 @@ public:
         /** @brief Internal notification about the vehicle moves
          *  @see MSMoveReminder::notifyMoveInternal
          */
-        void notifyMoveInternal(const SUMOVehicle& veh,
+        void notifyMoveInternal(const SUMOTrafficObject& veh,
                                 const double frontOnLane, const double timeOnLane, const double,
                                 const double meanSpeedVehicleOnLane,
                                 const double travelledDistanceFrontOnLane,
@@ -208,6 +208,7 @@ public:
      * @param[in] printDefaults Information whether defaults for empty lanes/edges shall be written
      * @param[in] withInternal Information whether internal lanes/edges shall be written
      * @param[in] trackVehicles Information whether vehicles shall be tracked
+     * @param[in] detectPersons Whether pedestrians shall be detected instead of vehicles
      * @param[in] maxTravelTime the maximum travel time to output
      * @param[in] minSamples the minimum number of sample seconds before the values are valid
      * @param[in] haltSpeed the maximum speed to consider a vehicle waiting
@@ -216,7 +217,7 @@ public:
     MSMeanData_Net(const std::string& id,
                    const SUMOTime dumpBegin, const SUMOTime dumpEnd,
                    const bool useLanes, const bool withEmpty, const bool printDefaults,
-                   const bool withInternal, const bool trackVehicles,
+                   const bool withInternal, const bool trackVehicles, const int detectPersons,
                    const double maxTravelTime, const double minSamples,
                    const double haltSpeed, const std::string& vTypes);
 

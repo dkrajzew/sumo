@@ -41,6 +41,7 @@
 #include <utils/common/ToString.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/geom/GeoConvHelper.h>
+#include "NIImporter_OpenStreetMap.h"
 #include "NIXMLNodesHandler.h"
 #include "NIXMLPTHandler.h"
 
@@ -77,6 +78,9 @@ NIXMLPTHandler::myStartElement(int element,
             break;
         case SUMO_TAG_PT_LINE:
             addPTLine(attrs);
+            break;
+        case SUMO_TAG_ROUTE:
+            addRoute(attrs);
             break;
         case SUMO_TAG_PARAM:
             if (myLastParameterised.size() != 0) {
@@ -159,19 +163,36 @@ NIXMLPTHandler::addPTLine(const SUMOSAXAttributes& attrs) {
     const std::string name = attrs.getOpt<std::string>(SUMO_ATTR_ID, id.c_str(), ok, "");
     const std::string line = attrs.get<std::string>(SUMO_ATTR_LINE, id.c_str(), ok);
     const std::string type = attrs.get<std::string>(SUMO_ATTR_TYPE, id.c_str(), ok);
+    SUMOVehicleClass vClass = NIImporter_OpenStreetMap::interpretTransportType(type);
+    if (attrs.hasAttribute(SUMO_ATTR_VCLASS)) {
+        vClass = getVehicleClassID(attrs.get<std::string>(SUMO_ATTR_ID, id.c_str(), ok));
+    }
     const int intervalS = attrs.getOpt<int>(SUMO_ATTR_PERIOD, id.c_str(), ok, -1);
     const std::string nightService = attrs.getStringSecure("nightService", "");
     myCurrentCompletion = StringUtils::toDouble(attrs.getStringSecure("completeness", "1"));
-    /// XXX parse route child
-    //if (!myRoute.empty()) {
-    //    device.openTag(SUMO_TAG_ROUTE);
-    //    device.writeAttr(SUMO_ATTR_EDGES, validEdgeIDs);
-    //    device.closeTag();
-    //}
     if (ok) {
-        myCurrentLine = new NBPTLine(name, type, line, intervalS / 60, nightService);
+        myCurrentLine = new NBPTLine(id, name, type, line, intervalS / 60, nightService, vClass);
         myLineCont.insert(myCurrentLine);
     }
+}
+
+void
+NIXMLPTHandler::addRoute(const SUMOSAXAttributes& attrs) {
+    if (myCurrentLine == nullptr) {
+        WRITE_ERROR("Found route outside line definition");
+        return;
+    }
+    const std::vector<std::string>& edgeIDs = attrs.getStringVector(SUMO_ATTR_EDGES);
+    EdgeVector edges;
+    for (const std::string& edgeID : edgeIDs) {
+        NBEdge* edge = myEdgeCont.retrieve(edgeID);
+        if (edge == nullptr) {
+            WRITE_ERROR("Edge '" + edgeID + "' in route of line '" + myCurrentLine->getName() + "' not found");
+        } else {
+            edges.push_back(edge);
+        }
+    }
+    myCurrentLine->setEdges(edges);
 }
 
 

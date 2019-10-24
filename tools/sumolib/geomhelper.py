@@ -148,6 +148,27 @@ def angle2D(p1, p2):
     return dtheta
 
 
+def naviDegree(rad):
+    return normalizeAngle(math.degrees(math.pi / 2. - rad), 0, 360, 360)
+
+
+def fromNaviDegree(degrees):
+    return math.pi / 2. - math.radians(degrees)
+
+
+def normalizeAngle(a, lower, upper, circle):
+    while a < lower:
+        a = a + circle
+    while a > upper:
+        a = a - circle
+    return a
+
+
+def minAngleDegreeDiff(d1, d2):
+    return min(normalizeAngle(d1 - d2, 0, 360, 360),
+               normalizeAngle(d2 - d1, 0, 360, 360))
+
+
 def isWithin(pos, shape):
     angle = 0.
     for i in range(0, len(shape) - 1):
@@ -205,7 +226,10 @@ def narrow(fromPos, pos, toPos, amount):
     a = sub(toPos, pos)
     b = sub(pos, fromPos)
     c = add(a, b)
-    x = dotProduct(a, a) * length(c) / dotProduct(a, c)
+    dPac = dotProduct(a, c)
+    if dPac == 0:
+        return True
+    x = dotProduct(a, a) * length(c) / dPac
     return x < amount
 
 

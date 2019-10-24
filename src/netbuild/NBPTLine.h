@@ -34,11 +34,19 @@ class NBEdgeCont;
 class NBPTLine {
 
 public:
-    explicit NBPTLine(const std::string& name, const std::string& type, const std::string& ref, int interval, const std::string& nightService);
+    explicit NBPTLine(const std::string& id, const std::string& name,
+                      const std::string& type, const std::string& ref, int interval, const std::string& nightService,
+                      SUMOVehicleClass vClass);
 
     void addPTStop(NBPTStop* pStop);
-    long long int getLineID() const;
-    const std::string& getName() const ;
+
+    const std::string& getLineID() const {
+        return myPTLineId;
+    }
+
+    const std::string& getName() const {
+        return myName;
+    }
 
     const std::string& getType() const {
         return myType;
@@ -46,7 +54,6 @@ public:
 
     std::vector<NBPTStop*> getStops();
     void write(OutputDevice& device, NBEdgeCont& ec);
-    void setId(long long int id);
     void addWayNode(long long int way, long long int node);
 
     void setMyNumOfStops(int numStops);
@@ -59,6 +66,17 @@ public:
     void replaceStops(std::vector<NBPTStop*> stops) {
         myPTStops = stops;
     }
+    /// @brief get stop edges
+    std::vector<NBEdge*> getStopEdges(const NBEdgeCont& ec) const;
+
+    /// @brief return first valid edge of myRoute (if it doest not lie after the first stop)
+    NBEdge* getRouteStart(const NBEdgeCont& ec) const;
+
+    /// @brief return last valid edge of myRoute (if it doest not lie before the last stop)
+    NBEdge* getRouteEnd(const NBEdgeCont& ec) const;
+
+    /// @brief replace the given stop
+    void replaceStop(NBPTStop* oldStop, NBPTStop* newStop); 
 
 private:
     std::string myName;
@@ -74,13 +92,14 @@ public:
 private:
 
     std::string myCurrentWay;
-    long long int myPTLineId;
+    std::string myPTLineId;
     std::string myRef;
     int myInterval;
     std::string myNightService;
+    SUMOVehicleClass myVClass;
 
 public:
-    void addEdgeVector(std::vector<NBEdge*>::iterator fr, std::vector<NBEdge*>::iterator to);
+    void setEdges(const std::vector<NBEdge*>& edges);
 private:
     // route of ptline
     std::vector<NBEdge*> myRoute;

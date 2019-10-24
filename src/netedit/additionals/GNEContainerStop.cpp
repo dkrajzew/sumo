@@ -24,11 +24,13 @@
 #include <netedit/GNEUndoList.h>
 #include <netedit/GNEViewNet.h>
 #include <netedit/changes/GNEChange_Attribute.h>
+#include <netedit/demandelements/GNEDemandElement.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/netelements/GNELane.h>
 #include <utils/gui/div/GLHelper.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/gui/globjects/GLIncludes.h>
+#include <utils/vehicle/SUMORouteHandler.h>
 
 #include "GNEContainerStop.h"
 
@@ -36,8 +38,9 @@
 // method definitions
 // ===========================================================================
 
-GNEContainerStop::GNEContainerStop(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const std::string& startPos, const std::string& endPos, const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement) :
-    GNEStoppingPlace(id, viewNet, GLO_CONTAINER_STOP, SUMO_TAG_CONTAINER_STOP, lane, startPos, endPos, name, friendlyPosition, blockMovement),
+GNEContainerStop::GNEContainerStop(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const double startPos, const double endPos, const int parametersSet, 
+        const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement) :
+    GNEStoppingPlace(id, viewNet, GLO_CONTAINER_STOP, SUMO_TAG_CONTAINER_STOP, lane, startPos, endPos, parametersSet, name, friendlyPosition, blockMovement),
     myLines(lines) {
 }
 
@@ -46,17 +49,12 @@ GNEContainerStop::~GNEContainerStop() {}
 
 
 void
-GNEContainerStop::updateGeometry(bool updateGrid) {
-    // first check if object has to be removed from grid (SUMOTree)
-    if (updateGrid) {
-        myViewNet->getNet()->removeGLObjectFromGrid(this);
-    }
-
+GNEContainerStop::updateGeometry() {
     // Get value of option "lefthand"
     double offsetSign = OptionsCont::getOptions().getBool("lefthand") ? -1 : 1;
 
     // Update common geometry of stopping place
-    setStoppingPlaceGeometry(myLane->getParentEdge().getNBEdge()->getLaneWidth(myLane->getIndex()) / 2);
+    setStoppingPlaceGeometry(getLaneParents().front()->getParentEdge().getNBEdge()->getLaneWidth(getLaneParents().front()->getIndex()) / 2);
 
     // Obtain a copy of the shape
     PositionVector tmpShape = myGeometry.shape;
@@ -71,118 +69,126 @@ GNEContainerStop::updateGeometry(bool updateGrid) {
     myBlockIcon.position = myGeometry.shape.getLineCenter();
 
     // Set block icon rotation, and using their rotation for sign
-    myBlockIcon.setRotation(myLane);
+    myBlockIcon.setRotation(getLaneParents().front());
+}
 
-    // last step is to check if object has to be added into grid (SUMOTree) again
-    if (updateGrid) {
-        myViewNet->getNet()->addGLObjectIntoGrid(this);
-    }
+
+Boundary
+GNEContainerStop::getCenteringBoundary() const {
+    return myGeometry.shape.getBoxBoundary().grow(10);
 }
 
 
 void
 GNEContainerStop::drawGL(const GUIVisualizationSettings& s) const {
-    // obtain circle resolution
-    int circleResolution = getCircleResolution(s);
     // Obtain exaggeration of the draw
     const double exaggeration = s.addSize.getExaggeration(s, this);
-    // Start drawing adding an gl identificator
-    glPushName(getGlID());
-    // Add a draw matrix
-    glPushMatrix();
-    // Start with the drawing of the area traslating matrix to origin
-    glTranslated(0, 0, getType());
-    // Set color of the base
-    if (drawUsingSelectColor()) {
-        GLHelper::setColor(s.selectedAdditionalColor);
-    } else {
-        GLHelper::setColor(s.SUMO_color_containerStop);
-    }
-    // Draw the area using shape, shapeRotations, shapeLengths and value of exaggeration
-    GLHelper::drawBoxLines(myGeometry.shape, myGeometry.shapeRotations, myGeometry.shapeLengths, exaggeration);
-    // Check if the distance is enought to draw details and if is being drawn for selecting
-    if (s.drawForSelecting) {
-        // only draw circle depending of distance between sign and mouse cursor
-        if (myViewNet->getPositionInformation().distanceSquaredTo2D(mySignPos) <= (myCircleWidthSquared + 2)) {
+    // first check if additional has to be drawn
+    if (s.drawAdditionals(exaggeration)) {
+        // Start drawing adding an gl identificator
+        glPushName(getGlID());
+        // Add a draw matrix
+        glPushMatrix();
+        // Start with the drawing of the area traslating matrix to origin
+        glTranslated(0, 0, getType());
+        // Set color of the base
+        if (drawUsingSelectColor()) {
+            GLHelper::setColor(s.colorSettings.selectedAdditionalColor);
+        } else {
+            GLHelper::setColor(s.colorSettings.containerStop);
+        }
+        // Draw the area using shape, shapeRotations, shapeLengths and value of exaggeration
+        GLHelper::drawBoxLines(myGeometry.shape, myGeometry.shapeRotations, myGeometry.shapeLengths, exaggeration);
+        // Check if the distance is enought to draw details and if is being drawn for selecting
+        if (s.drawForSelecting) {
+            // only draw circle depending of distance between sign and mouse cursor
+            if (myViewNet->getPositionInformation().distanceSquaredTo2D(mySignPos) <= (myCircleWidthSquared + 2)) {
+                // Add a draw matrix for details
+                glPushMatrix();
+                // Start drawing sign traslating matrix to signal position
+                glTranslated(mySignPos.x(), mySignPos.y(), 0);
+                // scale matrix depending of the exaggeration
+                glScaled(exaggeration, exaggeration, 1);
+                // set color
+                GLHelper::setColor(s.colorSettings.containerStop);
+                // Draw circle
+                GLHelper::drawFilledCircle(myCircleWidth, s.getCircleResolution());
+                // pop draw matrix
+                glPopMatrix();
+            }
+        } else if (s.drawDetail(s.detailSettings.stoppingPlaceDetails, exaggeration)) {
             // Add a draw matrix for details
             glPushMatrix();
+            // Iterate over every line
+            for (int i = 0; i < (int)myLines.size(); ++i) {
+                // push a new matrix for every line
+                glPushMatrix();
+                // Rotate and traslaste
+                glTranslated(mySignPos.x(), mySignPos.y(), 0);
+                glRotated(-1 * myBlockIcon.rotation, 0, 0, 1);
+                // draw line with a color depending of the selection status
+                if (drawUsingSelectColor()) {
+                    GLHelper::drawText(myLines[i].c_str(), Position(1.2, (double)i), .1, 1.f, s.colorSettings.selectionColor, 0, FONS_ALIGN_LEFT);
+                } else {
+                    GLHelper::drawText(myLines[i].c_str(), Position(1.2, (double)i), .1, 1.f, s.colorSettings.containerStop, 0, FONS_ALIGN_LEFT);
+                }
+                // pop matrix for every line
+                glPopMatrix();
+            }
             // Start drawing sign traslating matrix to signal position
             glTranslated(mySignPos.x(), mySignPos.y(), 0);
             // scale matrix depending of the exaggeration
             glScaled(exaggeration, exaggeration, 1);
-            // set color
-            GLHelper::setColor(s.SUMO_color_containerStop);
+            // Set color of the externe circle
+            if (drawUsingSelectColor()) {
+                GLHelper::setColor(s.colorSettings.selectedAdditionalColor);
+            } else {
+                GLHelper::setColor(s.colorSettings.containerStop);
+            }
             // Draw circle
-            GLHelper::drawFilledCircle(myCircleWidth, circleResolution);
+            GLHelper::drawFilledCircle(myCircleWidth, s.getCircleResolution());
+            // Traslate to front
+            glTranslated(0, 0, .1);
+            // Set color of the inner circle
+            if (drawUsingSelectColor()) {
+                GLHelper::setColor(s.colorSettings.selectionColor);
+            } else {
+                GLHelper::setColor(s.colorSettings.containerStop_sign);
+            }
+            // draw another circle in the same position, but a little bit more small
+            GLHelper::drawFilledCircle(myCircleInWidth, s.getCircleResolution());
+            // draw text depending of detail settings
+            if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration)) {
+                if (drawUsingSelectColor()) {
+                    GLHelper::drawText("C", Position(), .1, myCircleInText, s.colorSettings.selectedAdditionalColor, myBlockIcon.rotation);
+                } else {
+                    GLHelper::drawText("C", Position(), .1, myCircleInText, s.colorSettings.containerStop, myBlockIcon.rotation);
+                }
+            }
             // pop draw matrix
             glPopMatrix();
-        }
-    } else if (s.scale * exaggeration >= 10) {
-        // Add a draw matrix for details
-        glPushMatrix();
-        // Iterate over every line
-        for (int i = 0; i < (int)myLines.size(); ++i) {
-            // push a new matrix for every line
-            glPushMatrix();
-            // Rotate and traslaste
-            glTranslated(mySignPos.x(), mySignPos.y(), 0);
-            glRotated(-1 * myBlockIcon.rotation, 0, 0, 1);
-            // draw line with a color depending of the selection status
-            if (drawUsingSelectColor()) {
-                GLHelper::drawText(myLines[i].c_str(), Position(1.2, (double)i), .1, 1.f, s.selectionColor, 0, FONS_ALIGN_LEFT);
-            } else {
-                GLHelper::drawText(myLines[i].c_str(), Position(1.2, (double)i), .1, 1.f, s.SUMO_color_containerStop, 0, FONS_ALIGN_LEFT);
-            }
-            // pop matrix for every line
-            glPopMatrix();
-        }
-        // Start drawing sign traslating matrix to signal position
-        glTranslated(mySignPos.x(), mySignPos.y(), 0);
-        // scale matrix depending of the exaggeration
-        glScaled(exaggeration, exaggeration, 1);
-        // Set color of the externe circle
-        if (drawUsingSelectColor()) {
-            GLHelper::setColor(s.selectedAdditionalColor);
-        } else {
-            GLHelper::setColor(s.SUMO_color_containerStop);
-        }
-        // Draw circle
-        GLHelper::drawFilledCircle(myCircleWidth, circleResolution);
-        // Traslate to front
-        glTranslated(0, 0, .1);
-        // Set color of the inner circle
-        if (drawUsingSelectColor()) {
-            GLHelper::setColor(s.selectionColor);
-        } else {
-            GLHelper::setColor(s.SUMO_color_containerStop_sign);
-        }
-        // draw another circle in the same position, but a little bit more small
-        GLHelper::drawFilledCircle(myCircleInWidth, circleResolution);
-        // If the scale * exageration is equal or more than 4.5, draw H
-        if (s.scale * exaggeration >= 4.5) {
-            if (drawUsingSelectColor()) {
-                GLHelper::drawText("C", Position(), .1, myCircleInText, s.selectedAdditionalColor, myBlockIcon.rotation);
-            } else {
-                GLHelper::drawText("C", Position(), .1, myCircleInText, s.SUMO_color_containerStop, myBlockIcon.rotation);
-            }
+            // Show Lock icon depending of the Edit mode
+            myBlockIcon.drawIcon(s, exaggeration);
         }
         // pop draw matrix
         glPopMatrix();
-        // Show Lock icon depending of the Edit mode
-        myBlockIcon.draw();
+        // Draw name if isn't being drawn for selecting
+        if (!s.drawForSelecting) {
+            drawName(getPositionInView(), s.scale, s.addName);
+        }
+        // check if dotted contour has to be drawn
+        if (myViewNet->getDottedAC() == this) {
+            GLHelper::drawShapeDottedContourAroundShape(s, getType(), myGeometry.shape, exaggeration);
+        }
+        // Pop name
+        glPopName();
+        // draw demand element children
+        for (const auto& i : getDemandElementChildren()) {
+            if (!i->getTagProperty().isPlacedInRTree()) {
+                i->drawGL(s);
+            }
+        }
     }
-    // pop draw matrix
-    glPopMatrix();
-    // Draw name if isn't being drawn for selecting
-    if (!s.drawForSelecting) {
-        drawName(getCenteringBoundary().getCenter(), s.scale, s.addName);
-    }
-    // check if dotted contour has to be drawn
-    if (!s.drawForSelecting && (myViewNet->getDottedAC() == this)) {
-        GLHelper::drawShapeDottedContour(getType(), myGeometry.shape, exaggeration);
-    }
-    // Pop name
-    glPopName();
 }
 
 
@@ -192,11 +198,19 @@ GNEContainerStop::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_LANE:
-            return myLane->getID();
+            return getLaneParents().front()->getID();
         case SUMO_ATTR_STARTPOS:
-            return toString(myStartPosition);
+            if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
+                return toString(myStartPosition);
+            } else {
+                return "";
+            }
         case SUMO_ATTR_ENDPOS:
-            return myEndPosition;
+            if (myParametersSet & STOPPINGPLACE_ENDPOS_SET) {
+                return toString(myEndPosition);
+            } else {
+                return "";
+            }
         case SUMO_ATTR_NAME:
             return myAdditionalName;
         case SUMO_ATTR_FRIENDLY_POS:
@@ -207,8 +221,8 @@ GNEContainerStop::getAttribute(SumoXMLAttr key) const {
             return toString(myBlockMovement);
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
@@ -230,7 +244,7 @@ GNEContainerStop::setAttribute(SumoXMLAttr key, const std::string& value, GNEUnd
         case SUMO_ATTR_LINES:
         case GNE_ATTR_BLOCK_MOVEMENT:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -254,7 +268,7 @@ GNEContainerStop::isValid(SumoXMLAttr key, const std::string& value) {
             if (value.empty()) {
                 return true;
             } else if (canParse<double>(value)) {
-                return checkStoppinPlacePosition(value, myEndPosition, myLane->getParentEdge().getNBEdge()->getFinalLength(), myFriendlyPosition);
+                return SUMORouteHandler::isStopPosValid(parse<double>(value), myEndPosition, getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, myFriendlyPosition);
             } else {
                 return false;
             }
@@ -262,7 +276,7 @@ GNEContainerStop::isValid(SumoXMLAttr key, const std::string& value) {
             if (value.empty()) {
                 return true;
             } else if (canParse<double>(value)) {
-                return checkStoppinPlacePosition(myStartPosition, value, myLane->getParentEdge().getNBEdge()->getFinalLength(), myFriendlyPosition);
+                return SUMORouteHandler::isStopPosValid(myStartPosition, parse<double>(value), getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, myFriendlyPosition);
             } else {
                 return false;
             }
@@ -276,11 +290,16 @@ GNEContainerStop::isValid(SumoXMLAttr key, const std::string& value) {
             return canParse<bool>(value);
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+bool 
+GNEContainerStop::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 // ===========================================================================
@@ -294,13 +313,23 @@ GNEContainerStop::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_LANE:
-            myLane = changeLane(myLane, value);
+            changeLaneParents(this, value);
             break;
         case SUMO_ATTR_STARTPOS:
-            myStartPosition = value;
+            if (!value.empty()) {
+                myStartPosition = parse<double>(value);
+                myParametersSet |= STOPPINGPLACE_STARTPOS_SET;
+            } else {
+                myParametersSet &= ~STOPPINGPLACE_STARTPOS_SET;
+            }
             break;
         case SUMO_ATTR_ENDPOS:
-            myEndPosition = value;
+            if (!value.empty()) {
+                myEndPosition = parse<double>(value);
+                myParametersSet |= STOPPINGPLACE_ENDPOS_SET;
+            } else {
+                myParametersSet &= ~STOPPINGPLACE_ENDPOS_SET;
+            }
             break;
         case SUMO_ATTR_NAME:
             myAdditionalName = value;
@@ -321,15 +350,11 @@ GNEContainerStop::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
-    }
-    // Update Geometry after setting a new attribute (but avoided for certain attributes)
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
-        updateGeometry(true);
     }
 }
 

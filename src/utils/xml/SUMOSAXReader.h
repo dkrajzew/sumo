@@ -26,6 +26,7 @@
 #include <config.h>
 
 #include <string>
+#include <memory>
 #include <vector>
 #include <xercesc/sax2/SAX2XMLReader.hpp>
 #include <xercesc/sax/EntityResolver.hpp>
@@ -38,6 +39,7 @@
 // ===========================================================================
 class GenericSAXHandler;
 class BinaryInputDevice;
+class IStreamInputSource;
 
 
 // ===========================================================================
@@ -114,6 +116,10 @@ private:
     XERCES_CPP_NAMESPACE::SAX2XMLReader* myXMLReader;
 
     BinaryInputDevice* myBinaryInput;
+
+    std::unique_ptr<std::istream> myIStream;
+
+    std::unique_ptr<IStreamInputSource> myInputStream;
 
     char mySbxVersion;
 

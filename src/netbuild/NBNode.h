@@ -117,6 +117,9 @@ public:
         /// @brief The available lanes to which connections shall be built
         std::vector<int> myAvailableLanes;
 
+        /// @brief whether the outgoing edge is exclusively used by bikes
+        bool myIsBikeEdge;
+
     private:
         /// @brief Invalidated assignment operator.
         ApproachingDivider& operator=(const ApproachingDivider&) = delete;
@@ -169,17 +172,14 @@ public:
         /// @brief constructor
         WalkingArea(const std::string& _id, double _width) :
             id(_id),
-            width(_width),
-            hasCustomShape(false),
-            minNextCrossingEdges(std::numeric_limits<int>::max()),
-            minPrevCrossingEdges(std::numeric_limits<int>::max()) {
+            width(_width) {
         }
         /// @brief the (edge)-id of this walkingArea
         std::string id;
         /// @brief This lane's width
         double width;
         /// @brief This lane's width
-        double length;
+        double length = INVALID_DOUBLE;
         /// @brief The polygonal shape
         PositionVector shape;
         /// @brief the lane-id of the next crossing(s)
@@ -189,11 +189,11 @@ public:
         /// @brief the lane-id of the previous sidewalk lane or ""
         std::vector<std::string> prevSidewalks;
         /// @brief whether this walkingArea has a custom shape
-        bool hasCustomShape;
+        bool hasCustomShape = false;
         /// @brief minimum number of edges crossed by nextCrossings
-        int minNextCrossingEdges;
+        int minNextCrossingEdges = std::numeric_limits<int>::max();
         /// @brief minimum number of edges crossed by incoming crossings
-        int minPrevCrossingEdges;
+        int minPrevCrossingEdges = std::numeric_limits<int>::max();
     };
 
     struct WalkingAreaCustomShape {
@@ -212,6 +212,8 @@ public:
     static const int AVOID_WIDE_RIGHT_TURN;
     static const int AVOID_WIDE_LEFT_TURN;
     static const int FOUR_CONTROL_POINTS;
+    static const int AVOID_INTERSECTING_LEFT_TURNS;
+    static const int SCURVE_IGNORE;
 
 public:
     /**@brief Constructor
@@ -286,6 +288,11 @@ public:
     RightOfWay getRightOfWay() const {
         return myRightOfWay;
     }
+
+    /// @brief Returns fringe type
+    FringeType getFringeType() const {
+        return myFringeType;
+    }
     /// @}
 
     /// @name Methods for dealing with assigned traffic lights
@@ -359,7 +366,7 @@ public:
     void computeLanes2Lanes();
 
     /// @brief computes the node's type, logic and traffic light
-    void computeLogic(const NBEdgeCont& ec, OptionsCont& oc);
+    void computeLogic(const NBEdgeCont& ec);
 
     /// @brief compute right-of-way logic for all lane-to-lane connections
     void computeLogic2(bool checkLaneFoes);
@@ -511,6 +518,11 @@ public:
         myRightOfWay = rightOfWay;
     }
 
+    /// @brief set method for computing right-of-way
+    void setFringeType(FringeType fringeType) {
+        myFringeType = fringeType;
+    }
+
     /// @brief return whether the shape was set by the user
     bool hasCustomShape() const {
         return myHaveCustomPoly;
@@ -547,7 +559,7 @@ public:
      * @param[in] recordError The node itself if the displacement error during shape computation shall be recorded
      * @return The shape of the internal lane
      */
-    PositionVector computeInternalLaneShape(NBEdge* fromE, const NBEdge::Connection& con, int numPoints, NBNode* recordError = 0) const;
+    PositionVector computeInternalLaneShape(NBEdge* fromE, const NBEdge::Connection& con, int numPoints, NBNode* recordError = 0, int shapeFlag = 0) const;
 
     /**@brief Compute a smooth curve between the given geometries
      * @param[in] begShape The geometry at the start
@@ -737,7 +749,7 @@ public:
     static bool isTrafficLight(SumoXMLNodeType type);
 
     /// @brief check if node is a simple continuation
-    bool isSimpleContinuation(bool checkLaneNumbers = true) const;
+    bool isSimpleContinuation(bool checkLaneNumbers = true, bool checkWidth = false) const;
 
     /// @brief mark whether a priority road turns at this node
     void markBentPriority(bool isBent) {
@@ -745,8 +757,13 @@ public:
     }
 
     /// @brief return whether a priority road turns at this node
-    bool isBentPriority() {
+    bool isBentPriority() const {
         return myIsBentPriority;
+    }
+
+    /// @brief return whether a priority road turns at this node
+    bool typeWasGuessed() const {
+        return myTypeWasGuessed;
     }
 
     /// @brief detects whether a given junction splits or merges lanes while keeping constant road width
@@ -786,6 +803,8 @@ private:
     /// @brief returns whether sub is a subset of super
     static bool includes(const std::set<NBEdge*, ComparatorIdLess>& super,
                          const std::set<const NBEdge*, ComparatorIdLess>& sub);
+
+    NBEdge* getNextCompatibleOutgoing(const NBEdge* incoming, SVCPermissions vehPerm, EdgeVector::const_iterator start, bool clockwise) const;
 
 private:
     /// @brief The position the node lies at
@@ -839,6 +858,9 @@ private:
     /// @brief how to compute right of way for this node
     RightOfWay myRightOfWay;
 
+    /// @brief fringe type of this node
+    FringeType myFringeType;
+
     /// @brief whether to discard all pedestrian crossings
     bool myDiscardAllCrossings;
 
@@ -852,6 +874,9 @@ private:
      * @note see NBEdgePriorityComputer
      */
     bool myIsBentPriority;
+
+    /// @brief whether the node type was guessed rather than loaded
+    bool myTypeWasGuessed;
 
 
 private:

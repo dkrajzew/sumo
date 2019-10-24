@@ -123,6 +123,7 @@ protected:
         OPENDRIVE_ATTR_ID,
         OPENDRIVE_ATTR_LENGTH,
         OPENDRIVE_ATTR_WIDTH,
+        OPENDRIVE_ATTR_RADIUS,
         OPENDRIVE_ATTR_DISTANCE,
         OPENDRIVE_ATTR_TSTART,
         OPENDRIVE_ATTR_TEND,
@@ -345,6 +346,8 @@ protected:
         double s;
         /// @brief The original starting offset of this lane section (differs from s if the section had to be split)
         double sOrig;
+        /// @brief The length of this lane section
+        double length;
         /// @brief A mapping from OpenDrive to SUMO-index (the first is signed, the second unsigned)
         std::map<int, int> laneMap;
         /// @brief The lanes, sorted by their direction
@@ -425,6 +428,7 @@ protected:
         double length;
         double width;
         double height;
+        double radius;
         double hdg;
         double pitch;
         double roll;
@@ -470,6 +474,7 @@ protected:
         NBNode* from;
         NBNode* to;
         PositionVector geom;
+        std::vector<double> laneOffsets;
         std::vector<OpenDriveLaneSection> laneSections;
         std::vector<OpenDriveSignal> signals;
         std::set<Connection> connections;
@@ -603,7 +608,7 @@ protected:
     static NBNode* getOrBuildNode(const std::string& id, const Position& pos, NBNodeCont& nc);
 
 
-    static PositionVector geomFromLine(const OpenDriveEdge& e, const OpenDriveGeometry& g);
+    static PositionVector geomFromLine(const OpenDriveEdge& e, const OpenDriveGeometry& g, double resolution);
     static PositionVector geomFromSpiral(const OpenDriveEdge& e, const OpenDriveGeometry& g, double resolution);
     static PositionVector geomFromArc(const OpenDriveEdge& e, const OpenDriveGeometry& g, double resolution);
     static PositionVector geomFromPoly(const OpenDriveEdge& e, const OpenDriveGeometry& g, double resolution);
@@ -618,6 +623,8 @@ protected:
      * @param[in] edges The edges which geometries shall be converted
      */
     static void computeShapes(std::map<std::string, OpenDriveEdge*>& edges);
+
+    static bool hasNonLinearElevation(OpenDriveEdge& e);
 
     /** @brief Rechecks lane sections of the given edges
      *
@@ -636,9 +643,13 @@ protected:
                                int section, double sectionStart, double sectionEnd,
                                std::vector<double>& splitPositions);
 
+    static void sanitizeWidths(OpenDriveEdge* e);
+    static void sanitizeWidths(std::vector<OpenDriveLane>& lanes, double length);
+
     static void setStraightConnections(std::vector<OpenDriveLane>& lanes);
     static void recomputeWidths(OpenDriveLaneSection& sec, double start, double end, double sectionStart, double sectionEnd);
     static void recomputeWidths(std::vector<OpenDriveLane>& lanes, double start, double end, double sectionStart, double sectionEnd);
+    static void setLaneAttributes(const OpenDriveEdge* e, NBEdge::Lane& sumoLane, const OpenDriveLane& odLane, bool saveOrigIDs, const NBTypeCont& tc);
 
     /// The names of openDrive-XML elements (for passing to GenericSAXHandler)
     static StringBijection<int>::Entry openDriveTags[];

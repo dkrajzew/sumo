@@ -82,6 +82,8 @@ public:
         /// @brief Destructor
         virtual ~PlanItem() {}
 
+        virtual PlanItem* clone() const = 0;
+
         virtual void addTripItem(TripItem* /* tripIt */) {
             throw ProcessError();
         }
@@ -89,13 +91,15 @@ public:
         virtual const ROEdge* getDestination() const = 0;
         virtual double getDestinationPos() const = 0;
         virtual void saveVehicles(OutputDevice& /* os */, OutputDevice* const /* typeos */, bool /* asAlternatives */, OptionsCont& /* options */) const {}
-        virtual void saveAsXML(OutputDevice& os, const bool extended) const = 0;
+        virtual void saveAsXML(OutputDevice& os, const bool extended, const bool asTrip, const bool writeGeoTrip) const = 0;
         virtual bool isStop() const {
             return false;
         }
         virtual bool needsRouting() const {
             return false;
         }
+
+        virtual SUMOTime getDuration() const = 0;
     };
 
     /**
@@ -106,6 +110,11 @@ public:
     public:
         Stop(const SUMOVehicleParameter::Stop& stop, const ROEdge* const stopEdge)
             : stopDesc(stop), edge(stopEdge) {}
+
+        PlanItem* clone() const {
+            return new Stop(stopDesc, edge);
+        }
+
         const ROEdge* getOrigin() const {
             return edge;
         }
@@ -113,13 +122,16 @@ public:
             return edge;
         }
         double getDestinationPos() const {
-            return stopDesc.endPos;
+            return (stopDesc.startPos + stopDesc.endPos) / 2;
         }
-        void saveAsXML(OutputDevice& os, const bool /* extended */) const {
+        void saveAsXML(OutputDevice& os, const bool /* extended */, const bool /*asTrip*/, const bool /*writeGeoTrip*/) const {
             stopDesc.write(os);
         }
         bool isStop() const {
             return true;
+        }
+        SUMOTime getDuration() const {
+            return stopDesc.duration;
         }
 
     private:
@@ -144,10 +156,15 @@ public:
         /// @brief Destructor
         virtual ~TripItem() {}
 
+        virtual TripItem* clone() const = 0;
+
         virtual const ROEdge* getOrigin() const = 0;
         virtual const ROEdge* getDestination() const = 0;
         virtual double getDestinationPos() const = 0;
         virtual void saveAsXML(OutputDevice& os, const bool extended) const = 0;
+        SUMOTime getDuration() const {
+            return TIME2STEPS(cost);
+        }
     protected:
         double cost;
     };
@@ -168,6 +185,10 @@ public:
             intended(_intended),
             depart(_depart),
             arr(arrivalPos) {
+        }
+
+        TripItem* clone() const {
+            return new Ride(from, to, lines, cost, arr, destStop, intended, depart);
         }
 
         const ROEdge* getOrigin() const {
@@ -210,6 +231,11 @@ public:
         Walk(const ConstROEdgeVector& edges, const double _cost, const double duration, const double speed,
              const double departPos, const double arrivalPos, const std::string& _destStop)
             : TripItem(_cost), edges(edges), dur(duration), v(speed), dep(departPos), arr(arrivalPos), destStop(_destStop) {}
+
+        TripItem* clone() const {
+            return new Walk(edges, cost, dep, arr, destStop);
+        }
+
         const ROEdge* getOrigin() const {
             return edges.front();
         }
@@ -254,6 +280,8 @@ public:
             }
         }
 
+        PlanItem* clone() const;
+
         virtual void addTripItem(TripItem* tripIt) {
             myTripItems.push_back(tripIt);
         }
@@ -292,14 +320,14 @@ public:
             return myTripItems.empty();
         }
         void saveVehicles(OutputDevice& os, OutputDevice* const typeos, bool asAlternatives, OptionsCont& options) const;
-        void saveAsXML(OutputDevice& os, const bool extended) const {
-            for (std::vector<TripItem*>::const_iterator it = myTripItems.begin(); it != myTripItems.end(); ++it) {
-                (*it)->saveAsXML(os, extended);
-            }
-        }
+        void saveAsXML(OutputDevice& os, const bool extended, const bool asTrip, const bool writeGeoTrip) const;
+
         double getWalkFactor() const {
             return walkFactor;
         }
+
+        /// @brief return duration sum of all trip items
+        SUMOTime getDuration() const;
 
     private:
         const ROEdge* from;
@@ -351,7 +379,8 @@ public:
     }
 
 private:
-    bool computeIntermodal(const RORouterProvider& provider, PersonTrip* const trip, const ROVehicle* const veh, MsgHandler* const errorHandler);
+    bool computeIntermodal(SUMOTime time, const RORouterProvider& provider,
+                           PersonTrip* const trip, const ROVehicle* const veh, MsgHandler* const errorHandler);
 
 private:
     /**

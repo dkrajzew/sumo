@@ -38,7 +38,7 @@ netedit.leftClick(referencePosition, 300, 53)
 netedit.inspectMode()
 
 # inspect first polygon
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 105, 70)
 
 # Change parameter 8 with a non valid value (dummy)
 netedit.modifyAttribute(8, "dummyAngle", False)
@@ -57,10 +57,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

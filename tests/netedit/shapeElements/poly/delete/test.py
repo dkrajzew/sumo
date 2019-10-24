@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.shapeMode()
 
 # go to poly mode and select poly
-netedit.changeShape("poly")
+netedit.changeElement("poly")
 
 # create polygon
 netedit.createSquaredPoly(referencePosition, 100, 50, 100, True)
@@ -41,7 +41,7 @@ netedit.deleteMode()
 netedit.leftClick(referencePosition, 100, 50)
 
 # try to delete second polygon (not possible due isn't fill)
-netedit.leftClick(referencePosition, 175, 25)
+netedit.leftClick(referencePosition, 177, 45)
 
 # delete loaded filled polygon
 netedit.leftClick(referencePosition, 275, 25)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

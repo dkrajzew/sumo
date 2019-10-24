@@ -65,7 +65,7 @@ FXIMPLEMENT_ABSTRACT(GNEUndoList, FXUndoList, GNEUndoListMap, ARRAYNUMBER(GNEUnd
 
 GNEUndoList::GNEUndoList(GNEApplicationWindow* parent) :
     FXUndoList(),
-    myParent(parent) {
+    myGNEApplicationWindowParent(parent) {
 }
 
 
@@ -112,20 +112,19 @@ GNEUndoList::p_abortLastCommandGroup() {
 
 void
 GNEUndoList::undo() {
-    //std::cout << undoName().text() << "\n";
-    WRITE_DEBUG("Keys Ctrl + Z (Undo) pressed");
+    WRITE_DEBUG("Calling GNEUndoList::undo()");
     FXUndoList::undo();
-    myParent->updateControls();
+    // update specific controls
+    myGNEApplicationWindowParent->updateControls();
 }
 
 
 void
 GNEUndoList::redo() {
-    //std::cout << redoName().text() << "\n";
-    //std::cout << undoName().text() << "\n";
-    WRITE_DEBUG("Keys Ctrl + Y (Redo) pressed");
+    WRITE_DEBUG("Calling GNEUndoList::redo()");
     FXUndoList::redo();
-    myParent->updateControls();
+    // update specific controls
+    myGNEApplicationWindowParent->updateControls();
 }
 
 
@@ -151,17 +150,29 @@ GNEUndoList::currentCommandGroupSize() const {
 
 long
 GNEUndoList::p_onUpdUndo(FXObject* sender, FXSelector, void*) {
-    bool enable = canUndo() && !hasCommandGroup();
+    // first check if Undo Menu command or button has to be disabled
+    bool enable = canUndo() && !hasCommandGroup() && myGNEApplicationWindowParent->isUndoRedoEnabled().empty();
     sender->handle(this, enable ? FXSEL(SEL_COMMAND, FXWindow::ID_ENABLE) : FXSEL(SEL_COMMAND, FXWindow::ID_DISABLE), nullptr);
+    // change caption of FXMenuCommand
     FXString caption = undoName();
-    if (hasCommandGroup()) {
+    // set caption of FXmenuCommand edit/undo
+    if (myGNEApplicationWindowParent->isUndoRedoEnabled().size() > 0) {
+        caption = ("Cannot Undo in the middle of " + myGNEApplicationWindowParent->isUndoRedoEnabled()).c_str();
+    } else if (hasCommandGroup()) {
         caption = ("Cannot Undo in the middle of " + myCommandGroups.top()->getDescription()).c_str();
     } else if (!canUndo()) {
         caption = "Undo";
     }
     // only set caption on menu item
-    if (dynamic_cast<FXMenuCommand*>(sender)) {
-        sender->handle(this, FXSEL(SEL_COMMAND, FXMenuCaption::ID_SETSTRINGVALUE), (void*)&caption);
+    FXMenuCommand* menuCommand = dynamic_cast<FXMenuCommand*>(sender);
+    if (menuCommand) {
+        menuCommand->handle(this, FXSEL(SEL_COMMAND, FXMenuCaption::ID_SETSTRINGVALUE), (void*)&caption);
+        menuCommand->update();
+    }
+    // button has to be updated
+    FXButton* button = dynamic_cast<FXButton*>(sender);
+    if (button) {
+        button->update();
     }
     return 1;
 }
@@ -169,17 +180,30 @@ GNEUndoList::p_onUpdUndo(FXObject* sender, FXSelector, void*) {
 
 long
 GNEUndoList::p_onUpdRedo(FXObject* sender, FXSelector, void*) {
-    bool enable = canRedo() && !hasCommandGroup();
+    // first check if Redo Menu command or button has to be disabled
+    bool enable = canRedo() && !hasCommandGroup() && myGNEApplicationWindowParent->isUndoRedoEnabled().empty();
+    // enable or disable depending of "enable" flag
     sender->handle(this, enable ? FXSEL(SEL_COMMAND, FXWindow::ID_ENABLE) : FXSEL(SEL_COMMAND, FXWindow::ID_DISABLE), nullptr);
+    // change caption of FXMenuCommand
     FXString caption = redoName();
-    if (hasCommandGroup()) {
+    // set caption of FXmenuCommand edit/undo
+    if (myGNEApplicationWindowParent->isUndoRedoEnabled().size() > 0) {
+        caption = ("Cannot Redo in the middle of " + myGNEApplicationWindowParent->isUndoRedoEnabled()).c_str();
+    } else if (hasCommandGroup()) {
         caption = ("Cannot Redo in the middle of " + myCommandGroups.top()->getDescription()).c_str();
     } else if (!canRedo()) {
         caption = "Redo";
     }
     // only set caption on menu item
-    if (dynamic_cast<FXMenuCommand*>(sender)) {
-        sender->handle(this, FXSEL(SEL_COMMAND, FXMenuCaption::ID_SETSTRINGVALUE), (void*)&caption);
+    FXMenuCommand* menuCommand = dynamic_cast<FXMenuCommand*>(sender);
+    if (menuCommand) {
+        menuCommand->handle(this, FXSEL(SEL_COMMAND, FXMenuCaption::ID_SETSTRINGVALUE), (void*)&caption);
+        menuCommand->update();
+    }
+    // button has to be updated
+    FXButton* button = dynamic_cast<FXButton*>(sender);
+    if (button) {
+        button->update();
     }
     return 1;
 }

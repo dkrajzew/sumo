@@ -56,6 +56,10 @@ MSContainer::MSContainerStage_Driving::MSContainerStage_Driving(const MSEdge* de
 
 MSContainer::MSContainerStage_Driving::~MSContainerStage_Driving() {}
 
+MSTransportable::Stage*
+MSContainer::MSContainerStage_Driving::clone() const {
+    return new MSContainerStage_Driving(myDestination, myDestinationStop, myArrivalPos, std::vector<std::string>(myLines.begin(), myLines.end()));
+}
 
 void
 MSContainer::MSContainerStage_Driving::proceed(MSNet* net, MSTransportable* container, SUMOTime now, Stage* previous) {
@@ -67,7 +71,7 @@ MSContainer::MSContainerStage_Driving::proceed(MSNet* net, MSTransportable* cont
     }
     myWaitingPos = previous->getEdgePos(now);
     myWaitingSince = now;
-    SUMOVehicle* availableVehicle = net->getVehicleControl().getWaitingVehicle(myWaitingEdge, myLines, myWaitingPos, container->getID());
+    SUMOVehicle* availableVehicle = net->getVehicleControl().getWaitingVehicle(container, myWaitingEdge, myWaitingPos);
     if (availableVehicle != nullptr && availableVehicle->getParameter().departProcedure == DEPART_CONTAINER_TRIGGERED && !availableVehicle->hasDeparted()) {
         setVehicle(availableVehicle);
         myVehicle->addContainer(container);
@@ -101,13 +105,16 @@ MSContainer::MSContainerStage_Driving::getStageSummary() const {
 
 void
 MSContainer::MSContainerStage_Driving::tripInfoOutput(OutputDevice& os, const MSTransportable* const) const {
+    const SUMOTime now = MSNet::getInstance()->getCurrentTimeStep();
+    const SUMOTime departed = myDeparted >= 0 ? myDeparted : now;
     os.openTag("transport");
-    os.writeAttr("waitingTime", time2string(myDeparted - myWaitingSince));
+    os.writeAttr("waitingTime", time2string(departed - myWaitingSince));
     os.writeAttr("vehicle", myVehicleID);
-    os.writeAttr("depart", time2string(myDeparted));
-    os.writeAttr("arrival", time2string(myArrived));
+    os.writeAttr("depart", myDeparted >= 0 ? time2string(myDeparted) : "-1");
+    os.writeAttr("arrival", myArrived >= 0 ? time2string(myArrived) : "-1");
     os.writeAttr("arrivalPos", toString(myArrivalPos));
-    os.writeAttr("duration", myArrived > 0 ? time2string(myArrived - myDeparted) : "-1");
+    os.writeAttr("duration", myArrived >= 0 ? time2string(myArrived - myDeparted) :
+                 (myDeparted >= 0 ? time2string(now - myDeparted) : "-1"));
     os.writeAttr("routeLength", myVehicleDistance);
     os.closeTag();
 }
@@ -132,19 +139,30 @@ MSContainer::MSContainerStage_Tranship::MSContainerStage_Tranship(const std::vec
         double speed,
         double departPos, double arrivalPos) :
     MSTransportable::Stage(route.back(), toStop, SUMOVehicleParameter::interpretEdgePos(
-                               arrivalPos, route.back()->getLength(), SUMO_ATTR_ARRIVALPOS, "container getting transhipped to " + route.back()->getID()), MOVING_WITHOUT_VEHICLE), myRoute(route),
+                               arrivalPos, route.back()->getLength(), SUMO_ATTR_ARRIVALPOS,
+                               "container getting transhipped to " + route.back()->getID()),
+                           MOVING_WITHOUT_VEHICLE), myRoute(route),
     mySpeed(speed), myContainerState(nullptr), myCurrentInternalEdge(nullptr) {
     myDepartPos = SUMOVehicleParameter::interpretEdgePos(
-                      departPos, myRoute.front()->getLength(), SUMO_ATTR_DEPARTPOS, "container getting transhipped from " + myRoute.front()->getID());
+                      departPos, myRoute.front()->getLength(), SUMO_ATTR_DEPARTPOS,
+                      "container getting transhipped from " + myRoute.front()->getID());
 }
 
 MSContainer::MSContainerStage_Tranship::~MSContainerStage_Tranship() {
 }
 
+MSTransportable::Stage*
+MSContainer::MSContainerStage_Tranship::clone() const {
+    return new MSContainerStage_Tranship(myRoute, myDestinationStop, mySpeed, myDepartPos, myArrivalPos);
+}
+
 void
 MSContainer::MSContainerStage_Tranship::proceed(MSNet* /* net */, MSTransportable* container, SUMOTime now, Stage* previous) {
     myDeparted = now;
-    myRouteStep = myRoute.end() - 1;   //define that the container is already on its destination edge
+    //MSCModel_NonInteracting moves the container straight from start to end in
+    //a single step and assumes that moveToNextEdge is only called once)
+    //therefor we define that the container is already on its destination edge
+    myRouteStep = myRoute.end() - 1;
     myDepartPos = previous->getEdgePos(now);
     myContainerState = MSCModel_NonInteracting::getModel()->add(container, this, now);
     (*myRouteStep)->addContainer(container);
@@ -200,19 +218,25 @@ MSContainer::MSContainerStage_Tranship::getEdges() const {
     return myRoute;
 }
 
+double
+MSContainer::MSContainerStage_Tranship::getDistance() const {
+    if (myArrived >= 0) {
+        const SUMOTime duration = myArrived - myDeparted;
+        return mySpeed * STEPS2TIME(duration);
+    } else {
+        return -1;
+    }
+}
 
 void
 MSContainer::MSContainerStage_Tranship::tripInfoOutput(OutputDevice& os, const MSTransportable* const) const {
-    const SUMOTime duration = myArrived - myDeparted;
-    // no timeloss is possible
-    const double distance = mySpeed * STEPS2TIME(duration);
     os.openTag("tranship");
     os.writeAttr("depart", time2string(myDeparted));
     os.writeAttr("departPos", myDepartPos);
     os.writeAttr("arrival", time2string(myArrived));
     os.writeAttr("arrivalPos", myArrivalPos);
-    os.writeAttr("duration", time2string(duration));
-    os.writeAttr("routeLength", distance);
+    os.writeAttr("duration", myArrived >= 0 ? time2string(myArrived - myDeparted) : "-1");
+    os.writeAttr("routeLength", getDistance());
     os.writeAttr("maxSpeed", mySpeed);
     os.closeTag();
 }
@@ -296,6 +320,10 @@ MSContainer::proceed(MSNet* net, SUMOTime time) {
         (*myStep)->proceed(net, this, time, prior);
         return true;
     } else {
+        // cleanup
+        if (prior->getDestinationStop() != nullptr) {
+            prior->getDestinationStop()->removeTransportable(this);
+        }
         return false;
     }
 }

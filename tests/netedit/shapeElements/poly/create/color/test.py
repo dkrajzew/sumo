@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poly")
+netedit.changeElement("poly")
 
 # change color using dialog
-netedit.changeColorUsingDialog(2, 5)
+netedit.changeColorUsingDialog(3, 5)
 
 # create polygon
 netedit.createSquaredPoly(referencePosition, 100, 50, 100, True)
 
 # change color manually (invalid)
-netedit.modifyShapeDefaultValue(3, "Vlue")
+netedit.changeDefaultValue(4, "Vlue")
 
 # try to create polygon
 netedit.createSquaredPoly(referencePosition, 200, 50, 100, True)
 
 # change color manually (valid)
-netedit.modifyShapeDefaultValue(3, "red")
+netedit.changeDefaultValue(4, "red")
 
 # create polygon
 netedit.createSquaredPoly(referencePosition, 300, 50, 100, True)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

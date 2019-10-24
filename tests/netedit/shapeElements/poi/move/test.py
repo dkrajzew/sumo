@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poi")
+netedit.changeElement("poi")
 
 # create poi
 netedit.leftClick(referencePosition, 100, 100)
 
 # change color to white (To see icon)
-netedit.modifyShapeDefaultValue(3, "white")
+netedit.changeDefaultValue(4, "white")
 
-# Change parameter 6 with a valid value
-netedit.modifyShapeDefaultValue(6, "10")
+# Change parameter width with a valid value (To see icon)
+netedit.changeDefaultValue(7, "10")
 
-# Change parameter 6 with a valid value
-netedit.modifyShapeDefaultValue(7, "10")
+# Change parameter height with a valid value (To see icon)
+netedit.changeDefaultValue(8, "10")
 
 # change imgfile (valid)
-netedit.modifyShapeDefaultValue(8, "berlin_icon.ico")
+netedit.changeDefaultValue(9, "berlin_icon.ico")
 
 # create poi
 netedit.leftClick(referencePosition, 100, 350)
@@ -63,10 +63,10 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -75,7 +75,7 @@ MSMeanData_Harmonoise::MSLaneMeanDataValues::update() {
 
 
 void
-MSMeanData_Harmonoise::MSLaneMeanDataValues::notifyMoveInternal(const SUMOVehicle& veh, const double /* frontOnLane */, const double timeOnLane, const double /*meanSpeedFrontOnLane*/, const double meanSpeedVehicleOnLane, const double /*travelledDistanceFrontOnLane*/, const double travelledDistanceVehicleOnLane, const double /* meanLengthOnLane */) {
+MSMeanData_Harmonoise::MSLaneMeanDataValues::notifyMoveInternal(const SUMOTrafficObject& veh, const double /* frontOnLane */, const double timeOnLane, const double /*meanSpeedFrontOnLane*/, const double meanSpeedVehicleOnLane, const double /*travelledDistanceFrontOnLane*/, const double travelledDistanceVehicleOnLane, const double /* meanLengthOnLane */) {
     const double sn = HelpersHarmonoise::computeNoise(veh.getVehicleType().getEmissionClass(),
                       // XXX: recheck, which value to use here for the speed. (Leo) Refs. #2579
                       (double) meanSpeedVehicleOnLane, veh.getAcceleration());
@@ -115,7 +115,7 @@ MSMeanData_Harmonoise::MSMeanData_Harmonoise(const std::string& id,
         const double maxTravelTime, const double minSamples,
         const std::string& vTypes)
     : MSMeanData(id, dumpBegin, dumpEnd, useLanes, withEmpty, printDefaults,
-                 withInternal, trackVehicles, maxTravelTime, minSamples, vTypes) {
+                 withInternal, trackVehicles, 0, maxTravelTime, minSamples, vTypes) {
 }
 
 

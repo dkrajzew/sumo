@@ -29,13 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.rebuildNetwork()
 
 # toogle select lanes
-netedit.toogleSelectEdges()
-
-# recompute
-netedit.rebuildNetwork()
-
-# toogle select lanes
-netedit.toogleSelectEdges()
+netedit.changeEditMode('2')
 
 # go to select mode
 netedit.selectMode()
@@ -77,10 +71,10 @@ netedit.rebuildNetwork()
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

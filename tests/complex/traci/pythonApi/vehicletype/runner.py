@@ -18,19 +18,13 @@
 from __future__ import print_function
 from __future__ import absolute_import
 import os
-import subprocess
 import sys
 sys.path.append(os.path.join(
     os.path.dirname(sys.argv[0]), "..", "..", "..", "..", "..", "tools"))
 import traci  # noqa
 import sumolib  # noqa
 
-sumoBinary = sumolib.checkBinary('sumo')
-
-PORT = sumolib.miscutils.getFreeSocketPort()
-sumoProcess = subprocess.Popen(
-    "%s -c sumo.sumocfg --remote-port %s" % (sumoBinary, PORT), shell=True, stdout=sys.stdout)
-traci.init(PORT)
+traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
 for step in range(3):
     print("step", step)
     traci.simulationStep()
@@ -55,6 +49,7 @@ print("shape", traci.vehicletype.getShapeClass(typeID))
 print("MinGap", traci.vehicletype.getMinGap(typeID))
 print("width", traci.vehicletype.getWidth(typeID))
 print("color", traci.vehicletype.getColor(typeID))
+print("personCapacity", traci.vehicletype.getPersonCapacity(typeID))
 traci.vehicletype.subscribe(typeID)
 print(traci.vehicletype.getSubscriptionResults(typeID))
 for step in range(3, 6):
@@ -106,6 +101,5 @@ traci.vehicletype.setAccel(copyID, 100.)
 print("accel (original)", traci.vehicletype.getAccel(typeID))
 print("accel (copied)", traci.vehicletype.getAccel(copyID))
 
-
+traci.simulationStep()
 traci.close()
-sumoProcess.wait()

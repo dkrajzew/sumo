@@ -46,7 +46,7 @@
 // method definitions
 // ===========================================================================
 void
-NIFrame::fillOptions() {
+NIFrame::fillOptions(bool forNetedit) {
     OptionsCont& oc = OptionsCont::getOptions();
     // register input formats
     oc.doRegister("sumo-net-file", 's', new Option_FileName());
@@ -81,12 +81,15 @@ NIFrame::fillOptions() {
     oc.addSynonyme("type-files", "types");
     oc.addDescription("type-files", "Input", "Read XML-type defs from FILE");
 
-    oc.doRegister("ptstop-files", new Option_FileName());
-    oc.addDescription("ptstop-files", "Input", "Reads public transport stops from FILE");
-    oc.doRegister("ptline-files", new Option_FileName());
-    oc.addDescription("ptline-files", "Input", "Reads public transport lines from FILE");
-    oc.doRegister("polygon-files", new Option_FileName());
-    oc.addDescription("polygon-files", "Input", "Reads polygons from FILE for embedding in network where applicable");
+    if (!forNetedit) {
+        // would cause confusion because netedit loads stops and shapes using option --additional-files
+        oc.doRegister("ptstop-files", new Option_FileName());
+        oc.addDescription("ptstop-files", "Input", "Reads public transport stops from FILE");
+        oc.doRegister("ptline-files", new Option_FileName());
+        oc.addDescription("ptline-files", "Input", "Reads public transport lines from FILE");
+        oc.doRegister("polygon-files", new Option_FileName());
+        oc.addDescription("polygon-files", "Input", "Reads polygons from FILE for embedding in network where applicable");
+    }
 
     oc.doRegister("shapefile-prefix", new Option_FileName());
     oc.addSynonyme("shapefile-prefix", "shapefile");
@@ -228,7 +231,7 @@ NIFrame::fillOptions() {
     oc.doRegister("shapefile.node-join-dist", new Option_Float(0));
     oc.addDescription("shapefile.node-join-dist", "Formats", "Distance threshold for determining whether distinct shapes are connected (used when from-id and to-id are not available)");
 
-    oc.doRegister("shapefile.add-params", new Option_String());
+    oc.doRegister("shapefile.add-params", new Option_StringVector());
     oc.addDescription("shapefile.add-params", "Formats", "Add the list of field names as edge params");
 
     oc.doRegister("shapefile.use-defaults-on-failure", new Option_Bool(false));
@@ -261,6 +264,9 @@ NIFrame::fillOptions() {
 
 
     // register visum options
+    oc.doRegister("visum.language-file", new Option_FileName());
+    oc.addDescription("visum.language-file", "Formats", "Load language mappings from FILE");
+
     oc.doRegister("visum.use-type-priority", new Option_Bool(false));
     oc.addDescription("visum.use-type-priority", "Formats", "Uses priorities from types");
 
@@ -300,7 +306,7 @@ NIFrame::fillOptions() {
     oc.addDescription("opendrive.ignore-widths", "Formats", "Whether lane widths shall be ignored.");
     oc.doRegister("opendrive.curve-resolution", new Option_Float(2.0));
     oc.addDescription("opendrive.curve-resolution", "Formats", "The geometry resolution in m when importing curved geometries as line segments.");
-    oc.doRegister("opendrive.advance-stopline", new Option_Float(12.0));
+    oc.doRegister("opendrive.advance-stopline", new Option_Float(0.0));
     oc.addDescription("opendrive.advance-stopline", "Formats", "Allow stop lines to be built beyond the start of the junction if the geometries allow so");
     oc.doRegister("opendrive.min-width", new Option_Float(1.8));
     oc.addDescription("opendrive.min-width", "Formats", "The minimum lane width for determining start or end of variable-width lanes");
@@ -326,7 +332,7 @@ NIFrame::checkOptions() {
     bool ok = oc.checkDependingSuboptions("shapefile", "shapefile.");
     ok &= oc.checkDependingSuboptions("visum-file", "visum.");
     ok &= oc.checkDependingSuboptions("vissim-file", "vissim.");
-#ifdef HAVE_PROJ
+#ifdef PROJ_API_FILE
     int numProjections = oc.getBool("simple-projection") + oc.getBool("proj.utm") + oc.getBool("proj.dhdn") + (oc.getString("proj").length() > 1);
     if ((oc.isSet("osm-files") || oc.isSet("dlr-navteq-prefix") || oc.isSet("shapefile-prefix")) && numProjections == 0) {
         if (oc.isDefault("proj")) {
@@ -379,9 +385,9 @@ NIFrame::checkOptions() {
             // a better interpretation of imported geometries
             oc.set("rectangular-lane-cut", "true");
         }
-        if (oc.isDefault("opendrive.advance-stopline") && oc.getBool("opendrive.internal-shapes")) {
-            // avoid mismatch between edge shapes and and internal edge shapes
-            oc.set("opendrive.advance-stopline", "0");
+        if (oc.isDefault("geometry.max-grade.fix")) {
+            // a better interpretation of imported geometries
+            oc.set("geometry.max-grade.fix", "false");
         }
     }
     return ok;

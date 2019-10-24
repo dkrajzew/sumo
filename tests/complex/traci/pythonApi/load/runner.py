@@ -19,15 +19,11 @@
 from __future__ import print_function
 from __future__ import absolute_import
 import os
-import subprocess
 import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
@@ -44,23 +40,16 @@ traci.simulationStep()
 traci.close()
 
 
-sumoBinary = sumolib.checkBinary('sumo-gui')
-
-PORT = sumolib.miscutils.getFreeSocketPort()
-sumoProcess = subprocess.Popen(
-    "%s -S -Q -c sumo.sumocfg -l log.txt --remote-port %s" % (sumoBinary, PORT), shell=True, stdout=sys.stdout)
-traci.init(PORT)
+traci.start([sumolib.checkBinary('sumo-gui'), "-S", "-Q", "-c", "sumo.sumocfg", "-l", "log.txt"])
 for i in range(3):
     traci.simulationStep()
-    print("step=%s departed=%s" % (traci.simulation.getCurrentTime(),
+    print("step=%s departed=%s" % (traci.simulation.getTime(),
                                    traci.simulation.getDepartedIDList()))
-
 
 print("reloading")
 traci.load(["-S", "-Q", "-c", "sumo.sumocfg"])
 while traci.simulation.getMinExpectedNumber() > 0:
     traci.simulationStep()
-    print("step=%s departed=%s" % (traci.simulation.getCurrentTime(),
+    print("step=%s departed=%s" % (traci.simulation.getTime(),
                                    traci.simulation.getDepartedIDList()))
 traci.close()
-sumoProcess.wait()

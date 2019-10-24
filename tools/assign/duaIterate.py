@@ -42,14 +42,12 @@ def addGenericOptions(argParser):
                            default=False, help="disables warnings")
     argParser.add_argument("-n", "--net-file", dest="net",
                            help="SUMO network (mandatory)", metavar="FILE")
-    argParser.add_argument("-+", "--additional", dest="additional",
-                           default="", help="Additional files")
+    argParser.add_argument("-+", "--additional", default="", help="Additional files")
     argParser.add_argument("-b", "--begin",
                            type=int, default=0, help="Set simulation/routing begin")
     argParser.add_argument("-e", "--end",
                            type=int, help="Set simulation/routing end")
-    argParser.add_argument("-R", "--route-steps", dest="routeSteps",
-                           type=int, default=200, help="Set simulation route steps")
+    argParser.add_argument("-R", "--route-steps", type=int, default=200, help="Set simulation route steps")
     argParser.add_argument("-a", "--aggregation",
                            type=int, default=900, help="Set main weights aggregation period")
     argParser.add_argument("-m", "--mesosim", action="store_true",
@@ -59,16 +57,21 @@ def addGenericOptions(argParser):
                            default=False, help="use current time to generate random number")
     argParser.add_argument("-I", "--nointernal-link", action="store_true", dest="internallink",
                            default=False, help="not to simulate internal link: true or false")
-    argParser.add_argument("-j", "--meso-junctioncontrol", dest="mesojunctioncontrol", action="store_true",
-                           default=False, help="Enable mesoscopic traffic light and priority junciton handling")
-    argParser.add_argument("-q", "--meso-multiqueue", dest="mesomultiqueue", action="store_true",
-                           default=False, help="Enable multiple queues at edge ends")
-    argParser.add_argument("--meso-recheck", dest="mesorecheck", type=int, default=0,
-                           help="Delay before checking whether a jam is gone. (higher values can lead to a big speed " +
-                                "increase)")
-    argParser.add_argument("-Q", "--eco-measure", dest="ecomeasure",
-                           choices=[
-                               'CO', 'CO2', 'PMx', 'HC', 'NOx', 'fuel', 'noise'],
+    argParser.add_argument("-j", "--meso-junctioncontrol", action="store_true", default=False,
+                           help="Enable mesoscopic traffic light and priority junciton handling")
+    argParser.add_argument("-L", "--meso-junctioncontrollimited", action="store_true", default=False,
+                           help="Enable mesoscopic traffic light and priority junction handling for saturated links")
+    argParser.add_argument("-q", "--meso-multiqueue", action="store_true", default=False,
+                           help="Enable multiple queues at edge ends")
+    argParser.add_argument("--meso-recheck", type=int, default=0,
+                           help="Delay before checking whether a jam is gone. " +
+                                "(higher values can lead to a big speed increase)")
+    argParser.add_argument("--meso-tls-penalty", type=float,
+                           help="Apply scaled time penalties when driving across tls controlled junctions")
+    argParser.add_argument("--meso-minor-penalty", type=int,
+                           help="Apply fixed time penalty when driving across a minor link; " +
+                                "do not use together with --meso-junctioncontrollimited")
+    argParser.add_argument("-Q", "--eco-measure", choices=['CO', 'CO2', 'PMx', 'HC', 'NOx', 'fuel', 'noise'],
                            help="define the applied eco measure, e.g. fuel, CO2, noise")
     argParser.add_argument("--eager-insert", action="store_true",
                            default=False, help="eager insertion tests (may slow down the sim considerably)")
@@ -76,9 +79,6 @@ def addGenericOptions(argParser):
                            help="Delay before blocked vehicles are teleported (negative value disables teleporting)")
     argParser.add_argument("--time-to-teleport.highways", dest="timetoteleport_highways", type=float, default=0,
                            help="Delay before blocked vehicles are teleported on wrong highway lanes")
-    argParser.add_argument("--cost-modifier", dest="costmodifier",
-                           choices=['grohnde', 'isar', 'None'],
-                           default='None', help="Whether to modify link travel costs of the given routes")
     argParser.add_argument("-7", "--zip", action="store_true",
                            default=False, help="zip old iterations using 7zip")
 
@@ -181,7 +181,7 @@ def call(command, log):
 
 
 def writeRouteConf(duarouterBinary, step, options, dua_args, file,
-                   output, routesInfo, initial_type):
+                   output, routesInfo):
     filename = os.path.basename(file)
     filename = filename.split('.')[0]
     cfgname = "iteration_%03i_%s.duarcfg" % (step, filename)
@@ -200,9 +200,9 @@ def writeRouteConf(duarouterBinary, step, options, dua_args, file,
     if step > 0:
         print('        <weights value="%s"/>' %
               get_weightfilename(options, step - 1, "dump"), file=fd)
-    if options.ecomeasure:
+    if options.eco_measure:
         print('        <weight-attribute value="%s"/>' %
-              options.ecomeasure, file=fd)
+              options.eco_measure, file=fd)
     print("""    </input>
     <output>
         <output-file value="%s"/>
@@ -279,8 +279,6 @@ def get_weightfilename(options, step, prefix):
         prefix = "%s,%s" % (options.addweights, prefix)
     if options.weightmemory:
         prefix = "memory_" + prefix
-    if options.costmodifier != 'None':
-        prefix = options.costmodifier + "_" + prefix
     return get_dumpfilename(options, step, prefix)
 
 
@@ -297,7 +295,7 @@ def writeSUMOConf(sumoBinary, step, options, additional_args, route_files):
                '--no-step-log',
                '--random', options.absrand,
                '--begin', options.begin,
-               '--route-steps', options.routeSteps,
+               '--route-steps', options.route_steps,
                '--no-internal-links', options.internallink,
                '--eager-insert', options.eager_insert,
                '--time-to-teleport', options.timetoteleport,
@@ -310,7 +308,7 @@ def writeSUMOConf(sumoBinary, step, options, additional_args, route_files):
         sumoCmd += ['--summary-output', "summary_%03i.xml" % step]
     if hasattr(options, "noTripinfo") and not options.noTripinfo:
         sumoCmd += ['--tripinfo-output', "tripinfo_%03i.xml" % step]
-        if options.ecomeasure:
+        if options.eco_measure:
             sumoCmd += ['--device.hbefa.probability', '1']
     if hasattr(options, "routefile"):
         if options.routefile == "routesonly":
@@ -331,11 +329,17 @@ def writeSUMOConf(sumoBinary, step, options, additional_args, route_files):
         sumoCmd += ['--scale', get_scale(options, step)]
     if options.mesosim:
         sumoCmd += ['--mesosim',
-                    '--meso-recheck', options.mesorecheck]
-        if options.mesomultiqueue:
+                    '--meso-recheck', options.meso_recheck]
+        if options.meso_multiqueue:
             sumoCmd += ['--meso-multi-queue']
-        if options.mesojunctioncontrol:
+        if options.meso_junctioncontrol:
             sumoCmd += ['--meso-junction-control']
+        if options.meso_junctioncontrollimited:
+            sumoCmd += ['--meso-junction-control.limited']
+        if options.meso_tls_penalty:
+            sumoCmd += ['--meso-tls-penalty', options.meso_tls_penalty]
+        if options.meso_minor_penalty:
+            sumoCmd += ['--meso-minor-penalty', options.meso_minor_penalty]
 
     # make sure all arguments are strings
     sumoCmd = list(map(str, sumoCmd))
@@ -346,13 +350,9 @@ def writeSUMOConf(sumoBinary, step, options, additional_args, route_files):
     with open(detectorfile, 'w') as fd:
         suffix = "_%03i_%s" % (step, options.aggregation)
         print("<a>", file=fd)
-        if options.costmodifier != 'None':
-            print('    <edgeData id="dump%s" freq="%s" file="%s" excludeEmpty="defaults" minSamples="1"/>' % (
-                suffix, options.aggregation, get_dumpfilename(options, step, "dump")), file=fd)
-        else:
-            print('    <edgeData id="dump%s" freq="%s" file="%s" excludeEmpty="true" minSamples="1"/>' % (
-                suffix, options.aggregation, get_dumpfilename(options, step, "dump")), file=fd)
-        if options.ecomeasure:
+        print('    <edgeData id="dump%s" freq="%s" file="%s" excludeEmpty="true" minSamples="1"/>' % (
+            suffix, options.aggregation, get_dumpfilename(options, step, "dump")), file=fd)
+        if options.eco_measure:
             print(('    <edgeData id="eco%s" type="hbefa" freq="%s" file="dump%s.xml" ' +
                    'excludeEmpty="true" minSamples="1"/>') %
                   (suffix, options.aggregation, suffix), file=fd)
@@ -490,13 +490,10 @@ def main(args=None):
     starttime = datetime.now()
     if options.trips:
         input_demands = options.trips.split(",")
-        initial_type = "trip"
     elif options.flows:
         input_demands = options.flows.split(",")
-        initial_type = "flow"
     else:
         input_demands = options.routes.split(",")
-        initial_type = "route"
     if options.externalgawron:
         # avoid dependency on numpy for normal duaIterate
         from routeChoices import getRouteChoices, calFirstRouteProbs
@@ -508,12 +505,6 @@ def main(args=None):
     routesSuffix = ".xml"
     if options.binary:
         routesSuffix = ".sbx"
-    if options.costmodifier != 'None':
-        pyPath = os.path.abspath(os.path.dirname(sys.argv[0]))
-        sys.path.append(
-            os.path.join(pyPath, "..", "..", "..", "..", "..", "tools", "kkwSim"))
-        from kkwCostModifier import costModifier
-        print('Use the cost modifier for KKW simulation')
 
     if options.weightmemory and options.firstStep != 0:
         # load previous dump files when continuing a run
@@ -545,7 +536,7 @@ def main(args=None):
                 btime = datetime.now()
                 print(">>> Begin time: %s" % btime)
                 cfgname = writeRouteConf(duaBinary, step, options, dua_args, router_input,
-                                         output, options.routefile, initial_type)
+                                         output, options.routefile)
                 log.flush()
                 sys.stdout.flush()
                 call([duaBinary, "-c", cfgname], log)
@@ -562,8 +553,8 @@ def main(args=None):
                         basename = basename[:-4]
                     print('basename', basename)
                     ecomeasure = None
-                    if options.ecomeasure:
-                        ecomeasure = options.ecomeasure
+                    if options.eco_measure:
+                        ecomeasure = options.eco_measure
                     if step == options.firstStep + 1 and options.skipFirstRouting:
                         if options.caloldprob:
                             calFirstRouteProbs("dump_000_%s.xml" % (
@@ -616,11 +607,6 @@ def main(args=None):
                   (costmemory.avg_error(), costmemory.mean_error()))
             print(">>> Absolute Error avg:%.12g mean:%.12g" %
                   (costmemory.avg_abs_error(), costmemory.mean_abs_error()))
-
-        if options.costmodifier != 'None':
-            currentDir = os.getcwd()
-            costModifier(get_weightfilename(options, step, "dump"), step, "dump",
-                         options.aggregation, currentDir, options.costmodifier, 'dua-iterate')
 
         if options.zip and step - options.firstStep > 1:
             # this is a little hackish since we zip and remove all files by glob, which may have undesired side effects

@@ -168,7 +168,6 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, MSLane* lane, double p
                 WRITE_WARNING(ss.str());
                 pos = newEndPos;
             } else {
-                std::stringstream ss;
                 ss << " (0 <= pos < lane->getLength() is required)";
                 throw InvalidArgument(ss.str());
             }
@@ -217,8 +216,8 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, std::vector<MSLane*> l
     assert(endPos != std::numeric_limits<double>::max());
     assert(lanes.size() != 0);
 
-    MSLane* firstLane = lanes[0];
-    MSLane* lastLane = lanes[lanes.size() - 1];
+    const MSLane* const firstLane = lanes[0];
+    const MSLane* const lastLane = lanes.back();
 
     // Check positioning
     if (pos >= firstLane->getLength() || (pos < 0 && -pos > firstLane->getLength())) {
@@ -260,12 +259,12 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, std::vector<MSLane*> l
         // add the file output (XXX: Where's the corresponding delete?)
         if (toLaneGiven) {
             // Detector also associated to specific link
-            MSLane* lastLane = det->getLastLane();
-            MSLink* link = MSLinkContHelper::getConnectingLink(*lastLane, *toLane);
+            const MSLane* const lastDetLane = det->getLastLane();
+            const MSLink* const link = MSLinkContHelper::getConnectingLink(*lastDetLane, *toLane);
             if (link == nullptr) {
                 throw InvalidArgument(
                     "The detector '" + id + "' cannot be build as no connection between lanes '"
-                    + lastLane->getID() + "' and '" + toLane->getID() + "' exists.");
+                    + lastDetLane->getID() + "' and '" + toLane->getID() + "' exists.");
             }
             new Command_SaveTLCoupledLaneDet(*tlls, det, myNet.getCurrentTimeStep(), OutputDevice::getDevice(device), link);
         } else {
@@ -453,7 +452,7 @@ void
 NLDetectorBuilder::createEdgeLaneMeanData(const std::string& id, SUMOTime frequency,
         SUMOTime begin, SUMOTime end, const std::string& type,
         const bool useLanes, const bool withEmpty, const bool printDefaults,
-        const bool withInternal, const bool trackVehicles,
+        const bool withInternal, const bool trackVehicles, const int detectPersons,
         const double maxTravelTime, const double minSamples,
         const double haltSpeed, const std::string& vTypes,
         const std::string& device) {
@@ -466,10 +465,11 @@ NLDetectorBuilder::createEdgeLaneMeanData(const std::string& id, SUMOTime freque
     if (end <= begin) {
         throw InvalidArgument("End before or at begin for meandata dump '" + id + "'.");
     }
+    checkStepLengthMultiple(begin, " for meandata dump '" + id + "'");
     MSMeanData* det = nullptr;
     if (type == "" || type == "performance" || type == "traffic") {
         det = new MSMeanData_Net(id, begin, end, useLanes, withEmpty,
-                                 printDefaults, withInternal, trackVehicles, maxTravelTime, minSamples, haltSpeed, vTypes);
+                                 printDefaults, withInternal, trackVehicles, detectPersons, maxTravelTime, minSamples, haltSpeed, vTypes);
     } else if (type == "emissions" || type == "hbefa") {
         if (type == "hbefa") {
             WRITE_WARNING("The netstate type 'hbefa' is deprecated. Please use the type 'emissions' instead.");
@@ -481,13 +481,15 @@ NLDetectorBuilder::createEdgeLaneMeanData(const std::string& id, SUMOTime freque
                                         printDefaults, withInternal, trackVehicles, maxTravelTime, minSamples, vTypes);
     } else if (type == "amitran") {
         det = new MSMeanData_Amitran(id, begin, end, useLanes, withEmpty,
-                                     printDefaults, withInternal, trackVehicles, maxTravelTime, minSamples, haltSpeed, vTypes);
+                                     printDefaults, withInternal, trackVehicles, detectPersons, maxTravelTime, minSamples, haltSpeed, vTypes);
     } else {
         throw InvalidArgument("Invalid type '" + type + "' for meandata dump '" + id + "'.");
     }
     if (det != nullptr) {
         if (frequency < 0) {
             frequency = end - begin;
+        } else {
+            checkStepLengthMultiple(frequency, " for meandata dump '" + id + "'");
         }
         MSNet::getInstance()->getDetectorControl().add(det, device, frequency, begin);
     }
@@ -529,8 +531,8 @@ NLDetectorBuilder::checkSampleInterval(SUMOTime splInterval, SumoXMLTag type, co
     if (splInterval == 0) {
         throw InvalidArgument("Sampling frequency must not be zero (in " + toString(type) + " '" + id + "').");
     }
+    checkStepLengthMultiple(splInterval, " (in " + toString(type) + " '" + id + "')");
 }
 
 
 /****************************************************************************/
-

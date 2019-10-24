@@ -44,6 +44,11 @@
 #include <microsim/devices/MSDevice_Transportable.h>
 #include "MSInsertionControl.h"
 
+//#define DEBUG_REROUTE
+//#define DEBUG_COND (getID() == "follower")
+//#define DEBUG_COND (true)
+#define DEBUG_COND (isSelected())
+
 // ===========================================================================
 // static members
 // ===========================================================================
@@ -88,21 +93,30 @@ MSBaseVehicle::MSBaseVehicle(SUMOVehicleParameter* pars, const MSRoute* route,
     if ((*myRoute->begin())->isTazConnector() || myRoute->getLastEdge()->isTazConnector()) {
         pars->parametersSet |= VEHPARS_FORCE_REROUTE;
     }
-    // init devices
-    MSDevice::buildVehicleDevices(*this, myDevices);
-    //
-    for (MSVehicleDevice* dev : myDevices) {
-        myMoveReminders.push_back(std::make_pair(dev, 0.));
-    }
-    myRoute->addReference();
     if (!pars->wasSet(VEHPARS_FORCE_REROUTE)) {
         calculateArrivalParams();
         if (MSGlobals::gCheckRoutes) {
             std::string msg;
             if (!hasValidRoute(msg)) {
-                throw ProcessError("Vehicle '" + pars->id + "' has no valid route. " + msg);
+                msg = "Vehicle '" + pars->id + "' has no valid route. " + msg;
+                delete myParameter;
+                throw ProcessError(msg);
             }
         }
+    }
+    // init devices
+    try {
+        MSDevice::buildVehicleDevices(*this, myDevices);
+    } catch (ProcessError&) {
+        for (MSVehicleDevice* dev : myDevices) {
+            delete dev;
+        }
+        delete myParameter;
+        throw;
+    }
+    myRoute->addReference();
+    for (MSVehicleDevice* dev : myDevices) {
+        myMoveReminders.push_back(std::make_pair(dev, 0.));
     }
 }
 
@@ -181,7 +195,13 @@ MSBaseVehicle::reroute(SUMOTime t, const std::string& info, SUMOAbstractRouter<M
             // avoid superfluous waypoints for first and last edge
             const bool skipFirst = stops.front() == source && sourcePos < firstPos;
             const bool skipLast = stops.back() == sink && myArrivalPos > lastPos;
-            //if (getID() == "tram2") std::cout << SIMTIME << " reroute " << info << " veh=" << getID() << " route=" << toString(myRoute->getEdges()) << " stopEdges=" << toString(stops) << " skipFirst=" << skipFirst << " skipLast=" << skipLast << "\n";;
+#ifdef DEBUG_REROUTE
+            if (DEBUG_COND) {
+                std::cout << SIMTIME << " reroute " << info << " veh=" << getID() << " lane=" << getLane()->getID()
+                          << " source=" << source->getID() << " sourcePos=" << sourcePos << " firstPos=" << firstPos << " arrivalPos=" << myArrivalPos << " lastPos=" << lastPos
+                          << " route=" << toString(myRoute->getEdges()) << " stopEdges=" << toString(stops) << " skipFirst=" << skipFirst << " skipLast=" << skipLast << "\n";
+            }
+#endif
             if (stops.size() == 1 && (skipFirst || skipLast)) {
                 stops.clear();
             } else {
@@ -224,7 +244,7 @@ MSBaseVehicle::reroute(SUMOTime t, const std::string& info, SUMOAbstractRouter<M
             }
         } else {
             std::string error = "Vehicle '" + getID() + "' has no valid route from edge '" + source->getID() + "' to stop edge '" + (*s)->getID() + "'.";
-            if (MSGlobals::gCheckRoutes) {
+            if (MSGlobals::gCheckRoutes || silent) {
                 throw ProcessError(error);
             } else {
                 WRITE_WARNING(error);
@@ -234,6 +254,9 @@ MSBaseVehicle::reroute(SUMOTime t, const std::string& info, SUMOAbstractRouter<M
         }
     }
     router.compute(source, sink, this, t, edges, silent);
+    if (edges.empty() && silent) {
+        return;
+    }
     if (!edges.empty() && edges.front()->isTazConnector()) {
         edges.erase(edges.begin());
     }
@@ -290,7 +313,8 @@ MSBaseVehicle::replaceRouteEdges(ConstMSEdgeVector& edges, double cost, double s
         }
         edges.insert(edges.begin(), myRoute->begin(), myCurrEdge);
     }
-    if (edges == myRoute->getEdges()) {
+    if (edges == myRoute->getEdges() && !StringUtils::endsWith(info, toString(SUMO_TAG_PARKING_ZONE_REROUTE))) {
+        // re-assign stop iterators when rerouting to a new parkingArea
         return true;
     }
     const RGBColor& c = myRoute->getColor();
@@ -350,6 +374,22 @@ bool
 MSBaseVehicle::hasArrived() const {
     return succEdge(1) == nullptr;
 }
+
+
+int
+MSBaseVehicle::getRoutePosition() const {
+    return (int) std::distance(myRoute->begin(), myCurrEdge);
+}
+
+
+void
+MSBaseVehicle::resetRoutePosition(int index, DepartLaneDefinition departLaneProcedure) {
+    myCurrEdge = myRoute->begin() + index;
+    const_cast<SUMOVehicleParameter*>(myParameter)->departLaneProcedure = departLaneProcedure;
+    // !!! hack
+    myArrivalPos = (*(myRoute->end() - 1))->getLanes()[0]->getLength();
+}
+
 
 void
 MSBaseVehicle::addPerson(MSTransportable* person) {
@@ -580,10 +620,12 @@ MSBaseVehicle::getContainerNumber() const {
 
 void
 MSBaseVehicle::removeTransportable(MSTransportable* t) {
-    const bool isPerson = dynamic_cast<MSPerson*>(t) != nullptr;
-    MSDevice_Transportable* device = isPerson ? myPersonDevice : myContainerDevice;
-    if (device != nullptr) {
-        device->removeTransportable(t);
+    // this might be called from the MSTransportable destructor so we cannot do a dynamic cast to determine the type
+    if (myPersonDevice != nullptr) {
+        myPersonDevice->removeTransportable(t);
+    }
+    if (myContainerDevice != nullptr) {
+        myContainerDevice->removeTransportable(t);
     }
 }
 

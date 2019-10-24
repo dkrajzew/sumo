@@ -54,12 +54,14 @@
 // method definitions
 // ===========================================================================
 GUIBusStop::GUIBusStop(const std::string& id, const std::vector<std::string>& lines, MSLane& lane,
-                       double frompos, double topos, const std::string name) :
-    MSStoppingPlace(id, lines, lane, frompos, topos, name),
-    GUIGlObject_AbstractAdd(GLO_BUS_STOP, id) {
+                       double frompos, double topos, const std::string name, int personCapacity) :
+    MSStoppingPlace(id, lines, lane, frompos, topos, name, personCapacity),
+    GUIGlObject_AbstractAdd(GLO_BUS_STOP, id),
+    myPersonExaggeration(1) {
     const double offsetSign = MSNet::getInstance()->lefthand() ? -1 : 1;
+    myWidth = MAX2(1.0, ceil(personCapacity / getPersonsAbreast()) * SUMO_const_waitingPersonDepth);
     myFGShape = lane.getShape();
-    myFGShape.move2side(1.65 * offsetSign);
+    myFGShape.move2side((lane.getWidth() + myWidth) * 0.45 * offsetSign);
     myFGShape = myFGShape.getSubpart(
                     lane.interpolateLanePosToGeometryPos(frompos),
                     lane.interpolateLanePosToGeometryPos(topos));
@@ -73,7 +75,7 @@ GUIBusStop::GUIBusStop(const std::string& id, const std::vector<std::string>& li
         myFGShapeRotations.push_back((double) atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double) M_PI);
     }
     PositionVector tmp = myFGShape;
-    tmp.move2side(1.5 * offsetSign);
+    tmp.move2side(myWidth / 2 * offsetSign);
     myFGSignPos = tmp.getLineCenter();
     myFGSignRot = 0;
     if (tmp.length() != 0) {
@@ -119,6 +121,7 @@ GUIBusStop::getParameterWindow(GUIMainWindow& app,
     ret->mkItem("name", false, getMyName());
     ret->mkItem("begin position [m]", false, myBegPos);
     ret->mkItem("end position [m]", false, myEndPos);
+    ret->mkItem("person capacity [#]", false, myTransportableCapacity);
     ret->mkItem("person number [#]", true, new FunctionBinding<GUIBusStop, int>(this, &MSStoppingPlace::getTransportableNumber));
     ret->mkItem("stopped vehicles[#]", true, new FunctionBinding<GUIBusStop, int>(this, &MSStoppingPlace::getStoppedVehicleNumber));
     ret->mkItem("last free pos[m]", true, new FunctionBinding<GUIBusStop, double>(this, &MSStoppingPlace::getLastFreePos));
@@ -134,11 +137,12 @@ GUIBusStop::drawGL(const GUIVisualizationSettings& s) const {
     glPushMatrix();
     // draw the area
     glTranslated(0, 0, getType());
-    GLHelper::setColor(s.SUMO_color_busStop);
+    GLHelper::setColor(s.colorSettings.busStop);
     const double exaggeration = s.addSize.getExaggeration(s, this);
-    GLHelper::drawBoxLines(myFGShape, myFGShapeRotations, myFGShapeLengths, exaggeration);
+    const double offset = myWidth * 0.5 * MAX2(0.0, exaggeration - 1);
+    GLHelper::drawBoxLines(myFGShape, myFGShapeRotations, myFGShapeLengths, myWidth * 0.5 * exaggeration, 0, offset);
     // draw details unless zoomed out to far
-    if (s.scale * exaggeration >= 10) {
+    if (s.drawDetail(s.detailSettings.stoppingPlaceDetails, exaggeration)) {
         glPushMatrix();
         // draw the lines
         const double rotSign = MSNet::getInstance()->lefthand() ? 1 : -1;
@@ -150,7 +154,7 @@ GUIBusStop::drawGL(const GUIVisualizationSettings& s) const {
             glTranslated(myFGSignPos.x(), myFGSignPos.y(), 0);
             glRotated(rotSign * myFGSignRot, 0, 0, 1);
             // draw line
-            GLHelper::drawText(myLines[i].c_str(), Position(1.2, (double)i), .1, 1.f, s.SUMO_color_busStop, 0, FONS_ALIGN_LEFT);
+            GLHelper::drawText(myLines[i].c_str(), Position(1.2, (double)i), .1, 1.f, s.colorSettings.busStop, 0, FONS_ALIGN_LEFT);
             // pop matrix for every line
             glPopMatrix();
         }
@@ -166,15 +170,18 @@ GUIBusStop::drawGL(const GUIVisualizationSettings& s) const {
         glScaled(exaggeration, exaggeration, 1);
         GLHelper::drawFilledCircle((double) 1.1, noPoints);
         glTranslated(0, 0, .1);
-        GLHelper::setColor(s.SUMO_color_busStop_sign);
+        GLHelper::setColor(s.colorSettings.busStop_sign);
         GLHelper::drawFilledCircle((double) 0.9, noPoints);
-        if (s.scale * exaggeration >= 4.5) {
-            GLHelper::drawText("H", Position(), .1, 1.6, s.SUMO_color_busStop, myFGSignRot);
+        if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration)) {
+            GLHelper::drawText("H", Position(), .1, 1.6, s.colorSettings.busStop, myFGSignRot);
         }
         glPopMatrix();
     }
     if (s.addFullName.show && getMyName() != "") {
         GLHelper::drawTextSettings(s.addFullName, getMyName(), myFGSignPos, s.scale, s.getTextAngle(myFGSignRot), GLO_MAX - getType());
+    }
+    if (exaggeration > 1) {
+        myPersonExaggeration = s.personSize.getExaggeration(s, nullptr);
     }
     glPopMatrix();
     glPopName();
@@ -192,5 +199,20 @@ GUIBusStop::getCenteringBoundary() const {
     return b;
 }
 
+const std::string
+GUIBusStop::getOptionalName() const {
+    return myName;
+}
+
+Position
+GUIBusStop::getWaitPosition(MSTransportable* t) const {
+    Position result = MSStoppingPlace::getWaitPosition(t);
+    if (myPersonExaggeration > 1) {
+        Position ref = myLane.getShape().positionAtOffset(myLane.interpolateLanePosToGeometryPos((myBegPos + myEndPos) / 2),
+                       myLane.getWidth() / 2);
+        result = ref + (result - ref) * myPersonExaggeration;
+    }
+    return result;
+}
 
 /****************************************************************************/

@@ -97,7 +97,7 @@ public:
      * @param[in] minDur The minimum duration of the phase to add
      * @param[in] maxDur The maximum duration of the phase to add
      */
-    void addPhase(SUMOTime duration, const std::string& state, SUMOTime minDur, SUMOTime maxDur, int next, const std::string& name);
+    void addPhase(SUMOTime duration, const std::string& state, SUMOTime minDur, SUMOTime maxDur, const std::vector<int>& next, const std::string& name);
 
     /// @brief mark phases as load
     void phasesLoaded() {
@@ -147,6 +147,9 @@ public:
 
     /// @brief join nodes and states from the given logic (append red state)
     void joinLogic(NBTrafficLightDefinition* def);
+
+    /// @brief heuristically add minDur and maxDur when switching from tlType fixed to actuated
+    void guessMinMaxDuration();
 
 protected:
     /** @brief Collects the links participating in this traffic light

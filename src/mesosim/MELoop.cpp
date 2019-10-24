@@ -220,6 +220,16 @@ MELoop::removeLeaderCar(MEVehicle* v) {
     cands.erase(find(cands.begin(), cands.end(), v));
 }
 
+void
+MELoop::vaporizeCar(MEVehicle* v) {
+    v->getSegment()->send(v, nullptr, MSNet::getInstance()->getCurrentTimeStep(), MSMoveReminder::NOTIFICATION_VAPORIZED);
+    // try removeLeaderCar
+    std::vector<MEVehicle*>& cands = myLeaderCars[v->getEventTime()];
+    auto it = find(cands.begin(), cands.end(), v);
+    if (it != cands.end()) {
+        cands.erase(it);
+    }
+}
 
 MESegment*
 MELoop::nextSegment(MESegment* s, MEVehicle* v) {
@@ -281,6 +291,9 @@ MELoop::buildSegmentsFor(const MSEdge& e, const OptionsCont& oc) {
 
 MESegment*
 MELoop::getSegmentForEdge(const MSEdge& e, double pos) {
+    if (e.getNumericalID() >= (int)myEdges2FirstSegments.size()) {
+        return nullptr;
+    }
     MESegment* s = myEdges2FirstSegments[e.getNumericalID()];
     if (pos > 0) {
         double cpos = 0;

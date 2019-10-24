@@ -241,6 +241,13 @@ public:
     void setAsTLControlled(NBNode* node, NBTrafficLightLogicCont& tlc, TrafficLightType type, std::string id = "");
     /// @}
 
+    /** @brief Returns whether the node with the id was deleted explicitly
+     */
+    bool wasRemoved(std::string id) const {
+        return myExtractedNodes.count(id) != 0;
+    }
+
+
     /// @brief Renames the node. Throws exception if newID already exists
     void rename(NBNode* node, const std::string& newID);
 
@@ -248,7 +255,7 @@ public:
     void computeLanes2Lanes();
 
     /// @brief build the list of outgoing edges and lanes
-    void computeLogics(const NBEdgeCont& ec, OptionsCont& oc);
+    void computeLogics(const NBEdgeCont& ec);
 
     /// @brief compute right-of-way logic for all lane-to-lane connections
     void computeLogics2(const NBEdgeCont& ec, OptionsCont& oc);
@@ -343,10 +350,10 @@ private:
     bool shouldBeTLSControlled(const NodeSet& c, double laneSpeedThreshold) const;
 
     /// @brief check wheter the set of nodes only contains pedestrian crossings
-    bool onlyCrossings(const NodeSet& c) const; 
+    bool onlyCrossings(const NodeSet& c) const;
 
     /// @brief check wheter the set of nodes contains traffic lights with custom id
-    bool customTLID(const NodeSet& c) const; 
+    bool customTLID(const NodeSet& c) const;
     /// @}
 
 
@@ -361,7 +368,7 @@ private:
     NodeCont myNodes;
 
     /// @brief The extracted nodes which are kept for reference
-    std::set<NBNode*> myExtractedNodes;
+    NodeCont myExtractedNodes;
 
     /// @brief set of node ids which should not be joined
     std::set<std::string> myJoinExclusions;

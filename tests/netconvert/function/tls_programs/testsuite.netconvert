@@ -21,3 +21,12 @@ joined_rw
 
 # an example for a multimodal tls  from a real-world network 
 multimodal_rw
+
+# junction from acosta scenarion (#5393)
+joined_with_uncontrolled
+
+# minimum phase duration for tram phase
+multimodal_actuated_tram
+
+# guess tls for one-way nodes
+oneway

@@ -108,6 +108,9 @@ public:
      */
     virtual GUIGLObjectPopupMenu* getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) = 0;
 
+    /// @brief notify object about popup menu removal
+    virtual void removedPopupMenu() {}
+
     /** @brief Returns an own parameter window
      *
      * @param[in] app The application needed to build the parameter window
@@ -126,6 +129,9 @@ public:
 
     /// @brief Returns the id of the object as known to microsim
     virtual const std::string& getMicrosimID() const;
+
+    /// @brief Returns the name of the object (default "")
+    virtual const std::string getOptionalName() const;
 
     /// @brief Changes the microsimID of the object
     /// @note happens in NETEDIT
@@ -152,6 +158,9 @@ public:
      * @param[in] s The settings for the current view (may influence drawing)
      */
     virtual void drawGLAdditional(GUISUMOAbstractView* const parent, const GUIVisualizationSettings& s) const;
+
+    /// @brief remove additional user-griggered visualisations
+    virtual void removeActiveAddVisualisation(GUISUMOAbstractView* const /*parent*/, int /*which*/) {}
 
 #ifdef HAVE_OSG
     /// @brief get OSG Node

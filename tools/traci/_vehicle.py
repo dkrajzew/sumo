@@ -25,7 +25,7 @@ import warnings
 from .domain import Domain
 from .storage import Storage
 from . import constants as tc
-from . import exceptions
+from .exceptions import TraCIException
 
 
 def _readBestLanes(result):
@@ -57,7 +57,7 @@ def _readLeader(result):
 
 def _readNeighbors(result):
     """ result has structure:
-    byte(TYPE_COMPOUND) | length(neighList) | Per list entry: string(vehID) | double(dist)   
+    byte(TYPE_COMPOUND) | length(neighList) | Per list entry: string(vehID) | double(dist)
     """
     N = result.readInt()  # length of the vehicle list
     neighs = []
@@ -102,6 +102,7 @@ def _readNextStops(result):
 
 
 _RETURN_VALUE_FUNC = {tc.VAR_SPEED: Storage.readDouble,
+                      tc.VAR_SPEED_LAT: Storage.readDouble,
                       tc.VAR_SPEED_WITHOUT_TRACI: Storage.readDouble,
                       tc.VAR_ACCELERATION: Storage.readDouble,
                       tc.VAR_POSITION: lambda result: result.read("!dd"),
@@ -123,6 +124,7 @@ _RETURN_VALUE_FUNC = {tc.VAR_SPEED: Storage.readDouble,
                       tc.VAR_FUELCONSUMPTION: Storage.readDouble,
                       tc.VAR_NOISEEMISSION: Storage.readDouble,
                       tc.VAR_ELECTRICITYCONSUMPTION: Storage.readDouble,
+                      tc.VAR_PERSON_CAPACITY: Storage.readInt,
                       tc.VAR_PERSON_NUMBER: Storage.readInt,
                       tc.LAST_STEP_PERSON_ID_LIST: Storage.readStringList,
                       tc.VAR_EDGE_TRAVELTIME: Storage.readDouble,
@@ -201,9 +203,16 @@ class VehicleDomain(Domain):
     def getSpeed(self, vehID):
         """getSpeed(string) -> double
 
-        Returns the speed in m/s of the named vehicle within the last step.
+        Returns the (longitudinal) speed in m/s of the named vehicle within the last step.
         """
         return self._getUniversal(tc.VAR_SPEED, vehID)
+
+    def getLateralSpeed(self, vehID):
+        """getLateralSpeed(string) -> double
+
+        Returns the lateral speed in m/s of the named vehicle within the last step.
+        """
+        return self._getUniversal(tc.VAR_SPEED_LAT, vehID)
 
     def getAcceleration(self, vehID):
         """getAcceleration(string) -> double
@@ -307,42 +316,48 @@ class VehicleDomain(Domain):
     def getCO2Emission(self, vehID):
         """getCO2Emission(string) -> double
 
-        Returns the CO2 emission in mg for the last time step.
+        Returns the CO2 emission in mg/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_CO2EMISSION, vehID)
 
     def getCOEmission(self, vehID):
         """getCOEmission(string) -> double
 
-        Returns the CO emission in mg for the last time step.
+        Returns the CO emission in mg/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_COEMISSION, vehID)
 
     def getHCEmission(self, vehID):
         """getHCEmission(string) -> double
 
-        Returns the HC emission in mg for the last time step.
+        Returns the HC emission in mg/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_HCEMISSION, vehID)
 
     def getPMxEmission(self, vehID):
         """getPMxEmission(string) -> double
 
-        Returns the particular matter emission in mg for the last time step.
+        Returns the particular matter emission in mg/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_PMXEMISSION, vehID)
 
     def getNOxEmission(self, vehID):
         """getNOxEmission(string) -> double
 
-        Returns the NOx emission in mg for the last time step.
+        Returns the NOx emission in mg/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_NOXEMISSION, vehID)
 
     def getFuelConsumption(self, vehID):
         """getFuelConsumption(string) -> double
 
-        Returns the fuel consumption in ml for the last time step.
+        Returns the fuel consumption in ml/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_FUELCONSUMPTION, vehID)
 
@@ -356,9 +371,17 @@ class VehicleDomain(Domain):
     def getElectricityConsumption(self, vehID):
         """getElectricityConsumption(string) -> double
 
-        Returns the electricity consumption in Wh for the last time step.
+        Returns the electricity consumption in Wh/s for the last time step.
+        Multiply by the step length to get the value for one step.
         """
         return self._getUniversal(tc.VAR_ELECTRICITYCONSUMPTION, vehID)
+
+    def getPersonCapacity(self, vehID):
+        """getPersonCapacity(string) -> int
+
+        Returns the person capacity of the vehicle
+        """
+        return self._getUniversal(tc.VAR_PERSON_CAPACITY, vehID)
 
     def getPersonNumber(self, vehID):
         """getPersonNumber(string) -> integer
@@ -685,19 +708,19 @@ class VehicleDomain(Domain):
         return self.getNeighbors(vehID, mode)
 
     def getNeighbors(self, vehID, mode):
-        """ byte -> list(pair(string, double)) 
+        """ byte -> list(pair(string, double))
 
         The parameter mode is a bitset (UBYTE), specifying the following:
         bit 1: query lateral direction (left:0, right:1)
         bit 2: query longitudinal direction (followers:0, leaders:1)
         bit 3: blocking (return all:0, return only blockers:1)
 
-        The returned list contains pairs (ID, dist) for all lane change relevant neighboring leaders, resp. followers, 
-        along with their longitudinal distance to the ego vehicle (egoFront - egoMinGap to leaderBack, resp. 
-        followerFront - followerMinGap to egoBack. The value can be negative for overlapping neighs). 
+        The returned list contains pairs (ID, dist) for all lane change relevant neighboring leaders, resp. followers,
+        along with their longitudinal distance to the ego vehicle (egoFront - egoMinGap to leaderBack, resp.
+        followerFront - followerMinGap to egoBack. The value can be negative for overlapping neighs).
         For the non-sublane case, the lists will contain at most one entry.
 
-        Note: The exact set of blockers in case blocking==1 is not determined for the sublane model, 
+        Note: The exact set of blockers in case blocking==1 is not determined for the sublane model,
         but either all neighboring vehicles are returned (in case LCA_BLOCKED) or
         none is returned (in case !LCA_BLOCKED).
         """
@@ -1008,7 +1031,7 @@ class VehicleDomain(Domain):
         self._connection._beginMessage(
             tc.CMD_SET_VEHICLE_VARIABLE, tc.CMD_CHANGELANE, vehID, 1 + 4 + 1 + 1 + 1 + 8 + 1 + 1)
         self._connection._string += struct.pack(
-            "!BiBBBdBB", tc.TYPE_COMPOUND, 3, tc.TYPE_BYTE, indexOffset, tc.TYPE_DOUBLE, duration, tc.TYPE_BYTE, 1)
+            "!BiBbBdBB", tc.TYPE_COMPOUND, 3, tc.TYPE_BYTE, indexOffset, tc.TYPE_DOUBLE, duration, tc.TYPE_BYTE, 1)
         self._connection._sendExact()
 
     def changeSublane(self, vehID, latDist):
@@ -1042,8 +1065,8 @@ class VehicleDomain(Domain):
         to achieve a minimal spatial gap.
         The vehicle is commanded to keep the increased headway for
         the given duration once its target value is attained. The maximal value for the
-        deceleration can be given to prevent harsh braking due to the change of tau. If maxDecel=-1, 
-        the limit determined by the CF model is used. 
+        deceleration can be given to prevent harsh braking due to the change of tau. If maxDecel=-1,
+        the limit determined by the CF model is used.
         A vehicle ID for a reference vehicle can optionally be given, otherwise, the gap is created with
         respect to the current leader on the ego vehicle's current lane.
         Note that this does only affect the following behavior regarding the current leader and does
@@ -1225,7 +1248,7 @@ class VehicleDomain(Domain):
         currentTravelTimes is True (default) then the current traveltime of the
         edges is loaded and used for rerouting. If currentTravelTimes is False
         custom travel times are used. The various functions and options for
-        customizing travel times are described at http://sumo.dlr.de/wiki/Simulation/Routing
+        customizing travel times are described at https://sumo.dlr.de/wiki/Simulation/Routing
 
         When rerouteTraveltime has been called once with option
         currentTravelTimes=True, all edge weights are set to the current travel
@@ -1431,12 +1454,67 @@ class VehicleDomain(Domain):
         is smaller than the time since the last action point, the next action follows immediately.
         """
         if actionStepLength < 0:
-            raise exceptions.TraCIException("Invalid value for actionStepLength. Given value must be non-negative.")
+            raise TraCIException("Invalid value for actionStepLength. Given value must be non-negative.")
         # Use negative value to indicate resetActionOffset == False
         if not resetActionOffset:
             actionStepLength *= -1
         self._connection._sendDoubleCmd(
             tc.CMD_SET_VEHICLE_VARIABLE, tc.VAR_ACTIONSTEPLENGTH, vehID, actionStepLength)
+
+    def highlight(self, vehID, color=(255, 0, 0, 255), size=-1, alphaMax=-1, duration=-1, type=0):
+        """ highlight(string, color, float, ubyte) -> void
+            Adds a circle of the given color tracking the vehicle.
+            If a positive size [in m] is given the size of the highlight is chosen accordingly,
+            otherwise the length of the vehicle is used as reference.
+            If alphaMax and duration are positive, the circle fades in and out within the given duration,
+            otherwise it permanently follows the vehicle.
+        """
+        if (type > 255):
+            raise TraCIException("poi.highlight(): maximal value for type is 255")
+        if (alphaMax > 255):
+            raise TraCIException("vehicle.highlight(): maximal value for alphaMax is 255")
+        if (alphaMax <= 0 and duration > 0):
+            raise TraCIException("vehicle.highlight(): duration>0 requires alphaMax>0")
+        if (alphaMax > 0 and duration <= 0):
+            raise TraCIException("vehicle.highlight(): alphaMax>0 requires duration>0")
+
+        if (type > 0):
+            compoundLength = 5
+        elif (alphaMax > 0):
+            compoundLength = 4
+        elif (size > 0):
+            compoundLength = 2
+        elif color:
+            compoundLength = 1
+        else:
+            compoundLength = 0
+
+        msg_length = 1 + 1
+        if compoundLength >= 1:
+            msg_length += 1 + 4
+        if compoundLength >= 2:
+            msg_length += 1 + 8
+        if compoundLength >= 3:
+            msg_length += 1 + 8 + 1 + 1
+        if compoundLength >= 5:
+            msg_length += 1 + 1
+        if not color:
+            # Send red as highlight standard
+            color = (255, 0, 0, 255)
+
+        self._connection._beginMessage(tc.CMD_SET_VEHICLE_VARIABLE, tc.VAR_HIGHLIGHT, vehID, msg_length)
+        self._connection._string += struct.pack("!BB", tc.TYPE_COMPOUND, compoundLength)
+        if (compoundLength >= 1):
+            self._connection._string += struct.pack("!BBBBB", tc.TYPE_COLOR, int(color[0]), int(color[1]),
+                                                    int(color[2]), int(color[3]) if len(color) > 3 else 255)
+        if (compoundLength >= 2):
+            self._connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, size)
+        if (compoundLength >= 3):
+            self._connection._string += struct.pack("!BB", tc.TYPE_UBYTE, alphaMax)
+            self._connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, duration)
+        if (compoundLength >= 5):
+            self._connection._string += struct.pack("!BB", tc.TYPE_UBYTE, type)
+        self._connection._sendExact()
 
     def setImperfection(self, vehID, imperfection):
         """setImperfection(string, double) -> None
@@ -1505,8 +1583,8 @@ class VehicleDomain(Domain):
             depart = str(self._connection.simulation.getTime())
         for val in (routeID, typeID, depart, departLane, departPos, departSpeed,
                     arrivalLane, arrivalPos, arrivalSpeed, fromTaz, toTaz, line):
-            messageString += struct.pack("!Bi",
-                                         tc.TYPE_STRING, len(val)) + str(val).encode("latin1")
+            val = str(val)
+            messageString += struct.pack("!Bi", tc.TYPE_STRING, len(val)) + val.encode("latin1")
         messageString += struct.pack("!Bi", tc.TYPE_INTEGER, personCapacity)
         messageString += struct.pack("!Bi", tc.TYPE_INTEGER, personNumber)
 
@@ -1675,6 +1753,3 @@ class VehicleDomain(Domain):
         Restricts vehicles returned by the last modified vehicle context subscription to vehicles of the given types
         """
         self._connection._addSubscriptionFilter(tc.FILTER_TYPE_VTYPE, vTypes)
-
-
-VehicleDomain()

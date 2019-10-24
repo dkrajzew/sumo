@@ -60,15 +60,11 @@ NBTurningDirectionsComputer::computeTurnDirectionsForNode(NBNode* node, bool war
         (*k)->setTurningDestination(nullptr);
     }
     std::vector<Combination> combinations;
+    const bool geometryLike = node->geometryLike();
     for (std::vector<NBEdge*>::const_iterator j = outgoing.begin(); j != outgoing.end(); ++j) {
         NBEdge* outedge = *j;
         for (std::vector<NBEdge*>::const_iterator k = incoming.begin(); k != incoming.end(); ++k) {
             NBEdge* e = *k;
-            if ((outedge->getPermissions() & e->getPermissions() & ~SVC_PEDESTRIAN) == 0
-                    && outedge->getPermissions() != SVC_PEDESTRIAN
-                    && e->getPermissions() != SVC_PEDESTRIAN) {
-                continue;
-            }
             // @todo: check whether NBHelpers::relAngle is properly defined and whether it should really be used, here
             const double signedAngle = NBHelpers::normRelAngle(e->getAngleAtNode(node), outedge->getAngleAtNode(node));
             if (signedAngle > 0 && signedAngle < 177 && e->getGeometry().back().distanceTo2D(outedge->getGeometry().front()) < POSITION_EPS) {
@@ -78,7 +74,10 @@ NBTurningDirectionsComputer::computeTurnDirectionsForNode(NBNode* node, bool war
             }
             double angle = fabs(signedAngle);
             // std::cout << "incoming=" << e->getID() << " outgoing=" << outedge->getID() << " relAngle=" << NBHelpers::relAngle(e->getAngleAtNode(node), outedge->getAngleAtNode(node)) << "\n";
-            if (e->getFromNode() == outedge->getToNode() && angle > 120) {
+            const bool badPermissions = ((outedge->getPermissions() & e->getPermissions() & ~SVC_PEDESTRIAN) == 0
+                                         && !geometryLike
+                                         && outedge->getPermissions() != e->getPermissions());
+            if (e->getFromNode() == outedge->getToNode() && angle > 120 && !badPermissions) {
                 // they connect the same nodes; should be the turnaround direction
                 // we'll assign a maximum number
                 //
@@ -94,6 +93,10 @@ NBTurningDirectionsComputer::computeTurnDirectionsForNode(NBNode* node, bool war
             if (angle < 160) {
                 continue;
             }
+            if (badPermissions) {
+                // penalty
+                angle -= 90;
+            }
             Combination c;
             c.from = e;
             c.to = outedge;
@@ -104,11 +107,14 @@ NBTurningDirectionsComputer::computeTurnDirectionsForNode(NBNode* node, bool war
     // sort combinations so that the ones with the highest angle are at the begin
     std::sort(combinations.begin(), combinations.end(), combination_by_angle_sorter());
     std::set<NBEdge*> seen;
+    //std::cout << "check combinations at " << node->getID() << "\n";
     for (std::vector<Combination>::const_iterator j = combinations.begin(); j != combinations.end(); ++j) {
+        //std::cout << " from=" << (*j).from->getID() << " to=" << (*j).to->getID() << " a=" << (*j).angle << "\n";
         if (seen.find((*j).from) != seen.end() || seen.find((*j).to) != seen.end()) {
             // do not regard already set edges
             if ((*j).angle > 360 && warn) {
                 WRITE_WARNING("Ambiguity in turnarounds computation at junction '" + node->getID() + "'.");
+                //std::cout << "  already seen: " << toString(seen) << "\n";
                 warn = false;
             }
             continue;
@@ -157,16 +163,25 @@ NBNodesEdgesSorter::swapWhenReversed(const NBNode* const n,
 void
 NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tlc) {
     validateRailCrossings(nc, tlc);
+    const OptionsCont& oc = OptionsCont::getOptions();
+    const double rightBeforeLeftSpeed = oc.getFloat("junctions.right-before-left.speed-threshold");
     for (std::map<std::string, NBNode*>::const_iterator i = nc.begin(); i != nc.end(); ++i) {
-        NBNode* n = (*i).second;
+        NBNode* const n = (*i).second;
         // the type may already be set from the data
         if (n->myType != NODETYPE_UNKNOWN && n->myType != NODETYPE_DEAD_END) {
+            n->myTypeWasGuessed = false;
+            continue;
+        }
+        // check whether the node was set to be unregulated by the user
+        if (oc.getBool("keep-nodes-unregulated") || oc.isInStringVector("keep-nodes-unregulated.explicit", n->getID())
+            || (oc.getBool("keep-nodes-unregulated.district-nodes") && (n->isNearDistrict() || n->isDistrict()))) {
+            n->myType = NODETYPE_NOJUNCTION;
             continue;
         }
         // check whether the node is a waterway node. Set to unregulated by default
         bool waterway = true;
-        for (EdgeVector::const_iterator i = n->getEdges().begin(); i != n->getEdges().end(); ++i) {
-            if (!isWaterway((*i)->getPermissions())) {
+        for (NBEdge* e : n->getEdges()) {
+            if (!isWaterway(e->getPermissions())) {
                 waterway = false;
                 break;
             }
@@ -186,6 +201,11 @@ NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tl
             n->myType = NODETYPE_PRIORITY;
             continue;
         }
+        if (isRailwayNode(n)) {
+            // priority instead of unregulated to ensure that collisions can be detected
+            n->myType = NODETYPE_PRIORITY;
+            continue;
+        }
         // determine the type
         SumoXMLNodeType type = NODETYPE_RIGHT_BEFORE_LEFT;
         for (EdgeVector::const_iterator i = n->myIncomingEdges.begin(); i != n->myIncomingEdges.end(); i++) {
@@ -196,11 +216,11 @@ NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tl
                 }
                 // @todo check against a legal document
                 // @todo figure out when NODETYPE_PRIORITY_STOP is appropriate
-                const double s1 = (*i)->getSpeed() * (double) 3.6;
-                const double s2 = (*j)->getSpeed() * (double) 3.6;
+                const double s1 = (*i)->getSpeed();
+                const double s2 = (*j)->getSpeed();
                 const int p1 = (*i)->getPriority();
                 const int p2 = (*j)->getPriority();
-                if (fabs(s1 - s2) > (double) 9.5 || MAX2(s1, s2) >= (double) 49. || p1 != p2) {
+                if (fabs(s1 - s2) > (9.5 / 3.6) || MAX2(s1, s2) >= rightBeforeLeftSpeed || p1 != p2) {
                     type = NODETYPE_PRIORITY;
                     break;
                 }
@@ -208,6 +228,7 @@ NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tl
         }
         // save type
         n->myType = type;
+        n->myTypeWasGuessed = true;
     }
 }
 

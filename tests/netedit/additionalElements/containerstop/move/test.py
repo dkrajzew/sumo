@@ -29,13 +29,13 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select containerStop
-netedit.changeAdditional("containerStop")
+netedit.changeElement("containerStop")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(6, "reference center")
+netedit.changeDefaultValue(7, "reference center")
 
 # create containerStop in mode "reference center"
-netedit.leftClick(referencePosition, 250, 250)
+netedit.leftClick(referencePosition, 250, 270)
 
 # change to move mode
 netedit.moveMode()
@@ -69,10 +69,10 @@ netedit.undo(referencePosition, 10)
 netedit.redo(referencePosition, 10)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

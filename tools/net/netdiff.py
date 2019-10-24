@@ -63,11 +63,18 @@ PLAIN_TYPES = [
 #     parsing in netconvert becomes tedious
 # CAVEAT5 - phases must maintain their order
 # CAVEAT6 - identical phases may occur multiple times, thus OrderedMultiSet
+# CAVEAT7 - changing edge type triggers 'type override'
+#     (all attributes defined for the edge type are applied. This must be avoided)
+# CAVEAT8 - TAG_TLL must always be written before TAG_CONNECTION
 
 TAG_TLL = 'tlLogic'
 TAG_CONNECTION = 'connection'
 TAG_CROSSING = 'crossing'
 TAG_ROUNDABOUT = 'roundabout'
+TAG_LANE = 'lane'
+TAG_EDGE = 'edge'
+TAG_PARAM = 'param'
+TAG_LOCATION = 'location'
 
 # see CAVEAT1
 IDATTRS = defaultdict(lambda: ('id',))
@@ -76,6 +83,8 @@ IDATTRS[TAG_CONNECTION] = ('from', 'to', 'fromLane', 'toLane')
 IDATTRS[TAG_CROSSING] = ('node', 'edges')
 IDATTRS[TAG_ROUNDABOUT] = ('edges',)
 IDATTRS['interval'] = ('begin', 'end')
+IDATTRS[TAG_LANE] = ('index',)
+IDATTRS[TAG_PARAM] = ('key',)
 
 DELETE_ELEMENT = 'delete'  # the xml element for signifying deletes
 
@@ -88,8 +97,7 @@ ATTRIBUTE_NAMES = {
 
 # default values for the given attribute (needed when attributes appear in
 # source but do not appear in dest)
-DEFAULT_VALUES = defaultdict(lambda: "")
-DEFAULT_VALUES['width'] = "-1"
+DEFAULT_VALUES = defaultdict(lambda: None)
 DEFAULT_VALUES['offset'] = "0"
 DEFAULT_VALUES['spreadType'] = "right"
 DEFAULT_VALUES['customShape'] = "false"
@@ -100,9 +108,12 @@ DEFAULT_VALUES['z'] = "0"
 DEFAULT_VALUES['radius'] = "-1"
 RESET = 0
 
+IGNORE_TAGS = set([TAG_LOCATION])
+
 
 # stores attributes for later comparison
 class AttributeStore:
+    patchImport = False
 
     def __init__(self, type, copy_tags, level=1):
         # xml type being parsed
@@ -174,6 +185,18 @@ class AttributeStore:
         tag, id, children, attrs = self.getAttrs(xmlnode)
         tagid = (tag, id)
         if id != ():
+            if AttributeStore.patchImport:
+                if self.hasChangedConnection(tagid, attrs):
+                    # export all connections from the same edge
+                    fromEdge = id[0]
+                    markChanged = []
+                    for tagid2 in self.ids_deleted:
+                        fromEdge2 = tagid2[1][0]
+                        if fromEdge == fromEdge2:
+                            markChanged.append(tagid2)
+                    for tagid2 in markChanged:
+                        self.ids_deleted.remove(tagid2)
+                return
             if tagid in self.ids_deleted:
                 self.ids_deleted.remove(tagid)
                 self.id_attrs[tagid] = self.compareAttrs(
@@ -209,6 +232,8 @@ class AttributeStore:
                 self.idless_deleted[tag].remove(attrs)
                 if tag in self.copy_tags:
                     self.idless_copied[tag].add(attrs)
+            elif tag in IGNORE_TAGS:
+                self.idless_deleted[tag].clear()
             else:
                 self.idless_created[tag].add(attrs)
 
@@ -224,23 +249,38 @@ class AttributeStore:
         if schildren and dchildren:
             dchildren = schildren
         if snames == dnames:
-            values = tuple([self.diff(n, s, d)
+            values = tuple([self.diff(tag, n, s, d)
                             for n, s, d in zip(snames, svalues, dvalues)])
             return snames, values, dchildren
         else:
             sdict = defaultdict(lambda: None, zip(snames, svalues))
             ddict = defaultdict(lambda: None, zip(dnames, dvalues))
             names = tuple(set(snames + dnames))
-            values = tuple([self.diff(n, sdict[n], ddict[n]) for n in names])
+            values = tuple([self.diff(tag, n, sdict[n], ddict[n]) for n in names])
             return names, values, dchildren
 
-    def diff(self, name, sourceValue, destValue):
-        if sourceValue == destValue:
+    def diff(self, tag, name, sourceValue, destValue):
+        if (sourceValue == destValue or
+                # CAVEAT7
+                (tag == TAG_EDGE and name == "type")):
             return None
         elif destValue is None:
             return DEFAULT_VALUES[name]
         else:
             return destValue
+
+    def hasChangedConnection(self, tagid, attrs):
+        tag, id = tagid
+        if tag != TAG_CONNECTION:
+            return False
+        if tagid in self.ids_deleted:
+            names, values, children = self.compareAttrs(self.id_attrs[tagid], attrs, tag)
+            for v in values:
+                if v is not None:
+                    return True
+            return False
+        else:
+            return True
 
     def writeDeleted(self, file):
         # data loss if two elements with different tags
@@ -278,15 +318,20 @@ class AttributeStore:
         for value_set in self.idless_deleted.values():
             self.write_idless(file, value_set, DELETE_ELEMENT)
 
-    def writeCreated(self, file):
-        self.write_tagids(file, self.ids_created, True)
+    def writeCreated(self, file, whiteList=None, blackList=None):
+        self.write_tagids(file, self.filterTags(self.ids_created, whiteList, blackList), True)
         for tag, value_set in self.idless_created.items():
+            if ((whiteList is not None and tag not in whiteList)
+                    or (blackList is not None and tag in blackList)):
+                continue
             self.write_idless(file, value_set, tag)
 
-    def writeChanged(self, file):
-        tagids_changed = self.ids_copied - \
-            (self.ids_deleted | self.ids_created)
-        self.write_tagids(file, tagids_changed, False)
+    def getTagidsChanged(self):
+        return self.ids_copied - (self.ids_deleted | self.ids_created)
+
+    def writeChanged(self, file, whiteList=None, blackList=None):
+        tagids_changed = self.getTagidsChanged()
+        self.write_tagids(file, self.filterTags(tagids_changed, whiteList, blackList), False)
 
     def writeCopies(self, file, copy_tags):
         tagids_unchanged = self.ids_copied - \
@@ -334,6 +379,23 @@ class AttributeStore:
         idattrs = IDATTRS[tag]
         return ' '.join(['%s="%s"' % (n, v) for n, v in sorted(zip(idattrs, id))])
 
+    def filterTags(self, tagids, whiteList, blackList):
+        if whiteList is not None:
+            return [tagid for tagid in tagids if tagid[0] in whiteList]
+        elif blackList is not None:
+            return [tagid for tagid in tagids if tagid[0] not in blackList]
+        else:
+            return tagids
+
+    def reorderTLL(self):
+        for tag, id in self.ids_created:
+            if tag == TAG_CONNECTION:
+                for tag2, id2 in self.getTagidsChanged():
+                    if tag2 == TAG_TLL:
+                        return True
+                return False
+        return False
+
 
 def parse_args():
     USAGE = "Usage: " + sys.argv[0] + " <source> <dest> <output-prefix>"
@@ -344,6 +406,10 @@ def parse_args():
                          default=False, help="interpret source and dest as plain-xml prefix instead of network names")
     optParser.add_option("-d", "--direct", action="store_true",
                          default=False, help="compare source and dest files directly")
+    optParser.add_option("-i", "--patch-on-import", action="store_true",
+                         dest="patchImport",
+                         default=False, help="generate patch that can be applied during initial network import" +
+                         " (exports additional connection elements)")
     optParser.add_option(
         "-c", "--copy", help="comma-separated list of element names to copy (if they are unchanged)")
     optParser.add_option("--path", dest="path", help="Path to binaries")
@@ -368,7 +434,7 @@ def create_plain(netfile, netconvert):
 
 # creates diff of a flat xml structure
 # (only children of the root element and their attrs are compared)
-def xmldiff(source, dest, diff, type, copy_tags):
+def xmldiff(source, dest, diff, type, copy_tags, patchImport):
     attributeStore = AttributeStore(type, copy_tags)
     root_open = None
     have_source = os.path.isfile(source)
@@ -376,7 +442,14 @@ def xmldiff(source, dest, diff, type, copy_tags):
     if have_source:
         root_open, root_close = handle_children(source, attributeStore.store)
     if have_dest:
-        root_open, root_close = handle_children(dest, attributeStore.compare)
+        if patchImport:
+            # run diff twice to determine edges with changed connections
+            AttributeStore.patchImport = True
+            root_open, root_close = handle_children(dest, attributeStore.compare)
+            AttributeStore.patchImport = False
+            root_open, root_close = handle_children(dest, attributeStore.compare)
+        else:
+            root_open, root_close = handle_children(dest, attributeStore.compare)
 
     if not have_source and not have_dest:
         print("Skipping %s due to lack of input files" % diff)
@@ -396,10 +469,22 @@ def xmldiff(source, dest, diff, type, copy_tags):
                 attributeStore.writeCopies(diff_file, copy_tags)
             attributeStore.write(diff_file, "<!-- Deleted Elements -->\n")
             attributeStore.writeDeleted(diff_file)
-            attributeStore.write(diff_file, "<!-- Created Elements -->\n")
-            attributeStore.writeCreated(diff_file)
-            attributeStore.write(diff_file, "<!-- Changed Elements -->\n")
-            attributeStore.writeChanged(diff_file)
+
+            if attributeStore.reorderTLL():
+                # CAVEAT8
+                attributeStore.write(diff_file, "<!-- Created Elements -->\n")
+                attributeStore.writeCreated(diff_file, whiteList=[TAG_TLL])
+                attributeStore.write(diff_file, "<!-- Changed Elements -->\n")
+                attributeStore.writeChanged(diff_file, whiteList=[TAG_TLL])
+                attributeStore.write(diff_file, "<!-- Created Elements -->\n")
+                attributeStore.writeCreated(diff_file, blackList=[TAG_TLL])
+                attributeStore.write(diff_file, "<!-- Changed Elements -->\n")
+                attributeStore.writeChanged(diff_file, blackList=[TAG_TLL])
+            else:
+                attributeStore.write(diff_file, "<!-- Created Elements -->\n")
+                attributeStore.writeCreated(diff_file)
+                attributeStore.write(diff_file, "<!-- Changed Elements -->\n")
+                attributeStore.writeChanged(diff_file)
             diff_file.write(root_close)
 
 
@@ -442,7 +527,8 @@ def main():
                 options.dest,
                 options.outprefix + type,
                 type,
-                copy_tags)
+                copy_tags,
+                options.patchImport)
     else:
         if not options.use_prefix:
             netconvert = sumolib.checkBinary("netconvert", options.path)
@@ -453,7 +539,8 @@ def main():
                     options.dest + type,
                     options.outprefix + type,
                     type,
-                    copy_tags)
+                    copy_tags,
+                    options.patchImport)
 
 
 if __name__ == "__main__":

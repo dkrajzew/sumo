@@ -210,13 +210,6 @@ MSEdgeControl::executeMovements(SUMOTime t) {
             }
         }
     }
-    if (MSGlobals::gLateralResolution > 0) {
-        // multiple vehicle shadows may have entered an inactive lane and would
-        // not be sorted otherwise
-        for (const LaneUsage& lu : myLanes) {
-            lu.lane->sortPartialVehicles();
-        }
-    }
 }
 
 
@@ -241,15 +234,14 @@ MSEdgeControl::changeLanes(const SUMOTime t) {
                 } else {
 #endif
                     edge.changeLanes(t);
-                    const std::vector<MSLane*>& lanes = edge.getLanes();
-                    for (std::vector<MSLane*>::const_iterator i = lanes.begin(); i != lanes.end(); ++i) {
-                        LaneUsage& lu = myLanes[(*i)->getNumericalID()];
+                    for (MSLane* const lane : edge.getLanes()) {
+                        LaneUsage& lu = myLanes[lane->getNumericalID()];
                         //if ((*i)->getID() == "disabled") {
                         //    std::cout << SIMTIME << " vehicles=" << toString((*i)->getVehiclesSecure()) << "\n";
                         //    (*i)->releaseVehicles();
                         //}
-                        if ((*i)->getVehicleNumber() > 0 && !lu.amActive) {
-                            toAdd.push_back(*i);
+                        if (lane->getVehicleNumber() > 0 && !lu.amActive) {
+                            toAdd.push_back(lane);
                             lu.amActive = true;
                         }
                     }
@@ -300,22 +292,23 @@ MSEdgeControl::detectCollisions(SUMOTime timestep, const std::string& stage) {
             lane->detectCollisions(timestep, stage);
         }
     }
-}
-
-
-std::vector<std::string>
-MSEdgeControl::getEdgeNames() const {
-    std::vector<std::string> ret;
-    for (MSEdgeVector::const_iterator i = myEdges.begin(); i != myEdges.end(); ++i) {
-        ret.push_back((*i)->getID());
+    if (myInactiveCheckCollisions.size() > 0) {
+        for (MSLane* lane : myInactiveCheckCollisions) {
+            lane->detectCollisions(timestep, stage);
+        }
+        myInactiveCheckCollisions.clear();
     }
-    return ret;
 }
 
 
 void
 MSEdgeControl::gotActive(MSLane* l) {
     myChangedStateLanes.insert(l);
+}
+
+void
+MSEdgeControl::checkCollisionForInactive(MSLane* l) {
+    myInactiveCheckCollisions.insert(l);
 }
 
 void

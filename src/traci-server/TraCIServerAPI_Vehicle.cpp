@@ -203,17 +203,14 @@ TraCIServerAPI_Vehicle::processGet(TraCIServer& server, tcpip::Storage& inputSto
                         return server.writeErrorStatusCmd(libsumo::CMD_GET_VEHICLE_VARIABLE, "Retrieval of distance requires position and distance type as parameter.", outputStorage);
                     }
 
-                    double edgePos;
-                    std::string roadID;
-                    int laneIndex;
                     // read position
                     int posType = inputStorage.readUnsignedByte();
                     switch (posType) {
                         case libsumo::POSITION_ROADMAP:
                             try {
-                                std::string roadID = inputStorage.readString();
-                                edgePos = inputStorage.readDouble();
-                                laneIndex = inputStorage.readUnsignedByte();
+                                const std::string roadID = inputStorage.readString();
+                                const double edgePos = inputStorage.readDouble();
+                                const int laneIndex = inputStorage.readUnsignedByte();
                                 server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_DOUBLE);
                                 server.getWrapperStorage().writeDouble(libsumo::Vehicle::getDrivingDistance(id, roadID, edgePos, laneIndex));
                                 break;
@@ -264,16 +261,16 @@ TraCIServerAPI_Vehicle::processGet(TraCIServer& server, tcpip::Storage& inputSto
                     server.getWrapperStorage().writeString(libsumo::Vehicle::getParameter(id, paramName));
                     break;
                 }
-		case libsumo::VAR_NEIGHBORS: {
+                case libsumo::VAR_NEIGHBORS: {
                     int mode;
                     if (!server.readTypeCheckingUnsignedByte(inputStorage, mode)) {
                         return server.writeErrorStatusCmd(libsumo::CMD_GET_VEHICLE_VARIABLE, "Retrieval of neighboring vehicles needs bitset to specify mode.", outputStorage);
                     }
-                    const std::map<const MSVehicle*, double> neighVehicles = libsumo::Vehicle::getNeighbors(id, mode);
+                    const std::vector<std::pair<std::string, double> >& neighVehicles = libsumo::Vehicle::getNeighbors(id, mode);
                     server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_COMPOUND);
                     server.getWrapperStorage().writeInt((int)neighVehicles.size());
                     for (auto& p : neighVehicles) {
-                        server.getWrapperStorage().writeString(p.first->getID());
+                        server.getWrapperStorage().writeString(p.first);
                         server.getWrapperStorage().writeDouble(p.second);
                     }
                     break;
@@ -322,6 +319,7 @@ TraCIServerAPI_Vehicle::processSet(TraCIServer& server, tcpip::Storage& inputSto
             && variable != libsumo::VAR_MINGAP_LAT
             && variable != libsumo::VAR_LINE
             && variable != libsumo::VAR_VIA
+            && variable != libsumo::VAR_HIGHLIGHT
             && variable != libsumo::MOVE_TO_XY && variable != libsumo::VAR_PARAMETER/* && variable != libsumo::VAR_SPEED_TIME_LINE && variable != libsumo::VAR_LANE_TIME_LINE*/
        ) {
         return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "Change Vehicle State: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
@@ -445,7 +443,7 @@ TraCIServerAPI_Vehicle::processSet(TraCIServer& server, tcpip::Storage& inputSto
                     }
                 }
 
-                if ((laneIndex < 0) || (laneIndex >= (int)(v->getEdge()->getLanes().size()) && relative < 1)) {
+                if ((laneIndex < 0 || laneIndex >= (int)v->getEdge()->getLanes().size()) && relative < 1) {
                     return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "No lane with index '" + toString(laneIndex) + "' on road '" + v->getEdge()->getID() + "'.", outputStorage);
                 }
 
@@ -818,6 +816,10 @@ TraCIServerAPI_Vehicle::processSet(TraCIServer& server, tcpip::Storage& inputSto
                     departSpeed = "random";
                 } else if (-departSpeedCode == DEPART_SPEED_MAX) {
                     departSpeed = "max";
+                } else if (-departSpeedCode == DEPART_SPEED_DESIRED) {
+                    departSpeed = "desired";
+                } else if (-departSpeedCode == DEPART_SPEED_LIMIT) {
+                    departSpeed = "speedLimit";
                 }
 
                 int departLaneCode;
@@ -1001,6 +1003,48 @@ TraCIServerAPI_Vehicle::processSet(TraCIServer& server, tcpip::Storage& inputSto
                 } catch (libsumo::TraCIException& e) {
                     return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, e.what(), outputStorage);
                 }
+            }
+            break;
+            case libsumo::VAR_HIGHLIGHT: {
+                // Highlight the vehicle by adding a tracking polygon. (NOTE: duplicated code exists for POI domain)
+                if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "A compound object is needed for highlighting an object.", outputStorage);
+                }
+                int itemNo = inputStorage.readUnsignedByte();
+                if (itemNo > 5) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "Highlighting an object needs zero to five parameters.", outputStorage);
+                }
+                libsumo::TraCIColor col = libsumo::TraCIColor(255, 0, 0);
+                if (itemNo > 0) {
+                    if (!server.readTypeCheckingColor(inputStorage, col)) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "The first parameter for highlighting must be the highlight color.", outputStorage);
+                    }
+                }
+                double size = -1;
+                if (itemNo > 1) {
+                    if (!server.readTypeCheckingDouble(inputStorage, size)) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_POI_VARIABLE, "The second parameter for highlighting must be the highlight size.", outputStorage);
+                    }
+                }
+                int alphaMax = -1;
+                if (itemNo > 2) {
+                    if (!server.readTypeCheckingUnsignedByte(inputStorage, alphaMax)) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "The third parameter for highlighting must be maximal alpha.", outputStorage);
+                    }
+                }
+                double duration = -1;
+                if (itemNo > 3) {
+                    if (!server.readTypeCheckingDouble(inputStorage, duration)) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "The fourth parameter for highlighting must be the highlight duration.", outputStorage);
+                    }
+                }
+                int type = 0;
+                if (itemNo > 4) {
+                    if (!server.readTypeCheckingUnsignedByte(inputStorage, type)) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "The fifth parameter for highlighting must be the highlight type id as ubyte.", outputStorage);
+                    }
+                }
+                libsumo::Vehicle::highlight(id, col, size, alphaMax, duration, type);
             }
             break;
             case libsumo::VAR_ACTIONSTEPLENGTH: {

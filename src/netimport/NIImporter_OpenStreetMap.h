@@ -71,7 +71,6 @@ public:
      */
     static void loadNetwork(const OptionsCont& oc, NBNetBuilder& nb);
 
-
 protected:
     /** @brief An internal representation of an OSM-node
      */
@@ -84,7 +83,8 @@ protected:
             railwaySignal(false),
             railwayBufferStop(false),
             ptStopPosition(false), ptStopLength(0), name(""),
-            permissions(SVC_RAIL | SVC_BUS | SVC_TRAM),
+            permissions(SVC_IGNORING),
+            positionMeters(std::numeric_limits<double>::max()),
             node(0) { }
 
         /// @brief The node's id
@@ -111,6 +111,10 @@ protected:
         std::string name;
         /// @brief type of pt stop
         SVCPermissions permissions;
+        /// @brief kilometrage/mileage
+        std::string position;
+        /// @brief position converted to m (using highest precision available)
+        double positionMeters;
         /// @brief the NBNode that was instantiated
         NBNode* node;
 
@@ -120,6 +124,13 @@ protected:
 
 
     };
+
+public:
+    /// @brief translate osm transport designations into sumo vehicle class
+    static SUMOVehicleClass interpretTransportType(const std::string& type, NIOSMNode* toSet=nullptr);
+
+protected:
+
 
     /** @enum CycleWayType
      * @brief details on the kind of cycleway along this road
@@ -154,16 +165,21 @@ protected:
             myCyclewayType(WAY_UNKNOWN), // building of extra lane depends on bikelaneWidth of loaded typemap
             myBuswayType(WAY_NONE), // buslanes are always built when declared
             mySidewalkType(WAY_UNKNOWN), // building of extra lanes depends on sidewalkWidth of loaded typemap
+            myRailDirection(WAY_UNKNOWN), // store direction(s) of railway usage
             myParkingType(PARKING_NONE), // parking areas exported optionally
             myLayer(0), // layer is non-zero only in conflict areas
             myCurrentIsRoad(false),
-            myCurrentIsPlatform(false) { }
+            myCurrentIsPlatform(false),
+            myCurrentIsElectrified(false)
+        { }
 
 
         /// @brief The edge's id
         const long long int id;
         /// @brief The edge's street name
         std::string streetName;
+        /// @brief The edge's track name
+        std::string ref;
         /// @brief number of lanes, or -1 if unknown
         int myNoLanes;
         /// @brief number of lanes in forward direction or 0 if unknown, negative if backwards lanes are meant
@@ -180,6 +196,8 @@ protected:
         WayType myBuswayType;
         /// @brief Information about the kind of sidwalk along this road
         WayType mySidewalkType;
+        /// @brief Information about the direction(s) of railway usage
+        WayType myRailDirection;
         /// @brief Information about road-side parking
         int myParkingType;
         /// @brief Information about the relative z-ordering of ways
@@ -190,6 +208,8 @@ protected:
         bool myCurrentIsRoad;
         /// @brief Information whether this is a pt platform
         bool myCurrentIsPlatform;
+        /// @brief Information whether this is railway is electrified
+        bool myCurrentIsElectrified;
 
     private:
         /// invalidated assignment operator
@@ -281,6 +301,15 @@ private:
     /// @brief collect neighboring nodes with their road distance and maximum between-speed. Search does not continue beyond knownElevation-nodes
     std::map<NBNode*, std::pair<double, double> >
     getNeighboringNodes(NBNode* node, double maxDist, const std::set<NBNode*>& knownElevation);
+
+    /// @brief check whether the type is known or consists of known type compounds. return empty string otherwise
+    std::string usableType(const std::string& type, const std::string& id, NBTypeCont& tc);
+
+    /// @brief extend kilometrage data for all nodes along railway
+    void extendRailwayDistances(Edge* e, NBTypeCont& tc);
+
+    /// @brief read distance value from node and return value in m
+    static double interpretDistance(NIOSMNode* node);
 
 protected:
     static const double MAXSPEED_UNGIVEN;
@@ -586,7 +615,7 @@ protected:
         /// @brief ref of the pt line
         std::string myRef;
 
-        /// @brief service interval of the pt line in seconds
+        /// @brief service interval of the pt line in minutes
         int myInterval;
 
         /// @brief night service information of the pt line

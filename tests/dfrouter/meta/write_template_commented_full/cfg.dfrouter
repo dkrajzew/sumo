@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Fri Apr 20 12:52:19 2018 by Eclipse SUMO dfrouter Version 27b98ce
+<!-- generated on Tue Oct 15 18:31:44 2019 by Eclipse SUMO dfrouter Version v1_3_1+0470-4a6b08f445
 -->
 
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/dfrouterConfiguration.xsd">
@@ -118,7 +118,7 @@
         <emissions-only value="false" type="BOOL"/>
 
         <!-- Do not route on these edges -->
-        <disallowed-edges value="" type="STR"/>
+        <disallowed-edges value="" type="STR[]"/>
 
         <!-- Allow turnarounds as route continuations -->
         <keep-turnarounds value="false" type="BOOL"/>
@@ -201,7 +201,7 @@
         <!-- Prints option values before processing -->
         <print-options value="false" type="BOOL"/>
 
-        <!-- Prints this screen -->
+        <!-- Prints this screen or selected topics -->
         <help value="false" synonymes="?" type="BOOL"/>
 
         <!-- Prints the current version -->

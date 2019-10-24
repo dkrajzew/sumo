@@ -155,7 +155,7 @@ public:
      *
      * @param[in] veh The vehicle to remove
      */
-    void scheduleVehicleRemoval(SUMOVehicle* veh);
+    void scheduleVehicleRemoval(SUMOVehicle* veh, bool checkDuplicate = false);
 
 
     /** @brief Removes a vehicle after it has ended
@@ -394,9 +394,9 @@ public:
 
     /** @brief Returns the named vehicle type or a sample from the named distribution
      * @param[in] id The id of the vehicle type to return. If left out, the default type is returned.
-     * @return The named vehicle type, or 0 if no such type exists
+     * @return The named vehicle type, or nullptr if no such type exists
      */
-    MSVehicleType* getVType(const std::string& id = DEFAULT_VTYPE_ID, std::mt19937* rng = 0);
+    MSVehicleType* getVType(const std::string& id = DEFAULT_VTYPE_ID, std::mt19937* rng = nullptr);
 
 
     /** @brief Inserts ids of all known vehicle types and vehicle type distributions to the given vector
@@ -408,14 +408,14 @@ public:
     /** @brief Return the distribution IDs the vehicle type is a member of
     * @param[in] vehType The vehicle type to look for membership in distributions
     */
-    std::set<std::string> getVTypeDistributionMembership(const std::string& id) const;
+    const std::set<std::string> getVTypeDistributionMembership(const std::string& id) const;
 
     /// @}
 
-    /// @brief Adds a vehicle to the list of waiting vehiclse to a given edge
+    /// @brief Adds a vehicle to the list of waiting vehicles for the given edge
     void addWaiting(const MSEdge* const edge, SUMOVehicle* vehicle);
 
-    /// @brief Removes a vehicle from the list of waiting vehicles to a given edge
+    /// @brief Removes a vehicle from the list of waiting vehicles for the given edge
     void removeWaiting(const MSEdge* const edge, const SUMOVehicle* vehicle);
 
     /* @brief returns a vehicle of the given lines that is waiting for a for a person or a container at this edge at the given positions
@@ -424,7 +424,7 @@ public:
      * @param[in] position The vehicle shall be positioned in the interval [position - t, position + t], where t is some tolerance
      * @param[in] ridingID The id of the person or container that wants to ride
      */
-    SUMOVehicle* getWaitingVehicle(const MSEdge* const edge, const std::set<std::string>& lines, const double position, const std::string ridingID);
+    SUMOVehicle* getWaitingVehicle(MSTransportable* transportable, const MSEdge* const edge, const double position);
 
     /** @brief increases the count of vehicles waiting for a transport to allow recognition of person / container related deadlocks
      */
@@ -628,6 +628,9 @@ private:
 
     /// @brief List of vehicles which belong to public transport
     std::vector<SUMOVehicle*> myPTVehicles;
+
+    /// @brief The tolerance to apply when matching waiting persons and vehicles
+    double myStopTolerance;
 
     /// @brief List of vehicles which are going to be removed
 #ifdef HAVE_FOX

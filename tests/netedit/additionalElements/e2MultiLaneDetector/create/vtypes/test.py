@@ -32,20 +32,20 @@ netedit.rebuildNetwork()
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2MultilaneDetector")
+netedit.changeElement("e2MultilaneDetector")
 
 # select lanes
-netedit.leftClick(referencePosition, 190, 240)
-netedit.leftClick(referencePosition, 440, 240)
+netedit.leftClick(referencePosition, 190, 255)
+netedit.leftClick(referencePosition, 440, 255)
 
 # set invalid vehicle types (invalid IDs)
-netedit.modifyAdditionalDefaultValue(5, "%%;$$$ %%$$ type.3")
+netedit.changeDefaultValue(6, "%%;$$$ %%$$ type.3")
 
 # create E2 with default parameters
 netedit.typeEnter()
 
 # set valid vehicle type
-netedit.modifyAdditionalDefaultValue(5, "private passenger taxi bus")
+netedit.changeDefaultValue(6, "private passenger taxi bus")
 
 # create E2 with default parameters
 netedit.typeEnter()
@@ -55,10 +55,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

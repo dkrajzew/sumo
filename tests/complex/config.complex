@@ -24,7 +24,7 @@ copy_test_path:sumo.sumocfg
 copy_test_path:sumo_log.sumocfg
 copy_test_path:save_state.sumocfg
 copy_test_path:osm.xml
-copy_test_path:data
+copy_test_path_merge:data
 copy_test_path:classes.txt
 copy_test_path:nefz.csv
 copy_test_path:ARTEMIS_motorway_130_Gear3.csv
@@ -33,6 +33,7 @@ copy_test_path:ARTEMIS_road_Gear3.csv
 copy_test_path:ARTEMIS_urban_Gear3.csv
 copy_test_path:cadc_full.csv
 copy_test_path:runner.py
+copy_test_path:runnerlib.py
 copy_test_path:classes.txt
 copy_test_path:nefz.csv
 copy_test_path:input_additional_template.add.xml
@@ -41,12 +42,14 @@ copy_test_path:simpla.cfg.xml
 copy_test_path:vtype.map
 copy_test_path:vtype2.map
 copy_test_path:vtype3.map
+copy_test_path:img.jpeg
 test_data_ignore:.svn
 
 [collate_file]
 vehroutes:vehroutes.xml
 vehroutes2:vehroutes2.xml
 state:state.xml
+state2:state2.xml
 tripinfo:tripinfo.xml
 net:net.net.xml
 vss:vss.xml
@@ -60,6 +63,8 @@ cadytslog:cadySumo-log.txt
 png:out.png
 png2:out2.png
 detector:detector.xml
+tocs:tocs.xml
+stops:stops.xml
 
 [run_dependent_text]
 output:<!--{[->]}-->
@@ -67,6 +72,7 @@ output:^Performance:{->}^Vehicles:
 output:uncheck:
 output:@@[^@]*@@
 output:data\\{REPLACE data/}
+output:.\\webservice{REPLACE ./webservice}
 output:Could not connect to TraCI server
 output:Retrying in
 output:Starting server on port [0-9]*{REPLACE Starting server on port <PORT>}
@@ -83,11 +89,15 @@ vehroutes2:<!--{[->]}-->
 tripinfo:<!--{[->]}-->
 rawdump:<!--{[->]}-->
 fcd:<!--{[->]}-->
+stops:<!--{[->]}-->
 lanechanges:<!--{[->]}-->
 state:<!--{[->]}-->
 tls_state:<!--{[->]}-->
 state:<snapshot (.*) version="[^"]*"{REPLACE <snapshot \1 version="<version>"}
 detector:<!--{[->]}-->
+toc:<!--{[->]}-->
+toc2:<!--{[->]}-->
+tocs:<!--{[->]}-->
 errors:Die Adresse wird bereits verwendet{REPLACE Address already in use}
 errors:Leaked object at 
 errors:*** 9 leaks found
@@ -99,6 +109,8 @@ errors:Could not find connection between
 errors:.*UserWarning: {REPLACE UserWarning: }
 errors:^Ran ([0-9]+) tests in ([0-9\.]*)s{REPLACE Ran \1 tests in <ELAPSED>s}
 errors:Traceback (most recent call last):{->}FatalTraCIError
+errors:data\\{REPLACE data/}
+errors:javax.xml.soap.FactoryFinder find
 ps:%%CreationDate
 
 [unordered_text]
@@ -107,6 +119,7 @@ output:^Reason: TraCI requested termination.
 output:[0-9] vehicle subscription results:
 output:[0-9] simulation subscription results:
 output:Process [0-9]:
+output:Starting process
 output:[0-9] stepping \(step 
 output:^Starting process [0-9] with steplength
 errors:^This will probably

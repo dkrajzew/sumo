@@ -67,7 +67,7 @@ class Position;
 class MSContainer;
 class MSJunction;
 class MSLeaderInfo;
-//class MSDriverState;
+class MSDevice_DriverState;
 class MSSimpleDriverState;
 
 // ===========================================================================
@@ -275,17 +275,6 @@ public:
      * @return Whether the new route was accepted
      */
     bool replaceRoute(const MSRoute* route, const std::string& info, bool onInit = false, int offset = 0, bool addStops = true, bool removeStops = true);
-
-
-    /** @brief Returns whether the vehicle wil pass the given edge
-     * @param[in] The edge to find in the vehicle's current route
-     * @return Whether the given edge will be passed by the vehicle
-     * @todo Move to MSRoute?
-     */
-    bool willPass(const MSEdge* const edge) const;
-
-    int getRoutePosition() const;
-    void resetRoutePosition(int index);
 
     /** @brief Returns the vehicle's internal edge travel times/efforts container
      *
@@ -502,6 +491,8 @@ public:
         return myAcceleration;
     }
 
+    /// @brief get apparent deceleration based on vType parameters and current acceleration
+    double getCurrentApparentDecel() const;
 
     /** @brief Returns the vehicle's action step length in millisecs,
      *         i.e. the interval between two action points.
@@ -702,6 +693,14 @@ public:
     /// @brief Set a custom vehicle angle in rad, optionally updates furtherLanePosLat
     void setAngle(double angle, bool straightenFurther = false);
 
+    /** @brief Sets the action steplength of the vehicle
+     *
+     * @param actionStepLength New value
+     * @param resetActionOffset whether the action offset should be reset to zero,
+     *        i.e., the next action step should follow immediately.
+     */
+    void setActionStepLength(double actionStepLength, bool resetActionOffset = true);
+
     /** Returns true if the two vehicles overlap. */
     static bool overlap(const MSVehicle* veh1, const MSVehicle* veh2) {
         if (veh1->myState.myPos < veh2->myState.myPos) {
@@ -709,7 +708,6 @@ public:
         }
         return veh1->myState.myPos - veh1->getVehicleType().getLengthWithGap() < veh2->myState.myPos;
     }
-
 
     /** Returns true if vehicle's speed is below 60km/h. This is only relevant
         on highways. Overtaking on the right is allowed then. */
@@ -898,9 +896,8 @@ public:
      * @return The vehicle driver's state
      *
      */
-    inline std::shared_ptr<MSSimpleDriverState> getDriverState() const {
-        return myDriverState;
-    }
+
+    std::shared_ptr<MSSimpleDriverState> getDriverState() const;
 
 
     /** @brief Returns the vehicle's car following model variables
@@ -923,35 +920,37 @@ public:
         /// @brief The edge in the route to stop at
         MSRouteIterator edge;
         /// @brief The lane to stop at
-        const MSLane* lane;
+        const MSLane* lane = nullptr;
         /// @brief (Optional) bus stop if one is assigned to the stop
-        MSStoppingPlace* busstop;
+        MSStoppingPlace* busstop = nullptr;
         /// @brief (Optional) container stop if one is assigned to the stop
-        MSStoppingPlace* containerstop;
+        MSStoppingPlace* containerstop = nullptr;
         /// @brief (Optional) parkingArea if one is assigned to the stop
-        MSParkingArea* parkingarea;
+        MSParkingArea* parkingarea = nullptr;
         /// @brief (Optional) charging station if one is assigned to the stop
-        MSStoppingPlace* chargingStation;
+        MSStoppingPlace* chargingStation = nullptr;
         /// @brief The stop parameter
         const SUMOVehicleParameter::Stop pars;
         /// @brief The stopping duration
-        SUMOTime duration;
+        SUMOTime duration = -1;
         /// @brief whether an arriving person lets the vehicle continue
-        bool triggered;
+        bool triggered = false;
         /// @brief whether an arriving container lets the vehicle continue
-        bool containerTriggered;
+        bool containerTriggered = false;
         /// @brief Information whether the stop has been reached
-        bool reached;
+        bool reached = false;
         /// @brief The number of still expected persons
-        int numExpectedPerson;
+        int numExpectedPerson = 0;
         /// @brief The number of still expected containers
-        int numExpectedContainer;
+        int numExpectedContainer = 0;
         /// @brief The time at which the vehicle is able to board another person
-        SUMOTime timeToBoardNextPerson;
+        SUMOTime timeToBoardNextPerson = 0;
         /// @brief The time at which the vehicle is able to load another container
-        SUMOTime timeToLoadNextContainer;
+        SUMOTime timeToLoadNextContainer = 0;
         /// @brief Whether this stop was triggered by a collision
-        bool collision;
+        bool collision = false;
+        /// @brief the maximum time at which persons may board this vehicle 
+        SUMOTime endBoarding = SUMOTime_MAX;
 
         /// @brief Write the current stop configuration (used for state saving)
         void write(OutputDevice& dev) const;
@@ -961,6 +960,7 @@ public:
 
         /// @brief get a short description for showing in the gui
         std::string getDescription() const;
+
     private:
         /// @brief Invalidated assignment operator
         Stop& operator=(const Stop& src);
@@ -981,10 +981,6 @@ public:
      */
     bool replaceParkingArea(MSParkingArea* parkingArea, std::string& errorMsg);
 
-    /** @brief Create a DriverState for the vehicle
-     */
-    void createDriverState();
-
     /** @brief get the upcoming parking area stop or nullptr
      */
     MSParkingArea* getNextParkingArea();
@@ -1002,7 +998,7 @@ public:
     /** @brief Whether this vehicle is equipped with a MSDriverState
      */
     inline bool hasDriverState() const {
-        return (myDriverState != nullptr);
+        return myDriverState != nullptr;
     }
 
     /** @brief Returns whether the vehicle is at a stop
@@ -1012,6 +1008,12 @@ public:
 
     /// @brief Returns the remaining stop duration for a stopped vehicle or 0
     SUMOTime remainingStopDuration() const;
+
+    /** @brief Returns whether the vehicle stops at the given stopping place */
+    bool stopsAt(MSStoppingPlace* stop) const;
+    
+    /** @brief Returns whether the vehicle stops at the given edge */
+    bool stopsAtEdge(const MSEdge* edge) const;
 
     /** @brief Returns whether the vehicle will stop on the current edge
      */
@@ -1055,7 +1057,7 @@ public:
 
     /** @brief return whether the given position is within range of the current stop
      */
-    bool isStoppedInRange(double pos) const;
+    bool isStoppedInRange(const double pos, const double tolerance) const;
     /// @}
 
     int getLaneIndex() const;
@@ -1343,7 +1345,101 @@ public:
     /// @brief get bounding polygon
     PositionVector getBoundingPoly() const;
 
-    /** @class Influencer
+    /** @enum ManoeuvreType
+     *  @brief  flag identifying which, if any, manoeuvre is in progress
+     */
+    enum ManoeuvreType {
+        /// @brief Manoeuvre into stopping place
+        MANOEUVRE_ENTRY,
+        /// @brief Manoeuvre out of stopping place
+        MANOEUVRE_EXIT,
+        /// @brief not manouevring
+        MANOEUVRE_NONE
+    };
+    
+    /// @brief accessor function to myManoeuvre equivalent
+    /// @note Setup of exit manoeuvre is invoked from MSVehicleTransfer
+    bool setExitManoeuvre();
+    /// @brief accessor function to myManoeuvre equivalent
+    void setManoeuvreType(const MSVehicle::ManoeuvreType mType);
+
+    /// @brief accessor function to myManoeuvre equivalent
+    bool manoeuvreIsComplete() const;
+    /// @brief accessor function to myManoeuvre equivalent
+    MSVehicle::ManoeuvreType getManoeuvreType() const;
+
+   
+    /** @class Manoeuvre
+      * @brief  Container for manouevering time associated with stopping.
+      *
+      *  Introduced to cater for lane blocking whilst entering stop/leaving stop
+      *   and assure that emissions during manoeuvre are included in model
+      */
+    class Manoeuvre {
+
+    public:
+        /// Constructor.
+        Manoeuvre();
+
+        /// Copy constructor.
+        Manoeuvre(const Manoeuvre& manoeuvre);
+
+        /// Assignment operator.
+        Manoeuvre& operator=(const Manoeuvre& manoeuvre);
+
+        /// Operator !=
+        bool operator!=(const Manoeuvre& manoeuvre);
+
+        /// @brief Setup the entry manoeuvre for this vehicle (Sets completion time and manoeuvre type)
+        bool configureEntryManoeuvre(MSVehicle* veh);
+
+        /// @brief Setup the myManoeuvre for exiting (Sets completion time and manoeuvre type)
+        bool configureExitManoeuvre(MSVehicle* veh);
+
+         /// @brief Configure an entry manoeuvre if nothing is configured - otherwise check if complete
+        bool entryManoeuvreIsComplete(MSVehicle* veh);
+
+        /// @brief Check if specific manoeuver is ongoing and whether the completion time is beyond currentTime
+        bool
+        manoeuvreIsComplete(const ManoeuvreType checkType ) const;
+
+        /// @brief Check if any manoeuver is ongoing and whether the completion time is beyond currentTime
+        bool
+        manoeuvreIsComplete() const;
+
+        /// @brief Accessor for manoeuvre angle
+        int getManoeuvreAngle() const;
+
+        /// @brief Accessor (get) for manoeuvre type
+        MSVehicle::ManoeuvreType getManoeuvreType() const;
+
+        /// @brief Accessor (set) for manoeuvre type
+        void setManoeuvreType(const MSVehicle::ManoeuvreType mType);
+
+    private:
+        /// @brief  The name of the vehicle associated with the Manoeuvre  - for debug output
+        std::string myManoeuvreVehicleID;
+
+        /// @brief  The name of the stop associated with the Manoeuvre  - for debug output
+        std::string myManoeuvreStop;
+
+        /// @brief Time at which the Manoeuvre for this stop started
+        SUMOTime myManoeuvreStartTime;
+
+        /// @brief Time at which this manoeuvre should complete
+        SUMOTime myManoeuvreCompleteTime;
+
+        /// @brief Manoeuvre type - currently entry, exit or none
+        ManoeuvreType myManoeuvreType;
+
+        // @brief Angle (degrees) through which manoeuver will turn vehicle - used to determine manouevre timing
+        int myManoeuvreAngle;
+    };
+
+    // Current or previous (completed) manoeuvre
+    Manoeuvre myManoeuvre;
+
+   /** @class Influencer
      * @brief Changes the wished vehicle speed / lanes
      *
      * The class is used for passing velocities or velocity profiles obtained via TraCI to the vehicle.
@@ -1438,7 +1534,7 @@ public:
 
         /** @brief Activates the gap control with the given parameters, @see GapControlState
          */
-        void activateGapController(double originalTau, double newTimeHeadway, double newSpaceHeadway, double duration, double changeRate, double maxDecel, MSVehicle* refVeh=nullptr);
+        void activateGapController(double originalTau, double newTimeHeadway, double newSpaceHeadway, double duration, double changeRate, double maxDecel, MSVehicle* refVeh = nullptr);
 
         /** @brief Deactivates the gap control
          */
@@ -1448,6 +1544,11 @@ public:
          * @param[in] laneTimeLine The time line of lanes to use
          */
         void setLaneTimeLine(const std::vector<std::pair<SUMOTime, int> >& laneTimeLine);
+
+        /** @brief Adapts lane timeline when moving to a new lane and the lane index changes
+         * @param[in] indexShift The change in laneIndex
+         */
+        void adaptLaneTimeLine(int indexShift);
 
         /** @brief Sets a new sublane-change request
          * @param[in] latDist The lateral distance for changing
@@ -1695,6 +1796,9 @@ public:
     /// @brief whether the given vehicle must be followed at the given junction
     bool isLeader(const MSLink* link, const MSVehicle* veh) const;
 
+    // @brief get the position of the back bumper;
+    const Position getBackPosition() const;
+
     /// @name state io
     //@{
 
@@ -1797,13 +1901,13 @@ protected:
     /// updates LaneQ::nextOccupation and myCurrentLaneInBestLanes
     void updateOccupancyAndCurrentBestLane(const MSLane* startLane);
 
-    /** @brief Returns the list of still pending stop edges 
-     * also returns the first and last stop position 
+    /** @brief Returns the list of still pending stop edges
+     * also returns the first and last stop position
      */
     const ConstMSEdgeVector getStopEdges(double& firstPos, double& lastPos) const;
 
     /// @brief return list of route indices for the remaining stops
-    std::vector<int> getStopIndices() const;
+    std::vector<std::pair<int, double> > getStopIndices() const;
 
     /// @brief get distance for coming to a stop (used for rerouting checks)
     double getBrakeGap() const;
@@ -1825,8 +1929,7 @@ protected:
     State myState;
 
     /// @brief This vehicle's driver state @see MSDriverState
-//    std::shared_ptr<MSDriverState> myDriverState;
-    std::shared_ptr<MSSimpleDriverState> myDriverState;
+    MSDevice_DriverState* myDriverState;
 
     /// @brief The flag myActionStep indicates whether the current time step is an action point for the vehicle.
     bool myActionStep;
@@ -2040,9 +2143,6 @@ protected:
     // @brief return the lane on which the back of this vehicle resides
     const MSLane* getBackLane() const;
 
-    // @brief get the position of the back bumper;
-    const Position getBackPosition() const;
-
     /** @brief updates the vehicles state, given a next value for its speed.
      *         This value can be negative in case of the ballistic update to indicate
      *         a stop within the next timestep. (You can call this a 'hack' to
@@ -2061,7 +2161,7 @@ protected:
 
 
     /// @brief check whether all stop.edge MSRouteIterators are valid and in order
-    bool haveValidStopEdges();
+    bool haveValidStopEdges() const;
 
 private:
     /* @brief The vehicle's knowledge about edge efforts/travel times; @see MSEdgeWeightsStorage

@@ -78,7 +78,7 @@ MSMeanData_Amitran::MSLaneMeanDataValues::addTo(MSMeanData::MeanDataValues& val)
 
 
 void
-MSMeanData_Amitran::MSLaneMeanDataValues::notifyMoveInternal(const SUMOVehicle& veh, const double /* frontOnLane */, const double timeOnLane, const double /*meanSpeedFrontOnLane*/, const double /*meanSpeedVehicleOnLane*/, const double /*travelledDistanceFrontOnLane*/, const double travelledDistanceVehicleOnLane, const double /* meanLengthOnLane */) {
+MSMeanData_Amitran::MSLaneMeanDataValues::notifyMoveInternal(const SUMOTrafficObject& veh, const double /* frontOnLane */, const double timeOnLane, const double /*meanSpeedFrontOnLane*/, const double /*meanSpeedVehicleOnLane*/, const double /*travelledDistanceFrontOnLane*/, const double travelledDistanceVehicleOnLane, const double /* meanLengthOnLane */) {
     sampleSeconds += timeOnLane;
     travelledDistance += travelledDistanceVehicleOnLane;
     typedSamples[&veh.getVehicleType()] += timeOnLane;
@@ -87,7 +87,7 @@ MSMeanData_Amitran::MSLaneMeanDataValues::notifyMoveInternal(const SUMOVehicle& 
 
 
 bool
-MSMeanData_Amitran::MSLaneMeanDataValues::notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSMeanData_Amitran::MSLaneMeanDataValues::notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     if (myParent->vehicleApplies(veh)) {
         if (getLane() == nullptr || getLane() == static_cast<MSVehicle&>(veh).getLane()) {
             if (reason == MSMoveReminder::NOTIFICATION_DEPARTED || reason == MSMoveReminder::NOTIFICATION_JUNCTION) {
@@ -136,12 +136,13 @@ MSMeanData_Amitran::MSMeanData_Amitran(const std::string& id,
                                        const bool withEmpty, const bool printDefaults,
                                        const bool withInternal,
                                        const bool trackVehicles,
+                                       const int detectPersons,
                                        const double maxTravelTime,
                                        const double minSamples,
                                        const double haltSpeed,
                                        const std::string& vTypes)
     : MSMeanData(id, dumpBegin, dumpEnd, useLanes, withEmpty, printDefaults,
-                 withInternal, trackVehicles, maxTravelTime, minSamples, vTypes),
+                 withInternal, trackVehicles, detectPersons, maxTravelTime, minSamples, vTypes),
       myHaltSpeed(haltSpeed) {
 }
 

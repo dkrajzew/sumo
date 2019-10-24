@@ -81,7 +81,8 @@ public:
     void beginEdgeParsing(const std::string& id, const SumoXMLEdgeFunc function,
                           const std::string& streetName, const std::string& edgeType,
                           int priority,
-                          const std::string& bidi);
+                          const std::string& bidi,
+                          double distance);
 
 
     /** @brief Adds a lane to the current edge
@@ -100,7 +101,8 @@ public:
     virtual MSLane* addLane(const std::string& id, double maxSpeed,
                             double length, const PositionVector& shape,
                             double width,
-                            SVCPermissions permissions, int index, bool isRampAccel);
+                            SVCPermissions permissions, int index, bool isRampAccel,
+                            const std::string& type);
 
     /** @brief process a stopOffset element (originates either from the active edge or lane).
      */
@@ -142,7 +144,7 @@ public:
      * @param[in] streetName The street name of the edge to build
      */
     virtual MSEdge* buildEdge(const std::string& id, const SumoXMLEdgeFunc function,
-                              const std::string& streetName, const std::string& edgeType, const int priority);
+                              const std::string& streetName, const std::string& edgeType, const int priority, const double distance);
 
     /** @brief add the crossingEdges in a crossing edge if present
      *

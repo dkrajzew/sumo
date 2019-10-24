@@ -1,10 +1,11 @@
 noinst_LIBRARIES = libneteditdialogs.a
 
 libneteditdialogs_a_SOURCES = GNEVariableSpeedSignDialog.cpp GNEVariableSpeedSignDialog.h \
-GNEDialog_About.cpp GNEDialog_About.h \
-GNEDialog_AllowDisallow.cpp GNEDialog_AllowDisallow.h \
-GNEGenericParameterDialog.cpp GNEGenericParameterDialog.h \
-GNEDialog_FixAdditionalPositions.cpp GNEDialog_FixAdditionalPositions.h \
+GNEAbout.cpp GNEAbout.h \
+GNEAllowDisallow.cpp GNEAllowDisallow.h \
+GNEParametersDialog.cpp GNEParametersDialog.h \
+GNEFixAdditionalElements.cpp GNEFixAdditionalElements.h \
+GNEFixDemandElements.cpp GNEFixDemandElements.h \
 GNEAdditionalDialog.cpp GNEAdditionalDialog.h \
 GNEDemandElementDialog.cpp GNEDemandElementDialog.h \
 GNERerouterDialog.cpp GNERerouterDialog.h \

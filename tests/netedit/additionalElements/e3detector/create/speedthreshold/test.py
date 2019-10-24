@@ -32,35 +32,35 @@ netedit.setZoom("25", "0", "25")
 netedit.additionalMode()
 
 # select E3
-netedit.changeAdditional("e3Detector")
+netedit.changeElement("e3Detector")
 
 # set invalid speedTreshold
-netedit.modifyAdditionalDefaultValue(7, "dummySpeedTreshold")
+netedit.changeDefaultValue(8, "dummySpeedTreshold")
 
 # try to create E3 with different speedTreshold
 netedit.leftClick(referencePosition, 100, 100)
 
 # set invalid speedTreshold
-netedit.modifyAdditionalDefaultValue(7, "-3.80")
+netedit.changeDefaultValue(8, "-3.80")
 
 # try to create E3 with different speedTreshold
 netedit.leftClick(referencePosition, 100, 100)
 
 # set valid speedTreshold
-netedit.modifyAdditionalDefaultValue(7, "2.51")
+netedit.changeDefaultValue(8, "2.51")
 
 # create E3 with different speedTreshold
 netedit.leftClick(referencePosition, 100, 100)
 
 # select entry detector
-netedit.changeAdditional("detEntry")
+netedit.changeElement("detEntry")
 
 # Create Entry and exit detectors for all E3 detectors (except for the first, that only have one Entry)
 netedit.leftClick(referencePosition, 100, 100)  # select E3
 netedit.leftClick(referencePosition, 300, 250)
 
 # select entry detector
-netedit.changeAdditional("detExit")
+netedit.changeElement("detExit")
 
 # Create Entry and exit detectors for all E3 detectors (except for the first, that only have one Entry)
 netedit.leftClick(referencePosition, 100, 100)  # select E3
@@ -71,10 +71,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -21,7 +21,6 @@
 #include <config.h>
 
 #include <utils/gui/div/GLHelper.h>
-#include <netedit/netelements/GNELane.h>
 #include <netedit/frames/GNETAZFrame.h>
 #include <netedit/GNEUndoList.h>
 #include <netedit/GNEViewNet.h>
@@ -43,7 +42,7 @@ const double GNETAZ::myHintSizeSquared = 0.64;
 // member method definitions
 // ===========================================================================
 GNETAZ::GNETAZ(const std::string& id, GNEViewNet* viewNet, PositionVector shape, RGBColor color, bool blockMovement) :
-    GNEAdditional(id, viewNet, GLO_TAZ, SUMO_TAG_TAZ, "", blockMovement),
+    GNEAdditional(id, viewNet, GLO_TAZ, SUMO_TAG_TAZ, "", blockMovement, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
     myColor(color),
     myBlockShape(false),
     myCurrentMovingVertexIndex(-1),
@@ -62,7 +61,7 @@ GNETAZ::~GNETAZ() {}
 
 
 void
-GNETAZ::updateGeometry(bool /*updateGrid*/) {
+GNETAZ::updateGeometry() {
     // Nothing to do
 }
 
@@ -73,6 +72,21 @@ GNETAZ::getPositionInView() const {
 }
 
 
+Boundary
+GNETAZ::getCenteringBoundary() const {
+    // Return Boundary depending if myMovingGeometryBoundary is initialised (important for move geometry)
+    if (myMove.movingGeometryBoundary.isInitialised()) {
+        return myMove.movingGeometryBoundary;
+    } else if (myGeometry.shape.size() > 0) {
+        Boundary b = myGeometry.shape.getBoxBoundary();
+        b.grow(20);
+        return b;
+    } else {
+        return Boundary(-0.1, -0.1, 0.1, 0.1);
+    }
+}
+
+
 void
 GNETAZ::moveGeometry(const Position& offset) {
     // restore old position, apply offset and update Geometry
@@ -80,7 +94,7 @@ GNETAZ::moveGeometry(const Position& offset) {
     myGeometry.shape[0].add(offset);
     // filtern position using snap to active grid
     myGeometry.shape[0] = myViewNet->snapToActiveGrid(myGeometry.shape[0]);
-    updateGeometry(false);
+    updateGeometry();
 }
 
 
@@ -139,7 +153,7 @@ GNETAZ::moveEntireShape(const PositionVector& oldShape, const Position& offset) 
             i.add(offset);
         }
         // update Geometry after moving
-        updateGeometry(true);
+        updateGeometry();
     }
 }
 
@@ -239,11 +253,14 @@ GNETAZ::getParentName() const {
 
 void
 GNETAZ::drawGL(const GUIVisualizationSettings& s) const {
+    // check if boundary has to be drawn
+    if (s.drawBoundaries) {
+        GLHelper::drawBoundary(getCenteringBoundary());
+    }
     if (s.polySize.getExaggeration(s, this) == 0) {
         return;
     }
     Boundary boundary = myGeometry.shape.getBoxBoundary();
-    int circleResolution = GNEAttributeCarrier::getCircleResolution(s);
     if (s.scale * MAX2(boundary.getWidth(), boundary.getHeight()) < s.polySize.minSize) {
         return;
     }
@@ -252,12 +269,12 @@ GNETAZ::drawGL(const GUIVisualizationSettings& s) const {
         glPushMatrix();
         glTranslated(0, 0, 128);
         if (drawUsingSelectColor()) {
-            GLHelper::setColor(s.selectionColor);
+            GLHelper::setColor(s.colorSettings.selectionColor);
         } else {
             GLHelper::setColor(myColor);
         }
         GLHelper::drawLine(myGeometry.shape);
-        GLHelper::drawBoxLines(myGeometry.shape, 1);
+        GLHelper::drawBoxLines(myGeometry.shape, s.polySize.getExaggeration(s, this));
         glPopMatrix();
         const Position namePos = myGeometry.shape.getPolygonCenter();
         drawName(namePos, s.scale, s.polyName, s.angle);
@@ -272,8 +289,8 @@ GNETAZ::drawGL(const GUIVisualizationSettings& s) const {
         // set colors
         RGBColor invertedColor, darkerColor;
         if (drawUsingSelectColor()) {
-            invertedColor = s.selectionColor.invertedColor();
-            darkerColor = s.selectionColor.changedBrightness(-32);
+            invertedColor = s.colorSettings.selectionColor.invertedColor();
+            darkerColor = s.colorSettings.selectionColor.changedBrightness(-32);
         } else {
             invertedColor = GLHelper::getColor().invertedColor();
             darkerColor = GLHelper::getColor().changedBrightness(-32);
@@ -286,37 +303,39 @@ GNETAZ::drawGL(const GUIVisualizationSettings& s) const {
             GLHelper::setColor(darkerColor);
             GLHelper::drawBoxLines(myGeometry.shape, (myHintSize / 4) * s.polySize.getExaggeration(s, this));
             glPopMatrix();
-            // draw points of shape
-            for (auto i : myGeometry.shape) {
-                if (!s.drawForSelecting || (myViewNet->getPositionInformation().distanceSquaredTo2D(i) <= (myHintSizeSquared + 2))) {
-                    glPushMatrix();
-                    glTranslated(i.x(), i.y(), GLO_POLYGON + 0.02);
-                    // Change color of vertex and flag mouseOverVertex if mouse is over vertex
-                    if (modeMove && (i.distanceTo(mousePosition) < myHintSize)) {
-                        mouseOverVertex = true;
-                        GLHelper::setColor(invertedColor);
-                    } else {
-                        GLHelper::setColor(darkerColor);
+            // draw shape points only in Network supemode
+            if (myViewNet->getEditModes().currentSupermode != GNE_SUPERMODE_DEMAND) {
+                for (auto i : myGeometry.shape) {
+                    if (!s.drawForSelecting || (myViewNet->getPositionInformation().distanceSquaredTo2D(i) <= (myHintSizeSquared + 2))) {
+                        glPushMatrix();
+                        glTranslated(i.x(), i.y(), GLO_POLYGON + 0.02);
+                        // Change color of vertex and flag mouseOverVertex if mouse is over vertex
+                        if (modeMove && (i.distanceTo(mousePosition) < myHintSize)) {
+                            mouseOverVertex = true;
+                            GLHelper::setColor(invertedColor);
+                        } else {
+                            GLHelper::setColor(darkerColor);
+                        }
+                        GLHelper::drawFilledCircle(myHintSize, s.getCircleResolution());
+                        glPopMatrix();
                     }
-                    GLHelper::drawFilledCircle(myHintSize, circleResolution);
+                }
+                // check if draw moving hint has to be drawed
+                if (modeMove && (mouseOverVertex == false) && (myBlockMovement == false) && (distanceToShape < myHintSize)) {
+                    // push matrix
+                    glPushMatrix();
+                    Position hintPos = myGeometry.shape.size() > 1 ? myGeometry.shape.positionAtOffset2D(myGeometry.shape.nearest_offset_to_point2D(mousePosition)) : myGeometry.shape[0];
+                    glTranslated(hintPos.x(), hintPos.y(), GLO_POLYGON + 0.04);
+                    GLHelper::setColor(invertedColor);
+                    GLHelper:: drawFilledCircle(myHintSize, s.getCircleResolution());
                     glPopMatrix();
                 }
-            }
-            // check if draw moving hint has to be drawed
-            if (modeMove && (mouseOverVertex == false) && (myBlockMovement == false) && (distanceToShape < myHintSize)) {
-                // push matrix
-                glPushMatrix();
-                Position hintPos = myGeometry.shape.size() > 1 ? myGeometry.shape.positionAtOffset2D(myGeometry.shape.nearest_offset_to_point2D(mousePosition)) : myGeometry.shape[0];
-                glTranslated(hintPos.x(), hintPos.y(), GLO_POLYGON + 0.04);
-                GLHelper::setColor(invertedColor);
-                GLHelper:: drawFilledCircle(myHintSize, circleResolution);
-                glPopMatrix();
             }
         }
     }
     // check if dotted contour has to be drawn
     if ((myViewNet->getDottedAC() == this) || (myViewNet->getViewParent()->getTAZFrame()->getTAZCurrentModul()->getTAZ() == this)) {
-        GLHelper::drawShapeDottedContour(GLO_POLYGON + 1, getShape());
+        GLHelper::drawShapeDottedContourAroundClosedShape(s, GLO_POLYGON + 1, getShape());
     }
     // pop name
     glPopName();
@@ -334,7 +353,7 @@ GNETAZ::getAttribute(SumoXMLAttr key) const {
             return toString(myColor);
         case SUMO_ATTR_EDGES: {
             std::vector<std::string> edgeIDs;
-            for (auto i : myAdditionalChilds) {
+            for (auto i : getAdditionalChildren()) {
                 edgeIDs.push_back(i->getAttribute(SUMO_ATTR_EDGE));
             }
             return toString(edgeIDs);
@@ -345,8 +364,8 @@ GNETAZ::getAttribute(SumoXMLAttr key) const {
             return toString(myBlockShape);
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         case GNE_ATTR_MIN_SOURCE:
             return toString(myMinWeightSource);
         case GNE_ATTR_MIN_SINK:
@@ -365,6 +384,27 @@ GNETAZ::getAttribute(SumoXMLAttr key) const {
 }
 
 
+double 
+GNETAZ::getAttributeDouble(SumoXMLAttr key) const {
+    switch (key) {
+        case GNE_ATTR_MIN_SOURCE:
+            return myMinWeightSource;
+        case GNE_ATTR_MIN_SINK:
+            return myMinWeightSink;
+        case GNE_ATTR_MAX_SOURCE:
+            return myMaxWeightSource;
+        case GNE_ATTR_MAX_SINK:
+            return myMaxWeightSink;
+        case GNE_ATTR_AVERAGE_SOURCE:
+            return myAverageWeightSource;
+        case GNE_ATTR_AVERAGE_SINK:
+            return myAverageWeightSink;
+        default:
+            throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
+    }
+}
+
+
 void
 GNETAZ::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* undoList) {
     if (value == getAttribute(key)) {
@@ -378,7 +418,7 @@ GNETAZ::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* und
         case GNE_ATTR_BLOCK_MOVEMENT:
         case GNE_ATTR_BLOCK_SHAPE:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -408,11 +448,17 @@ GNETAZ::isValid(SumoXMLAttr key, const std::string& value) {
             return canParse<bool>(value);
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+bool 
+GNETAZ::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 
@@ -437,13 +483,13 @@ GNETAZ::updateAdditionalParent() {
     myMaxWeightSink = 0;
     myMinWeightSink = -1;
     myAverageWeightSink = 0;
-    // declare an extra variables for saving number of childs
+    // declare an extra variables for saving number of children
     int numberOfSources = 0;
     int numberOfSinks = 0;
-    // iterate over additional childs
-    for (auto i : myAdditionalChilds) {
+    // iterate over additional children
+    for (auto i : getAdditionalChildren()) {
         if (i->getTagProperty().getTag() == SUMO_TAG_TAZSOURCE) {
-            double weight = parse<double>(i->getAttribute(SUMO_ATTR_WEIGHT));
+            double weight = i->getAttributeDouble(SUMO_ATTR_WEIGHT);
             // check max Weight
             if (myMaxWeightSource < weight) {
                 myMaxWeightSource = weight;
@@ -457,7 +503,7 @@ GNETAZ::updateAdditionalParent() {
             // update number of sources
             numberOfSources++;
         } else if (i->getTagProperty().getTag() == SUMO_TAG_TAZSINK) {
-            double weight = parse<double>(i->getAttribute(SUMO_ATTR_WEIGHT));
+            double weight = i->getAttributeDouble(SUMO_ATTR_WEIGHT);
             // check max Weight
             if (myMaxWeightSink < weight) {
                 myMaxWeightSink = weight;
@@ -510,8 +556,8 @@ GNETAZ::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");

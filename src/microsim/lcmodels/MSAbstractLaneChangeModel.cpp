@@ -25,6 +25,7 @@
 // ===========================================================================
 //#define DEBUG_TARGET_LANE
 //#define DEBUG_SHADOWLANE
+#define DEBUG_MANEUVER
 #define DEBUG_COND (myVehicle.isSelected())
 
 
@@ -102,6 +103,7 @@ MSAbstractLaneChangeModel::MSAbstractLaneChangeModel(MSVehicle& v, const LaneCha
     myLaneChangeCompletion(1.0),
     myLaneChangeDirection(0),
     myManeuverDist(0.),
+    myPreviousManeuverDist(0.),
     myAlreadyChanged(false),
     myShadowLane(nullptr),
     myTargetLane(nullptr),
@@ -115,6 +117,9 @@ MSAbstractLaneChangeModel::MSAbstractLaneChangeModel(MSVehicle& v, const LaneCha
     myLastFollowerSecureGap(0.),
     myLastOrigLeaderGap(0.),
     myLastOrigLeaderSecureGap(0.),
+    myLastLeaderSpeed(0),
+    myLastFollowerSpeed(0),
+    myLastOrigLeaderSpeed(0),
     myDontResetLCGaps(false),
     myMaxSpeedLatStanding(v.getVehicleType().getParameter().getLCParam(SUMO_ATTR_LCA_MAXSPEEDLATSTANDING, v.getVehicleType().getMaxSpeedLat())),
     myMaxSpeedLatFactor(v.getVehicleType().getParameter().getLCParam(SUMO_ATTR_LCA_MAXSPEEDLATFACTOR, 1)),
@@ -145,14 +150,16 @@ MSAbstractLaneChangeModel::updateSafeLatDist(const double travelledLatDist) {
 void
 MSAbstractLaneChangeModel::setManeuverDist(const double dist) {
 #ifdef DEBUG_MANEUVER
-    if DEBUG_COND {
-    std::cout << SIMTIME
-              << " veh=" << myVehicle.getID()
+    if (DEBUG_COND) {
+        std::cout << SIMTIME
+                  << " veh=" << myVehicle.getID()
                   << " setManeuverDist() old=" << myManeuverDist << " new=" << dist
                   << std::endl;
     }
 #endif
-    myManeuverDist = dist;
+    myManeuverDist = fabs(dist) < NUMERICAL_EPS ? 0. : dist;
+    // store value which may be modified by the model during the next step
+    myPreviousManeuverDist = myManeuverDist;
 }
 
 
@@ -161,6 +168,10 @@ MSAbstractLaneChangeModel::getManeuverDist() const {
     return myManeuverDist;
 }
 
+double
+MSAbstractLaneChangeModel::getPreviousManeuverDist() const {
+    return myPreviousManeuverDist;
+}
 
 void
 MSAbstractLaneChangeModel::saveNeighbors(const int dir, const MSLeaderDistanceInfo& followers, const MSLeaderDistanceInfo& leaders) {
@@ -263,13 +274,10 @@ MSAbstractLaneChangeModel::predInteraction(const std::pair<MSVehicle*, double>& 
 
 bool
 MSAbstractLaneChangeModel::startLaneChangeManeuver(MSLane* source, MSLane* target, int direction) {
-    if (&source->getEdge() != &target->getEdge()) {
-        changedToOpposite();
-    }
     if (MSGlobals::gLaneChangeDuration > DELTA_T) {
         myLaneChangeCompletion = 0;
         myLaneChangeDirection = direction;
-        setManeuverDist(target->getCenterOnEdge() - source->getCenterOnEdge());
+        setManeuverDist((target->getWidth() + source->getWidth()) * 0.5 * direction);
         myVehicle.switchOffSignal(MSVehicle::VEH_SIGNAL_BLINKER_RIGHT | MSVehicle::VEH_SIGNAL_BLINKER_LEFT);
         myVehicle.switchOnSignal(direction == 1 ? MSVehicle::VEH_SIGNAL_BLINKER_LEFT : MSVehicle::VEH_SIGNAL_BLINKER_RIGHT);
         if (myLCOutput) {
@@ -297,9 +305,15 @@ MSAbstractLaneChangeModel::primaryLaneChanged(MSLane* source, MSLane* target, in
     initLastLaneChangeOffset(direction);
     myVehicle.leaveLane(MSMoveReminder::NOTIFICATION_LANE_CHANGE, target);
     source->leftByLaneChange(&myVehicle);
-    myVehicle.enterLaneAtLaneChange(target);
+    laneChangeOutput("change", source, target, direction); // record position on the source edge in case of opposite change
+    if (&source->getEdge() != &target->getEdge()) {
+        changedToOpposite();
+        myVehicle.setTentativeLaneAndPosition(target, source->getOppositePos(myVehicle.getPositionOnLane()), -myVehicle.getLateralPositionOnLane());
+        target->forceVehicleInsertion(&myVehicle, myVehicle.getPositionOnLane(), MSMoveReminder::NOTIFICATION_LANE_CHANGE, myVehicle.getLateralPositionOnLane());
+    } else {
+        myVehicle.enterLaneAtLaneChange(target);
+    }
     target->enteredByLaneChange(&myVehicle);
-    laneChangeOutput("change", source, target, direction);
     // Assure that the drive items are up to date (even if the following step is no actionstep for the vehicle).
     // This is necessary because the lane advance uses the target lane from the corresponding drive item.
     myVehicle.updateDriveItems();
@@ -326,10 +340,13 @@ MSAbstractLaneChangeModel::laneChangeOutput(const std::string& tag, MSLane* sour
                                             | LCA_AMBACKBLOCKER | LCA_AMBACKBLOCKER_STANDING))));
         of.writeAttr("leaderGap", myLastLeaderGap == NO_NEIGHBOR ? "None" : toString(myLastLeaderGap));
         of.writeAttr("leaderSecureGap", myLastLeaderSecureGap == NO_NEIGHBOR ? "None" : toString(myLastLeaderSecureGap));
+        of.writeAttr("leaderSpeed", myLastLeaderSpeed == NO_NEIGHBOR ? "None" : toString(myLastLeaderSpeed));
         of.writeAttr("followerGap", myLastFollowerGap == NO_NEIGHBOR ? "None" : toString(myLastFollowerGap));
         of.writeAttr("followerSecureGap", myLastFollowerSecureGap == NO_NEIGHBOR ? "None" : toString(myLastFollowerSecureGap));
+        of.writeAttr("followerSpeed", myLastFollowerSpeed == NO_NEIGHBOR ? "None" : toString(myLastFollowerSpeed));
         of.writeAttr("origLeaderGap", myLastOrigLeaderGap == NO_NEIGHBOR ? "None" : toString(myLastOrigLeaderGap));
         of.writeAttr("origLeaderSecureGap", myLastOrigLeaderSecureGap == NO_NEIGHBOR ? "None" : toString(myLastOrigLeaderSecureGap));
+        of.writeAttr("origLeaderSpeed", myLastOrigLeaderSpeed == NO_NEIGHBOR ? "None" : toString(myLastOrigLeaderSpeed));
         if (MSGlobals::gLateralResolution > 0) {
             const double latGap = direction < 0 ? myLastLateralGapRight : myLastLateralGapLeft;
             of.writeAttr("latGap", latGap == NO_NEIGHBOR ? "None" : toString(latGap));
@@ -382,7 +399,8 @@ MSAbstractLaneChangeModel::endLaneChangeManeuver(const MSMoveReminder::Notificat
     myNoPartiallyOccupatedByShadow.clear();
     myVehicle.switchOffSignal(MSVehicle::VEH_SIGNAL_BLINKER_RIGHT | MSVehicle::VEH_SIGNAL_BLINKER_LEFT);
     myVehicle.fixPosition();
-    if (myAmOpposite) {
+    if (myAmOpposite && reason != MSMoveReminder::NOTIFICATION_LANE_CHANGE) {
+        // aborted maneuver
         changedToOpposite();
     }
 }
@@ -398,7 +416,10 @@ MSAbstractLaneChangeModel::getShadowLane(const MSLane* lane, double posLat) cons
             std::cout << SIMTIME << " veh=" << myVehicle.getID() << " posLat=" << posLat << " overlap=" << overlap << "\n";
         }
 #endif
-        if (overlap > NUMERICAL_EPS) {
+        if (myAmOpposite) {
+            // return the neigh-lane in forward direction
+            return lane->getParallelLane(1);
+        } else if (overlap > NUMERICAL_EPS) {
             const int shadowDirection = posLat < 0 ? -1 : 1;
             return lane->getParallelLane(shadowDirection);
         } else if (isChangingLanes() && myLaneChangeCompletion < 0.5) {
@@ -545,6 +566,9 @@ MSAbstractLaneChangeModel::getShadowDirection() const {
         }
     } else if (myShadowLane == nullptr) {
         return 0;
+    } else if (myAmOpposite) {
+        // return neigh-lane in forward direction
+        return 1;
     } else {
         assert(&myShadowLane->getEdge() == &myVehicle.getLane()->getEdge());
         return myShadowLane->getIndex() - myVehicle.getLane()->getIndex();
@@ -552,7 +576,7 @@ MSAbstractLaneChangeModel::getShadowDirection() const {
 }
 
 
-void
+MSLane*
 MSAbstractLaneChangeModel::updateTargetLane() {
 #ifdef DEBUG_TARGET_LANE
     MSLane* oldTarget = myTargetLane;
@@ -596,6 +620,7 @@ MSAbstractLaneChangeModel::updateTargetLane() {
                   << std::endl;
     }
 #endif
+    return myTargetLane;
 }
 
 
@@ -810,7 +835,7 @@ MSAbstractLaneChangeModel::checkTraCICommands() {
             }
         }
     }
-    if (DEBUG_COND) {
+    if (gDebugFlag2) {
         std::cout << SIMTIME << " veh=" << myVehicle.getID() << " stateAfterTraCI=" << toString((LaneChangeAction)newstate) << " original=" << toString((LaneChangeAction)oldstate) << "\n";
     }
 }
@@ -826,6 +851,7 @@ MSAbstractLaneChangeModel::setFollowerGaps(CLeaderDist follower, double secGap) 
     if (follower.first != 0) {
         myLastFollowerGap = follower.second + follower.first->getVehicleType().getMinGap();
         myLastFollowerSecureGap = secGap;
+        myLastFollowerSpeed = follower.first->getSpeed();
     }
 }
 
@@ -834,6 +860,7 @@ MSAbstractLaneChangeModel::setLeaderGaps(CLeaderDist leader, double secGap) {
     if (leader.first != 0) {
         myLastLeaderGap = leader.second + myVehicle.getVehicleType().getMinGap();
         myLastLeaderSecureGap = secGap;
+        myLastLeaderSpeed = leader.first->getSpeed();
     }
 }
 
@@ -842,6 +869,7 @@ MSAbstractLaneChangeModel::setOrigLeaderGaps(CLeaderDist leader, double secGap) 
     if (leader.first != 0) {
         myLastOrigLeaderGap = leader.second + myVehicle.getVehicleType().getMinGap();
         myLastOrigLeaderSecureGap = secGap;
+        myLastOrigLeaderSpeed = leader.first->getSpeed();
     }
 }
 
@@ -858,7 +886,8 @@ MSAbstractLaneChangeModel::setFollowerGaps(const MSLeaderDistanceInfo& vehicles)
             const double netGap = vehDist.second + follower->getVehicleType().getMinGap();
             if (netGap < myLastFollowerGap && netGap >= 0) {
                 myLastFollowerGap = netGap;
-                myLastFollowerSecureGap = follower->getCarFollowModel().getSecureGap(follower->getSpeed(), leader->getSpeed(), leader->getCarFollowModel().getMaxDecel());
+                myLastFollowerSecureGap = follower->getCarFollowModel().getSecureGap(follower, leader, follower->getSpeed(), leader->getSpeed(), leader->getCarFollowModel().getMaxDecel());
+                myLastFollowerSpeed = follower->getSpeed();
             }
         }
     }
@@ -877,7 +906,8 @@ MSAbstractLaneChangeModel::setLeaderGaps(const MSLeaderDistanceInfo& vehicles) {
             const double netGap = vehDist.second + follower->getVehicleType().getMinGap();
             if (netGap < myLastLeaderGap && netGap >= 0) {
                 myLastLeaderGap = netGap;
-                myLastLeaderSecureGap = follower->getCarFollowModel().getSecureGap(follower->getSpeed(), leader->getSpeed(), leader->getCarFollowModel().getMaxDecel());
+                myLastLeaderSecureGap = follower->getCarFollowModel().getSecureGap(follower, leader, follower->getSpeed(), leader->getSpeed(), leader->getCarFollowModel().getMaxDecel());
+                myLastLeaderSpeed = leader->getSpeed();
             }
         }
     }
@@ -896,7 +926,8 @@ MSAbstractLaneChangeModel::setOrigLeaderGaps(const MSLeaderDistanceInfo& vehicle
             const double netGap = vehDist.second + follower->getVehicleType().getMinGap();
             if (netGap < myLastOrigLeaderGap && netGap >= 0) {
                 myLastOrigLeaderGap = netGap;
-                myLastOrigLeaderSecureGap = follower->getCarFollowModel().getSecureGap(follower->getSpeed(), leader->getSpeed(), leader->getCarFollowModel().getMaxDecel());
+                myLastOrigLeaderSecureGap = follower->getCarFollowModel().getSecureGap(follower, leader, follower->getSpeed(), leader->getSpeed(), leader->getCarFollowModel().getMaxDecel());
+                myLastOrigLeaderSpeed = leader->getSpeed();
             }
         }
     }

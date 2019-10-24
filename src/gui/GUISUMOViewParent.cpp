@@ -137,41 +137,44 @@ GUISUMOViewParent::setToolBarVisibility(const bool value) {
 
 long
 GUISUMOViewParent::onCmdMakeSnapshot(FXObject* sender, FXSelector, void*) {
-    MFXCheckableButton* button = static_cast<MFXCheckableButton*>(sender);
-    if (button->amChecked()) {
-        myView->endSnapshot();
-        button->setChecked(false);
-        return 1;
-    }
-    // get the new file name
-    FXFileDialog opendialog(this, "Save Snapshot");
-    opendialog.setIcon(GUIIconSubSys::getIcon(ICON_EMPTY));
-    opendialog.setSelectMode(SELECTFILE_ANY);
+    MFXCheckableButton* button = dynamic_cast<MFXCheckableButton*>(sender);
+    // check if cast was sucesfully
+    if (button) {
+        if (button->amChecked()) {
+            myView->endSnapshot();
+            button->setChecked(false);
+            return 1;
+        }
+        // get the new file name
+        FXFileDialog opendialog(this, "Save Snapshot");
+        opendialog.setIcon(GUIIconSubSys::getIcon(ICON_EMPTY));
+        opendialog.setSelectMode(SELECTFILE_ANY);
 #ifdef HAVE_FFMPEG
-    opendialog.setPatternList("All Image and Video Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf,*.h264,*.hevc)\n"
-                              "All Video Files (*.h264,*.hevc)\n"
+        opendialog.setPatternList("All Image and Video Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf,*.h264,*.hevc)\n"
+                                  "All Video Files (*.h264,*.hevc)\n"
 #else
-    opendialog.setPatternList("All Image Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf)\n"
+        opendialog.setPatternList("All Image Files (*.gif,*.bmp,*.xpm,*.pcx,*.ico,*.rgb,*.xbm,*.tga,*.png,*.jpg,*.jpeg,*.tif,*.tiff,*.ps,*.eps,*.pdf,*.svg,*.tex,*.pgf)\n"
 #endif
-                              "GIF Image (*.gif)\nBMP Image (*.bmp)\nXPM Image (*.xpm)\nPCX Image (*.pcx)\nICO Image (*.ico)\n"
-                              "RGB Image (*.rgb)\nXBM Image (*.xbm)\nTARGA Image (*.tga)\nPNG Image  (*.png)\n"
-                              "JPEG Image (*.jpg,*.jpeg)\nTIFF Image (*.tif,*.tiff)\n"
-                              "Postscript (*.ps)\nEncapsulated Postscript (*.eps)\nPortable Document Format (*.pdf)\n"
-                              "Scalable Vector Graphics (*.svg)\nLATEX text strings (*.tex)\nPortable LaTeX Graphics (*.pgf)\n"
-                              "All Files (*)");
-    if (gCurrentFolder.length() != 0) {
-        opendialog.setDirectory(gCurrentFolder);
-    }
-    if (!opendialog.execute() || !MFXUtils::userPermitsOverwritingWhenFileExists(this, opendialog.getFilename())) {
-        return 1;
-    }
-    gCurrentFolder = opendialog.getDirectory();
-    std::string file = opendialog.getFilename().text();
-    std::string error = myView->makeSnapshot(file);
-    if (error == "video") {
-        button->setChecked(!button->amChecked());
-    } else if (error != "") {
-        FXMessageBox::error(this, MBOX_OK, "Saving failed.", "%s", error.c_str());
+                                  "GIF Image (*.gif)\nBMP Image (*.bmp)\nXPM Image (*.xpm)\nPCX Image (*.pcx)\nICO Image (*.ico)\n"
+                                  "RGB Image (*.rgb)\nXBM Image (*.xbm)\nTARGA Image (*.tga)\nPNG Image  (*.png)\n"
+                                  "JPEG Image (*.jpg,*.jpeg)\nTIFF Image (*.tif,*.tiff)\n"
+                                  "Postscript (*.ps)\nEncapsulated Postscript (*.eps)\nPortable Document Format (*.pdf)\n"
+                                  "Scalable Vector Graphics (*.svg)\nLATEX text strings (*.tex)\nPortable LaTeX Graphics (*.pgf)\n"
+                                  "All Files (*)");
+        if (gCurrentFolder.length() != 0) {
+            opendialog.setDirectory(gCurrentFolder);
+        }
+        if (!opendialog.execute() || !MFXUtils::userPermitsOverwritingWhenFileExists(this, opendialog.getFilename())) {
+            return 1;
+        }
+        gCurrentFolder = opendialog.getDirectory();
+        std::string file = opendialog.getFilename().text();
+        std::string error = myView->makeSnapshot(file);
+        if (error == "video") {
+            button->setChecked(!button->amChecked());
+        } else if (error != "") {
+            FXMessageBox::error(this, MBOX_OK, "Saving failed.", "%s", error.c_str());
+        }
     }
     return 1;
 }
@@ -181,17 +184,17 @@ long
 GUISUMOViewParent::onCmdLocate(FXObject*, FXSelector sel, void*) {
     std::vector<GUIGlID> ids;
     GUIIcon icon;
-    std::string title;
+    std::string chooserTitle;
     switch (FXSELID(sel)) {
         case MID_LOCATEJUNCTION:
             ids = static_cast<GUINet*>(GUINet::getInstance())->getJunctionIDs(myParent->listInternal());
             icon = ICON_LOCATEJUNCTION;
-            title = "Junction Chooser";
+            chooserTitle = "Junction Chooser";
             break;
         case MID_LOCATEEDGE:
             ids = GUIEdge::getIDs(myParent->listInternal());
             icon = ICON_LOCATEEDGE;
-            title = "Edge Chooser";
+            chooserTitle = "Edge Chooser";
             break;
         case MID_LOCATEVEHICLE:
             if (MSGlobals::gUseMesoSim) {
@@ -201,32 +204,32 @@ GUISUMOViewParent::onCmdLocate(FXObject*, FXSelector sel, void*) {
                     ids, myParent->listParking(), myParent->listTeleporting());
             }
             icon = ICON_LOCATEVEHICLE;
-            title = "Vehicle Chooser";
+            chooserTitle = "Vehicle Chooser";
             break;
         case MID_LOCATEPERSON:
             static_cast<GUITransportableControl&>(MSNet::getInstance()->getPersonControl()).insertPersonIDs(ids);
             icon = ICON_LOCATEPERSON;
-            title = "Person Chooser";
+            chooserTitle = "Person Chooser";
             break;
         case MID_LOCATETLS:
             ids = static_cast<GUINet*>(GUINet::getInstance())->getTLSIDs();
             icon = ICON_LOCATETLS;
-            title = "Traffic Lights Chooser";
+            chooserTitle = "Traffic Lights Chooser";
             break;
         case MID_LOCATEADD:
             ids = GUIGlObject_AbstractAdd::getIDList(GLO_ADDITIONAL);
             icon = ICON_LOCATEADD;
-            title = "Additional Objects Chooser";
+            chooserTitle = "Additional Objects Chooser";
             break;
         case MID_LOCATEPOI:
             ids = static_cast<GUIShapeContainer&>(GUINet::getInstance()->getShapeContainer()).getPOIIds();
             icon = ICON_LOCATEPOI;
-            title = "POI Chooser";
+            chooserTitle = "POI Chooser";
             break;
         case MID_LOCATEPOLY:
             ids = static_cast<GUIShapeContainer&>(GUINet::getInstance()->getShapeContainer()).getPolygonIDs();
             icon = ICON_LOCATEPOLY;
-            title = "Polygon Chooser";
+            chooserTitle = "Polygon Chooser";
             break;
         default:
             throw ProcessError("Unknown Message ID in onCmdLocate");
@@ -234,7 +237,7 @@ GUISUMOViewParent::onCmdLocate(FXObject*, FXSelector sel, void*) {
     myLocatorPopup->popdown();
     myLocatorButton->killFocus();
     myLocatorPopup->update();
-    new GUIDialog_GLObjChooser(this, GUIIconSubSys::getIcon(icon), title.c_str(), ids, GUIGlObjectStorage::gIDStorage);
+    new GUIDialog_GLObjChooser(this, GUIIconSubSys::getIcon(icon), chooserTitle.c_str(), ids, GUIGlObjectStorage::gIDStorage);
     return 1;
 }
 
@@ -273,15 +276,15 @@ GUISUMOViewParent::isSelected(GUIGlObject* o) const {
 
 
 long
-GUISUMOViewParent::onKeyPress(FXObject* o, FXSelector sel, void* data) {
-    myView->onKeyPress(o, sel, data);
+GUISUMOViewParent::onKeyPress(FXObject* o, FXSelector sel, void* ptr) {
+    myView->onKeyPress(o, sel, ptr);
     return 0;
 }
 
 
 long
-GUISUMOViewParent::onKeyRelease(FXObject* o, FXSelector sel, void* data) {
-    myView->onKeyRelease(o, sel, data);
+GUISUMOViewParent::onKeyRelease(FXObject* o, FXSelector sel, void* ptr) {
+    myView->onKeyRelease(o, sel, ptr);
     return 0;
 }
 

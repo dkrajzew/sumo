@@ -59,6 +59,9 @@ const std::set<std::string> PCLoaderOSM::MyKeysToInclude(PCLoaderOSM::initMyKeys
 std::set<std::string> PCLoaderOSM::initMyKeysToInclude() {
     std::set<std::string> result;
     result.insert("highway");
+    result.insert("railway");
+    result.insert("railway:position");
+    result.insert("railway:position:exact");
     result.insert("waterway");
     result.insert("aeroway");
     result.insert("aerialway");
@@ -79,6 +82,7 @@ std::set<std::string> PCLoaderOSM::initMyKeysToInclude() {
     result.insert("polygon");
     result.insert("place");
     result.insert("population");
+    result.insert("barrier");
     result.insert("openGeoDB:population");
     result.insert("openGeoDB:name");
     return result;
@@ -359,7 +363,7 @@ PCLoaderOSM::addPolygon(const PCOSMEdge* edge, const PositionVector& vec, const 
             StringUtils::escapeXML(OptionsCont::getOptions().getBool("osm.keep-full-type") ? fullType : def.id),
             def.color, vec, false, def.allowFill && closedShape, 1, def.layer);
         if (withAttributes) {
-            poly->updateParameter(edge->myAttributes);
+            poly->updateParameters(edge->myAttributes);
         }
         if (!toFill.add(poly, ignorePruning)) {
             return index;
@@ -383,7 +387,7 @@ PCLoaderOSM::addPOI(const PCOSMNode* node, const Position& pos, const PCTypeMap:
             StringUtils::escapeXML(OptionsCont::getOptions().getBool("osm.keep-full-type") ? fullType : def.id),
             def.color, pos, false, "", 0, 0, (double)def.layer);
         if (withAttributes) {
-            poi->updateParameter(node->myAttributes);
+            poi->updateParameters(node->myAttributes);
         }
         if (!toFill.add(poi, ignorePruning)) {
             return index;

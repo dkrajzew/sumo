@@ -171,7 +171,7 @@ class PlatoonManager(traci.StepListener):
         for veh in self._connectedVehicles.values():
             veh.setPlatoonMode(PlatoonMode.NONE)
             traci.vehicle.unsubscribe(veh.getID())
-        self._connectedVehicles = []
+        self._connectedVehicles = dict()
         simpla._platoon.Platoon._nextID = 0
 
     def getPlatoonLeaders(self):
@@ -195,6 +195,10 @@ class PlatoonManager(traci.StepListener):
         '''
         self._subscriptionResults = traci.vehicle.getAllSubscriptionResults()
         for veh in self._connectedVehicles.values():
+            if (veh.getID() not in self._subscriptionResults):
+                # FIXME: For some reason, this is in rare occasions called with vehicles,
+                #        which have no subscription results.
+                return
             veh.state.speed = self._subscriptionResults[veh.getID()][tc.VAR_SPEED]
             veh.state.edgeID = self._subscriptionResults[veh.getID()][tc.VAR_ROAD_ID]
             veh.state.laneID = self._subscriptionResults[veh.getID()][tc.VAR_LANE_ID]

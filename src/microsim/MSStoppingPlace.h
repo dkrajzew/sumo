@@ -70,7 +70,9 @@ public:
      */
     MSStoppingPlace(const std::string& id,
                     const std::vector<std::string>& lines, MSLane& lane,
-                    double begPos, double endPos, const std::string name = "");
+                    double begPos, double endPos, const std::string name = "",
+                    int capacity = 0);
+
 
 
     /// @brief Destructor
@@ -137,15 +139,13 @@ public:
      *
      * @return The next free waiting place for pedestrians / containers
      */
-    Position getWaitPosition() const;
+    virtual Position getWaitPosition(MSTransportable* person) const;
 
     /** @brief Returns the lane position corresponding to getWaitPosition()
      *
      * @return The waiting position along the stop lane
      */
-    double getWaitingPositionOnLane() const {
-        return myWaitingPos;
-    }
+    double getWaitingPositionOnLane(MSTransportable* t) const;
 
 
     /** @brief For vehicles at the stop this gives the the actual stopping
@@ -160,6 +160,10 @@ public:
         return (int)myWaitingTransportables.size();
     }
 
+    /** @brief Returns the tranportables waiting on this stop
+     */
+    std::vector<MSTransportable*> getTransportables() const;
+
     /** @brief Returns the number of stopped vehicles waiting on this stop
     */
     int getStoppedVehicleNumber() const {
@@ -170,8 +174,11 @@ public:
         return myLastFreePos;
     }
 
+    /// @brief whether there is still capacity for more transportables
+    bool hasSpaceForTransportable() const;
+
     /// @brief adds a transportable to this stop
-    void addTransportable(MSTransportable* p);
+    bool addTransportable(MSTransportable* p);
 
     /// @brief Removes a transportable from this stop
     void removeTransportable(MSTransportable* p);
@@ -190,6 +197,10 @@ public:
     /// @brief the distance from the access on the given edge to the stop, -1 on failure
     double getAccessDistance(const MSEdge* edge) const;
 
+    const std::string& getMyName() const;
+
+    static int getPersonsAbreast(double length);
+
 protected:
     /** @brief Computes the last free position on this stop
      *
@@ -199,6 +210,7 @@ protected:
      */
     void computeLastFreePos();
 
+    int getPersonsAbreast() const;
 
 protected:
     /// @brief The list of lines that are assigned to this stop
@@ -219,17 +231,17 @@ protected:
     /// @brief The last free position at this stop (variable)
     double myLastFreePos;
 
-    /// @brief The next free position for persons / containers
-    double myWaitingPos;
-
     /// @brief The name of the stopping place
     const std::string myName;
-public:
-    const std::string& getMyName() const;
+
+    /// @brief The number of transportables that can wait here
+    const int myTransportableCapacity;
+
 protected:
 
-    /// @brief Persons waiting at this stop
-    std::vector<MSTransportable*> myWaitingTransportables;
+    /// @brief Persons waiting at this stop (mapped to waiting position)
+    std::map<MSTransportable*, int> myWaitingTransportables;
+    std::set<int> myWaitingSpots;
 
     /// @brief lanes and positions connected to this stop
     std::vector<std::tuple<MSLane*, double, double> > myAccessPos;

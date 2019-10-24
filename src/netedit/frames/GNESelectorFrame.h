@@ -73,8 +73,7 @@ public:
             /// @}
 
         protected:
-            /// @brief FOX needs this
-            ObjectTypeEntry() {}
+			FOX_CONSTRUCTOR(ObjectTypeEntry)
 
         private:
             /// @brief label counter
@@ -151,13 +150,9 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        ModificationMode() {}
+		FOX_CONSTRUCTOR(ModificationMode)
 
     private:
-        /// @brief pointer to Selector Frame Parent
-        GNESelectorFrame* mySelectorFrameParent;
-
         /// @brief add radio button
         FXRadioButton* myAddRadioButton;
 
@@ -215,8 +210,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        ElementSet() {}
+		FOX_CONSTRUCTOR(ElementSet)
 
     private:
         /// @brief pointer to Selector Frame Parent
@@ -276,8 +270,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        MatchAttribute() {}
+		FOX_CONSTRUCTOR(MatchAttribute)
 
     private:
         /// @brief pointer to Selector Frame Parent
@@ -323,8 +316,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        VisualScaling() {}
+		FOX_CONSTRUCTOR(VisualScaling)
 
     private:
         /// @brief pointer to Selector Frame Parent
@@ -377,8 +369,7 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        SelectionOperation() {}
+		FOX_CONSTRUCTOR(SelectionOperation)
 
     private:
         /// @brief pointer to Selector Frame Parent
@@ -432,6 +423,9 @@ private:
 
     /// @brief modul for selection operations
     SelectionOperation* mySelectionOperation;
+
+    /// @brief check if there is ACs to select/unselect
+    bool ACsToSelected() const;
 
 private:
     /**@brief return ACs of the given type with matching attrs

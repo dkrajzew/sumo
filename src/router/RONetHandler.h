@@ -90,6 +90,9 @@ protected:
     /// @name called from myStartElement
     //@{
 
+    /// @brief assign arbitrary vehicle parameters
+    void addParam(const SUMOSAXAttributes& attrs);
+
     /** @brief Parses and builds an edge
      *
      * Parses attributes from an "edge"-element (id, from/to-nodes, function, etc.).
@@ -181,6 +184,9 @@ protected:
 protected:
     /// @brief The net to store the information into
     RONet& myNet;
+
+    /// @brief the loaded network version
+    double myNetworkVersion;
 
     /// @brief The object used to build of edges of the desired type
     ROAbstractEdgeBuilder& myEdgeBuilder;

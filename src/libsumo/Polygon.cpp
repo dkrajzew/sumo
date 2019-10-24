@@ -20,9 +20,15 @@
 // included modules
 // ===========================================================================
 #include <microsim/MSNet.h>
+#include <microsim/MSEventControl.h>
+#include <microsim/MSVehicleControl.h>
+#include <microsim/MSTransportableControl.h>
+#include <microsim/MSDynamicShapeUpdater.h>
 #include <libsumo/TraCIConstants.h>
 #include <utils/shapes/SUMOPolygon.h>
+#include <utils/shapes/PolygonDynamics.h>
 #include <utils/shapes/ShapeContainer.h>
+#include <utils/common/ParametrisedWrappingCommand.h>
 
 #include "Polygon.h"
 #include "Helper.h"
@@ -113,13 +119,65 @@ Polygon::setColor(const std::string& polygonID, const TraCIColor& c) {
 
 
 void
-Polygon::add(const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& color, bool fill, double lineWidth, const std::string& polygonType, int layer) {
+Polygon::add(const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& color, bool fill, const std::string& polygonType, int layer, double lineWidth) {
     ShapeContainer& shapeCont = MSNet::getInstance()->getShapeContainer();
     PositionVector pShape = Helper::makePositionVector(shape);
     RGBColor col = Helper::makeRGBColor(color);
     if (!shapeCont.addPolygon(polygonID, polygonType, col, (double)layer, Shape::DEFAULT_ANGLE, Shape::DEFAULT_IMG_FILE, Shape::DEFAULT_RELATIVEPATH, pShape, false, fill, lineWidth)) {
         throw TraCIException("Could not add polygon '" + polygonID + "'");
     }
+}
+
+
+void
+Polygon::addHighlightPolygon(const std::string& objectID, const int type, const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& color, bool fill, const std::string& polygonType, int layer, double lineWidth) {
+    add(polygonID, shape, color, fill, polygonType, layer, lineWidth);
+    MSNet::getInstance()->getShapeContainer().registerHighlight(objectID, type, polygonID);
+}
+
+
+void
+Polygon::addDynamics(const std::string& polygonID, const std::string& trackedID, const std::vector<double>& timeSpan, const std::vector<double>& alphaSpan, bool looped, bool rotate) {
+    if (timeSpan.empty()) {
+        if (trackedID == "") {
+            throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': dynamics underspecified (either a tracked object ID or a time span have to be provided).");
+        }
+        if (looped) {
+            throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': looped==true requires time line of positive length.");
+        }
+    }
+    if (timeSpan.size() == 1) {
+        throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': time span cannot have length one.");
+    } else if (timeSpan.size() > 0 && timeSpan[0] != 0.0) {
+        throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': first element of time span must be zero.");
+    }
+    if (timeSpan.size() != alphaSpan.size() && alphaSpan.size() != 0) {
+        throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': alpha span must have length zero or equal to time span length.");
+    }
+    if (timeSpan.size() >= 2) {
+        for (unsigned int i = 1; i < timeSpan.size(); ++i) {
+            if (timeSpan[i - 1] > timeSpan[i]) {
+                throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': entries of time span must be ordered ascendingly.");
+            }
+        }
+    }
+
+    SUMOTrafficObject* obj = getTrafficObject(trackedID);
+    ShapeContainer& shapeCont = MSNet::getInstance()->getShapeContainer();
+    PolygonDynamics* pd = shapeCont.addPolygonDynamics(SIMTIME, polygonID, obj, timeSpan, alphaSpan, looped, rotate);
+    if (pd == nullptr) {
+        throw TraCIException("Could not add polygon dynamics for polygon '" + polygonID + "': polygon doesn't exist.");
+    }
+    // Ensure existence of a DynamicShapeUpdater
+    if (MSNet::getInstance()->getDynamicShapeUpdater() == nullptr) {
+        MSNet::VehicleStateListener* listener = dynamic_cast<MSNet::VehicleStateListener*>(MSNet::getInstance()->makeDynamicShapeUpdater());
+        MSNet::getInstance()->addVehicleStateListener(listener);
+    }
+
+    // Schedule the regular polygon update
+    auto cmd = new ParametrisedWrappingCommand<ShapeContainer, PolygonDynamics*>(&shapeCont, pd, &ShapeContainer::polygonDynamicsUpdate);
+    shapeCont.addPolygonUpdateCommand(pd->getPolygonID(), cmd);
+    MSNet::getInstance()->getEndOfTimestepEvents()->addEvent(cmd, SIMSTEP);
 }
 
 
@@ -153,6 +211,26 @@ Polygon::getPolygon(const std::string& id) {
         throw TraCIException("Polygon '" + id + "' is not known");
     }
     return p;
+}
+
+
+SUMOTrafficObject*
+Polygon::getTrafficObject(const std::string& id) {
+    if (id == "") {
+        return nullptr;
+    }
+    MSNet* net = MSNet::getInstance();
+    // First try to find a vehicle with the given id
+    SUMOVehicle* sumoVehicle = net->getVehicleControl().getVehicle(id);
+    if (sumoVehicle != nullptr) {
+        return static_cast<SUMOTrafficObject*>(sumoVehicle);
+    }
+    MSTransportable* transportable = net->getPersonControl().get(id);
+    if (transportable != nullptr) {
+        return static_cast<SUMOTrafficObject*>(transportable);
+    } else {
+        throw TraCIException("Traffic object '" + id + "' is not known");
+    }
 }
 
 
@@ -212,6 +290,12 @@ Polygon::handleVariable(const std::string& objID, const int variable, VariableWr
     }
 }
 
+
+bool
+Polygon::exists(std::string polyID) {
+    SUMOPolygon* p = MSNet::getInstance()->getShapeContainer().getPolygons().get(polyID);
+    return p != nullptr;
+}
 
 }
 

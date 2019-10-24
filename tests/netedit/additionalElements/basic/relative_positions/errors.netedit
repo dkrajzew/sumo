@@ -1,4 +1,5 @@
-Debug: Selected item 'DEFAULT_VEHTYPE' in VTypeSelector
+Debug: Selected item 'DEFAULT_VEHTYPE' in DemandElementSelector
+Debug: Selected item 'DEFAULT_PEDTYPE' in DemandElementSelector
 Debug: Adding busStop 'busStop_gneE1_0_0' in GNEChange_Additional
 Debug: Additionals has to be saved
 Debug: Current saving Status: net saved, additionals unsaved, demand elements saved
@@ -10,7 +11,7 @@ Debug: Adding e1Detector 'e1Detector_gneE0_2_0' in GNEChange_Additional
 Debug: Adding e2Detector 'e2Detector_gneE0_1_0' in GNEChange_Additional
 Debug: Adding e3Detector 'e3Detector_0' in GNEChange_Additional
 Debug: Adding detEntry 'e3Detector_0detEntry0' in GNEChange_Additional
-Debug: Adding detExit 'e3Detector_0detExit0' in GNEChange_Additional
+Debug: Adding detExit 'e3Detector_0detExit1' in GNEChange_Additional
 Debug: Adding instantInductionLoop 'instantInductionLoop_1' in GNEChange_Additional
 Debug: Adding rerouter 'rerouter_0' in GNEChange_Additional
 Debug: Adding routeProbe 'routeProbe_gneE1_0' in GNEChange_Additional
@@ -34,14 +35,14 @@ Debug: Setting new attribute startPos '24.89' into containerStop 'containerStop_
 Debug: Setting new attribute endPos '25.00' into containerStop 'containerStop_gneE1_1_0'
 Debug: Setting new attribute startPos '24.89' into chargingStation 'chargingStation_gneE1_2_0'
 Debug: Setting new attribute endPos '25.00' into chargingStation 'chargingStation_gneE1_2_0'
-Debug: Additionals saved
+Debug: Additionals saved after dialog
 Debug: Deleting unreferenced variableSpeedSign 'variableSpeedSign_0'
 Debug: Additionals has to be saved
 Debug: Current saving Status: net saved, additionals unsaved, demand elements saved
 Debug: Deleting unreferenced routeProbe 'routeProbe_gneE1_0'
 Debug: Deleting unreferenced rerouter 'rerouter_0'
 Debug: Deleting unreferenced instantInductionLoop 'instantInductionLoop_1'
-Debug: Deleting unreferenced detExit 'e3Detector_0detExit0'
+Debug: Deleting unreferenced detExit 'e3Detector_0detExit1'
 Debug: Deleting unreferenced detEntry 'e3Detector_0detEntry0'
 Debug: Deleting unreferenced e3Detector 'e3Detector_0'
 Debug: Deleting unreferenced e2Detector 'e2Detector_gneE0_1_0'
@@ -63,5 +64,7 @@ Debug: Deleting unreferenced lane 'gneE1_2' in GNEEdge destructor
 Debug: Deleting unreferenced connection 'fromgneE1_2togneE0_2' in GNEEdge destructor
 Debug: Deleting unreferenced junction 'gneJ0' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ1' in GNENet destructor
+Debug: Deleting unreferenced vType 'DEFAULT_BIKETYPE' in GNENet destructor
 Debug: Deleting unreferenced vType 'DEFAULT_VEHTYPE' in GNENet destructor
+Debug: Deleting unreferenced pType 'DEFAULT_PEDTYPE' in GNENet destructor
 Debug: Deleting net builder in GNENet destructor

@@ -85,8 +85,7 @@ public:
     /// @}
 
 protected:
-    /// @brief FOX needs this
-    GNECalibratorDialog() {}
+    FOX_CONSTRUCTOR(GNECalibratorDialog)
 
 private:
     /// @brief button for add new route

@@ -35,23 +35,23 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect E3s
-netedit.leftClick(referencePosition, 150, 250)
+netedit.leftClick(referencePosition, 160, 260)
 
 # Change parameter name with an non valid value
-netedit.modifyAttribute(0, "%%%;:..&&%$%$", True)
+netedit.modifyAttribute(1, "%%%;:..&&%$%$", True)
 
 # Change parameter name with a duplicated value
-netedit.modifyAttribute(0, "customName", True)
+netedit.modifyAttribute(1, "customName", True)
 
 # Check undo redo
 netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

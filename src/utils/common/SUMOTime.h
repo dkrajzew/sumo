@@ -23,7 +23,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
 #include <limits>
 #include <string>
@@ -57,7 +56,7 @@ extern SUMOTime DELTA_T;
 
 #define STEPS2TIME(x) (static_cast<double>((x)/1000.))
 // static cast to long long int truncates so we must pad away from 0 for correct rounding
-#define TIME2STEPS(x) (static_cast<SUMOTime>((x)*1000 + ((x) >= 0 ? 0.5 : -0.5)))
+#define TIME2STEPS(x) (static_cast<SUMOTime>((x) * 1000. + ((x) >= 0 ? 0.5 : -0.5)))
 #define STEPFLOOR(x) (int(x/DELTA_T)*DELTA_T)
 #define STEPS2MS(x) (x)
 
@@ -69,9 +68,9 @@ extern SUMOTime DELTA_T;
 // ===========================================================================
 SUMOTime string2time(const std::string& r);
 std::string time2string(SUMOTime t);
-
+bool checkStepLengthMultiple(const SUMOTime t, const std::string& error="");
 
 #endif
 
-/****************************************************************************/
 
+/****************************************************************************/

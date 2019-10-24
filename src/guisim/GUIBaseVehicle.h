@@ -88,7 +88,7 @@ public:
     }
 
     /// @brief gets the color value according to the current scheme index
-    virtual double getColorValue(int activeScheme) const = 0;
+    virtual double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const = 0;
 
     /// @brief draws the given guiShape with distinct carriages/modules
     virtual void drawAction_drawCarriageClass(const GUIVisualizationSettings& s, bool asImage) const = 0;
@@ -102,7 +102,7 @@ public:
     /** @brief Draws the route
      * @param[in] r The route to draw
      */
-    virtual void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r) const = 0;
+    virtual void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future) const = 0;
 
     /// @brief retrieve information about the current stop state
     virtual std::string getStopInfo() const = 0;
@@ -154,6 +154,8 @@ public:
      */
     GUIGLObjectPopupMenu* getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent);
 
+    /// @brief notify object about popup menu removal
+    void removedPopupMenu();
 
     /** @brief Returns the boundary to which the view shall be centered in order to show the object
      *
@@ -162,6 +164,8 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief Returns the value for generic parameter 'name' or ''
+    const std::string getOptionalName() const;
 
     /** @brief Draws the object on the specified position with the specified angle
      * @param[in] s The settings for the current view (may influence drawing)
@@ -214,6 +218,12 @@ public:
     void removeActiveAddVisualisation(GUISUMOAbstractView* const parent, int which);
     /// @}
 
+    /// @brief return the number of passengers
+    int getNumPassengers() const;
+
+    /// @brief return the number of passengers
+    int getNumContainers() const;
+
 
 
     /**
@@ -229,10 +239,8 @@ public:
          * @param[in] app The main window for instantiation of other windows
          * @param[in] parent The parent view for changing it
          * @param[in] o The object of interest
-         * @param[in, out] additionalVisualizations Information which additional visualisations are enabled (per view)
          */
-        GUIBaseVehiclePopupMenu(GUIMainWindow& app,
-                                GUISUMOAbstractView& parent, GUIGlObject& o, std::map<GUISUMOAbstractView*, int>& additionalVisualizations);
+        GUIBaseVehiclePopupMenu(GUIMainWindow& app, GUISUMOAbstractView& parent, GUIGlObject& o);
 
         /// @brief Destructor
         ~GUIBaseVehiclePopupMenu();
@@ -245,6 +253,10 @@ public:
         long onCmdShowCurrentRoute(FXObject*, FXSelector, void*);
         /// @brief Called if the current route of the vehicle shall be hidden
         long onCmdHideCurrentRoute(FXObject*, FXSelector, void*);
+        /// @brief Called if the current route of the vehicle shall be shown
+        long onCmdShowFutureRoute(FXObject*, FXSelector, void*);
+        /// @brief Called if the current route of the vehicle shall be hidden
+        long onCmdHideFutureRoute(FXObject*, FXSelector, void*);
         /// @brief Called if the vehicle's best lanes shall be shown
         long onCmdShowBestLanes(FXObject*, FXSelector, void*);
         /// @brief Called if the vehicle's best lanes shall be hidden
@@ -259,16 +271,11 @@ public:
         long onCmdHideLFLinkItems(FXObject*, FXSelector, void*);
         /// @brief Called when show a vehicles foes
         long onCmdShowFoes(FXObject*, FXSelector, void*);
+        /// @brief Called when removing the vehicle
+        long onCmdRemoveObject(FXObject*, FXSelector, void*);
 
     protected:
-        /// @brief Information which additional visualisations are enabled (per view)
-        std::map<GUISUMOAbstractView*, int>& myVehiclesAdditionalVisualizations;
-        /// @brief Needed for parameterless instantiation
-        std::map<GUISUMOAbstractView*, int> dummy;
-
-    protected:
-        /// @brief default constructor needed by FOX
-        GUIBaseVehiclePopupMenu() : myVehiclesAdditionalVisualizations(dummy) { }
+        FOX_CONSTRUCTOR(GUIBaseVehiclePopupMenu)
 
     };
 
@@ -288,7 +295,9 @@ public:
         /// @brief LFLinkItems
         VO_SHOW_LFLINKITEMS = 8,
         /// @brief draw vehicle outside the road network
-        VO_DRAW_OUTSIDE_NETWORK = 16
+        VO_DRAW_OUTSIDE_NETWORK = 16,
+        /// @brief show vehicle's current continued from the current position
+        VO_SHOW_FUTURE_ROUTE = 32
     };
 
     /// @brief Enabled visualisations, per view
@@ -300,17 +309,17 @@ public:
      * @param[in] routeNo The route to show (0: the current, >0: prior)
      * @param[in] darken The amount to darken the route by
      */
-    void drawRoute(const GUIVisualizationSettings& s, int routeNo, double darken) const;
+    void drawRoute(const GUIVisualizationSettings& s, int routeNo, double darken, bool future = false) const;
 
 
     /// @}
 
     /// @brief sets the color according to the current scheme index and some vehicle function
-    static bool setFunctionalColor(int activeScheme, const MSBaseVehicle* veh);
+    static bool setFunctionalColor(int activeScheme, const MSBaseVehicle* veh, RGBColor& col);
 
 protected:
     /// @brief sets the color according to the currente settings
-    void setColor(const GUIVisualizationSettings& s) const;
+    RGBColor setColor(const GUIVisualizationSettings& s) const;
 
     /// @brief returns the seat position for the person with the given index
     const Position& getSeatPosition(int personIndex) const;
@@ -323,7 +332,11 @@ protected:
     }
 
     /// @brief draw vehicle body and return whether carriages are being drawn
-    bool drawAction_drawVehicleAsPolyWithCarriagges(const GUIVisualizationSettings& s, bool asImage=false) const;
+    bool drawAction_drawVehicleAsPolyWithCarriagges(const GUIVisualizationSettings& s, bool asImage = false) const;
+
+    /// @brief add seats to mySeatPositions and update requiredSeats
+    void computeSeats(const Position& front, const Position& back, int maxSeats, double exaggeration, int& requiredSeats) const;
+
 
 protected:
     /// The mutex used to avoid concurrent updates of the vehicle buffer
@@ -337,6 +350,9 @@ private:
     MSBaseVehicle& myVehicle;
 
     MSDevice_Vehroutes* myRoutes;
+
+    /// @brief current popup (to clean up in destructor). GUIBaseVehicle is not responsible for removal
+    GUIGLObjectPopupMenu* myPopup;
 
 };
 

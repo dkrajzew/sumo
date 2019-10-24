@@ -34,7 +34,6 @@ class GNETLSEditorFrame;
 class GNEEdge;
 class GNENet;
 class GNEConnection;
-class GNEShape;
 
 // ===========================================================================
 // class definitions
@@ -60,8 +59,23 @@ public:
     /// @brief Destructor
     ~GNELane();
 
+    /// @brief gererate a new ID for an element child
+    std::string generateChildID(SumoXMLTag childTag);
+
+    /// @name Functions related with geometry of element
+    /// @{
+    /// @brief update pre-computed geometry information
+    void updateGeometry();
+
+    /// @brief Returns position of hierarchical element in view
+    Position getPositionInView() const;
+    /// @}
+
     /// @brief Returns underlying parent edge
     GNEEdge& getParentEdge();
+
+    /// @brief Returns underlying parent edge (const)
+    GNEEdge& getParentEdge() const;
 
     /// @brief returns a vector with the incoming GNEConnections of this lane
     std::vector<GNEConnection*> getGNEIncomingConnections();
@@ -72,7 +86,7 @@ public:
     /// @brief update IDs of incoming connections of this lane
     void updateConnectionIDs();
 
-    /// @brief get lenght geometry factor
+    /// @brief get length geometry factor
     double getLengthGeometryFactor() const;
 
     /// @name functions for edit geometry
@@ -116,22 +130,6 @@ public:
     void drawGL(const GUIVisualizationSettings& s) const;
     /// @}
 
-    /// @brief returns the shape of the lane
-    const PositionVector& getShape() const;
-
-    /// @brief returns the vector with the shape rotations
-    const std::vector<double>& getShapeRotations() const;
-
-    /// @brief returns the vector with the shape lengths
-    const std::vector<double>& getShapeLengths() const;
-
-    /// @brief returns the boundry (including lanes)
-    Boundary getBoundary() const;
-
-    /// @brief update pre-computed geometry information
-    //  @note: must be called when geometry changes (i.e. junction moved)
-    void updateGeometry(bool updateGrid);
-
     /// @brief returns the index of the lane
     int getIndex() const;
 
@@ -150,15 +148,6 @@ public:
 
     /// @brief returns the length of the lane's shape
     double getLaneShapeLength() const;
-
-    /// @brief add shape child to this lane
-    void addShapeChild(GNEShape* shape);
-
-    /// @brief remove shape child of this lane
-    void removeShapeChild(GNEShape* shape);
-
-    /// @brief get shape childs of lane
-    const std::vector<GNEShape*>& getShapeChilds() const;
 
     /// @brief check if this lane is restricted
     bool isRestricted(SUMOVehicleClass vclass) const;
@@ -185,20 +174,11 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-    /// @name Function related with Generic Parameters
-    /// @{
-
-    /// @brief return generic parameters in string format
-    std::string getGenericParametersStr() const;
-
-    /// @brief return generic parameters as vector of pairs format
-    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
-
-    /// @brief set generic parameters in string format
-    void setGenericParametersStr(const std::string& value);
-
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
     /* @brief method for setting the special color of the lane
@@ -208,12 +188,6 @@ public:
 
     /// @brief return value for lane coloring according to the given scheme
     double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
-
-    /// @brief remove lane of demand parent
-    void removeLaneOfAdditionalParents(GNEUndoList* undoList, bool allowEmpty);
-
-    /// @brief remove lane of demand parent
-    void removeLaneOfDemandElementParents(GNEUndoList* undoList, bool allowEmpty);
 
     /// @brief whether to draw this lane as a railway
     bool drawAsRailway(const GUIVisualizationSettings& s) const;
@@ -232,13 +206,8 @@ protected:
     /// @brief The index of this lane
     int myIndex;
 
-    /// @name computed only once (for performance) in updateGeometry(bool updateGrid)
+    /// @name computed only once (for performance) in updateGeometry()
     /// @{
-    /// @brief The rotations of the shape parts
-    std::vector<double> myShapeRotations;
-
-    /// @brief The lengths of the shape parts
-    std::vector<double> myShapeLengths;
 
     /// @brief Position of textures of restricted lanes
     std::vector<Position> myLaneRestrictedTexturePositions;
@@ -247,11 +216,9 @@ protected:
     std::vector<double> myLaneRestrictedTextureRotations;
     /// @}
 
-    /// @brief list with the shapes vinculated with this lane
-    std::vector<GNEShape*> myShapes;
-
     /// @brief optional special color
     const RGBColor* mySpecialColor;
+
     /// @brief optional value that corresponds to which the special color corresponds
     double mySpecialColorValue;
 
@@ -272,19 +239,19 @@ private:
     void drawTLSLinkNo(const GUIVisualizationSettings& s) const;
 
     /// @brief draw link rules
-    void drawLinkRules() const;
+    void drawLinkRules(const GUIVisualizationSettings& s) const;
 
     /// @brief draw arrows
-    void drawArrows() const;
+    void drawArrows(const GUIVisualizationSettings& s) const;
 
     /// @brief draw lane to lane connections
     void drawLane2LaneConnections() const;
 
     /// @brief sets the color according to the current scheme index and some lane function
-    bool setFunctionalColor(int activeScheme) const;
+    bool setFunctionalColor(int activeScheme, RGBColor& col) const;
 
     /// @brief sets multiple colors according to the current scheme index and some lane function
-    bool setMultiColor(const GUIColorer& c) const;
+    bool setMultiColor(const GUIVisualizationSettings& s, const GUIColorer& c, RGBColor& col) const;
 
     /// @brief whether to draw this lane as a waterways
     bool drawAsWaterway(const GUIVisualizationSettings& s) const;
@@ -292,8 +259,14 @@ private:
     /// @brief direction indicators for lanes
     void drawDirectionIndicators(double exaggeration, bool spreadSuperposed) const;
 
+    /// @brief draw VSS symbol
+    void drawVSSSymbol(const GUIVisualizationSettings& s, GNEAdditional* vss) const;
+
+    /// @brief draw start and end shape points
+    void drawStartEndShapePoints(const GUIVisualizationSettings& s) const;
+
     /// @brief set color according to edit mode and visualisation settings
-    void setLaneColor(const GUIVisualizationSettings& s) const;
+    RGBColor setLaneColor(const GUIVisualizationSettings& s) const;
 
     /// @brief Invalidated copy constructor.
     GNELane(const GNELane&) = delete;

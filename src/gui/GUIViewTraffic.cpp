@@ -37,6 +37,7 @@
 #include <guisim/GUIEdge.h>
 #include <guisim/GUILane.h>
 #include <guisim/GUIVehicle.h>
+#include <guisim/GUIVehicleControl.h>
 #include <microsim/MSGlobals.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSLane.h>
@@ -59,6 +60,7 @@
 #include <utils/gui/globjects/GUIGlObjectStorage.h>
 #include <foreign/rtree/SUMORTree.h>
 #include <utils/gui/div/GLHelper.h>
+#include <utils/gui/div/GUIGlobalSelection.h>
 #include <utils/gui/globjects/GLIncludes.h>
 
 /* -------------------------------------------------------------------------
@@ -68,6 +70,7 @@ FXDEFMAP(GUIViewTraffic) GUIViewTrafficMap[] = {
     FXMAPFUNC(SEL_COMMAND, MID_CLOSE_LANE, GUIViewTraffic::onCmdCloseLane),
     FXMAPFUNC(SEL_COMMAND, MID_CLOSE_EDGE, GUIViewTraffic::onCmdCloseEdge),
     FXMAPFUNC(SEL_COMMAND, MID_ADD_REROUTER, GUIViewTraffic::onCmdAddRerouter),
+    FXMAPFUNC(SEL_COMMAND, MID_REACHABILITY, GUIViewTraffic::onCmdShowReachability),
 };
 
 
@@ -84,7 +87,8 @@ GUIViewTraffic::GUIViewTraffic(
     GUINet& net, FXGLVisual* glVis,
     FXGLCanvas* share) :
     GUISUMOAbstractView(p, app, parent, net.getVisualisationSpeedUp(), glVis, share),
-    myTrackedID(GUIGlObject::INVALID_ID)
+    myTrackedID(GUIGlObject::INVALID_ID),
+    myTLSGame(OptionsCont::getOptions().getString("game.mode") == "tls")
 #ifdef HAVE_FFMPEG
     , myCurrentVideo(nullptr)
 #endif
@@ -175,7 +179,8 @@ GUIViewTraffic::setColorScheme(const std::string& name) {
 
 
 void
-GUIViewTraffic::buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType) {
+GUIViewTraffic::buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType,
+                                  bool hide, double hideThreshold) {
     assert(!scheme.isFixed());
     double minValue = std::numeric_limits<double>::infinity();
     double maxValue = -std::numeric_limits<double>::infinity();
@@ -215,9 +220,31 @@ GUIViewTraffic::buildColorRainbow(const GUIVisualizationSettings& s, GUIColorSch
             }
         }
     }
+    if (scheme.getName() == GUIVisualizationSettings::SCHEME_NAME_PERMISSION_CODE) {
+        scheme.clear();
+        // add threshold for every distinct value
+        std::set<SVCPermissions> codes;
+        for (MSEdge* edge : MSEdge::getAllEdges()) {
+            for (MSLane* lane : edge->getLanes()) {
+                codes.insert(lane->getPermissions());
+            }
+        }
+        int step = MAX2(1, 360 / (int)codes.size());
+        int hue = 0;
+        for (SVCPermissions p : codes) {
+            scheme.addColor(RGBColor::fromHSV(hue, 1, 1), p);
+            hue = (hue + step) % 360;
+        }
+        return;
+    }
+
     if (minValue != std::numeric_limits<double>::infinity()) {
         scheme.clear();
         // add new thresholds
+        if (hide) {
+            minValue = MAX2(hideThreshold + 1, minValue);
+            scheme.addColor(RGBColor(204, 204, 204), hideThreshold);
+        }
         double range = maxValue - minValue;
         scheme.addColor(RGBColor::RED, (minValue));
         scheme.addColor(RGBColor::ORANGE, (minValue + range * 1 / 6.0));
@@ -259,6 +286,21 @@ GUIViewTraffic::getEdgeLaneParamKeys(bool edgeKeys) const {
 }
 
 
+std::vector<std::string>
+GUIViewTraffic::getVehicleParamKeys(bool /*vTypeKeys*/) const {
+    std::set<std::string> keys;
+    GUIVehicleControl* vc = GUINet::getGUIInstance()->getGUIVehicleControl();
+    vc->secureVehicles();
+    for (auto vehIt = vc->loadedVehBegin(); vehIt != vc->loadedVehEnd(); ++vehIt) {
+        for (auto kv : vehIt->second->getParameter().getParametersMap()) {
+            keys.insert(kv.first);
+        }
+    }
+    vc->releaseVehicles();
+    return std::vector<std::string>(keys.begin(), keys.end());
+}
+
+
 int
 GUIViewTraffic::doPaintGL(int mode, const Boundary& bound) {
     // (uncomment the next line to check select mode)
@@ -285,7 +327,7 @@ GUIViewTraffic::doPaintGL(int mode, const Boundary& bound) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     const float minB[2] = { (float)bound.xmin(), (float)bound.ymin() };
     const float maxB[2] = { (float)bound.xmax(), (float)bound.ymax() };
-    myVisualizationSettings->scale = m2p(SUMO_const_laneWidth);
+    myVisualizationSettings->scale = myVisualizationSettings->drawForSelecting ? myVisualizationSettings->scale : m2p(SUMO_const_laneWidth);
     glEnable(GL_POLYGON_OFFSET_FILL);
     glEnable(GL_POLYGON_OFFSET_LINE);
     int hits2 = myGrid->Search(minB, maxB, *myVisualizationSettings);
@@ -333,43 +375,109 @@ GUIViewTraffic::getTrackedID() const {
 
 void
 GUIViewTraffic::onGamingClick(Position pos) {
-    MSTLLogicControl& tlsControl = MSNet::getInstance()->getTLSControl();
-    const std::vector<MSTrafficLightLogic*>& logics = tlsControl.getAllLogics();
-    MSTrafficLightLogic* minTll = nullptr;
-    double minDist = std::numeric_limits<double>::infinity();
-    for (std::vector<MSTrafficLightLogic*>::const_iterator i = logics.begin(); i != logics.end(); ++i) {
-        // get the logic
-        MSTrafficLightLogic* tll = (*i);
-        if (tlsControl.isActive(tll)) {
-            // get the links
-            const MSTrafficLightLogic::LaneVector& lanes = tll->getLanesAt(0);
-            if (lanes.size() > 0) {
-                const Position& endPos = lanes[0]->getShape().back();
-                if (endPos.distanceTo(pos) < minDist) {
-                    minDist = endPos.distanceTo(pos);
-                    minTll = tll;
+    if (myTLSGame) {
+        MSTLLogicControl& tlsControl = MSNet::getInstance()->getTLSControl();
+        const MSTrafficLightLogic* minTll = nullptr;
+        double minDist = std::numeric_limits<double>::infinity();
+        for (const MSTrafficLightLogic* const tll : tlsControl.getAllLogics()) {
+            if (tlsControl.isActive(tll) && tll->getProgramID() != "off") {
+                // get the links
+                const MSTrafficLightLogic::LaneVector& lanes = tll->getLanesAt(0);
+                if (lanes.size() > 0) {
+                    const Position& endPos = lanes[0]->getShape().back();
+                    if (endPos.distanceTo(pos) < minDist) {
+                        minDist = endPos.distanceTo(pos);
+                        minTll = tll;
+                    }
                 }
             }
         }
-    }
-    if (minTll != nullptr) {
-        const MSTLLogicControl::TLSLogicVariants& vars = tlsControl.get(minTll->getID());
-        const std::vector<MSTrafficLightLogic*> logics = vars.getAllLogics();
-        if (logics.size() > 1) {
-            MSSimpleTrafficLightLogic* l = (MSSimpleTrafficLightLogic*) logics[0];
-            for (int i = 0; i < (int)logics.size() - 1; ++i) {
-                if (minTll->getProgramID() == logics[i]->getProgramID()) {
-                    l = (MSSimpleTrafficLightLogic*) logics[i + 1];
+        if (minTll != nullptr) {
+            const MSTLLogicControl::TLSLogicVariants& vars = tlsControl.get(minTll->getID());
+            const std::vector<MSTrafficLightLogic*> logics = vars.getAllLogics();
+            if (logics.size() > 1) {
+                MSSimpleTrafficLightLogic* l = (MSSimpleTrafficLightLogic*) logics[0];
+                for (int i = 0; i < (int)logics.size() - 1; ++i) {
+                    if (minTll->getProgramID() == logics[i]->getProgramID()) {
+                        l = (MSSimpleTrafficLightLogic*) logics[i + 1];
+                        tlsControl.switchTo(minTll->getID(), l->getProgramID());
+                    }
+                }
+                if (l == logics[0]) {
                     tlsControl.switchTo(minTll->getID(), l->getProgramID());
                 }
+                l->changeStepAndDuration(tlsControl, MSNet::getInstance()->getCurrentTimeStep(), 0, l->getPhase(0).duration);
+                update();
             }
-            if (l == logics[0]) {
-                tlsControl.switchTo(minTll->getID(), l->getProgramID());
+        }
+    } else {
+        // DRT game
+        if (MSGlobals::gUseMesoSim) {
+            return;
+        }
+        const std::set<GUIGlID>& sel = gSelected.getSelected(GLO_VEHICLE);
+        if (sel.size() == 0) {
+            // find closest pt vehicle
+            double minDist = std::numeric_limits<double>::infinity();
+            GUIVehicle* closest = nullptr;
+            MSVehicleControl& vc = MSNet::getInstance()->getVehicleControl();
+            MSVehicleControl::constVehIt it = vc.loadedVehBegin();
+            MSVehicleControl::constVehIt end = vc.loadedVehEnd();
+            for (it = vc.loadedVehBegin(); it != end; ++it) {
+                GUIVehicle* veh = dynamic_cast<GUIVehicle*>(it->second);
+                assert(veh != 0);
+                if (veh->getParameter().line != "") {
+                    const double dist = veh->getPosition().distanceTo2D(pos);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = veh;
+                    }
+                }
             }
-            l->changeStepAndDuration(tlsControl, MSNet::getInstance()->getCurrentTimeStep(), 0, l->getPhase(0).duration);
-            update();
+            if (closest != nullptr) {
+                gSelected.select(closest->getGlID());
+                closest->addActiveAddVisualisation(this, GUIBaseVehicle::VO_SHOW_FUTURE_ROUTE);
+            }
+        } else {
+            // find closest pt stop
+            double minDist = std::numeric_limits<double>::infinity();
+            MSStoppingPlace* closestStop = nullptr;
+            const NamedObjectCont<MSStoppingPlace*>& stops = MSNet::getInstance()->getStoppingPlaces(SUMO_TAG_BUS_STOP);
+            for (auto it = stops.begin(); it != stops.end(); ++it) {
+                MSStoppingPlace* stop = it->second;
+                const double dist = pos.distanceTo2D(stop->getLane().geometryPositionAtOffset(stop->getEndLanePosition()));
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestStop = stop;
+                }
+            }
+            if (closestStop != 0) {
+                GUIGlID id = *sel.begin();
+                GUIVehicle* veh = dynamic_cast<GUIVehicle*>(GUIGlObjectStorage::gIDStorage.getObjectBlocking(id));
+                assert(veh != 0);
+                MSLane* lane = veh->getLane();
+                lane->getVehiclesSecure();
+                veh->rerouteDRTStop(closestStop);
+                GUIGlObjectStorage::gIDStorage.unblockObject(id);
+                lane->releaseVehicles();
+            }
         }
     }
+}
+
+
+void
+GUIViewTraffic::onGamingRightClick(Position /*pos*/) {
+    const std::set<GUIGlID>& sel = gSelected.getSelected(GLO_VEHICLE);
+    if (sel.size() > 0) {
+        GUIGlID id = *sel.begin();
+        GUIVehicle* veh = dynamic_cast<GUIVehicle*>(GUIGlObjectStorage::gIDStorage.getObjectBlocking(id));
+        if (veh != 0) {
+            veh->removeActiveAddVisualisation(this, GUIBaseVehicle::VO_SHOW_FUTURE_ROUTE);
+        }
+        GUIGlObjectStorage::gIDStorage.unblockObject(id);
+    }
+    gSelected.clear();
 }
 
 
@@ -424,6 +532,59 @@ GUIViewTraffic::onCmdAddRerouter(FXObject*, FXSelector, void*) {
     if (lane != nullptr) {
         dynamic_cast<GUIEdge*>(&lane->getEdge())->addRerouter();
         GUIGlObjectStorage::gIDStorage.unblockObject(lane->getGlID());
+        update();
+    }
+    return 1;
+}
+
+
+long
+GUIViewTraffic::onCmdShowReachability(FXObject* menu, FXSelector, void*) {
+    GUILane* lane = getLaneUnderCursor();
+    if (lane != nullptr) {
+        // reset
+        const double UNREACHABLE = -1;
+        gSelected.clear();
+        for (const MSEdge* const e : MSEdge::getAllEdges()) {
+            for (MSLane* const l : e->getLanes()) {
+                GUILane* gLane = dynamic_cast<GUILane*>(l);
+                gLane->setReachability(UNREACHABLE);
+            }
+        }
+        // prepare
+        FXMenuCommand* mc = dynamic_cast<FXMenuCommand*>(menu);
+        const SUMOVehicleClass svc = SumoVehicleClassStrings.get(mc->getText().text());
+        const double defaultMaxSpeed = SUMOVTypeParameter::VClassDefaultValues(svc).maxSpeed;
+        // find reachable
+        std::map<MSEdge*, double> reachableEdges;
+        reachableEdges[&lane->getEdge()] = 0;
+        MSEdgeVector check;
+        check.push_back(&lane->getEdge());
+        while (check.size() > 0) {
+            MSEdge* e = check.front();
+            check.erase(check.begin());
+            double traveltime = reachableEdges[e];
+            for (MSLane* const l : e->getLanes()) {
+                if (l->allowsVehicleClass(svc)) {
+                    GUILane* gLane = dynamic_cast<GUILane*>(l);
+                    gSelected.select(gLane->getGlID());
+                    gLane->setReachability(traveltime);
+                }
+            }
+            traveltime += e->getLength() / MIN2(e->getSpeedLimit(), defaultMaxSpeed);
+            for (MSEdge* const nextEdge : e->getSuccessors(svc)) {
+                if (reachableEdges.count(nextEdge) == 0 ||
+                        // revisit edge via faster path
+                        reachableEdges[nextEdge] > traveltime) {
+                    reachableEdges[nextEdge] = traveltime;
+                    check.push_back(nextEdge);
+                }
+            }
+        }
+        // switch to 'color by selection' unless coloring 'by reachability'
+        if (myVisualizationSettings->laneColorer.getActive() != 36) {
+            myVisualizationSettings->laneColorer.setActive(1);
+        }
         update();
     }
     return 1;

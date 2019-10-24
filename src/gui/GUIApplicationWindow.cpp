@@ -98,6 +98,7 @@
 FXDEFMAP(GUIApplicationWindow) GUIApplicationWindowMap[] = {
     FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_Q_CLOSE,    GUIApplicationWindow::onCmdQuit),
     FXMAPFUNC(SEL_SIGNAL,   MID_HOTKEY_CTRL_Q_CLOSE,    GUIApplicationWindow::onCmdQuit),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_ALT_F4_CLOSE,    GUIApplicationWindow::onCmdQuit),
     FXMAPFUNC(SEL_CLOSE,    MID_WINDOW,                 GUIApplicationWindow::onCmdQuit),
 
     FXMAPFUNC(SEL_COMMAND,  MID_OPEN_CONFIG,                    GUIApplicationWindow::onCmdOpenConfiguration),
@@ -106,11 +107,12 @@ FXDEFMAP(GUIApplicationWindow) GUIApplicationWindowMap[] = {
     FXMAPFUNC(SEL_COMMAND,  MID_OPEN_EDGEDATA,                  GUIApplicationWindow::onCmdOpenEdgeData),
     FXMAPFUNC(SEL_COMMAND,  MID_RECENTFILE,                     GUIApplicationWindow::onCmdOpenRecent),
     FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_R_RELOAD,           GUIApplicationWindow::onCmdReload),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_SHIFT_S_SAVENETWORK_AS,  GUIApplicationWindow::onCmdSaveConfig),
     FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_W_CLOSESIMULATION,  GUIApplicationWindow::onCmdClose),
     FXMAPFUNC(SEL_COMMAND,  MID_EDITCHOSEN,                     GUIApplicationWindow::onCmdEditChosen),
-    FXMAPFUNC(SEL_COMMAND,  MID_GNE_HOTKEY_CTRL_B_EDITBREAKPOINT, GUIApplicationWindow::onCmdEditBreakpoints),
-    FXMAPFUNC(SEL_COMMAND,  MID_EDITVIEWSCHEME,                 GUIApplicationWindow::onCmdEditViewScheme),
-    FXMAPFUNC(SEL_COMMAND,  MID_EDITVIEWPORT,                   GUIApplicationWindow::onCmdEditViewport),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_B_EDITBREAKPOINT,   GUIApplicationWindow::onCmdEditBreakpoints),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_F9_EDIT_VIEWSCHEME,      GUIApplicationWindow::onCmdEditViewScheme),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_I_EDITVIEWPORT,     GUIApplicationWindow::onCmdEditViewport),
     FXMAPFUNC(SEL_COMMAND,  MID_NETEDIT,                        GUIApplicationWindow::onCmdNetedit),
 
     FXMAPFUNC(SEL_COMMAND,  MID_APPSETTINGS,                            GUIApplicationWindow::onCmdAppSettings),
@@ -122,44 +124,44 @@ FXDEFMAP(GUIApplicationWindow) GUIApplicationWindowMap[] = {
     FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_F2_ABOUT,                        GUIApplicationWindow::onCmdAbout),
     FXMAPFUNC(SEL_COMMAND,  MID_NEW_MICROVIEW,                          GUIApplicationWindow::onCmdNewView),
 #ifdef HAVE_OSG
-    FXMAPFUNC(SEL_COMMAND,  MID_NEW_OSGVIEW,        GUIApplicationWindow::onCmdNewOSG),
+    FXMAPFUNC(SEL_COMMAND,  MID_NEW_OSGVIEW,    GUIApplicationWindow::onCmdNewOSG),
 #endif
-    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_A_STARTSIMULATION,              GUIApplicationWindow::onCmdStart),
-    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_S_SAVENETWORK_STOPSIMULATION,   GUIApplicationWindow::onCmdStop),
-    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP,         GUIApplicationWindow::onCmdStep),
-    FXMAPFUNC(SEL_COMMAND,  MID_SIMSAVE,                                    GUIApplicationWindow::onCmdSaveState),
-    FXMAPFUNC(SEL_COMMAND,  MID_TIME_TOOGLE,                                GUIApplicationWindow::onCmdTimeToggle),
-    FXMAPFUNC(SEL_COMMAND,  MID_DELAY_TOOGLE,                               GUIApplicationWindow::onCmdDelayToggle),
-    FXMAPFUNC(SEL_COMMAND,  MID_DEMAND_SCALE,                               GUIApplicationWindow::onCmdDemandScale),
-    FXMAPFUNC(SEL_COMMAND,  MID_CLEARMESSAGEWINDOW,                         GUIApplicationWindow::onCmdClearMsgWindow),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_A_STARTSIMULATION_OPENADDITIONALS,  GUIApplicationWindow::onCmdStart),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_S_STOPSIMULATION_SAVENETWORK,       GUIApplicationWindow::onCmdStop),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP_OPENDEMAND,  GUIApplicationWindow::onCmdStep),
+    FXMAPFUNC(SEL_COMMAND,  MID_SIMSAVE,                                        GUIApplicationWindow::onCmdSaveState),
+    FXMAPFUNC(SEL_COMMAND,  MID_TIME_TOOGLE,                                    GUIApplicationWindow::onCmdTimeToggle),
+    FXMAPFUNC(SEL_COMMAND,  MID_DELAY_TOOGLE,                                   GUIApplicationWindow::onCmdDelayToggle),
+    FXMAPFUNC(SEL_COMMAND,  MID_DEMAND_SCALE,                                   GUIApplicationWindow::onCmdDemandScale),
+    FXMAPFUNC(SEL_COMMAND,  MID_CLEARMESSAGEWINDOW,                             GUIApplicationWindow::onCmdClearMsgWindow),
 
     FXMAPFUNC(SEL_COMMAND,  MID_SHOWNETSTATS,       GUIApplicationWindow::onCmdShowStats),
     FXMAPFUNC(SEL_COMMAND,  MID_SHOWVEHSTATS,       GUIApplicationWindow::onCmdShowStats),
     FXMAPFUNC(SEL_COMMAND,  MID_SHOWPERSONSTATS,    GUIApplicationWindow::onCmdShowStats),
 
-    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_CONFIG,                GUIApplicationWindow::onUpdOpen),
-    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_NETWORK,               GUIApplicationWindow::onUpdOpen),
-    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_NETWORK,               GUIApplicationWindow::onUpdOpen),
-    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_P,              GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_EDGEDATA,              GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_R_RELOAD,       GUIApplicationWindow::onUpdReload),
-    FXMAPFUNC(SEL_UPDATE,   MID_RECENTFILE,                 GUIApplicationWindow::onUpdOpenRecent),
-    FXMAPFUNC(SEL_UPDATE,   MID_NEW_MICROVIEW,              GUIApplicationWindow::onUpdAddView),
+    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_CONFIG,            GUIApplicationWindow::onUpdOpen),
+    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_NETWORK,           GUIApplicationWindow::onUpdOpen),
+    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_NETWORK,           GUIApplicationWindow::onUpdOpen),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_P,          GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_OPEN_EDGEDATA,          GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_R_RELOAD,   GUIApplicationWindow::onUpdReload),
+    FXMAPFUNC(SEL_UPDATE,   MID_RECENTFILE,             GUIApplicationWindow::onUpdOpenRecent),
+    FXMAPFUNC(SEL_UPDATE,   MID_NEW_MICROVIEW,          GUIApplicationWindow::onUpdAddView),
 #ifdef HAVE_OSG
-    FXMAPFUNC(SEL_UPDATE,   MID_NEW_OSGVIEW,        GUIApplicationWindow::onUpdAddView),
+    FXMAPFUNC(SEL_UPDATE,   MID_NEW_OSGVIEW,    GUIApplicationWindow::onUpdAddView),
 #endif
-    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_A_STARTSIMULATION,              GUIApplicationWindow::onUpdStart),
-    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_S_SAVENETWORK_STOPSIMULATION,   GUIApplicationWindow::onUpdStop),
-    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP,         GUIApplicationWindow::onUpdStep),
-    FXMAPFUNC(SEL_UPDATE,   MID_SIMSAVE,                                    GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_EDITCHOSEN,                                 GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_GNE_HOTKEY_CTRL_B_EDITBREAKPOINT,           GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_EDITVIEWSCHEME,                             GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_EDITVIEWPORT,                               GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_NETEDIT,                                    GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_DEMAND_SCALE,                               GUIApplicationWindow::onUpdNeedsSimulation),
-    FXMAPFUNC(SEL_UPDATE,   MID_TRACI_STATUS,                               GUIApplicationWindow::onUpdTraCIStatus),
-    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_F1_ONLINEDOCUMENTATION,              GUIApplicationWindow::onCmdHelp),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_A_STARTSIMULATION_OPENADDITIONALS,  GUIApplicationWindow::onUpdStart),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_S_STOPSIMULATION_SAVENETWORK,       GUIApplicationWindow::onUpdStop),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP_OPENDEMAND,  GUIApplicationWindow::onUpdStep),
+    FXMAPFUNC(SEL_UPDATE,   MID_SIMSAVE,                                        GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_EDITCHOSEN,                                     GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_B_EDITBREAKPOINT,                   GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_F9_EDIT_VIEWSCHEME,                      GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_I_EDITVIEWPORT,                     GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_NETEDIT,                                        GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_DEMAND_SCALE,                                   GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_TRACI_STATUS,                                   GUIApplicationWindow::onUpdTraCIStatus),
+    FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_F1_ONLINEDOCUMENTATION,                  GUIApplicationWindow::onCmdHelp),
 
     // forward requests to the active view
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATEJUNCTION, GUIApplicationWindow::onCmdLocate),
@@ -183,10 +185,10 @@ FXDEFMAP(GUIApplicationWindow) GUIApplicationWindowMap[] = {
 
     FXMAPFUNC(SEL_CLIPBOARD_REQUEST, 0, GUIApplicationWindow::onClipboardRequest),
 
-    FXMAPFUNC(FXEX::SEL_THREAD_EVENT, ID_LOADTHREAD_EVENT, GUIApplicationWindow::onLoadThreadEvent),
-    FXMAPFUNC(FXEX::SEL_THREAD_EVENT, ID_RUNTHREAD_EVENT,  GUIApplicationWindow::onRunThreadEvent),
-    FXMAPFUNC(FXEX::SEL_THREAD, ID_LOADTHREAD_EVENT,       GUIApplicationWindow::onLoadThreadEvent),
-    FXMAPFUNC(FXEX::SEL_THREAD, ID_RUNTHREAD_EVENT,        GUIApplicationWindow::onRunThreadEvent),
+    FXMAPFUNC(FXEX::SEL_THREAD_EVENT, ID_LOADTHREAD_EVENT,  GUIApplicationWindow::onLoadThreadEvent),
+    FXMAPFUNC(FXEX::SEL_THREAD_EVENT, ID_RUNTHREAD_EVENT,   GUIApplicationWindow::onRunThreadEvent),
+    FXMAPFUNC(FXEX::SEL_THREAD,       ID_LOADTHREAD_EVENT,  GUIApplicationWindow::onLoadThreadEvent),
+    FXMAPFUNC(FXEX::SEL_THREAD,       ID_RUNTHREAD_EVENT,   GUIApplicationWindow::onRunThreadEvent),
 };
 
 // Object implementation
@@ -204,7 +206,7 @@ GUIApplicationWindow::GUIApplicationWindow(FXApp* a, const std::string& configPa
     GUIMainWindow(a),
     myLoadThread(nullptr), myRunThread(nullptr),
     myAmLoading(false),
-    myAlternateSimDelay(0),
+    myAlternateSimDelay(0.),
     myRecentNets(a, "nets"),
     myConfigPattern(configPattern),
     hadDependentBuild(false),
@@ -214,7 +216,9 @@ GUIApplicationWindow::GUIApplicationWindow(FXApp* a, const std::string& configPa
     myJamSoundTime(60),
     myPreviousCollisionNumber(0),
     myWaitingTime(0),
-    myTimeLoss(0) {
+    myTimeLoss(0),
+    myEmergencyVehicleCount(0),
+    myTotalDistance(0) {
     // init icons
     GUIIconSubSys::initIcons(a);
     // init cursors
@@ -271,6 +275,8 @@ GUIApplicationWindow::dependentBuild() {
     fillMenuBar();
     myToolBar6->hide();
     myToolBar7->hide();
+    myToolBar9->hide();
+    myToolBar10->hide();
     // build additional threads
     myLoadThread = new GUILoadThread(getApp(), this, myEvents, myLoadThreadEvent);
     myRunThread = new GUIRunThread(getApp(), this, mySimDelay, myEvents, myRunThreadEvent);
@@ -308,9 +314,9 @@ GUIApplicationWindow::create() {
     myWindowsMenu->create();
     myHelpMenu->create();
 
-    FXint width = getApp()->getNormalFont()->getTextWidth("8", 1) * 24;
-    myCartesianFrame->setWidth(width);
-    myGeoFrame->setWidth(width);
+    FXint textWidth = getApp()->getNormalFont()->getTextWidth("8", 1) * 24;
+    myCartesianFrame->setWidth(textWidth);
+    myGeoFrame->setWidth(textWidth);
 
     show(PLACEMENT_DEFAULT);
     if (!OptionsCont::getOptions().isSet("window-size")) {
@@ -384,6 +390,9 @@ GUIApplicationWindow::fillMenuBar() {
                       GUIIconSubSys::getIcon(ICON_RELOAD), this, MID_HOTKEY_CTRL_R_RELOAD);
     new FXMenuSeparator(myFileMenu);
     new FXMenuCommand(myFileMenu,
+                      "Save Configuration\tCtrl+Shift+S\tSave current options as a configuration file.",
+                      GUIIconSubSys::getIcon(ICON_SAVE), this, MID_HOTKEY_CTRL_SHIFT_S_SAVENETWORK_AS);
+    new FXMenuCommand(myFileMenu,
                       "Close\tCtrl+W\tClose the simulation.",
                       GUIIconSubSys::getIcon(ICON_CLOSE), this, MID_HOTKEY_CTRL_W_CLOSESIMULATION);
     // Recent files
@@ -442,13 +451,13 @@ GUIApplicationWindow::fillMenuBar() {
     new FXMenuSeparator(myEditMenu);
     new FXMenuCommand(myEditMenu,
                       "Edit Breakpoints\tCtrl+B\tOpens a dialog for editing breakpoints.",
-                      nullptr, this, MID_GNE_HOTKEY_CTRL_B_EDITBREAKPOINT);
+                      nullptr, this, MID_HOTKEY_CTRL_B_EDITBREAKPOINT);
     new FXMenuCommand(myEditMenu,
-                      "Edit Visualisation\tCtrl+V\tOpens a dialog for editing visualization settings.",
-                      nullptr, this, MID_EDITVIEWSCHEME);
+                      "Edit Visualisation\tF9\tOpens a dialog for editing visualization settings.",
+                      nullptr, this, MID_HOTKEY_F9_EDIT_VIEWSCHEME);
     new FXMenuCommand(myEditMenu,
                       "Edit Viewport\tCtrl+I\tOpens a dialog for editing viewing are, zoom and rotation.",
-                      nullptr, this, MID_EDITVIEWPORT);
+                      nullptr, this, MID_HOTKEY_CTRL_I_EDITVIEWPORT);
     new FXMenuSeparator(myEditMenu);
     new FXMenuCommand(myEditMenu,
                       "Open in Netedit\tCtrl+T\tOpens the netedit application with the current network.",
@@ -511,13 +520,13 @@ GUIApplicationWindow::fillMenuBar() {
     new FXMenuTitle(myMenuBar, "Simulation", nullptr, myControlMenu);
     new FXMenuCommand(myControlMenu,
                       "Run\tCtrl+A\tStart running the simulation.",
-                      GUIIconSubSys::getIcon(ICON_START), this, MID_HOTKEY_CTRL_A_STARTSIMULATION);
+                      GUIIconSubSys::getIcon(ICON_START), this, MID_HOTKEY_CTRL_A_STARTSIMULATION_OPENADDITIONALS);
     new FXMenuCommand(myControlMenu,
                       "Stop\tCtrl+S\tStop running the simulation.",
-                      GUIIconSubSys::getIcon(ICON_STOP), this, MID_HOTKEY_CTRL_S_SAVENETWORK_STOPSIMULATION);
+                      GUIIconSubSys::getIcon(ICON_STOP), this, MID_HOTKEY_CTRL_S_STOPSIMULATION_SAVENETWORK);
     new FXMenuCommand(myControlMenu,
                       "Step\tCtrl+D\tPerform one simulation step.",
-                      GUIIconSubSys::getIcon(ICON_STEP), this, MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP);
+                      GUIIconSubSys::getIcon(ICON_STEP), this, MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP_OPENDEMAND);
     new FXMenuCommand(myControlMenu,
                       "Save\t\tSave the current simulation state to a file.",
                       GUIIconSubSys::getIcon(ICON_SAVE), this, MID_SIMSAVE);
@@ -595,9 +604,9 @@ GUIApplicationWindow::buildToolBars() {
         myToolBar2 = new FXToolBar(myTopDock, myToolBarDrag2, GUIDesignToolBarRaisedSameTop);
         new FXToolBarGrip(myToolBar2, myToolBar2, FXToolBar::ID_TOOLBARGRIP, GUIDesignToolBarGrip);
         // build simulation tools
-        new FXButton(myToolBar2, "\t\tStart the loaded simulation.", GUIIconSubSys::getIcon(ICON_START), this, MID_HOTKEY_CTRL_A_STARTSIMULATION, GUIDesignButtonToolbar);
-        new FXButton(myToolBar2, "\t\tStop the running simulation.", GUIIconSubSys::getIcon(ICON_STOP), this, MID_HOTKEY_CTRL_S_SAVENETWORK_STOPSIMULATION, GUIDesignButtonToolbar);
-        new FXButton(myToolBar2, "\t\tPerform a single simulation step.", GUIIconSubSys::getIcon(ICON_STEP), this, MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP, GUIDesignButtonToolbar);
+        new FXButton(myToolBar2, "\t\tStart the loaded simulation.", GUIIconSubSys::getIcon(ICON_START), this, MID_HOTKEY_CTRL_A_STARTSIMULATION_OPENADDITIONALS, GUIDesignButtonToolbar);
+        new FXButton(myToolBar2, "\t\tStop the running simulation.", GUIIconSubSys::getIcon(ICON_STOP), this, MID_HOTKEY_CTRL_S_STOPSIMULATION_SAVENETWORK, GUIDesignButtonToolbar);
+        new FXButton(myToolBar2, "\t\tPerform a single simulation step.", GUIIconSubSys::getIcon(ICON_STEP), this, MID_HOTKEY_CTRL_D_SINGLESIMULATIONSTEP_OPENDEMAND, GUIDesignButtonToolbar);
     }
     {
         // Simulation Step Display
@@ -684,6 +693,30 @@ GUIApplicationWindow::buildToolBars() {
         myTimeLossLabel->setThickness(2);
         myTimeLossLabel->setGroove(2);
         myTimeLossLabel->setText("-------------");
+
+        // total driving distance
+        myToolBarDrag9 = new FXToolBarShell(this, GUIDesignToolBar);
+        myToolBar9 = new FXToolBar(myTopDock, myToolBarDrag9, GUIDesignToolBarRaisedSameTop);
+        new FXToolBarGrip(myToolBar9, myToolBar9, FXToolBar::ID_TOOLBARGRIP, GUIDesignToolBarGrip);
+        new FXLabel(myToolBar9, "Distance (km):\t\tTotal distance driven by DRT vehicles", nullptr, LAYOUT_TOP | LAYOUT_LEFT);
+        myTotalDistanceLabel = new FXEX::FXLCDLabel(myToolBar9, 13, nullptr, 0, JUSTIFY_RIGHT);
+        myTotalDistanceLabel->setHorizontal(2);
+        myTotalDistanceLabel->setVertical(6);
+        myTotalDistanceLabel->setThickness(2);
+        myTotalDistanceLabel->setGroove(2);
+        myTotalDistanceLabel->setText("-------------");
+
+        // emergency vehicle counts
+        myToolBarDrag10 = new FXToolBarShell(this, GUIDesignToolBar);
+        myToolBar10 = new FXToolBar(myTopDock, myToolBarDrag10, GUIDesignToolBarRaisedSameTop);
+        new FXToolBarGrip(myToolBar10, myToolBar10, FXToolBar::ID_TOOLBARGRIP, GUIDesignToolBarGrip);
+        new FXLabel(myToolBar10, "Emergency Vehicle waiting time:\t\tTime spent waiting accumulated for emergency vehicles", nullptr, LAYOUT_TOP | LAYOUT_LEFT);
+        myEmergencyVehicleLabel = new FXEX::FXLCDLabel(myToolBar10, 13, nullptr, 0, JUSTIFY_RIGHT);
+        myEmergencyVehicleLabel->setHorizontal(2);
+        myEmergencyVehicleLabel->setVertical(6);
+        myEmergencyVehicleLabel->setThickness(2);
+        myEmergencyVehicleLabel->setGroove(2);
+        myEmergencyVehicleLabel->setText("-------------");
     }
 }
 
@@ -763,7 +796,7 @@ GUIApplicationWindow::onCmdEditViewScheme(FXObject*, FXSelector, void*) {
 
 long
 GUIApplicationWindow::onCmdHelp(FXObject*, FXSelector, void*) {
-    FXLinkLabel::fxexecute("http://sumo.dlr.de/wiki/SUMO-GUI");
+    FXLinkLabel::fxexecute("https://sumo.dlr.de/wiki/SUMO-GUI");
     return 1;
 }
 
@@ -914,13 +947,40 @@ GUIApplicationWindow::onCmdReload(FXObject*, FXSelector, void*) {
 
 
 long
-GUIApplicationWindow::onCmdOpenRecent(FXObject* sender, FXSelector, void* data) {
+GUIApplicationWindow::onCmdOpenRecent(FXObject* sender, FXSelector, void* ptr) {
     if (myAmLoading) {
         myStatusbar->getStatusLine()->setText("Already loading!");
         return 1;
     }
-    std::string file((const char*)data);
+    std::string file((const char*)ptr);
     loadConfigOrNet(file, sender == &myRecentNets);
+    return 1;
+}
+
+
+long
+GUIApplicationWindow::onCmdSaveConfig(FXObject*, FXSelector, void*) {
+    // get the new file name
+    FXFileDialog opendialog(this, "Save Sumo Configuration");
+    opendialog.setIcon(GUIIconSubSys::getIcon(ICON_SAVE));
+    opendialog.setSelectMode(SELECTFILE_ANY);
+    opendialog.setPatternList("Config (*.sumocfg)");
+    if (gCurrentFolder.length() != 0) {
+        opendialog.setDirectory(gCurrentFolder);
+    }
+    if (!opendialog.execute() || !MFXUtils::userPermitsOverwritingWhenFileExists(this, opendialog.getFilename())) {
+        return 1;
+    }
+    std::string file = MFXUtils::assureExtension(opendialog.getFilename(),
+                    opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')')).text();
+    std::ofstream out(file);
+    if (out.good()) {
+        OptionsCont::getOptions().writeConfiguration(out, true, false, false);
+        setStatusBarText("Configuration saved to " + file);
+    } else {
+        setStatusBarText("Could not save onfiguration to " + file);
+    }
+    out.close();
     return 1;
 }
 
@@ -1027,10 +1087,10 @@ GUIApplicationWindow::onCmdSaveState(FXObject*, FXSelector, void*) {
         return 1;
     }
 
-    FXString file = MFXUtils::assureExtension(opendialog.getFilename(),
-                    opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')'));
-    MSStateHandler::saveState(file.text(), MSNet::getInstance()->getCurrentTimeStep());
-    myStatusbar->getStatusLine()->setText("Simulation saved to " + file);
+    const std::string file = MFXUtils::assureExtension(opendialog.getFilename(),
+                    opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')')).text();
+    MSStateHandler::saveState(file, MSNet::getInstance()->getCurrentTimeStep());
+    setStatusBarText("Simulation saved to " + file);
     return 1;
 }
 
@@ -1154,6 +1214,7 @@ GUIApplicationWindow::onCmdAppSettings(FXObject*, FXSelector, void*) {
 long
 GUIApplicationWindow::onCmdGaming(FXObject*, FXSelector, void*) {
     myAmGaming = !myAmGaming;
+    myGLWindows[0]->getView()->getVisualisationSettings()->gaming = myAmGaming;
     if (myAmGaming) {
         myMenuBar->hide();
         myStatusbar->hide();
@@ -1162,13 +1223,19 @@ GUIApplicationWindow::onCmdGaming(FXObject*, FXSelector, void*) {
         myToolBar4->hide();
         myToolBar5->hide();
         myToolBar6->show();
-        myToolBar7->show();
         myToolBar8->hide();
+        myToolBar10->show();
+        if (myTLSGame) {
+            myToolBar7->show();
+        } else {
+            myToolBar9->show();
+        }
         myMessageWindow->hide();
         myLCDLabel->setFgColor(MFXUtils::getFXColor(RGBColor::RED));
         myWaitingTimeLabel->setFgColor(MFXUtils::getFXColor(RGBColor::RED));
         myTimeLossLabel->setFgColor(MFXUtils::getFXColor(RGBColor::RED));
-        gSchemeStorage.getDefault().gaming = true;
+        myEmergencyVehicleLabel->setFgColor(MFXUtils::getFXColor(RGBColor::RED));
+        myTotalDistanceLabel->setFgColor(MFXUtils::getFXColor(RGBColor::RED));
     } else {
         myMenuBar->show();
         myStatusbar->show();
@@ -1179,9 +1246,10 @@ GUIApplicationWindow::onCmdGaming(FXObject*, FXSelector, void*) {
         myToolBar6->hide();
         myToolBar7->hide();
         myToolBar8->show();
+        myToolBar9->hide();
+        myToolBar10->hide();
         myMessageWindow->show();
         myLCDLabel->setFgColor(MFXUtils::getFXColor(RGBColor::GREEN));
-        gSchemeStorage.getDefault().gaming = false;
     }
     if (myMDIClient->numChildren() > 0) {
         GUISUMOViewParent* w = dynamic_cast<GUISUMOViewParent*>(myMDIClient->getActiveChild());
@@ -1356,9 +1424,6 @@ GUIApplicationWindow::handleEvent_SimulationLoaded(GUIEvent* e) {
             getApp()->exit(1);
         }
     } else {
-        if (OptionsCont::getOptions().getBool("game")) {
-            onCmdGaming(nullptr, 0, nullptr);
-        }
         // initialise simulation thread
         if (!myRunThread->init(ec->myNet, ec->myBegin, ec->myEnd)) {
             if (GUIGlobals::gQuitOnEnd) {
@@ -1431,8 +1496,15 @@ GUIApplicationWindow::handleEvent_SimulationLoaded(GUIEvent* e) {
                 myRunThread->getBreakpointLock().unlock();
             }
 
-            if (isGaming()) {
-                setTitle("SUMO Interactive Traffic Light");
+            if (OptionsCont::getOptions().getBool("game")) {
+                if (OptionsCont::getOptions().getString("game.mode") == "tls") {
+                    myTLSGame = true;
+                    setTitle("SUMO Interactive Traffic Light");
+                } else {
+                    myTLSGame = false;
+                    setTitle("SUMO Interactive Demand-Responsive-Transport");
+                }
+                onCmdGaming(nullptr, 0, nullptr);
             } else {
                 // set simulation name on the caption
                 setTitle(MFXUtils::getTitleText("SUMO " VERSION_STRING, ec->myFile.c_str()));
@@ -1466,7 +1538,6 @@ GUIApplicationWindow::handleEvent_SimulationLoaded(GUIEvent* e) {
 
 void
 GUIApplicationWindow::handleEvent_SimulationStep(GUIEvent*) {
-    updateChildren();
     updateTimeLCD(myRunThread->getNet().getCurrentTimeStep());
     const int running = myRunThread->getNet().getVehicleControl().getRunningVehicleNo();
     const int backlog = myRunThread->getNet().getInsertionControl().getWaitingVehicleNo();
@@ -1493,11 +1564,16 @@ GUIApplicationWindow::handleEvent_SimulationStep(GUIEvent*) {
         myStatButtons[2]->setText(toString(myRunThread->getNet().getContainerControl().getRunningNumber()).c_str());
     }
     if (myAmGaming) {
-        checkGamingEvents();
+        if (myTLSGame) {
+            checkGamingEvents();
+        } else {
+            checkGamingEventsDRT();
+        }
     }
     if (myRunThread->simulationIsStartable()) {
         getApp()->forceRefresh(); // restores keyboard focus
     }
+    updateChildren();
     update();
 }
 
@@ -1576,18 +1652,41 @@ GUIApplicationWindow::checkGamingEvents() {
     for (it = vc.loadedVehBegin(); it != end; ++it) {
         const MSVehicle* veh = dynamic_cast<MSVehicle*>(it->second);
         assert(veh != 0);
-        if (veh->isOnRoad()) {
+        if (veh->isOnRoad() && !veh->isStopped()) {
             const double vmax = MIN2(veh->getVehicleType().getMaxSpeed(), veh->getEdge()->getSpeedLimit());
             if (veh->getSpeed() < SUMO_const_haltingSpeed) {
                 myWaitingTime += DELTA_T;
+                if (veh->getID().rfind("emergency", 0) == 0) {
+                    myEmergencyVehicleCount += DELTA_T;
+                }
             }
             myTimeLoss += TIME2STEPS(TS * (vmax - veh->getSpeed()) / vmax); // may be negative with speedFactor > 1
         }
+
     }
     myWaitingTimeLabel->setText(time2string(myWaitingTime).c_str());
     myTimeLossLabel->setText(time2string(myTimeLoss).c_str());
+    myEmergencyVehicleLabel->setText(time2string(myEmergencyVehicleCount).c_str());
 }
 
+void
+GUIApplicationWindow::checkGamingEventsDRT() {
+    // update performance indicators
+    MSTransportableControl& pc = myRunThread->getNet().getPersonControl();
+    myWaitingTime += pc.getWaitingForVehicleNumber() * DELTA_T;
+    myWaitingTimeLabel->setText(time2string(myWaitingTime).c_str());
+
+    MSVehicleControl& vc = MSNet::getInstance()->getVehicleControl();
+    MSVehicleControl::constVehIt end = vc.loadedVehEnd();
+    for (auto it = vc.loadedVehBegin(); it != end; ++it) {
+        const MSVehicle* veh = dynamic_cast<MSVehicle*>(it->second);
+        assert(veh != 0);
+        if (veh->isOnRoad() && !veh->isStopped()) {
+            myTotalDistance += SPEED2DIST(veh->getSpeed());
+        }
+    }
+    myTotalDistanceLabel->setText(toString(myTotalDistance / 100).c_str());
+}
 
 void
 GUIApplicationWindow::loadConfigOrNet(const std::string& file, bool isNet) {
@@ -1595,7 +1694,7 @@ GUIApplicationWindow::loadConfigOrNet(const std::string& file, bool isNet) {
     getApp()->beginWaitCursor();
     myAmLoading = true;
     closeAllWindows();
-    gSchemeStorage.saveViewport(0, 0, -1); // recenter view
+    gSchemeStorage.saveViewport(0, 0, -1, 0); // recenter view
     myLoadThread->loadConfigOrNet(file, isNet);
     setStatusBarText("Loading '" + file + "'.");
     update();
@@ -1711,7 +1810,6 @@ GUIApplicationWindow::loadOnStartup() {
 void
 GUIApplicationWindow::setStatusBarText(const std::string& text) {
     myStatusbar->getStatusLine()->setText(text.c_str());
-
     myStatusbar->getStatusLine()->setNormalText(text.c_str());
 }
 
@@ -1761,12 +1859,12 @@ GUIApplicationWindow::updateTimeLCD(SUMOTime time) {
 
 
 long
-GUIApplicationWindow::onKeyPress(FXObject* o, FXSelector sel, void* data) {
-    const long handled = FXMainWindow::onKeyPress(o, sel, data);
+GUIApplicationWindow::onKeyPress(FXObject* o, FXSelector sel, void* ptr) {
+    const long handled = FXMainWindow::onKeyPress(o, sel, ptr);
     if (handled == 0 && myMDIClient->numChildren() > 0) {
         GUISUMOViewParent* w = dynamic_cast<GUISUMOViewParent*>(myMDIClient->getActiveChild());
         if (w != nullptr) {
-            w->onKeyPress(nullptr, sel, data);
+            w->onKeyPress(nullptr, sel, ptr);
         }
     }
     return 0;
@@ -1774,12 +1872,12 @@ GUIApplicationWindow::onKeyPress(FXObject* o, FXSelector sel, void* data) {
 
 
 long
-GUIApplicationWindow::onKeyRelease(FXObject* o, FXSelector sel, void* data) {
-    const long handled = FXMainWindow::onKeyRelease(o, sel, data);
+GUIApplicationWindow::onKeyRelease(FXObject* o, FXSelector sel, void* ptr) {
+    const long handled = FXMainWindow::onKeyRelease(o, sel, ptr);
     if (handled == 0 && myMDIClient->numChildren() > 0) {
         GUISUMOViewParent* w = dynamic_cast<GUISUMOViewParent*>(myMDIClient->getActiveChild());
         if (w != nullptr) {
-            w->onKeyRelease(nullptr, sel, data);
+            w->onKeyRelease(nullptr, sel, ptr);
         }
     }
     return 0;

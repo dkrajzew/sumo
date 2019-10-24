@@ -110,24 +110,20 @@ MSLaneChangerSublane::change() {
     MSVehicle* vehicle = veh(myCandi);
     vehicle->getLaneChangeModel().clearNeighbors();
 #ifdef DEBUG_ACTIONSTEPS
-    if DEBUG_COND {
-    std::cout << "\nCHANGE" << std::endl;
-}
+    if (DEBUG_COND) {
+        std::cout << "\nCHANGE" << std::endl;
+    }
 #endif
-assert(vehicle->getLane() == (*myCandi).lane);
+    assert(vehicle->getLane() == (*myCandi).lane);
     assert(!vehicle->getLaneChangeModel().isChangingLanes());
     if (/*!myAllowsChanging || vehicle->getLaneChangeModel().alreadyChanged() ||*/ vehicle->isStoppedOnLane()) {
         registerUnchanged(vehicle);
         return false;
     }
-    if (vehicle->isRemoteControlled()) {
-        registerUnchanged(vehicle);
-        return false;
-    }
     if (!vehicle->isActive()) {
 #ifdef DEBUG_ACTIONSTEPS
-        if DEBUG_COND {
-        std::cout << SIMTIME << " veh '" << vehicle->getID() << "' skips regular change checks." << std::endl;
+        if (DEBUG_COND) {
+            std::cout << SIMTIME << " veh '" << vehicle->getID() << "' skips regular change checks." << std::endl;
         }
 #endif
 
@@ -138,8 +134,8 @@ assert(vehicle->getLane() == (*myCandi).lane);
         // Resume change
         changed = continueChangeSublane(vehicle, myCandi);
 #ifdef DEBUG_ACTIONSTEPS
-        if DEBUG_COND {
-        std::cout << SIMTIME << " veh '" << vehicle->getID() << "' lcm->maneuverDist=" << vehicle->getLaneChangeModel().getManeuverDist()
+        if (DEBUG_COND) {
+            std::cout << SIMTIME << " veh '" << vehicle->getID() << "' lcm->maneuverDist=" << vehicle->getLaneChangeModel().getManeuverDist()
                       << " lcm->speedLat=" << vehicle->getLaneChangeModel().getSpeedLat() << std::endl;
         }
 #endif
@@ -147,9 +143,8 @@ assert(vehicle->getLane() == (*myCandi).lane);
     }
 
 #ifdef DEBUG_ACTIONSTEPS
-    if DEBUG_COND {
-    std::cout << "\n" << SIMTIME << " veh '" << vehicle->getID() << "' at plans sublane maneuver."
-                  << std::endl;
+    if (DEBUG_COND) {
+        std::cout << "\n" << SIMTIME << " veh '" << vehicle->getID() << "'  plans lanechange maneuver." << std::endl;
     }
 #endif
     vehicle->updateBestLanes(); // needed?
@@ -188,15 +183,14 @@ assert(vehicle->getLane() == (*myCandi).lane);
     }
 #endif
     vehicle->getLaneChangeModel().setOwnState(decision.state);
-    vehicle->getLaneChangeModel().setManeuverDist(decision.maneuverDist);
     if ((decision.state & LCA_WANTS_LANECHANGE) != 0 && (decision.state & LCA_BLOCKED) == 0) {
         // change if the vehicle wants to and is allowed to change
 #ifdef DEBUG_MANEUVER
-        if DEBUG_COND {
-        std::cout << SIMTIME << " veh '" << vehicle->getID() << "' performing sublane change..." << std::endl;
+        if (DEBUG_COND) {
+            std::cout << SIMTIME << " veh '" << vehicle->getID() << "' performing sublane change..." << std::endl;
         }
 #endif
-        return startChangeSublane(vehicle, myCandi, decision.latDist);
+        return startChangeSublane(vehicle, myCandi, decision.latDist, decision.maneuverDist);
     }
     // @note this assumes vehicles can instantly abort any maneuvre in case of emergency
     abortLCManeuver(vehicle);
@@ -213,11 +207,24 @@ assert(vehicle->getLane() == (*myCandi).lane);
 void
 MSLaneChangerSublane::abortLCManeuver(MSVehicle* vehicle) {
 #ifdef DEBUG_MANEUVER
-    if DEBUG_COND {
-    std::cout << SIMTIME << " veh '" << vehicle->getID() << "' aborts LC-continuation."
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << " veh '" << vehicle->getID() << "' aborts LC-continuation."
                   << std::endl;
     }
 #endif
+    const int priorReason = vehicle->getLaneChangeModel().getPrevState() & LCA_CHANGE_REASONS & ~LCA_SUBLANE;
+    const int reason = vehicle->getLaneChangeModel().getOwnState() & LCA_CHANGE_REASONS & ~LCA_SUBLANE;
+    if (priorReason != 0 && priorReason != reason && vehicle->getLaneChangeModel().getPreviousManeuverDist() != 0) {
+        // original from cannot be reconstructed
+        const int priorDirection = vehicle->getLaneChangeModel().getPreviousManeuverDist() > 0 ? 1 : -1;
+#ifdef DEBUG_MANEUVER
+        if (DEBUG_COND) {
+            std::cout << SIMTIME << " abortLCManeuver priorReason=" << toString((LaneChangeAction)priorReason)
+                      << " reason=" << toString((LaneChangeAction)reason) << " veh=" << vehicle->getID() << "\n";
+        }
+#endif
+        outputLCEnded(vehicle, myCandi, myCandi, priorDirection);
+    }
     vehicle->getLaneChangeModel().setSpeedLat(0);
     vehicle->getLaneChangeModel().setManeuverDist(0.);
     registerUnchanged(vehicle);
@@ -254,20 +261,24 @@ MSLaneChangerSublane::continueChangeSublane(MSVehicle* vehicle, ChangerIt& from)
     }
     const double nextLatDist = SPEED2DIST(vehicle->getLaneChangeModel().computeSpeedLat(remLatDist, remLatDist));
 #ifdef DEBUG_MANEUVER
-    if DEBUG_COND {
-    std::cout << SIMTIME << " vehicle '" << vehicle->getID() << "' continueChangeSublane()"
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << " vehicle '" << vehicle->getID() << "' continueChangeSublane()"
                   << " remLatDist=" << remLatDist << " nextLatDist=" << nextLatDist
                   << std::endl;
     }
 #endif
 
-    const bool changed = startChangeSublane(vehicle, from, nextLatDist);
+    const bool changed = startChangeSublane(vehicle, from, nextLatDist, remLatDist);
     return changed;
 }
 
 
 bool
-MSLaneChangerSublane::startChangeSublane(MSVehicle* vehicle, ChangerIt& from, double latDist) {
+MSLaneChangerSublane::startChangeSublane(MSVehicle* vehicle, ChangerIt& from, double latDist, double maneuverDist) {
+    if (vehicle->isRemoteControlled()) {
+        registerUnchanged(vehicle);
+        return false;
+    }
     // Prevent continuation of LC beyond lane borders if change is not allowed
     const double distToRightLaneBorder = latDist < 0 ? vehicle->getLane()->getWidth() * 0.5 + vehicle->getLateralPositionOnLane() - vehicle->getWidth() * 0.5 : 0.;
     const double distToLeftLaneBorder = latDist > 0 ? vehicle->getLane()->getWidth() * 0.5 - vehicle->getLateralPositionOnLane() - vehicle->getWidth() * 0.5 : 0.;
@@ -299,24 +310,55 @@ MSLaneChangerSublane::startChangeSublane(MSVehicle* vehicle, ChangerIt& from, do
     vehicle->myCachedPosition = Position::INVALID;
     vehicle->getLaneChangeModel().setSpeedLat(DIST2SPEED(latDist));
 #ifdef DEBUG_MANEUVER
-    if DEBUG_COND {
-    std::cout << SIMTIME << " vehicle '" << vehicle->getID() << "' with maneuverDist=" << vehicle->getLaneChangeModel().getManeuverDist()
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << " vehicle '" << vehicle->getID() << "' with maneuverDist=" << maneuverDist
                   << " and committedSpeed=" << vehicle->getLaneChangeModel().getCommittedSpeed()
                   << " increments lateral position by latDist=" << latDist << std::endl;
     }
 #endif
 #ifdef DEBUG_SURROUNDING
-    if DEBUG_COND {
-    std::cout << SIMTIME << " vehicle '" << vehicle->getID() << "'\n    to->ahead=" << to->ahead.toString()
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << " vehicle '" << vehicle->getID() << "'\n    to->ahead=" << to->ahead.toString()
                   << "'\n    to->aheadNext=" << to->aheadNext.toString()
                   << std::endl;
     }
 #endif
-    const bool completedManeuver = vehicle->getLaneChangeModel().getManeuverDist() - latDist == 0.;
+    const bool completedPriorManeuver = fabs(vehicle->getLaneChangeModel().getPreviousManeuverDist()) < NUMERICAL_EPS;
+    const bool completedManeuver = fabs(maneuverDist - latDist) < NUMERICAL_EPS;
     vehicle->getLaneChangeModel().updateSafeLatDist(latDist);
 
-    outputLCStarted(vehicle, from, to, direction);
-    vehicle->getLaneChangeModel().setManeuverDist(vehicle->getLaneChangeModel().getManeuverDist() - latDist);
+    // current maneuver is aborted when direction or reason changes
+    const int priorReason = vehicle->getLaneChangeModel().getPrevState() & LCA_CHANGE_REASONS & ~LCA_SUBLANE;
+    const int reason = vehicle->getLaneChangeModel().getOwnState() & LCA_CHANGE_REASONS & ~LCA_SUBLANE;
+#ifdef DEBUG_MANEUVER
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << " vehicle '" << vehicle->getID()
+                  << "' completedPriorManeuver=" << completedPriorManeuver
+                  << " completedManeuver=" << completedManeuver
+                  << " priorReason=" << toString((LaneChangeAction)priorReason)
+                  << " reason=" << toString((LaneChangeAction)reason)
+                  << " priorManeuverDist=" << vehicle->getLaneChangeModel().getPreviousManeuverDist()
+                  << " maneuverDist=" << maneuverDist
+                  << " latDist=" << latDist
+                  << std::endl;
+    }
+#endif
+    if (!completedManeuver && !completedPriorManeuver && priorReason != 0 &&
+            (vehicle->getLaneChangeModel().getPreviousManeuverDist() * latDist < 0
+             || priorReason != reason)) {
+        const int priorDirection = vehicle->getLaneChangeModel().getPreviousManeuverDist() > 0 ? 1 : -1;
+        // original from cannot be reconstructed
+#ifdef DEBUG_MANEUVER
+        if (DEBUG_COND) {
+            std::cout << SIMTIME << " startChangeSublane abort priorReason=" << toString((LaneChangeAction)priorReason)
+                      << " reason=" << toString((LaneChangeAction)reason) << " veh=" << vehicle->getID() << "\n";
+        }
+#endif
+        outputLCEnded(vehicle, from, from, priorDirection);
+    }
+
+    outputLCStarted(vehicle, from, to, direction, maneuverDist);
+    vehicle->getLaneChangeModel().setManeuverDist(maneuverDist - latDist);
     const bool changedToNewLane = checkChangeToNewLane(vehicle, direction, from, to);
 
     MSLane* oldShadowLane = vehicle->getLaneChangeModel().getShadowLane();
@@ -332,7 +374,18 @@ MSLaneChangerSublane::startChangeSublane(MSVehicle* vehicle, ChangerIt& from, do
     }
 
     // Update maneuver reservations on target lanes
-    vehicle->getLaneChangeModel().updateTargetLane();
+    MSLane* targetLane = vehicle->getLaneChangeModel().updateTargetLane();
+    if (!changedToNewLane && targetLane != nullptr
+            && vehicle->getActionStepLength() > DELTA_T) {
+        const int dir = (vehicle->getLaneChangeModel().getManeuverDist() > 0 ? 1 : -1);
+        ChangerIt target = from + dir;
+        const double actionStepDist = dir * vehicle->getVehicleType().getMaxSpeedLat() * vehicle->getActionStepLengthSecs();
+        const double latOffset = vehicle->getLatOffset(targetLane) + actionStepDist;
+        target->ahead.addLeader(vehicle, false, latOffset);
+        //std::cout << SIMTIME << " veh=" << vehicle->getID() << " target=" << targetLane->getID()
+        //    << " actionStepDist=" << actionStepDist << " latOffset=" << latOffset
+        //    << " targetAhead=" << target->ahead.toString() << "\n";
+    }
 
     // compute new angle of the vehicle from the x- and y-distances travelled within last time step
     // (should happen last because primaryLaneChanged() also triggers angle computation)
@@ -351,10 +404,12 @@ MSLaneChangerSublane::startChangeSublane(MSVehicle* vehicle, ChangerIt& from, do
     if (fabs(latDist) > NUMERICAL_EPS) {
         // angle is between vehicle front and vehicle back (and depending on travelled distance)
         changeAngle = atan2(latDist, vehicle->getVehicleType().getLength() + SPEED2DIST(vehicle->getSpeed()));
+        if (MSNet::getInstance()->lefthand()) {
+            changeAngle *= -1;
+        }
     }
 #ifdef DEBUG_MANEUVER
     if (vehicle->getLaneChangeModel().debugVehicle()) {
-        MSLane* targetLane = vehicle->getLaneChangeModel().getTargetLane();
         std::cout << SIMTIME << " startChangeSublane()"
                   << " shadowLane=" << (shadowLane != nullptr ? shadowLane->getID() : "NULL")
                   << " targetLane=" << (targetLane != nullptr ? targetLane->getID() : "NULL")
@@ -411,19 +466,20 @@ MSLaneChangerSublane::checkChangeToNewLane(MSVehicle* vehicle, const int directi
 }
 
 void
-MSLaneChangerSublane::outputLCStarted(MSVehicle* vehicle, ChangerIt& from, ChangerIt& to, int direction) {
+MSLaneChangerSublane::outputLCStarted(MSVehicle* vehicle, ChangerIt& from, ChangerIt& to, int direction, double maneuverDist) {
     if (MSAbstractLaneChangeModel::haveLCOutput() && MSAbstractLaneChangeModel::outputLCStarted()
             // non-sublane change started
             && ((vehicle->getLaneChangeModel().getOwnState() & (LCA_CHANGE_REASONS & ~LCA_SUBLANE)) != 0)
             && ((vehicle->getLaneChangeModel().getOwnState() & LCA_STAY) == 0)
-            // no changing in previous step (either not wanted or blocked)
-            && (((vehicle->getLaneChangeModel().getPrevState() & (LCA_CHANGE_REASONS & ~LCA_SUBLANE)) == 0)
+            // no changing for the same reason in previous step (either not wanted or blocked)
+            && ((vehicle->getLaneChangeModel().getPrevState() & LCA_CHANGE_REASONS & ~LCA_SUBLANE) !=
+                (vehicle->getLaneChangeModel().getOwnState() & LCA_CHANGE_REASONS & ~LCA_SUBLANE)
                 || ((vehicle->getLaneChangeModel().getPrevState() & LCA_STAY) != 0)
                 || ((vehicle->getLaneChangeModel().getPrevState() & LCA_BLOCKED) != 0))
        ) {
 #ifdef DEBUG_STATE
-        if DEBUG_COND {
-        std::cout << SIMTIME << " veh=" << vehicle->getID() << " laneChangeStarted state=" << toString((LaneChangeAction)vehicle->getLaneChangeModel().getOwnState())
+        if (DEBUG_COND) {
+            std::cout << SIMTIME << " veh=" << vehicle->getID() << " laneChangeStarted state=" << toString((LaneChangeAction)vehicle->getLaneChangeModel().getOwnState())
                       << " prevState=" << toString((LaneChangeAction)vehicle->getLaneChangeModel().getPrevState())
                       << " filter=" << toString((LaneChangeAction)(LCA_CHANGE_REASONS & ~LCA_SUBLANE))
                       << " filtered=" << toString((LaneChangeAction)(vehicle->getLaneChangeModel().getOwnState() & (LCA_CHANGE_REASONS & ~LCA_SUBLANE)))
@@ -433,7 +489,7 @@ MSLaneChangerSublane::outputLCStarted(MSVehicle* vehicle, ChangerIt& from, Chang
         vehicle->getLaneChangeModel().setLeaderGaps(to->aheadNext);
         vehicle->getLaneChangeModel().setFollowerGaps(to->lane->getFollowersOnConsecutive(vehicle, vehicle->getBackPositionOnLane(), true));
         vehicle->getLaneChangeModel().setOrigLeaderGaps(from->aheadNext);
-        vehicle->getLaneChangeModel().laneChangeOutput("changeStarted", from->lane, to->lane, direction, vehicle->getLaneChangeModel().getManeuverDist());
+        vehicle->getLaneChangeModel().laneChangeOutput("changeStarted", from->lane, to->lane, direction, maneuverDist);
     }
 }
 

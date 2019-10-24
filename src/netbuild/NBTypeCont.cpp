@@ -52,9 +52,13 @@ NBTypeCont::setDefaults(int defaultNumLanes,
 
 void
 NBTypeCont::insert(const std::string& id, int numLanes, double maxSpeed, int prio,
-                   SVCPermissions permissions, double width, bool oneWayIsDefault, double sidewalkWidth, double bikeLaneWidth) {
+                   SVCPermissions permissions, double width, bool oneWayIsDefault,
+                   double sidewalkWidth, double bikeLaneWidth,
+                   double widthResolution,
+                   double maxWidth,
+                   double minWidth) {
 
-    TypeDefinition newType(numLanes, maxSpeed, prio, width, permissions, oneWayIsDefault, sidewalkWidth, bikeLaneWidth);
+    TypeDefinition newType(numLanes, maxSpeed, prio, width, permissions, oneWayIsDefault, sidewalkWidth, bikeLaneWidth, widthResolution, maxWidth, minWidth);
     TypesCont::iterator old = myTypes.find(id);
     if (old != myTypes.end()) {
         newType.restrictions.insert(old->second.restrictions.begin(), old->second.restrictions.end());
@@ -193,6 +197,20 @@ NBTypeCont::getShallBeDiscarded(const std::string& type) const {
     return getType(type).discard;
 }
 
+double
+NBTypeCont::getWidthResolution(const std::string& type) const {
+    return getType(type).widthResolution;
+}
+
+double
+NBTypeCont::getMaxWidth(const std::string& type) const {
+    return getType(type).maxWidth;
+}
+
+double
+NBTypeCont::getMinWidth(const std::string& type) const {
+    return getType(type).minWidth;
+}
 
 bool
 NBTypeCont::wasSet(const std::string& type, const SumoXMLAttr attr) const {

@@ -59,10 +59,31 @@ class NBVehicle;
 // class definitions
 // ===========================================================================
 /**
+ * @class NBRouterEdge
+ * @brief Superclass for NBEdge and NBEdge::Connection to initialize Router
+ */
+class NBRouterEdge {
+public:
+    virtual const std::string& getID() const = 0;
+    virtual double getSpeed() const = 0;
+    virtual double getLength() const = 0;
+    virtual int getNumericalID() const = 0;
+    virtual const ConstRouterEdgePairVector& getViaSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const = 0;
+    virtual bool isInternal() const {
+        return false;
+    }
+
+    static inline double getTravelTimeStatic(const NBRouterEdge* const edge, const NBVehicle* const /*veh*/, double /*time*/) {
+        return edge->getLength() / edge->getSpeed();
+    }
+};
+
+
+/**
  * @class NBEdge
  * @brief The representation of a single edge during network building
  */
-class NBEdge : public Named, public Parameterised {
+class NBEdge : public Named, public Parameterised, public NBRouterEdge {
     friend class NBEdgeCont;
 
     /** used for visualization (NETEDIT) */
@@ -113,7 +134,7 @@ public:
     /** @struct Lane
      * @brief An (internal) definition of a single lane of an edge
      */
-    struct Lane : public Parameterised {
+    struct Lane final : public Parameterised {
         /// @brief constructor
         Lane(NBEdge* e, const std::string& _origID);
 
@@ -151,13 +172,16 @@ public:
 
         /// @brief A custom shape for this lane set by the user
         PositionVector customShape;
+
+        /// @brief the type of this lane
+        std::string type;
     };
 
 
     /** @struct Connection
      * @brief A structure which describes a connection between edges or lanes
      */
-    struct Connection : public Parameterised {
+    struct Connection final : public Parameterised, public NBRouterEdge {
         /** @brief Constructor
          * @param[in] fromLane_ The lane the connections starts at
          * @param[in] toEdge_ The edge the connections yields in
@@ -174,9 +198,6 @@ public:
                    bool haveVia_ = false,
                    bool uncontrolled_ = false,
                    const PositionVector& customShape_ = PositionVector::EMPTY);
-
-        /// @brief destructor
-        ~Connection() { }
 
         /// @brief The lane the connections starts at
         int fromLane;
@@ -249,6 +270,30 @@ public:
 
         /// @brief computed length (average of all internal lane shape lengths that share an internal edge)
         double length;
+
+        /// @name NBRouterEdge interface
+        /// @{
+        static ConstRouterEdgePairVector myViaSuccessors; // always empty
+        const std::string& getID() const {
+            return id;
+        }
+        double getSpeed() const {
+            return vmax;
+        }
+        double getLength() const {
+            return shape.length() + viaShape.length();
+        }
+        int getNumericalID() const {
+            throw ProcessError("NBEdge::Connection does not implement getNumericalID()");
+        }
+        bool isInternal() const {
+            return true;
+        }
+        const ConstRouterEdgePairVector& getViaSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const {
+            UNUSED_PARAMETER(vClass);
+            return myViaSuccessors;
+        }
+        /// }@
     };
 
     /// @brief Dummy edge to use when a reference must be supplied in the no-arguments constructor (FOX technicality)
@@ -556,6 +601,10 @@ public:
         return myEndOffset;
     }
 
+    double getDistance() const {
+        return myDistance;
+    }
+
     /** @brief Returns the stopOffset to the end of the edge
      * @return The offset to the end of the edge
      */
@@ -602,6 +651,9 @@ public:
      * @param[in] exclusive Whether lanes that allow pedestrians along with other classes shall be counted as non-pedestrian
      */
     int getFirstNonPedestrianLaneIndex(int direction, bool exclusive = false) const;
+
+    /// @brief return index of the first lane that allows the given permissions
+    int getSpecialLane(SVCPermissions permissions) const;
 
     /** @brief return the first lane that permits at least 1 vClass or the last lane if search direction of there is no such lane
      * @param[in] direction The direction in which the lanes shall be checked
@@ -711,13 +763,6 @@ public:
         return myLaneSpreadFunction;
     }
 
-    /** @brief Splits this edge at geometry points
-     * @param[in] ec The edge cont to add new edges to
-     * @param[in] nc The node cont to add new nodes to
-     * @return Whether the geometry was changed
-     */
-    bool splitGeometry(NBEdgeCont& ec, NBNodeCont& nc);
-
     /** @brief Removes points with a distance lesser than the given
      * @param[in] minDist The minimum distance between two position to keep the second
      */
@@ -728,7 +773,7 @@ public:
      * @param[in] minRadius The minimum turning radius allowed at the start and end
      * @param[in] fix Whether to prune geometry points to avoid sharp turns at start and end
      */
-    void checkGeometry(const double maxAngle, const double minRadius, bool fix);
+    void checkGeometry(const double maxAngle, const double minRadius, bool fix, bool silent);
     //@}
 
     /// @name Setting and getting connections
@@ -824,18 +869,17 @@ public:
                        const PositionVector& customShape = PositionVector::EMPTY,
                        const bool uncontrolled = UNSPECIFIED_CONNECTION_UNCONTROLLED);
 
-    /// @brief insert a previously created NBEdge::connection
-    void insertConnection(NBEdge::Connection connection);
-
     /** @brief Returns connections from a given lane
      *
      * This method goes through "myConnections" and copies those which are
      *  starting at the given lane.
      * @param[in] lane The lane which connections shall be returned
+     * @param[in] to The target Edge (ignore nullptr)
+     * @param[in] toLane The target lane (ignore if > 0)
      * @return The connections from the given lane
      * @see NBEdge::Connection
      */
-    std::vector<Connection> getConnectionsFromLane(int lane) const;
+    std::vector<Connection> getConnectionsFromLane(int lane, NBEdge* to = nullptr, int toLane = -1) const;
 
     /** @brief Returns the specified connection
      * This method goes through "myConnections" and returns the specified one
@@ -899,7 +943,7 @@ public:
     /** @brief Returns the list of lanes that may be used to reach the given edge
      * @return Lanes approaching the given edge
      */
-    std::vector<int> getConnectionLanes(NBEdge* currentOutgoing) const;
+    std::vector<int> getConnectionLanes(NBEdge* currentOutgoing, bool withBikes = true) const;
 
     /// @brief sorts the outgoing connections by their angle relative to their junction
     void sortOutgoingConnectionsByAngle();
@@ -921,10 +965,10 @@ public:
      * @param[in] tryLater If the connection does not exist, try again during recheckLanes()
      * @param[in] adaptToLaneRemoval we are in the process of removing a complete lane, adapt all connections accordingly
      */
-    void removeFromConnections(NBEdge* toEdge, int fromLane = -1, int toLane = -1, bool tryLater = false, const bool adaptToLaneRemoval = false);
+    void removeFromConnections(NBEdge* toEdge, int fromLane = -1, int toLane = -1, bool tryLater = false, const bool adaptToLaneRemoval = false, const bool keepPossibleTurns = false);
 
     /// @brief remove an existent connection of edge
-    bool removeFromConnections(NBEdge::Connection connectionToRemove);
+    bool removeFromConnections(const NBEdge::Connection &connectionToRemove);
 
     /// @brief invalidate current connections of edge
     void invalidateConnections(bool reallowSetting = false);
@@ -970,15 +1014,15 @@ public:
     }
 
     /// @brief Marks this edge being within an intersection
-    void setInternal() {
-        myAmInnerEdge = true;
+    void setInsideTLS() {
+        myAmInTLS = true;
     }
 
     /** @brief Returns whether this edge was marked as being within an intersection
      * @return Whether this edge was marked as being within an intersection
      */
-    bool isInternal() const {
-        return myAmInnerEdge;
+    bool isInsideTLS() const {
+        return myAmInTLS;
     }
     /// @}
 
@@ -1003,6 +1047,9 @@ public:
     /// @brief set loaded lenght
     void setLoadedLength(double val);
 
+    /// @brief patch average lane length in regard to the opposite edge
+    void setAverageLengthWithOpposite(double val);
+
     /// @brief dimiss vehicle class information
     void dismissVehicleClassInformation();
 
@@ -1025,6 +1072,9 @@ public:
 
     /// @brief whether lanes differ in width
     bool hasLaneSpecificWidth() const;
+
+    /// @brief whether lanes differ in type
+    bool hasLaneSpecificType() const;
 
     /// @brief whether lanes differ in offset
     bool hasLaneSpecificEndOffset() const;
@@ -1107,11 +1157,8 @@ public:
      */
     NBEdge* getTurnDestination(bool possibleDestination = false) const;
 
-    /// @brief get Lane ID (Secure)
+    /// @brief get lane ID
     std::string getLaneID(int lane) const;
-
-    /// @brief get Lane ID (Insecure)
-    std::string getLaneIDInsecure(int lane) const;
 
     /// @brief get lane speed
     double getLaneSpeed(int lane) const;
@@ -1165,6 +1212,9 @@ public:
     /// @brief restore an previously added BikeLane
     void restoreBikelane(std::vector<NBEdge::Lane> oldLanes, PositionVector oldGeometry, std::vector<NBEdge::Connection> oldConnections);
 
+    /// @brief add a lane of the given width, restricted to the given class and shift existing connections
+    void addRestrictedLane(double width, SUMOVehicleClass vclass);
+
     /// @brief set allowed/disallowed classes for the given lane or for all lanes if -1 is given
     void setPermissions(SVCPermissions permissions, int lane = -1);
 
@@ -1182,6 +1232,9 @@ public:
 
     /// @brief set lane specific width (negative lane implies set for all lanes)
     void setLaneWidth(int lane, double width);
+
+    /// @brief set lane specific type (negative lane implies set for all lanes)
+    void setLaneType(int lane, const std::string& type);
 
     /// @brief set lane specific end-offset (negative lane implies set for all lanes)
     void setEndOffset(int lane, double offset);
@@ -1204,6 +1257,11 @@ public:
 
     /// @brief set origID for all lanes
     void setOrigID(const std::string origID);
+
+    /// @brief set lane specific speed (negative lane implies set for all lanes)
+    void setDistance(double distance) {
+        myDistance = distance;
+    }
 
     /// @brief disable connections for TLS
     void disableConnection4TLS(int fromLane, NBEdge* toEdge, int toLane);
@@ -1263,7 +1321,7 @@ public:
     void debugPrintConnections(bool outgoing = true, bool incoming = false) const;
 
     /// @brief compute the first intersection point between the given lane geometries considering their rspective widths
-    static double firstIntersection(const PositionVector& v1, const PositionVector& v2, double width2);
+    static double firstIntersection(const PositionVector& v1, const PositionVector& v2, double width2, const std::string& error = "");
 
     /** returns a modified version of laneShape which starts at the outside of startNode. laneShape may be shorted or extended
      * @note see [wiki:Developer/Network_Building_Process]
@@ -1299,9 +1357,15 @@ public:
 
     /** @brief Returns the following edges for the given vClass
      */
-    const NBConstEdgePairVector& getViaSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const;
+    const ConstRouterEdgePairVector& getViaSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const;
 
     //@}
+    const std::string& getID() const {
+        return Named::getID();
+    }
+
+    /// @brief join adjacent lanes with the given permissions
+    bool joinLanes(SVCPermissions perms);
 
 private:
     /** @class ToEdgeConnectionsAdder
@@ -1441,10 +1505,10 @@ private:
     void computeAngle();
 
     /// @brief determine conflict between opposite left turns
-    bool bothLeftIntersect(const NBNode& n, const PositionVector& shape, LinkDirection dir, NBEdge* otherFrom, const NBEdge::Connection& otherCon, int numPoints, double width2) const;
+    bool bothLeftIntersect(const NBNode& n, const PositionVector& shape, LinkDirection dir, NBEdge* otherFrom, const NBEdge::Connection& otherCon, int numPoints, double width2, int shapeFlag = 0) const;
 
-    /// @brief add a lane of the given width, restricted to the given class and shift existing connections
-    void addRestrictedLane(double width, SUMOVehicleClass vclass);
+    /// @brief returns whether any lane already allows the given vclass exclusively
+    bool hasRestrictedLane(SUMOVehicleClass vclass) const;
 
     /// @brief restore a restricted lane
     void restoreRestrictedLane(SUMOVehicleClass vclass, std::vector<NBEdge::Lane> oldLanes, PositionVector oldGeometry, std::vector<NBEdge::Connection> oldConnections);
@@ -1479,6 +1543,9 @@ private:
 
     /// @brief The maximal speed
     double mySpeed;
+
+    /// @brief The mileage/kilometrage at the start of this edge in a linear coordination system
+    double myDistance;
 
     /** @brief List of connections to following edges
      * @see Connection
@@ -1526,8 +1593,8 @@ private:
     /// @brief An optional length to use (-1 if not valid)
     double myLoadedLength;
 
-    /// @brief Information whether this is a junction-inner edge
-    bool myAmInnerEdge;
+    /// @brief Information whether this is lies within a joined tls
+    bool myAmInTLS;
 
     /// @brief Information whether this edge is a (macroscopic) connector
     bool myAmMacroscopicConnector;
@@ -1556,7 +1623,7 @@ private:
     mutable EdgeVector mySuccessors;
 
     // @brief a static list of successor edges. Set by NBEdgeCont and requires reset when the network changes
-    mutable NBConstEdgePairVector myViaSuccessors;
+    mutable ConstRouterEdgePairVector myViaSuccessors;
 
 public:
 

@@ -57,7 +57,7 @@
 #include "NBParking.h"
 
 //#define DEBUG_JOINJUNCTIONS
-#define DEBUGNODEID "1311774270"
+#define DEBUGNODEID "C1"
 //#define DEBUGNODEID "5548037023"
 #define DEBUGCOND(obj) ((obj != 0 && (obj)->getID() == DEBUGNODEID))
 
@@ -156,7 +156,7 @@ NBNodeCont::extract(NBNode* node, bool remember) {
     myRTree.Remove(pos, pos, node);
     node->removeTrafficLights();
     if (remember) {
-        myExtractedNodes.insert(node);
+        myExtractedNodes[node->getID()] = node;
     }
     return true;
 }
@@ -600,7 +600,7 @@ NBNodeCont::addCluster2Join(std::set<std::string> cluster, NBNode* node) {
                         NBNode* node = retrieve(nID);
                         if (node != nullptr) {
                             validCluster.insert(nID);
-                        } else{
+                        } else {
                             WRITE_ERROR("Unknown junction '" + nodeID + "' in join-cluster (componentID)");
                         }
                     }
@@ -793,7 +793,10 @@ NBNodeCont::pruneClusterFringe(NodeSet& cluster) const {
             for (NBEdge* e : n->getEdges()) {
                 NBNode* neighbor = e->getFromNode() == n ? e->getToNode() : e->getFromNode();
                 if (cluster.count(neighbor) == 0) {
-                    if ((e->getPermissions() & SVC_PASSENGER) != 0 || clusterDist <= pedestrianFringeThreshold || touchingCluster) {
+                    if ((e->getPermissions() & SVC_PASSENGER) != 0
+                            || isRailway(e->getPermissions()) // join railway crossings
+                            || clusterDist <= pedestrianFringeThreshold
+                            || touchingCluster) {
                         outsideNeighbors.insert(neighbor);
                     }
                 } else {
@@ -1102,7 +1105,7 @@ NBNodeCont::joinNodeCluster(NodeSet cluster, NBDistrictCont& dc, NBEdgeCont& ec,
         if (!insert(id, pos)) {
             // should not fail
             WRITE_WARNING("Could not join junctions " + id);
-            return;;
+            return;
         }
         newNode = retrieve(id);
     }
@@ -1132,33 +1135,90 @@ NBNodeCont::joinNodeCluster(NodeSet cluster, NBDistrictCont& dc, NBEdgeCont& ec,
         }
     }
     // collect edges
-    std::set<NBEdge*> allEdges;
+    EdgeSet allEdges;
     for (NBNode* n : cluster) {
         const EdgeVector& edges = n->getEdges();
         allEdges.insert(edges.begin(), edges.end());
     }
+    // determine edges with are incoming or fully inside
+    EdgeSet clusterIncoming;
+    EdgeSet inside;
+    for (NBEdge* e : allEdges) {
+        if (cluster.count(e->getToNode()) > 0) {
+            if (cluster.count(e->getFromNode()) > 0) {
+                inside.insert(e);
+            } else {
+                clusterIncoming.insert(e);
+            }
+        }
+    }
+#ifdef DEBUG_JOINJUNCTIONS
+    std::cout << "joining cluster " << joinNamedToString(cluster, ' ') << "\n"
+              << "  incoming=" << toString(clusterIncoming) << "\n"
+              << "  inside=" << toString(inside) << "\n";
+#endif
 
-    // remap and remove edges which are completely within the new intersection
-    for (std::set<NBEdge*>::iterator j = allEdges.begin(); j != allEdges.end();) {
-        NBEdge* e = (*j);
-        NBNode* from = e->getFromNode();
-        NBNode* to = e->getToNode();
-        if (cluster.count(from) > 0 && cluster.count(to) > 0) {
-            for (std::set<NBEdge*>::iterator l = allEdges.begin(); l != allEdges.end(); ++l) {
-                if (e != *l) {
-                    (*l)->replaceInConnections(e, e->getConnections());
+    // determine possible connectivity from outside edges
+    std::map<NBEdge*, EdgeSet> reachable;
+    for (NBEdge* e : clusterIncoming) {
+        EdgeVector open;
+        EdgeSet seen;
+        open.push_back(e);
+        while (open.size() > 0) {
+            NBEdge* cur = open.back();
+            //std::cout << "   e=" << e->getID() << " cur=" << cur->getID() << " open=" << toString(open) << "\n";
+            seen.insert(cur);
+            open.pop_back();
+            if (cluster.count(cur->getToNode()) == 0) {
+                //std::cout << "      continue\n";
+                continue;
+            }
+            const auto& cons = cur->getConnections();
+            if (cons.size() == 0 || ec.hasPostProcessConnection(cur->getID()) || cur->getStep() == NBEdge::INIT) {
+                // check permissions to determine reachability
+                for (NBEdge* out : cur->getToNode()->getOutgoingEdges()) {
+                    if (seen.count(out) == 0
+                            && allEdges.count(out) != 0
+                            && (out->getPermissions() & cur->getPermissions() & ~SVC_PEDESTRIAN) != 0) {
+                        open.push_back(out);
+                    }
+                }
+            } else {
+                // check existing connections
+                for (const auto& con : cons) {
+                    if (con.toEdge != nullptr
+                            && seen.count(con.toEdge) == 0
+                            && allEdges.count(con.toEdge) != 0) {
+                        open.push_back(con.toEdge);
+                    }
                 }
             }
-            ec.extract(dc, e, true);
-            allEdges.erase(j++); // erase does not invalidate the other iterators
-        } else {
-            ++j;
         }
+        seen.erase(e);
+        for (NBEdge* reached : seen) {
+            // filter out inside edges from reached
+            if (inside.count(reached) == 0) {
+                reachable[e].insert(reached);
+            }
+        }
+#ifdef DEBUG_JOINJUNCTIONS
+        std::cout << " reachable e=" << e->getID() << " seen=" << toString(seen) << " reachable=" << toString(reachable[e]) << "\n";
+#endif
+    }
+
+    // remap and remove edges which are completely within the new intersection
+    for (NBEdge* e : inside) {
+        for (NBEdge* e2 : allEdges) {
+            if (e != e2) {
+                e2->replaceInConnections(e, e->getConnections());
+            }
+        }
+        ec.extract(dc, e, true);
+        allEdges.erase(e);
     }
 
     // remap edges which are incoming / outgoing
-    for (std::set<NBEdge*>::iterator j = allEdges.begin(); j != allEdges.end(); ++j) {
-        NBEdge* e = (*j);
+    for (NBEdge* e : allEdges) {
         std::vector<NBEdge::Connection> conns = e->getConnections();
         const bool outgoing = cluster.count(e->getFromNode()) > 0;
         NBNode* from = outgoing ? newNode : e->getFromNode();
@@ -1181,10 +1241,20 @@ NBNodeCont::joinNodeCluster(NodeSet cluster, NBDistrictCont& dc, NBEdgeCont& ec,
             }
         }
     }
+    // disable connections that were impossible with the old topology
+    for (NBEdge* in : newNode->getIncomingEdges()) {
+        for (NBEdge* out : newNode->getOutgoingEdges()) {
+            if (reachable[in].count(out) == 0 && !ec.hasPostProcessConnection(in->getID(), out->getID())) {
+                //std::cout << " removeUnreachable in=" << in->getID() << " out=" << out->getID() << "\n";
+                in->removeFromConnections(out, -1, -1, true, false, true);
+            }
+        }
+    }
+
     // remove original nodes
     registerJoinedCluster(cluster);
-    for (NodeSet::const_iterator j = cluster.begin(); j != cluster.end(); ++j) {
-        erase(*j);
+    for (NBNode* n : cluster) {
+        erase(n);
     }
 }
 
@@ -1222,7 +1292,7 @@ NBNodeCont::analyzeCluster(NodeSet cluster, std::string& id, Position& pos,
             nodeType = otherType;
         } else if (nodeType != otherType) {
             if (hasTLS) {
-                nodeType = NODETYPE_TRAFFIC_LIGHT;;
+                nodeType = NODETYPE_TRAFFIC_LIGHT;
             } else {
                 if ((nodeType != NODETYPE_PRIORITY && (nodeType != NODETYPE_NOJUNCTION || otherType != NODETYPE_PRIORITY))
                         || (otherType != NODETYPE_NOJUNCTION && otherType != NODETYPE_UNKNOWN && otherType != NODETYPE_PRIORITY)) {
@@ -1265,12 +1335,13 @@ NBNodeCont::shouldBeTLSControlled(const NodeSet& c, double laneSpeedThreshold) c
             }
         }
     }
+    //std::cout << " c=" << joinNamedToString(c, ' ') << " f=" << f << " size=" << c.size() << " thresh=" << laneSpeedThreshold << " tooFast=" << tooFast << "\n";
     return !tooFast && f >= laneSpeedThreshold && c.size() != 0;
 }
 
 bool
 NBNodeCont::onlyCrossings(const NodeSet& c) const {
-    // check whether all component nodes are solely pedestrian crossings 
+    // check whether all component nodes are solely pedestrian crossings
     // (these work fine without joining)
     for (NBNode* node : c) {
         EdgeVector nonPedIncoming;
@@ -1303,7 +1374,7 @@ NBNodeCont::customTLID(const NodeSet& c) const {
     for (NBNode* node : c) {
         if (node->isTLControlled()) {
             const std::string tlID = (*node->getControllingTLS().begin())->getID();
-            if (tlID != node->getID() 
+            if (tlID != node->getID()
                     && !StringUtils::startsWith(tlID, "joinedS_")
                     && !StringUtils::startsWith(tlID, "joinedG_")
                     && !StringUtils::startsWith(tlID, "GS")) {
@@ -1391,8 +1462,8 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
             }
             const EdgeVector& incoming = node->getIncomingEdges();
             const EdgeVector& outgoing = node->getOutgoingEdges();
-            if (!node->isTLControlled() && incoming.size() > 1 && !node->geometryLike() 
-                    && !NBNodeTypeComputer::isRailwayNode(node) 
+            if (!node->isTLControlled() && incoming.size() > 1 && !node->geometryLike()
+                    && !NBNodeTypeComputer::isRailwayNode(node)
                     && node->getType() != NODETYPE_RAIL_CROSSING) {
                 std::vector<NBNode*> signals;
                 bool isTLS = true;
@@ -1406,6 +1477,7 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
                     }
                     NBNode* signal = inEdge->getSignalNode();
                     if (signal != nullptr) {
+                        //if (true || node->getID() == "cluster_2648427269_3180391961_3180391964_736234762") std::cout << " edge=" << inEdge->getID() << " signalNode=" << signal->getID() << " offset=" << inEdge->getSignalOffset() << "\n";
                         signals.push_back(signal);
                     }
                 }
@@ -1415,6 +1487,7 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
                     const NBEdge* outEdge = *it_i;
                     NBNode* cand = outEdge->getToNode();
                     if (cand->isTLControlled() && cand->geometryLike() && outEdge->getLength() <= signalDist) {
+                        //if (true || node->getID() == "cluster_2648427269_3180391961_3180391964_736234762") std::cout << " node=" << node->getID() << " outEdge=" << outEdge->getID() << " signalNode=" << cand->getID() << " len=" << outEdge->getLength() << "\n";
                         signals.push_back(cand);
                     }
                 }
@@ -1426,6 +1499,7 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
                             tlc.removeFully((*j)->getID());
                         }
                     }
+                    //if (true) std::cout << " node=" << node->getID() << " signals=" << toString(signals) << "\n";
                     NBTrafficLightDefinition* tlDef = new NBOwnTLDef("GS_" + node->getID(), node, 0, type);
                     // @todo patch endOffset for all incoming lanes according to the signal positions
                     if (!tlc.insert(tlDef)) {
@@ -1439,13 +1513,8 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
         }
     }
 
-    // maybe no tls shall be guessed
-    if (!oc.getBool("tls.guess")) {
-        return;
-    }
-
     // guess joined tls first, if wished
-    if (oc.getBool("tls.join")) {
+    if (oc.getBool("tls.guess.joining")) {
         // get node clusters
         NodeClusters cands;
         generateNodeClusters(oc.getFloat("tls.join-dist"), cands);
@@ -1462,7 +1531,8 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
                 }
             }
             // check whether the cluster should be controlled
-            if (!shouldBeTLSControlled(c, laneSpeedThreshold)) {
+            // to avoid gigantic clusters, assume that at most 4 nodes should be needed for a guessed-joined-tls
+            if (c.size() == 0 || !shouldBeTLSControlled(c, laneSpeedThreshold * c.size() / MIN2((int)c.size(), 4))) {
                 i = cands.erase(i);
             } else {
                 ++i;
@@ -1486,23 +1556,25 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
         }
     }
 
-    // guess tls
-    for (NodeCont::iterator i = myNodes.begin(); i != myNodes.end(); i++) {
-        NBNode* cur = (*i).second;
-        //  do nothing if already is tl-controlled
-        if (cur->isTLControlled()) {
-            continue;
+    // guess single tls
+    if (oc.getBool("tls.guess")) {
+        for (NodeCont::iterator i = myNodes.begin(); i != myNodes.end(); i++) {
+            NBNode* cur = (*i).second;
+            //  do nothing if already is tl-controlled
+            if (cur->isTLControlled()) {
+                continue;
+            }
+            // do nothing if in the list of explicit non-controlled junctions
+            if (find(ncontrolled.begin(), ncontrolled.end(), cur) != ncontrolled.end()) {
+                continue;
+            }
+            NodeSet c;
+            c.insert(cur);
+            if (!shouldBeTLSControlled(c, laneSpeedThreshold) || cur->geometryLike()) {
+                continue;
+            }
+            setAsTLControlled((*i).second, tlc, type);
         }
-        // do nothing if in the list of explicit non-controlled junctions
-        if (find(ncontrolled.begin(), ncontrolled.end(), cur) != ncontrolled.end()) {
-            continue;
-        }
-        NodeSet c;
-        c.insert(cur);
-        if (!shouldBeTLSControlled(c, laneSpeedThreshold) || cur->getIncomingEdges().size() < 3) {
-            continue;
-        }
-        setAsTLControlled((*i).second, tlc, type);
     }
 }
 
@@ -1511,7 +1583,7 @@ void
 NBNodeCont::joinTLS(NBTrafficLightLogicCont& tlc, double maxdist) {
     NodeClusters cands;
     generateNodeClusters(maxdist, cands);
-    int index = 0;
+    IDSupplier idSupplier("joinedS_");
     for (NodeSet& c : cands) {
         for (NodeSet::iterator j = c.begin(); j != c.end();) {
             if (!(*j)->isTLControlled()) {
@@ -1537,10 +1609,13 @@ NBNodeCont::joinTLS(NBTrafficLightLogicCont& tlc, double maxdist) {
                 tlc.removeFully(j->getID());
             }
         }
-        id = "joinedS_" + toString(index++);
         std::vector<NBNode*> nodes;
         for (NBNode* j : c) {
             nodes.push_back(j);
+        }
+        id = idSupplier.getNext();
+        while (tlc.getPrograms(id).size() > 0) {
+            id = idSupplier.getNext();
         }
         NBTrafficLightDefinition* tlDef = new NBOwnTLDef(id, nodes, 0, type);
         if (!tlc.insert(tlDef)) {
@@ -1580,9 +1655,9 @@ NBNodeCont::computeLanes2Lanes() {
 
 // computes the "wheel" of incoming and outgoing edges for every node
 void
-NBNodeCont::computeLogics(const NBEdgeCont& ec, OptionsCont& oc) {
+NBNodeCont::computeLogics(const NBEdgeCont& ec) {
     for (NodeCont::iterator i = myNodes.begin(); i != myNodes.end(); i++) {
-        (*i).second->computeLogic(ec, oc);
+        (*i).second->computeLogic(ec);
     }
 }
 
@@ -1613,8 +1688,8 @@ NBNodeCont::clear() {
         delete ((*i).second);
     }
     myNodes.clear();
-    for (std::set<NBNode*>::iterator i = myExtractedNodes.begin(); i != myExtractedNodes.end(); i++) {
-        delete (*i);
+    for (auto& item : myExtractedNodes) {
+        delete item.second;
     }
     myExtractedNodes.clear();
 }
@@ -1646,25 +1721,29 @@ void
 NBNodeCont::printBuiltNodesStatistics() const {
     int numUnregulatedJunctions = 0;
     int numDeadEndJunctions = 0;
+    int numTrafficLightJunctions = 0;
     int numPriorityJunctions = 0;
     int numRightBeforeLeftJunctions = 0;
     int numAllWayStopJunctions = 0;
     int numZipperJunctions = 0;
+    int numDistrictJunctions = 0;
+    int numRailCrossing = 0;
     int numRailSignals = 0;
     for (NodeCont::const_iterator i = myNodes.begin(); i != myNodes.end(); i++) {
         switch ((*i).second->getType()) {
             case NODETYPE_NOJUNCTION:
-            case NODETYPE_TRAFFIC_LIGHT_NOJUNCTION:
                 ++numUnregulatedJunctions;
                 break;
             case NODETYPE_DEAD_END:
                 ++numDeadEndJunctions;
                 break;
-            case NODETYPE_PRIORITY:
-            case NODETYPE_PRIORITY_STOP:
             case NODETYPE_TRAFFIC_LIGHT:
             case NODETYPE_TRAFFIC_LIGHT_RIGHT_ON_RED:
-            case NODETYPE_RAIL_CROSSING:
+            case NODETYPE_TRAFFIC_LIGHT_NOJUNCTION:
+                ++numTrafficLightJunctions;
+                break;
+            case NODETYPE_PRIORITY:
+            case NODETYPE_PRIORITY_STOP:
                 ++numPriorityJunctions;
                 break;
             case NODETYPE_RIGHT_BEFORE_LEFT:
@@ -1677,12 +1756,16 @@ NBNodeCont::printBuiltNodesStatistics() const {
                 ++numZipperJunctions;
                 break;
             case NODETYPE_DISTRICT:
-                ++numRightBeforeLeftJunctions;
+                ++numDistrictJunctions;
                 break;
-            case NODETYPE_UNKNOWN:
+            case NODETYPE_RAIL_CROSSING:
+                ++numRailCrossing;
                 break;
             case NODETYPE_RAIL_SIGNAL:
                 ++numRailSignals;
+                break;
+            case NODETYPE_UNKNOWN:
+                // should not happen
                 break;
             default:
                 break;
@@ -1695,14 +1778,23 @@ NBNodeCont::printBuiltNodesStatistics() const {
     }
     WRITE_MESSAGE("  Priority junctions          : " + toString(numPriorityJunctions));
     WRITE_MESSAGE("  Right-before-left junctions : " + toString(numRightBeforeLeftJunctions));
+    if (numTrafficLightJunctions > 0) {
+        WRITE_MESSAGE("  Traffic light junctions      : " + toString(numTrafficLightJunctions));
+    }
     if (numAllWayStopJunctions > 0) {
         WRITE_MESSAGE("  All-way stop junctions      : " + toString(numAllWayStopJunctions));
     }
     if (numZipperJunctions > 0) {
         WRITE_MESSAGE("  Zipper-merge junctions      : " + toString(numZipperJunctions));
     }
+    if (numRailCrossing > 0) {
+        WRITE_MESSAGE("  Rail crossing junctions      : " + toString(numRailCrossing));
+    }
     if (numRailSignals > 0) {
         WRITE_MESSAGE("  Rail signal junctions      : " + toString(numRailSignals));
+    }
+    if (numDistrictJunctions > 0) {
+        WRITE_MESSAGE("  District junctions      : " + toString(numDistrictJunctions));
     }
 }
 
@@ -1735,6 +1827,10 @@ NBNodeCont::discardTrafficLights(NBTrafficLightLogicCont& tlc, bool geometryLike
         if (node->isTLControlled() && (!geometryLike || node->geometryLike())) {
             // make a copy of tldefs
             const std::set<NBTrafficLightDefinition*> tldefs = node->getControllingTLS();
+            if (geometryLike && (*tldefs.begin())->getNodes().size() > 1) {
+                // do not remove joined tls when only removing geometry-like tls
+                continue;
+            }
             if (guessSignals && node->isTLControlled() && node->geometryLike()) {
                 // record signal location
                 const EdgeVector& outgoing = node->getOutgoingEdges();
@@ -1770,7 +1866,8 @@ NBNodeCont::remapIDs(bool numericaIDs, bool reservedIDs, const std::string& pref
     std::vector<std::string> avoid = getAllNames();
     std::set<std::string> reserve;
     if (reservedIDs) {
-        NBHelpers::loadPrefixedIDsFomFile(OptionsCont::getOptions().getString("reserved-ids"), "node:", reserve);
+        NBHelpers::loadPrefixedIDsFomFile(OptionsCont::getOptions().getString("reserved-ids"), "node:", reserve); // backward compatibility
+        NBHelpers::loadPrefixedIDsFomFile(OptionsCont::getOptions().getString("reserved-ids"), "junction:", reserve); // selection format
         avoid.insert(avoid.end(), reserve.begin(), reserve.end());
     }
     IDSupplier idSupplier("", avoid);

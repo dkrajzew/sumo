@@ -23,9 +23,9 @@
 #include <netedit/GNENet.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/netelements/GNELane.h>
-#include <netedit/frames/GNEInspectorFrame.h>
-#include <netedit/GNEViewParent.h>
-#include <netedit/GNEViewNet.h>
+#include <netedit/additionals/GNEShape.h>
+#include <netedit/additionals/GNEAdditional.h>
+#include <netedit/demandelements/GNEDemandElement.h>
 
 #include "GNEChange_Lane.h"
 
@@ -52,10 +52,13 @@ GNEChange_Lane::GNEChange_Lane(GNEEdge* edge, GNELane* lane, const NBEdge::Lane&
     if (myLane) {
         // non-zero pointer is passsed in case of removal or duplication
         myLane->incRef("GNEChange_Lane");
-        // Save additionals of lane
-        myAdditionalChilds = myLane->getAdditionalChilds();
-        // Save POILanes of lane
-        myShapeChilds = myLane->getShapeChilds();
+        // Save hierarchy elements of lane
+        myShapeParents = myLane->getShapeParents();
+        myAdditionalParents = myLane->getAdditionalParents();
+        myDemandElementParents = myLane->getDemandElementParents();
+        myShapeChildren = myLane->getShapeChildren();
+        myAdditionalChildren = myLane->getAdditionalChildren();
+        myDemandElementChildren = myLane->getDemandElementChildren();
     } else {
         assert(forward);
     }
@@ -92,13 +95,25 @@ GNEChange_Lane::undo() {
         }
         // remove lane from edge
         myEdge->removeLane(myLane, false);
-        // Remove additionals vinculated with this lane
-        for (auto i : myAdditionalChilds) {
-            myNet->deleteAdditional(i);
+        // Remove lane from parent elements
+        for (const auto& i : myShapeParents) {
+            i->removeLaneChild(myLane);
         }
-        // Remove Shapes vinculated with this lane of net
-        for (auto i : myShapeChilds) {
-            myNet->removeShape(i);
+        for (const auto& i : myAdditionalParents) {
+            i->removeLaneChild(myLane);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->removeLaneChild(myLane);
+        }
+        // Remove lane from child elements
+        for (const auto& i : myShapeChildren) {
+            i->removeLaneParent(myLane);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->removeLaneParent(myLane);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->removeLaneParent(myLane);
         }
     } else {
         // show extra information for tests
@@ -110,21 +125,29 @@ GNEChange_Lane::undo() {
         // add lane and their attributes to edge
         // (lane removal is reverted, no need to recompute connections)
         myEdge->addLane(myLane, myLaneAttrs, false);
-        // add additional sets vinculated with this lane of net
-        for (auto i : myAdditionalChilds) {
-            myNet->insertAdditional(i);
+        // add lane in parent elements
+        for (const auto& i : myShapeParents) {
+            i->addLaneChild(myLane);
         }
-        // add Shapes vinculated with this lane in net
-        for (auto i : myShapeChilds) {
-            myNet->removeShape(i);
+        for (const auto& i : myAdditionalParents) {
+            i->addLaneChild(myLane);
         }
-    }
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
+        for (const auto& i : myDemandElementParents) {
+            i->addLaneChild(myLane);
+        }
+        // add lane in child elements
+        for (const auto& i : myShapeChildren) {
+            i->addLaneParent(myLane);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->addLaneParent(myLane);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->addLaneParent(myLane);
+        }
     }
     // enable save netElements
-    myNet->requiereSaveNet(true);
+    myNet->requireSaveNet(true);
 }
 
 
@@ -139,13 +162,25 @@ GNEChange_Lane::redo() {
         }
         // add lane and their attributes to edge
         myEdge->addLane(myLane, myLaneAttrs, myRecomputeConnections);
-        // add additional vinculated with this lane of net
-        for (auto i : myAdditionalChilds) {
-            myNet->insertAdditional(i);
+        // add lane in parent elements
+        for (const auto& i : myShapeParents) {
+            i->addLaneChild(myLane);
         }
-        // add shapes vinculated with this lane in net
-        for (auto i : myShapeChilds) {
-            myNet->removeShape(i);
+        for (const auto& i : myAdditionalParents) {
+            i->addLaneChild(myLane);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->addLaneChild(myLane);
+        }
+        // add additional in child elements
+        for (const auto& i : myShapeChildren) {
+            i->addLaneParent(myLane);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->addLaneParent(myLane);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->addLaneParent(myLane);
         }
     } else {
         // show extra information for tests
@@ -154,23 +189,31 @@ GNEChange_Lane::redo() {
         } else {
             WRITE_DEBUG("Removing nullptr " + toString(SUMO_TAG_LANE) + " from " + toString(SUMO_TAG_EDGE));
         }
+        // Remove lane from parent elements
+        for (const auto& i : myShapeParents) {
+            i->removeLaneChild(myLane);
+        }
+        for (const auto& i : myAdditionalParents) {
+            i->removeLaneChild(myLane);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->removeLaneChild(myLane);
+        }
+        // Remove additional from child elements
+        for (const auto& i : myShapeChildren) {
+            i->removeLaneParent(myLane);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->removeLaneParent(myLane);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->removeLaneParent(myLane);
+        }
         // remove lane from edge
         myEdge->removeLane(myLane, myRecomputeConnections);
-        // Remove additional vinculated with this lane of net
-        for (auto i : myAdditionalChilds) {
-            myNet->deleteAdditional(i);
-        }
-        // Remove shapes vinculated with this lane of net
-        for (auto i : myShapeChilds) {
-            myNet->removeShape(i);
-        }
-    }
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
     }
     // enable save netElements
-    myNet->requiereSaveNet(true);
+    myNet->requireSaveNet(true);
 }
 
 

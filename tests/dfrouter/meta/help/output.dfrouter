@@ -1,5 +1,5 @@
-Eclipse SUMO dfrouter Version v1_1_0+0040-b68edb7a21e
- Copyright (C) 2001-2019 German Aerospace Center (DLR) and others; http://sumo.dlr.de
+Eclipse SUMO dfrouter Version v1_3_1+0470-4a6b08f445
+ Copyright (C) 2001-2019 German Aerospace Center (DLR) and others; https://sumo.dlr.de
 Builds vehicle routes for SUMO using detector values.
 
 Usage: dfrouter [OPTION]*
@@ -64,7 +64,7 @@ Processing Options:
   --max-search-depth INT               Number of edges to follow a route
                                          without passing a detector
   --emissions-only                     Writes only emission times
-  --disallowed-edges STR               Do not route on these edges
+  --disallowed-edges STR[]             Do not route on these edges
   --keep-turnarounds                   Allow turnarounds as route continuations
   --min-route-length FLOAT             Minimum distance in meters between start
                                          and end node of every route
@@ -105,7 +105,7 @@ Time Options:
 Report Options:
   -v, --verbose                        Switches to verbose output
   --print-options                      Prints option values before processing
-  -?, --help                           Prints this screen
+  -?, --help                           Prints this screen or selected topics
   -V, --version                        Prints the current version
   -X, --xml-validation STR             Set schema validation scheme of XML
                                          inputs ("never", "auto" or "always")

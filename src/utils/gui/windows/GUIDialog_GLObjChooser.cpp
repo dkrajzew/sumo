@@ -35,7 +35,6 @@
 #include <utils/gui/div/GUIGlobalSelection.h>
 #include <utils/gui/div/GUIDesigns.h>
 #include <utils/gui/globjects/GUIGlObject_AbstractAdd.h>
-#include <guisim/GUIVehicle.h>
 #include "GUIDialog_GLObjChooser.h"
 
 
@@ -50,7 +49,9 @@ FXDEFMAP(GUIDialog_GLObjChooser) GUIDialog_GLObjChooserMap[] = {
     FXMAPFUNC(SEL_COMMAND,  MID_CHOOSER_TEXT,   GUIDialog_GLObjChooser::onCmdText),
     FXMAPFUNC(SEL_KEYPRESS, MID_CHOOSER_LIST,   GUIDialog_GLObjChooser::onListKeyPress),
     FXMAPFUNC(SEL_COMMAND,  MID_CHOOSER_FILTER, GUIDialog_GLObjChooser::onCmdFilter),
+    FXMAPFUNC(SEL_COMMAND,  MID_CHOOSER_FILTER_SUBSTR, GUIDialog_GLObjChooser::onCmdFilterSubstr),
     FXMAPFUNC(SEL_COMMAND,  MID_CHOOSEN_INVERT,  GUIDialog_GLObjChooser::onCmdToggleSelection),
+    FXMAPFUNC(SEL_COMMAND,  MID_CHOOSEN_NAME,  GUIDialog_GLObjChooser::onCmdLocateByName),
 };
 
 FXIMPLEMENT(GUIDialog_GLObjChooser, FXMainWindow, GUIDialog_GLObjChooserMap, ARRAYNUMBER(GUIDialog_GLObjChooserMap))
@@ -61,7 +62,8 @@ FXIMPLEMENT(GUIDialog_GLObjChooser, FXMainWindow, GUIDialog_GLObjChooserMap, ARR
 // ===========================================================================
 GUIDialog_GLObjChooser::GUIDialog_GLObjChooser(GUIGlChildWindow* parent, FXIcon* icon, const FXString& title, const std::vector<GUIGlID>& ids, GUIGlObjectStorage& /*glStorage*/) :
     FXMainWindow(parent->getApp(), title, icon, nullptr, GUIDesignChooserDialog),
-    myParent(parent) {
+    myParent(parent),
+    myLocateByName(false) {
     FXHorizontalFrame* hbox = new FXHorizontalFrame(this, GUIDesignAuxiliarFrame);
     // build the list
     FXVerticalFrame* layoutLeft = new FXVerticalFrame(hbox, GUIDesignChooserLayoutLeft);
@@ -80,7 +82,9 @@ GUIDialog_GLObjChooser::GUIDialog_GLObjChooser(GUIGlChildWindow* parent, FXIcon*
     }
     new FXHorizontalSeparator(layoutRight, GUIDesignHorizontalSeparator);
     new FXButton(layoutRight, "&Hide Unselected\t\t", GUIIconSubSys::getIcon(ICON_FLAG), this, MID_CHOOSER_FILTER, GUIDesignChooserButtons);
+    new FXButton(layoutRight, "&Filter substring\t\t", nullptr, this, MID_CHOOSER_FILTER_SUBSTR, GUIDesignChooserButtons);
     new FXButton(layoutRight, "&Select/deselect\tSelect/deselect current object\t", GUIIconSubSys::getIcon(ICON_FLAG), this, MID_CHOOSEN_INVERT, GUIDesignChooserButtons);
+    new FXButton(layoutRight, "By &Name\tLocate item by name\t", nullptr, this, MID_CHOOSEN_NAME, GUIDesignChooserButtons);
     new FXHorizontalSeparator(layoutRight, GUIDesignHorizontalSeparator);
     new FXButton(layoutRight, "&Close\t\t", GUIIconSubSys::getIcon(ICON_NO), this, MID_CANCEL, GUIDesignChooserButtons);
 
@@ -122,13 +126,13 @@ GUIDialog_GLObjChooser::onCmdTrack(FXObject*, FXSelector, void*) {
         GUIGlID id = *static_cast<GUIGlID*>(myList->getItemData(selected));
         GUIGlObject* o = GUIGlObjectStorage::gIDStorage.getObjectBlocking(id);
         if (o->getType() == GLO_VEHICLE) {
-            GUIVehicle* v = (GUIVehicle*)o;
-            myParent->getView()->startTrack(v->getGlID());
+            myParent->getView()->startTrack(o->getGlID());
         }
         GUIGlObjectStorage::gIDStorage.unblockObject(id);
     }
     return 1;
 }
+
 
 long
 GUIDialog_GLObjChooser::onCmdClose(FXObject*, FXSelector, void*) {
@@ -139,7 +143,20 @@ GUIDialog_GLObjChooser::onCmdClose(FXObject*, FXSelector, void*) {
 
 long
 GUIDialog_GLObjChooser::onChgText(FXObject*, FXSelector, void*) {
-    int id = myList->findItem(myTextEntry->getText(), -1, SEARCH_PREFIX);
+    int id = -1;
+    if (myLocateByName) {
+        // findItem does not support substring search
+        const int numItems = myList->getNumItems();
+        FXString t = myTextEntry->getText().lower();
+        for (int i = 0; i < numItems; i++) {
+            if (myList->getItemText(i).lower().find(t) >= 0) {
+                id = i;
+                break;
+            }
+        }
+    } else {
+        id = myList->findItem(myTextEntry->getText(), -1, SEARCH_PREFIX);
+    }
     if (id < 0) {
         if (myList->getNumItems() > 0) {
             myList->deselectItem(myList->getCurrentItem());
@@ -198,9 +215,30 @@ GUIDialog_GLObjChooser::onCmdFilter(FXObject*, FXSelector, void*) {
     return 1;
 }
 
+
+long
+GUIDialog_GLObjChooser::onCmdFilterSubstr(FXObject*, FXSelector, void*) {
+    std::vector<GUIGlID> selectedGlIDs;
+    const int numItems = myList->getNumItems();
+    FXString t = myTextEntry->getText().lower();
+    for (int i = 0; i < numItems; i++) {
+        if (myList->getItemText(i).lower().find(t) >= 0) {
+            const GUIGlID glID = *static_cast<GUIGlID*>(myList->getItemData(i));
+            selectedGlIDs.push_back(glID);
+        }
+    }
+    refreshList(selectedGlIDs);
+    return 1;
+}
+
+
 std::string
 GUIDialog_GLObjChooser::getObjectName(GUIGlObject* o) const {
-    return o->getMicrosimID();
+    if (myLocateByName) {
+        return o->getOptionalName();
+    } else {
+        return o->getMicrosimID();
+    }
 }
 
 void
@@ -236,6 +274,31 @@ GUIDialog_GLObjChooser::onCmdToggleSelection(FXObject*, FXSelector, void*) {
     }
     myList->update();
     myParent->getView()->update();
+    return 1;
+}
+
+
+long
+GUIDialog_GLObjChooser::onCmdLocateByName(FXObject*, FXSelector, void*) {
+    std::vector<std::pair<std::string, GUIGlID> > namesAndIDs;
+    myLocateByName = true;
+    const int numItems = myList->getNumItems();
+    for (int i = 0; i < numItems; i++) {
+        GUIGlID glID = *static_cast<GUIGlID*>(myList->getItemData(i));
+        GUIGlObject* o = GUIGlObjectStorage::gIDStorage.getObjectBlocking(glID);
+        const std::string& name = getObjectName(o);
+        if (name != "") {
+            namesAndIDs.push_back(std::make_pair(name, glID));
+        }
+        GUIGlObjectStorage::gIDStorage.unblockObject(glID);
+    }
+    std::sort(namesAndIDs.begin(), namesAndIDs.end());
+    std::vector<GUIGlID> selectedGlIDs;
+    for (const auto& item : namesAndIDs) {
+        selectedGlIDs.push_back(item.second);
+    }
+    refreshList(selectedGlIDs);
+    myTextEntry->setFocus();
     return 1;
 }
 

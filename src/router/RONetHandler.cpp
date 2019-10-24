@@ -49,7 +49,9 @@
 // ===========================================================================
 RONetHandler::RONetHandler(RONet& net, ROAbstractEdgeBuilder& eb, const bool ignoreInternal, const double minorPenalty) :
     SUMOSAXHandler("sumo-network"),
-    myNet(net), myEdgeBuilder(eb), myIgnoreInternal(ignoreInternal),
+    myNet(net),
+    myNetworkVersion(0),
+    myEdgeBuilder(eb), myIgnoreInternal(ignoreInternal),
     myCurrentName(), myCurrentEdge(nullptr), myCurrentStoppingPlace(nullptr),
     myMinorPenalty(minorPenalty)
 {}
@@ -65,6 +67,11 @@ RONetHandler::myStartElement(int element,
         case SUMO_TAG_LOCATION:
             setLocation(attrs);
             break;
+        case SUMO_TAG_NET: {
+            bool ok;
+            myNetworkVersion = attrs.get<double>(SUMO_ATTR_VERSION, nullptr, ok, false);
+            break;
+        }
         case SUMO_TAG_EDGE:
             // in the first step, we do need the name to allocate the edge
             // in the second, we need it to know to which edge we have to add
@@ -112,6 +119,9 @@ RONetHandler::myStartElement(int element,
             }
             break;
         }
+        case SUMO_TAG_PARAM:
+            addParam(attrs);
+            break;
         default:
             break;
     }
@@ -129,6 +139,19 @@ RONetHandler::myEndElement(int element) {
             break;
         default:
             break;
+    }
+}
+
+
+void
+RONetHandler::addParam(const SUMOSAXAttributes& attrs) {
+    bool ok = true;
+    const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, nullptr, ok);
+    // circumventing empty string test
+    const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
+    // add parameter in current created element, or in myLoadedParameterised
+    if (myCurrentEdge != nullptr) {
+        myCurrentEdge->setParameter(key, val);
     }
 }
 
@@ -219,7 +242,7 @@ RONetHandler::parseLane(const SUMOSAXAttributes& attrs) {
     }
     // get the length
     // get the vehicle classes
-    SVCPermissions permissions = parseVehicleClasses(allow, disallow);
+    SVCPermissions permissions = parseVehicleClasses(allow, disallow, myNetworkVersion);
     if (permissions != SVCAll) {
         myNet.setPermissionsFound();
     }
@@ -318,7 +341,7 @@ RONetHandler::parseStoppingPlace(const SUMOSAXAttributes& attrs, const SumoXMLTa
     myCurrentStoppingPlace->startPos = attrs.getOpt<double>(SUMO_ATTR_STARTPOS, id.c_str(), ok, 0.);
     myCurrentStoppingPlace->endPos = attrs.getOpt<double>(SUMO_ATTR_ENDPOS, id.c_str(), ok, edge->getLength());
     const bool friendlyPos = attrs.getOpt<bool>(SUMO_ATTR_FRIENDLY_POS, id.c_str(), ok, false);
-    if (!ok || !SUMORouteHandler::checkStopPos(myCurrentStoppingPlace->startPos, myCurrentStoppingPlace->endPos, edge->getLength(), POSITION_EPS, friendlyPos)) {
+    if (!ok || (SUMORouteHandler::checkStopPos(myCurrentStoppingPlace->startPos, myCurrentStoppingPlace->endPos, edge->getLength(), POSITION_EPS, friendlyPos) != SUMORouteHandler::StopPos::STOPPOS_VALID)) {
         throw InvalidArgument("Invalid position for " + toString(element) + " '" + id + "'.");
     }
     // this is a hack: the busstop attribute is meant to hold the id within the simulation context but this is not used within the router context
@@ -335,10 +358,14 @@ RONetHandler::parseAccess(const SUMOSAXAttributes& attrs) {
     if (edge == nullptr) {
         throw InvalidArgument("Unknown lane '" + lane + "' for access.");
     }
+    if ((edge->getPermissions() & SVC_PEDESTRIAN) == 0) {
+        WRITE_WARNING("Ignoring invalid access from non-pedestrian edge '" + edge->getID() + "'.");
+        return;
+    }
     double pos = attrs.getOpt<double>(SUMO_ATTR_POSITION, "access", ok, 0.);
     const double length = attrs.getOpt<double>(SUMO_ATTR_LENGTH, "access", ok, -1);
     const bool friendlyPos = attrs.getOpt<bool>(SUMO_ATTR_FRIENDLY_POS, "access", ok, false);
-    if (!ok || !SUMORouteHandler::checkStopPos(pos, pos, edge->getLength(), 0., friendlyPos)) {
+    if (!ok || (SUMORouteHandler::checkStopPos(pos, pos, edge->getLength(), 0., friendlyPos) != SUMORouteHandler::StopPos::STOPPOS_VALID)) {
         throw InvalidArgument("Invalid position " + toString(pos) + " for access on lane '" + lane + "'.");
     }
     if (!ok) {

@@ -31,6 +31,7 @@
 #include <set>
 #include <random>
 #include <microsim/MSMoveReminder.h>
+#include <microsim/MSVehicleType.h>
 #include <microsim/MSVehicleControl.h>
 #include <utils/common/Named.h>
 #include <utils/common/StringUtils.h>
@@ -46,7 +47,7 @@ class SUMOVehicle;
 class MSTransportable;
 class SUMOSAXAttributes;
 class MSVehicleDevice;
-class MSPersonDevice;
+class MSTransportableDevice;
 
 
 // ===========================================================================
@@ -85,7 +86,7 @@ public:
     * @param[in] p The person for which a device may be built
     * @param[filled] into The vector to store the built device in
     */
-    static void buildPersonDevices(MSTransportable& p, std::vector<MSPersonDevice*>& into);
+    static void buildTransportableDevices(MSTransportable& p, std::vector<MSTransportableDevice*>& into);
 
     static std::mt19937* getEquipmentRNG() {
         return &myEquipmentRNG;
@@ -94,17 +95,12 @@ public:
     /// @brief return the name for this type of device
     virtual const std::string deviceName() const = 0;
 
-    /** @brief Determines whether a transportable should get a certain device
-     **/
-    static bool equippedByParameter(const MSTransportable* t, const std::string& deviceName, bool outputOptionSet);
-
     /// @brief perform cleanup for all devices
     static void cleanupAll();
 
 public:
     /** @brief Constructor
      *
-     * @param[in] holder The vehicle that holds this device
      * @param[in] id The ID of the device
      */
     MSDevice(const std::string& id) : Named(id) {
@@ -242,6 +238,11 @@ MSDevice::equippedByDefaultAssignmentOptions(const OptionsCont& oc, const std::s
         parameterGiven = true;
         haveByParameter = StringUtils::toBool(v.getVehicleType().getParameter().getParameter(key, "false"));
     }
+    //std::cout << " deviceName=" << deviceName << " holder=" << v.getID() 
+    //    << " nameGiven=" << nameGiven << " haveByName=" << haveByName 
+    //    << " parameterGiven=" << parameterGiven << " haveByParameter=" << haveByParameter
+    //    << " numberGiven=" << numberGiven << " haveByNumber=" << haveByNumber
+    //    << " outputOptionSet=" << outputOptionSet << "\n";
     if (haveByName) {
         return true;
     } else if (parameterGiven) {

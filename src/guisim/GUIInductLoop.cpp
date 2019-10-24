@@ -42,9 +42,10 @@
  * GUIInductLoop-methods
  * ----------------------------------------------------------------------- */
 GUIInductLoop::GUIInductLoop(const std::string& id, MSLane* const lane,
-                             double position, const std::string& vTypes) : 
+                             double position, const std::string& vTypes, bool show) :
     MSInductLoop(id, lane, position, vTypes),
-    myWrapper(nullptr)
+    myWrapper(nullptr),
+    myShow(show)
 {}
 
 
@@ -67,19 +68,19 @@ GUIInductLoop::reset() {
 
 
 void
-GUIInductLoop::enterDetectorByMove(SUMOVehicle& veh, double entryTimestep) {
+GUIInductLoop::enterDetectorByMove(SUMOTrafficObject& veh, double entryTimestep) {
     FXMutexLock locker(myLock);
     MSInductLoop::enterDetectorByMove(veh, entryTimestep);
 }
 
 void
-GUIInductLoop::leaveDetectorByMove(SUMOVehicle& veh, double leaveTimestep) {
+GUIInductLoop::leaveDetectorByMove(SUMOTrafficObject& veh, double leaveTimestep) {
     FXMutexLock locker(myLock);
     MSInductLoop::leaveDetectorByMove(veh, leaveTimestep);
 }
 
 void
-GUIInductLoop::leaveDetectorByLaneChange(SUMOVehicle& veh, double lastPos) {
+GUIInductLoop::leaveDetectorByLaneChange(SUMOTrafficObject& veh, double lastPos) {
     FXMutexLock locker(myLock);
     MSInductLoop::leaveDetectorByLaneChange(veh, lastPos);
 }
@@ -92,7 +93,7 @@ GUIInductLoop::collectVehiclesOnDet(SUMOTime t, bool leaveTime) const {
 }
 
 
-void 
+void
 GUIInductLoop::setSpecialColor(const RGBColor* color) {
     if (myWrapper != nullptr) {
         myWrapper->setSpecialColor(color);
@@ -107,8 +108,7 @@ GUIInductLoop::setSpecialColor(const RGBColor* color) {
 GUIInductLoop::MyWrapper::MyWrapper(GUIInductLoop& detector, double pos) :
     GUIDetectorWrapper(GLO_E1DETECTOR, detector.getID()),
     myDetector(detector), myPosition(pos),
-    mySpecialColor(nullptr)
-{
+    mySpecialColor(nullptr) {
     myFGPosition = detector.getLane()->geometryPositionAtOffset(pos);
     myBoundary.add(myFGPosition.x() + (double) 5.5, myFGPosition.y() + (double) 5.5);
     myBoundary.add(myFGPosition.x() - (double) 5.5, myFGPosition.y() - (double) 5.5);
@@ -155,6 +155,9 @@ GUIInductLoop::MyWrapper::getParameterWindow(GUIMainWindow& app,
 
 void
 GUIInductLoop::MyWrapper::drawGL(const GUIVisualizationSettings& s) const {
+    if (!myDetector.isVisible()) {
+        return;
+    }
     glPushName(getGlID());
     double width = (double) 2.0 * s.scale;
     glLineWidth(1.0);

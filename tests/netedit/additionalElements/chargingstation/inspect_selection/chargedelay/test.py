@@ -35,26 +35,26 @@ netedit.selectionInvert()
 netedit.inspectMode()
 
 # inspect chargingStations
-netedit.leftClick(referencePosition, 150, 250)
+netedit.leftClick(referencePosition, 150, 255)
 
 # Set invalid charge delay
-netedit.modifyAttribute(6, "dummyChargeDelay", True)
+netedit.modifyAttribute(5, "dummyChargeDelay", True)
 
 # Set invalid charge delay
-netedit.modifyAttribute(6, "-2", True)
+netedit.modifyAttribute(5, "-2", True)
 
 # Set valid charge delay
-netedit.modifyAttribute(6, "6.3", True)
+netedit.modifyAttribute(5, "6.3", True)
 
 # Check undo redo
 netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

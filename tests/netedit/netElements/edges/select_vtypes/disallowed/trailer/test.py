@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.selectMode()
 
 # select all edges with disallow = "trailer" and remove it
-netedit.selectItems("Net Element", "edge", "disallow", "=trailer")
+netedit.selectItems("Net Element", "edge", "disallow", "trailer")
 netedit.deleteSelectedItems()
 
 # recompute
@@ -45,7 +45,7 @@ netedit.rebuildNetwork()
 netedit.redo(referencePosition, 1)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

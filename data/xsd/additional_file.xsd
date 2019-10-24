@@ -7,7 +7,7 @@
 
     <xsd:element name="additional" type="additionalType"/>
     <xsd:element name="rerouterValue" type="rerouterValuesType"/>
-    
+
     <xsd:complexType name="additionalType">
         <xsd:choice maxOccurs="unbounded">
             <xsd:element name="location" type="locationType" minOccurs="0" maxOccurs="1"/>
@@ -217,6 +217,7 @@
         </xsd:attribute>
         <xsd:attribute name="withInternal" type="boolType" use="optional"/>
         <xsd:attribute name="trackVehicles" type="boolType" use="optional"/>
+        <xsd:attribute name="detectPersons" type="xsd:string" use="optional"/>
         <xsd:attribute name="vTypes" type="xsd:string" use="optional"/>
     </xsd:complexType>
 
@@ -224,6 +225,7 @@
         <xsd:attribute name="type" use="required">
             <xsd:simpleType>
                 <xsd:restriction base="xsd:string">
+                    <xsd:enumeration value="SaveTLSProgram"/>
                     <xsd:enumeration value="SaveTLSStates"/>
                     <xsd:enumeration value="SaveTLSSwitchTimes"/>
                     <xsd:enumeration value="SaveTLSSwitchStates"/>
@@ -364,6 +366,7 @@
         <xsd:attribute name="endPos" type="xsd:float"/>
         <xsd:attribute name="friendlyPos" type="boolType" use="optional"/>
         <xsd:attribute name="lines" type="xsd:string" use="optional"/>
+        <xsd:attribute name="personCapacity" type="nonNegativeIntType" use="optional"/>
     </xsd:complexType>
     
     <xsd:complexType name="containerStopType">
@@ -452,6 +455,7 @@
         <xsd:attribute name="file" type="xsd:string" use="optional"/>
         <xsd:attribute name="output" type="xsd:string" use="optional"/>
         <xsd:attribute name="routeProbe" type="xsd:string" use="optional"/>
+        <xsd:attribute name="vTypes" type="xsd:string" use="optional"/>
         <xsd:attribute name="name" type="xsd:string" use="optional"/>
     </xsd:complexType>
 

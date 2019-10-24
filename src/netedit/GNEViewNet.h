@@ -32,7 +32,6 @@
 #include <utils/gui/settings/GUIPropertyScheme.h>
 #include <utils/gui/settings/GUIVisualizationSettings.h>
 #include <utils/gui/windows/GUISUMOAbstractView.h>
-#include <utils/gui/windows/GUISUMOAbstractView.h>
 
 // ===========================================================================
 // class definitions
@@ -44,7 +43,7 @@
 class GNEViewNet : public GUISUMOAbstractView {
     /// @brief FOX-declaration
     FXDECLARE(GNEViewNet)
-    
+
     /// @brief declare GNEViewNetHelper as friend struct
     friend struct GNEViewNetHelper;
 
@@ -69,6 +68,9 @@ public:
     /// @brief builds the view toolbars
     void buildViewToolBars(GUIGlChildWindow&);
 
+    /// @brief Mark the entire GNEViewNet to be repainted later
+    void update() const;
+
     /// @brief get AttributeCarriers in Boundary
     std::set<std::pair<std::string, GNEAttributeCarrier*> > getAttributeCarriersInBoundary(const Boundary& boundary, bool forceSelectEdges = false);
 
@@ -82,25 +84,38 @@ public:
     bool setColorScheme(const std::string& name);
 
     ///@brief recalibrate color scheme according to the current value range
-    void buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType);
+    void buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType,
+                           bool hide = false, double hideThreshold = 0.);
 
-    //@brief open object dialog
+    /// @brief return list of available edge parameters
+    std::vector<std::string> getEdgeLaneParamKeys(bool edgeKeys) const;
+
+    /// @brief open object dialog
     void openObjectDialog();
+
+    // save visualization settings
+    void saveVisualizationSettings() const;
 
     /// @brief get edit modes
     const GNEViewNetHelper::EditModes& getEditModes() const;
+    
+    /// @brief get testing mode
+    const GNEViewNetHelper::TestingMode& getTestingMode() const;
 
-    /// @brief get move options
-    const GNEViewNetHelper::MoveOptions& getMoveOptions() const;
+    /// @brief get Common view options
+    const GNEViewNetHelper::CommonViewOptions& getCommonViewOptions() const;
 
-    /// @brief get view options
-    const GNEViewNetHelper::ViewOptions& getViewOptions() const;
+    /// @brief get network view options
+    const GNEViewNetHelper::NetworkViewOptions& getNetworkViewOptions() const;
 
-    // @brief get Create Edge Options
-    const GNEViewNetHelper::CreateEdgeOptions& getCreateEdgeOptions() const;
+    /// @brief get demand view options
+    const GNEViewNetHelper::DemandViewOptions& getDemandViewOptions() const;
 
     /// @brief get Key Pressed modul
     const GNEViewNetHelper::KeyPressed& getKeyPressed() const;
+
+    /// @brief get Edit Shape modul
+    const GNEViewNetHelper::EditShapes& getEditShapes() const;
 
     /// @name overloaded handlers
     /// @{
@@ -166,6 +181,9 @@ public:
     /// @brief smooth elevation with regard to adjoining edges
     long onCmdSmoothEdgesElevation(FXObject*, FXSelector, void*);
 
+    /// @brief reset custom edge lengths
+    long onCmdResetLength(FXObject*, FXSelector, void*);
+
     /// @brief simply shape of current polygon
     long onCmdSimplifyShape(FXObject*, FXSelector, void*);
 
@@ -208,6 +226,9 @@ public:
     /// @brief split junction into multiple junctions
     long onCmdSplitJunction(FXObject*, FXSelector, void*);
 
+    /// @brief split junction into multiple junctions and reconnect them
+    long onCmdSplitJunctionReconnect(FXObject*, FXSelector, void*);
+
     /// @brief clear junction connections
     long onCmdClearConnections(FXObject*, FXSelector, void*);
 
@@ -220,29 +241,62 @@ public:
     /// @brief edit crossing shape
     long onCmdEditCrossingShape(FXObject*, FXSelector, void*);
 
-    /// @brief toogle show connections
-    long onCmdToogleShowConnection(FXObject*, FXSelector, void*);
-
+    /// @name View options network call backs
+    /// @{
     /// @brief toogle show demand elements
-    long onCmdShowDemandElements(FXObject*, FXSelector, void*);
+    long onCmdToogleShowDemandElements(FXObject*, FXSelector, void*);
 
     /// @brief toogle select edges
     long onCmdToogleSelectEdges(FXObject*, FXSelector, void*);
 
-    /// @brief toogle show bubbles
-    long onCmdToogleShowBubbles(FXObject*, FXSelector, void*);
+    /// @brief toogle show connections
+    long onCmdToogleShowConnections(FXObject*, FXSelector, void*);
+
+    /// @brief toogle hide connections
+    long onCmdToogleHideConnections(FXObject*, FXSelector, void*);
+
+    /// @brief toogle extend selection
+    long onCmdToogleExtendSelection(FXObject*, FXSelector, void*);
+
+    /// @brief toogle change all phases
+    long onCmdToogleChangeAllPhases(FXObject*, FXSelector, void*);
+
+    /// @brief toogle show grid
+    long onCmdToogleShowGrid(FXObject*, FXSelector, void*);
+
+    /// @brief toogle warn for merge
+    long onCmdToogleWarnAboutMerge(FXObject*, FXSelector, void*);
+
+    /// @brief toogle show junction bubbles
+    long onCmdToogleShowJunctionBubbles(FXObject*, FXSelector, void*);
 
     /// @brief toogle move elevation
     long onCmdToogleMoveElevation(FXObject*, FXSelector, void*);
+
+    /// @brief toogle chain edges
+    long onCmdToogleChainEdges(FXObject*, FXSelector, void*);
+
+    /// @brief toogle autoOpposite edge
+    long onCmdToogleAutoOppositeEdge(FXObject*, FXSelector, void*);
+
+    /// @brief toogle hide non inspected demand elements
+    long onCmdToogleHideNonInspecteDemandElements(FXObject*, FXSelector, void*);
+
+    /// @brief toogle hide shapes in super mode demand
+    long onCmdToogleHideShapes(FXObject*, FXSelector, void*);
+
+    /// @brief toogle show all person plans in super mode demand
+    long onCmdToogleShowAllPersonPlans(FXObject*, FXSelector, void*);
+
+    /// @brief toogle lock person in super mode demand
+    long onCmdToogleLockPerson(FXObject*, FXSelector, void*);
+    /// @}
 
     /// @brief select AC under cursor
     long onCmdAddSelected(FXObject*, FXSelector, void*);
 
     /// @brief unselect AC under cursor
     long onCmdRemoveSelected(FXObject*, FXSelector, void*);
-
-    /// @brief toogle show grid
-    long onCmdShowGrid(FXObject*, FXSelector, void*);
 
     /// @brief abort current edition operation
     void abortOperation(bool clearSelection = true);
@@ -252,6 +306,9 @@ public:
 
     /// @brief handle enter keypress
     void hotkeyEnter();
+
+    /// @brief handle backspace keypress
+    void hotkeyBackSpace();
 
     /// @brief handle focus frame keypress
     void hotkeyFocusFrame();
@@ -292,12 +349,6 @@ public:
     /// @brief return true if junction must be showed as bubbles
     bool showJunctionAsBubbles() const;
 
-    /// @brief start edit custom shape
-    void startEditCustomShape(GNENetElement* element, const PositionVector& shape, bool fill);
-
-    /// @brief edit edit shape
-    void stopEditCustomShape();
-
 protected:
     /// @brief FOX needs this
     GNEViewNet();
@@ -328,7 +379,7 @@ private:
     /// @brief variable use to save all pointers to objects under cursor after a click
     GNEViewNetHelper::ObjectsUnderCursor myObjectsUnderCursor;
     /// @}
-    
+
     /// @name structs related with checkable buttons
     /// @{
 
@@ -341,24 +392,22 @@ private:
     /// @brief variable used to save checkable buttons for Supermode Demand
     GNEViewNetHelper::DemandCheckableButtons myDemandCheckableButtons;
     /// @}
-    
-    /// @name structs related with Common options
-    /// @{
-    /// @brief variable used to save variables related with selecting areas
-    GNEViewNetHelper::SelectingArea mySelectingArea;
 
-    /// @brief variable used to save variables related with view options
-    GNEViewNetHelper::ViewOptions myViewOptions;
+    /// @name structs related with view options
+    /// @{
+
+    /// @brief variable used to save variables related with common view options
+    GNEViewNetHelper::CommonViewOptions myCommonViewOptions;
+
+    /// @brief variable used to save variables related with view options in Network Supermode
+    GNEViewNetHelper::NetworkViewOptions myNetworkViewOptions;
+
+    /// @brief variable used to save variables related with view options in Demand Supermode
+    GNEViewNetHelper::DemandViewOptions myDemandViewOptions;
     /// @}
-    
-    /// @name structs related with Network options
+
+    /// @name structs related with move elements
     /// @{
-    /// @brief variable used to save all elements related to creation of Edges
-    GNEViewNetHelper::CreateEdgeOptions myCreateEdgeOptions;
-
-    /// @brief variable used to save all elements related to moving elements
-    GNEViewNetHelper::MoveOptions myMoveOptions;
-
     /// @brief variable used to save variables related with movement of single elements
     GNEViewNetHelper::MoveSingleElementValues myMoveSingleElementValues;
 
@@ -376,6 +425,12 @@ private:
     GNEViewNetHelper::VehicleTypeOptions myVehicleTypeOptions;
     // @}
 
+    /// @brief variable used to save variables related with selecting areas
+    GNEViewNetHelper::SelectingArea mySelectingArea;
+
+    /// @brief struct for grouping all variables related with edit shapes
+    GNEViewNetHelper::EditShapes myEditShapes;
+
     /// @brief view parent
     GNEViewParent* myViewParent;
 
@@ -392,15 +447,6 @@ private:
      * note: it's constant because is edited from constant functions (example: drawGL(...) const)
      */
     const GNEAttributeCarrier* myDottedAC;
-
-    /// @name variables for edit shapes
-    /// @{
-    /// @brief  polygon used for edit shapes
-    GNEPoly* myEditShapePoly;
-
-    /// @brief the previous edit mode before edit junction's shapes
-    NetworkEditMode myPreviousNetworkEditMode;
-    /// @}
 
     /// @brief create edit mode buttons and elements
     void buildEditModeControls();

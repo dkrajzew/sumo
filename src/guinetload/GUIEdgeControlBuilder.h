@@ -78,7 +78,8 @@ public:
                             double maxSpeed, double length,
                             const PositionVector& shape, double width,
                             SVCPermissions permissions,
-                            int index, bool isRampAccel);
+                            int index, bool isRampAccel,
+                            const std::string& type);
 
 
 
@@ -91,7 +92,7 @@ public:
      * @param[in] id The id of the edge to build
      */
     MSEdge* buildEdge(const std::string& id, const SumoXMLEdgeFunc function,
-                      const std::string& streetName, const std::string& edgeType, const int priority);
+                      const std::string& streetName, const std::string& edgeType, const int priority, const double distance);
 
 
 private:

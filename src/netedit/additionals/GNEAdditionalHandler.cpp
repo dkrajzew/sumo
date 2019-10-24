@@ -27,6 +27,7 @@
 #include <netedit/GNEUndoList.h>
 #include <netedit/GNENet.h>
 #include <utils/options/OptionsCont.h>
+#include <utils/vehicle/SUMORouteHandler.h>
 
 #include "GNEAdditionalHandler.h"
 #include "GNEBusStop.h"
@@ -61,11 +62,9 @@
 // GNEAdditionalHandler method definitions
 // ===========================================================================
 
-GNEAdditionalHandler::GNEAdditionalHandler(const std::string& file, GNEViewNet* viewNet, bool undoAdditionals, GNEAdditional* additionalParent) :
+GNEAdditionalHandler::GNEAdditionalHandler(const std::string& file, GNEViewNet* viewNet, GNEAdditional* additionalParent) :
     ShapeHandler(file, *viewNet->getNet()),
-    myViewNet(viewNet),
-    myUndoAdditionals(undoAdditionals),
-    myAdditionalParent(additionalParent) {
+    myViewNet(viewNet) {
     // check if we're loading values of another additionals (example: Rerouter values)
     if (additionalParent) {
         myHierarchyInsertedAdditionals.insertElement(additionalParent->getTagProperty().getTag());
@@ -83,14 +82,18 @@ void
 GNEAdditionalHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
     // Obtain tag of element
     SumoXMLTag tag = static_cast<SumoXMLTag>(element);
-    // check if we're parsing a generic parameter
+    // check if we're parsing a parameter
     if (tag == SUMO_TAG_PARAM) {
         // push element int stack
         myHierarchyInsertedAdditionals.insertElement(tag);
-        // parse generic parameter
-        parseGenericParameter(attrs);
+        // parse parameter
+        parseParameter(attrs);
     } else if (tag != SUMO_TAG_NOTHING) {
         // push element int stack
+        if (tag == SUMO_TAG_TRAIN_STOP) {
+            // ensure that access elements can find their parent in myHierarchyInsertedAdditionals
+            tag = SUMO_TAG_BUS_STOP;
+        }
         myHierarchyInsertedAdditionals.insertElement(tag);
         // Call parse and build depending of tag
         switch (tag) {
@@ -116,8 +119,8 @@ GNEAdditionalHandler::myEndElement(int element) {
             if (TAZ != nullptr) {
                 if (TAZ->getShape().size() == 0) {
                     Boundary b;
-                    if (TAZ->getAdditionalChilds().size() > 0) {
-                        for (const auto& i : TAZ->getAdditionalChilds()) {
+                    if (TAZ->getAdditionalChildren().size() > 0) {
+                        for (const auto& i : TAZ->getAdditionalChildren()) {
                             b.add(i->getCenteringBoundary());
                         }
                         PositionVector boundaryShape;
@@ -163,7 +166,7 @@ GNEAdditionalHandler::getLanePos(const std::string& poiID, const std::string& la
 
 
 bool
-GNEAdditionalHandler::buildAdditional(GNEViewNet* viewNet, bool allowUndoRedo, SumoXMLTag tag, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::buildAdditional(GNEViewNet* viewNet, bool allowUndoRedo, SumoXMLTag tag, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     // Call parse and build depending of tag
     switch (tag) {
         case SUMO_TAG_BUS_STOP:
@@ -179,6 +182,7 @@ GNEAdditionalHandler::buildAdditional(GNEViewNet* viewNet, bool allowUndoRedo, S
         case SUMO_TAG_INDUCTION_LOOP:
             return parseAndBuildDetectorE1(viewNet, allowUndoRedo, attrs, insertedAdditionals);
         case SUMO_TAG_E2DETECTOR:
+        case SUMO_TAG_E2DETECTOR_MULTILANE:
         case SUMO_TAG_LANE_AREA_DETECTOR:
             return parseAndBuildDetectorE2(viewNet, allowUndoRedo, attrs, insertedAdditionals);
         case SUMO_TAG_E3DETECTOR:
@@ -205,12 +209,13 @@ GNEAdditionalHandler::buildAdditional(GNEViewNet* viewNet, bool allowUndoRedo, S
         case SUMO_TAG_STEP:
             return parseAndBuildVariableSpeedSignStep(viewNet, allowUndoRedo, attrs, insertedAdditionals);
         case SUMO_TAG_CALIBRATOR:
+        case SUMO_TAG_LANECALIBRATOR:
             return parseAndBuildCalibrator(viewNet, allowUndoRedo, attrs, insertedAdditionals);
         case SUMO_TAG_PARKING_AREA:
             return parseAndBuildParkingArea(viewNet, allowUndoRedo, attrs, insertedAdditionals);
         case SUMO_TAG_PARKING_SPACE:
             return parseAndBuildParkingSpace(viewNet, allowUndoRedo, attrs, insertedAdditionals);
-        case SUMO_TAG_CALIBRATORFLOW:
+        case SUMO_TAG_FLOW_CALIBRATOR:
             return parseAndBuildCalibratorFlow(viewNet, allowUndoRedo, attrs, insertedAdditionals);
         case SUMO_TAG_REROUTER:
             return parseAndBuildRerouter(viewNet, allowUndoRedo, attrs, insertedAdditionals);
@@ -233,9 +238,10 @@ GNEAdditionalHandler::buildAdditional(GNEViewNet* viewNet, bool allowUndoRedo, S
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildBusStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const std::string& startPos, const std::string& endPos, const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement) {
+GNEAdditionalHandler::buildBusStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
+        const std::string& name, const std::vector<std::string>& lines, int personCapacity, bool friendlyPosition, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_BUS_STOP, id, false) == nullptr) {
-        GNEBusStop* busStop = new GNEBusStop(id, lane, viewNet, startPos, endPos, name, lines, friendlyPosition, blockMovement);
+        GNEBusStop* busStop = new GNEBusStop(id, lane, viewNet, startPos, endPos, parametersSet, name, lines, personCapacity, friendlyPosition, blockMovement);
         if (allowUndoRedo) {
             viewNet->getUndoList()->p_begin("add " + toString(SUMO_TAG_BUS_STOP));
             viewNet->getUndoList()->add(new GNEChange_Additional(busStop, true), true);
@@ -279,9 +285,10 @@ GNEAdditionalHandler::buildAccess(GNEViewNet* viewNet, bool allowUndoRedo, GNEAd
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const std::string& startPos, const std::string& endPos, const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement) {
+GNEAdditionalHandler::buildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
+        const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_CONTAINER_STOP, id, false) == nullptr) {
-        GNEContainerStop* containerStop = new GNEContainerStop(id, lane, viewNet, startPos, endPos, name, lines, friendlyPosition, blockMovement);
+        GNEContainerStop* containerStop = new GNEContainerStop(id, lane, viewNet, startPos, endPos, parametersSet, name, lines, friendlyPosition, blockMovement);
         if (allowUndoRedo) {
             viewNet->getUndoList()->p_begin("add " + toString(SUMO_TAG_CONTAINER_STOP));
             viewNet->getUndoList()->add(new GNEChange_Additional(containerStop, true), true);
@@ -299,10 +306,10 @@ GNEAdditionalHandler::buildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildChargingStation(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const std::string& startPos, const std::string& endPos, const std::string& name,
-        double chargingPower, double efficiency, bool chargeInTransit, double chargeDelay, bool friendlyPosition, bool blockMovement) {
+GNEAdditionalHandler::buildChargingStation(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
+        const std::string& name, double chargingPower, double efficiency, bool chargeInTransit, SUMOTime chargeDelay, bool friendlyPosition, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_CHARGING_STATION, id, false) == nullptr) {
-        GNEChargingStation* chargingStation = new GNEChargingStation(id, lane, viewNet, startPos, endPos, name, chargingPower, efficiency, chargeInTransit, chargeDelay, friendlyPosition, blockMovement);
+        GNEChargingStation* chargingStation = new GNEChargingStation(id, lane, viewNet, startPos, endPos, parametersSet, name, chargingPower, efficiency, chargeInTransit, chargeDelay, friendlyPosition, blockMovement);
         if (allowUndoRedo) {
             viewNet->getUndoList()->p_begin("add " + toString(SUMO_TAG_CHARGING_STATION));
             viewNet->getUndoList()->add(new GNEChange_Additional(chargingStation, true), true);
@@ -320,10 +327,10 @@ GNEAdditionalHandler::buildChargingStation(GNEViewNet* viewNet, bool allowUndoRe
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildParkingArea(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const std::string& startPos, const std::string& endPos, const std::string& name,
-                                       bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length, double angle, bool blockMovement) {
+GNEAdditionalHandler::buildParkingArea(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
+        const std::string& name, bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length, double angle, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_PARKING_AREA, id, false) == nullptr) {
-        GNEParkingArea* parkingArea = new GNEParkingArea(id, lane, viewNet, startPos, endPos, name, friendlyPosition, roadSideCapacity, onRoad, width, length, angle, blockMovement);
+        GNEParkingArea* parkingArea = new GNEParkingArea(id, lane, viewNet, startPos, endPos, parametersSet, name, friendlyPosition, roadSideCapacity, onRoad, width, length, angle, blockMovement);
         if (allowUndoRedo) {
             viewNet->getUndoList()->p_begin("add " + toString(SUMO_TAG_PARKING_AREA));
             viewNet->getUndoList()->add(new GNEChange_Additional(parkingArea, true), true);
@@ -357,7 +364,7 @@ GNEAdditionalHandler::buildParkingSpace(GNEViewNet* viewNet, bool allowUndoRedo,
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildDetectorE1(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement) {
+GNEAdditionalHandler::buildDetectorE1(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_E1DETECTOR, id, false) == nullptr) {
         GNEDetectorE1* detectorE1 = new GNEDetectorE1(id, lane, viewNet, pos, freq, filename, vehicleTypes, name, friendlyPos, blockMovement);
         if (allowUndoRedo) {
@@ -377,8 +384,8 @@ GNEAdditionalHandler::buildDetectorE1(GNEViewNet* viewNet, bool allowUndoRedo, c
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildSingleLaneDetectorE2(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, double length, double freq, const std::string& filename,
-        const std::string& vehicleTypes, const std::string& name, const double timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement) {
+GNEAdditionalHandler::buildSingleLaneDetectorE2(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, double length, SUMOTime freq, const std::string& filename,
+        const std::string& vehicleTypes, const std::string& name, SUMOTime timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_E2DETECTOR, id, false) == nullptr) {
         GNEDetectorE2* detectorE2 = new GNEDetectorE2(id, lane, viewNet, pos, length, freq, filename, vehicleTypes, name, timeThreshold, speedThreshold, jamThreshold, friendlyPos, blockMovement);
         if (allowUndoRedo) {
@@ -398,8 +405,8 @@ GNEAdditionalHandler::buildSingleLaneDetectorE2(GNEViewNet* viewNet, bool allowU
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildMultiLaneDetectorE2(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, const std::vector<GNELane*>& lanes, double pos, double endPos, double freq, const std::string& filename,
-        const std::string& vehicleTypes, const std::string& name, const double timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement) {
+GNEAdditionalHandler::buildMultiLaneDetectorE2(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, const std::vector<GNELane*>& lanes, double pos, double endPos, SUMOTime freq, const std::string& filename,
+        const std::string& vehicleTypes, const std::string& name, SUMOTime timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_E2DETECTOR_MULTILANE, id, false) == nullptr) {
         GNEDetectorE2* detectorE2 = new GNEDetectorE2(id, lanes, viewNet, pos, endPos, freq, filename, vehicleTypes, name, timeThreshold, speedThreshold, jamThreshold, friendlyPos, blockMovement);
         if (allowUndoRedo) {
@@ -423,8 +430,8 @@ GNEAdditionalHandler::buildMultiLaneDetectorE2(GNEViewNet* viewNet, bool allowUn
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildDetectorE3(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, Position pos, double freq, const std::string& filename, const std::string& vehicleTypes,
-                                      const std::string& name, const double timeThreshold, double speedThreshold, bool blockMovement) {
+GNEAdditionalHandler::buildDetectorE3(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, Position pos, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes,
+                                      const std::string& name, SUMOTime timeThreshold, double speedThreshold, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_E3DETECTOR, id, false) == nullptr) {
         GNEDetectorE3* detectorE3 = new GNEDetectorE3(id, viewNet, pos, freq, filename, vehicleTypes, name, timeThreshold, speedThreshold, blockMovement);
         if (allowUndoRedo) {
@@ -511,7 +518,7 @@ GNEAdditionalHandler::buildDetectorE1Instant(GNEViewNet* viewNet, bool allowUndo
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, const std::string& name, const std::string& outfile, const double freq, const std::string& routeprobe) {
+GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, const std::string& name, const std::string& outfile, const SUMOTime freq, const std::string& routeprobe, bool centerAfterCreation) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_CALIBRATOR, id, false) == nullptr) {
         GNECalibrator* calibrator = new GNECalibrator(id, viewNet, lane, pos, freq, name, outfile, routeprobe);
         if (allowUndoRedo) {
@@ -519,7 +526,9 @@ GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, c
             viewNet->getUndoList()->add(new GNEChange_Additional(calibrator, true), true);
             viewNet->getUndoList()->p_end();
             // center after creation
-            viewNet->centerTo(calibrator->getGlID(), false);
+            if (centerAfterCreation) {
+                viewNet->centerTo(calibrator->getPositionInView(), false);
+            }
         } else {
             viewNet->getNet()->insertAdditional(calibrator);
             lane->addAdditionalChild(calibrator);
@@ -533,7 +542,7 @@ GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, c
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNEEdge* edge, double pos, const std::string& name, const std::string& outfile, const double freq, const std::string& routeprobe) {
+GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNEEdge* edge, double pos, const std::string& name, const std::string& outfile, const SUMOTime freq, const std::string& routeprobe, bool centerAfterCreation) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_CALIBRATOR, id, false) == nullptr) {
         GNECalibrator* calibrator = new GNECalibrator(id, viewNet, edge, pos, freq, name, outfile, routeprobe);
         if (allowUndoRedo) {
@@ -541,7 +550,9 @@ GNEAdditionalHandler::buildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, c
             viewNet->getUndoList()->add(new GNEChange_Additional(calibrator, true), true);
             viewNet->getUndoList()->p_end();
             // center after creation
-            viewNet->centerTo(calibrator->getGlID(), false);
+            if (centerAfterCreation) {
+                viewNet->centerTo(calibrator->getPositionInView(), false);
+            }
         } else {
             viewNet->getNet()->insertAdditional(calibrator);
             edge->addAdditionalChild(calibrator);
@@ -558,7 +569,7 @@ GNEAdditional*
 GNEAdditionalHandler::buildCalibratorFlow(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* calibratorParent, GNEDemandElement* route, GNEDemandElement* vType,
         const std::string& vehsPerHour, const std::string& speed, const RGBColor& color, const std::string& departLane, const std::string& departPos,
         const std::string& departSpeed, const std::string& arrivalLane, const std::string& arrivalPos, const std::string& arrivalSpeed, const std::string& line,
-        int personNumber, int containerNumber, bool reroute, const std::string& departPosLat, const std::string& arrivalPosLat, double begin, double end) {
+        int personNumber, int containerNumber, bool reroute, const std::string& departPosLat, const std::string& arrivalPosLat, SUMOTime begin, SUMOTime end) {
 
     // create Flow and add it to calibrator parent
     GNECalibratorFlow* flow = new GNECalibratorFlow(calibratorParent, vType, route, vehsPerHour, speed, color, departLane, departPos, departSpeed,
@@ -577,7 +588,7 @@ GNEAdditionalHandler::buildCalibratorFlow(GNEViewNet* viewNet, bool allowUndoRed
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildRerouter(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, Position pos, const std::vector<GNEEdge*>& edges, double prob, const std::string& name, const std::string& file, bool off, double timeThreshold, const std::string& vTypes, bool blockMovement) {
+GNEAdditionalHandler::buildRerouter(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, Position pos, const std::vector<GNEEdge*>& edges, double prob, const std::string& name, const std::string& file, bool off, SUMOTime timeThreshold, const std::string& vTypes, bool blockMovement) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_REROUTER, id, false) == nullptr) {
         GNERerouter* rerouter = new GNERerouter(id, viewNet, pos, edges, name, file, prob, off, timeThreshold, vTypes, blockMovement);
         if (allowUndoRedo) {
@@ -592,12 +603,12 @@ GNEAdditionalHandler::buildRerouter(GNEViewNet* viewNet, bool allowUndoRedo, con
             }
             rerouter->incRef("buildRerouter");
         }
-        // parse rerouter childs
+        // parse rerouter children
         if (!file.empty()) {
             // we assume that rerouter values files is placed in the same folder as the additional file
             std::string currentAdditionalFilename = FileHelpers::getFilePath(OptionsCont::getOptions().getString("additional-files"));
             // Create additional handler for parse rerouter values
-            GNEAdditionalHandler rerouterValuesHandler(currentAdditionalFilename + file, viewNet, allowUndoRedo, rerouter);
+            GNEAdditionalHandler rerouterValuesHandler(currentAdditionalFilename + file, viewNet, rerouter);
             // disable validation for rerouters
             XMLSubSys::setValidation("never", "auto");
             // Run parser
@@ -615,7 +626,7 @@ GNEAdditionalHandler::buildRerouter(GNEViewNet* viewNet, bool allowUndoRedo, con
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildRerouterInterval(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* rerouterParent, double begin, double end) {
+GNEAdditionalHandler::buildRerouterInterval(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* rerouterParent, SUMOTime begin, SUMOTime end) {
     // check if new interval will produce a overlapping
     if (checkOverlappingRerouterIntervals(rerouterParent, begin, end)) {
         // create rerouter interval and add it into rerouter parent
@@ -721,7 +732,7 @@ GNEAdditionalHandler::buildRouteProbReroute(GNEViewNet* viewNet, bool allowUndoR
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildRouteProbe(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNEEdge* edge, const std::string& freq, const std::string& name, const std::string& file, double begin) {
+GNEAdditionalHandler::buildRouteProbe(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNEEdge* edge, const std::string& freq, const std::string& name, const std::string& file, SUMOTime begin, bool centerAfterCreation) {
     if (viewNet->getNet()->retrieveAdditional(SUMO_TAG_ROUTEPROBE, id, false) == nullptr) {
         GNERouteProbe* routeProbe = new GNERouteProbe(id, viewNet, edge, freq, name, file, begin);
         if (allowUndoRedo) {
@@ -729,7 +740,9 @@ GNEAdditionalHandler::buildRouteProbe(GNEViewNet* viewNet, bool allowUndoRedo, c
             viewNet->getUndoList()->add(new GNEChange_Additional(routeProbe, true), true);
             viewNet->getUndoList()->p_end();
             // center after creation
-            viewNet->centerTo(routeProbe->getGlID(), false);
+            if (centerAfterCreation) {
+                viewNet->centerTo(routeProbe->getPositionInView(), false);
+            }
         } else {
             viewNet->getNet()->insertAdditional(routeProbe);
             edge->addAdditionalChild(routeProbe);
@@ -783,14 +796,16 @@ GNEAdditionalHandler::buildVariableSpeedSignStep(GNEViewNet* viewNet, bool allow
 
 
 GNEAdditional*
-GNEAdditionalHandler::buildVaporizer(GNEViewNet* viewNet, bool allowUndoRedo, GNEEdge* edge, double startTime, double end, const std::string& name) {
-    GNEVaporizer* vaporizer = new GNEVaporizer(viewNet, edge, startTime, end, name);
+GNEAdditionalHandler::buildVaporizer(GNEViewNet* viewNet, bool allowUndoRedo, GNEEdge* edge, SUMOTime startTime, SUMOTime endTime, const std::string& name, bool centerAfterCreation) {
+    GNEVaporizer* vaporizer = new GNEVaporizer(viewNet, edge, startTime, endTime, name);
     if (allowUndoRedo) {
         viewNet->getUndoList()->p_begin("add " + toString(SUMO_TAG_VAPORIZER));
         viewNet->getUndoList()->add(new GNEChange_Additional(vaporizer, true), true);
         viewNet->getUndoList()->p_end();
         // center after creation
-        viewNet->centerTo(vaporizer->getGlID(), false);
+        if (centerAfterCreation) {
+            viewNet->centerTo(vaporizer->getPositionInView(), false);
+        }
     } else {
         viewNet->getNet()->insertAdditional(vaporizer);
         edge->addAdditionalChild(vaporizer);
@@ -803,6 +818,8 @@ GNEAdditionalHandler::buildVaporizer(GNEViewNet* viewNet, bool allowUndoRedo, GN
 GNEAdditional*
 GNEAdditionalHandler::buildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, const PositionVector& shape, const RGBColor& color, const std::vector<GNEEdge*>& edges, bool blockMovement) {
     GNETAZ* TAZ = new GNETAZ(id, viewNet, shape, color, blockMovement);
+    // disable updating geometry of TAZ children during insertion (because in large nets provokes slowdowns)
+    viewNet->getNet()->disableUpdateGeometry();
     if (allowUndoRedo) {
         viewNet->getUndoList()->p_begin("add " + toString(SUMO_TAG_TAZ));
         viewNet->getUndoList()->add(new GNEChange_Additional(TAZ, true), true);
@@ -830,6 +847,11 @@ GNEAdditionalHandler::buildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, const st
             TAZ->addAdditionalChild(TAZSink);
         }
     }
+    // enable updating geometry again and update geometry of TAZ
+    viewNet->getNet()->enableUpdateGeometry();
+    // update TAZ Frame
+    TAZ->updateGeometry();
+    TAZ->updateAdditionalParent();
     return TAZ;
 }
 
@@ -838,7 +860,7 @@ GNEAdditional*
 GNEAdditionalHandler::buildTAZSource(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* TAZ, GNEEdge* edge, double departWeight) {
     GNEAdditional* TAZSink = nullptr;
     // first check if a TAZSink in the same edge for the same TAZ
-    for (auto i : TAZ->getAdditionalChilds()) {
+    for (auto i : TAZ->getAdditionalChildren()) {
         if ((i->getTagProperty().getTag() == SUMO_TAG_TAZSINK) && (i->getAttribute(SUMO_ATTR_EDGE) == edge->getID())) {
             TAZSink = i;
         }
@@ -859,7 +881,7 @@ GNEAdditionalHandler::buildTAZSource(GNEViewNet* viewNet, bool allowUndoRedo, GN
     // now check check if TAZSource exist
     GNEAdditional* TAZSource = nullptr;
     // first check if a TAZSink in the same edge for the same TAZ
-    for (auto i : TAZ->getAdditionalChilds()) {
+    for (auto i : TAZ->getAdditionalChildren()) {
         if ((i->getTagProperty().getTag() == SUMO_TAG_TAZSOURCE) && (i->getAttribute(SUMO_ATTR_EDGE) == edge->getID())) {
             TAZSource = i;
         }
@@ -895,7 +917,7 @@ GNEAdditional*
 GNEAdditionalHandler::buildTAZSink(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* TAZ, GNEEdge* edge, double arrivalWeight) {
     GNEAdditional* TAZSource = nullptr;
     // first check if a TAZSink in the same edge for the same TAZ
-    for (auto i : TAZ->getAdditionalChilds()) {
+    for (auto i : TAZ->getAdditionalChildren()) {
         if ((i->getTagProperty().getTag() == SUMO_TAG_TAZSOURCE) && (i->getAttribute(SUMO_ATTR_EDGE) == edge->getID())) {
             TAZSource = i;
         }
@@ -915,7 +937,7 @@ GNEAdditionalHandler::buildTAZSink(GNEViewNet* viewNet, bool allowUndoRedo, GNEA
     }
     GNEAdditional* TAZSink = nullptr;
     // first check if a TAZSink in the same edge for the same TAZ
-    for (auto i : TAZ->getAdditionalChilds()) {
+    for (auto i : TAZ->getAdditionalChildren()) {
         if ((i->getTagProperty().getTag() == SUMO_TAG_TAZSINK) && (i->getAttribute(SUMO_ATTR_EDGE) == edge->getID())) {
             TAZSink = i;
         }
@@ -999,7 +1021,7 @@ GNEAdditionalHandler::accessCanBeCreated(GNEAdditional* busStopParent, GNEEdge& 
     // check that busStopParent is a busStop
     assert(busStopParent->getTagProperty().getTag() == SUMO_TAG_BUS_STOP);
     // check if exist another acces for the same busStop in the given edge
-    for (auto i : busStopParent->getAdditionalChilds()) {
+    for (auto i : busStopParent->getAdditionalChildren()) {
         for (auto j : edge.getLanes()) {
             if (i->getAttribute(SUMO_ATTR_LANE) == j->getID()) {
                 return false;
@@ -1011,21 +1033,21 @@ GNEAdditionalHandler::accessCanBeCreated(GNEAdditional* busStopParent, GNEEdge& 
 
 
 bool
-GNEAdditionalHandler::checkOverlappingRerouterIntervals(GNEAdditional* rerouter, double newBegin, double newEnd) {
+GNEAdditionalHandler::checkOverlappingRerouterIntervals(GNEAdditional* rerouter, SUMOTime newBegin, SUMOTime newEnd) {
     // check that rerouter is correct
     assert(rerouter->getTagProperty().getTag() == SUMO_TAG_REROUTER);
-    // declare a vector to keep sorted rerouter childs
-    std::vector<std::pair<double, double>> sortedIntervals;
-    // iterate over additional childs
-    for (auto i : rerouter->getAdditionalChilds()) {
-        sortedIntervals.push_back(std::make_pair(0., 0.));
+    // declare a vector to keep sorted rerouter children
+    std::vector<std::pair<SUMOTime, SUMOTime>> sortedIntervals;
+    // iterate over additional children
+    for (auto i : rerouter->getAdditionalChildren()) {
+        sortedIntervals.push_back(std::make_pair((SUMOTime)0., (SUMOTime)0.));
         // set begin and end
-        sortedIntervals.back().first = GNEAttributeCarrier::parse<double>(i->getAttribute(SUMO_ATTR_BEGIN));
-        sortedIntervals.back().second = GNEAttributeCarrier::parse<double>(i->getAttribute(SUMO_ATTR_END));
+        sortedIntervals.back().first = TIME2STEPS(i->getAttributeDouble(SUMO_ATTR_BEGIN));
+        sortedIntervals.back().second = TIME2STEPS(i->getAttributeDouble(SUMO_ATTR_END));
     }
     // add new intervals
     sortedIntervals.push_back(std::make_pair(newBegin, newEnd));
-    // sort childs
+    // sort children
     std::sort(sortedIntervals.begin(), sortedIntervals.end());
     // check overlapping after sorting
     for (int i = 0; i < (int)sortedIntervals.size() - 1; i++) {
@@ -1040,13 +1062,15 @@ GNEAdditionalHandler::checkOverlappingRerouterIntervals(GNEAdditional* rerouter,
 
 
 bool
-GNEAdditionalHandler::parseAndBuildVaporizer(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildVaporizer(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Vaporizer
     const std::string edgeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_VAPORIZER, SUMO_ATTR_ID, abort);
-    double begin = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_VAPORIZER, SUMO_ATTR_BEGIN, abort);
-    double end = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_VAPORIZER, SUMO_ATTR_END, abort);
+    SUMOTime begin = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, "", SUMO_TAG_VAPORIZER, SUMO_ATTR_BEGIN, abort);
+    SUMOTime end = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, "", SUMO_TAG_VAPORIZER, SUMO_ATTR_END, abort);
     std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_VAPORIZER, SUMO_ATTR_NAME, abort);
+    // extra check for center element after creation
+    bool centerAfterCreation = attrs.hasAttribute(GNE_ATTR_CENTER_AFTER_CREATION);
     // Continue if all parameters were successfully loaded
     if (!abort) {
         // get GNEEdge
@@ -1060,9 +1084,9 @@ GNEAdditionalHandler::parseAndBuildVaporizer(GNEViewNet* viewNet, bool allowUndo
             WRITE_WARNING("Time interval of " + toString(SUMO_TAG_VAPORIZER) + " isn't valid. Attribute '" + toString(SUMO_ATTR_BEGIN) + "' is greater than attribute '" + toString(SUMO_ATTR_END) + "'.");
         } else {
             // build vaporizer
-            GNEAdditional *additionalCreated = buildVaporizer(viewNet, allowUndoRedo, edge, begin, end, name);
+            GNEAdditional* additionalCreated = buildVaporizer(viewNet, allowUndoRedo, edge, begin, end, name, centerAfterCreation);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1072,8 +1096,8 @@ GNEAdditionalHandler::parseAndBuildVaporizer(GNEViewNet* viewNet, bool allowUndo
 }
 
 
-bool 
-GNEAdditionalHandler::parseAndBuildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+bool
+GNEAdditionalHandler::parseAndBuildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Vaporizer
     const std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_TAZ, SUMO_ATTR_ID, abort);
@@ -1081,7 +1105,7 @@ GNEAdditionalHandler::parseAndBuildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, 
     RGBColor color = GNEAttributeCarrier::parseAttributeFromXML<RGBColor>(attrs, id, SUMO_TAG_TAZ, SUMO_ATTR_COLOR, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_TAZ, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // check edges
@@ -1108,9 +1132,9 @@ GNEAdditionalHandler::parseAndBuildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, 
             WRITE_WARNING("There is another " + toString(SUMO_TAG_TAZ) + " with the same ID='" + id + "'.");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildTAZ(viewNet, allowUndoRedo, id, shape, color, edges, blockMovement);
+            GNEAdditional* additionalCreated = buildTAZ(viewNet, allowUndoRedo, id, shape, color, edges, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1120,8 +1144,8 @@ GNEAdditionalHandler::parseAndBuildTAZ(GNEViewNet* viewNet, bool allowUndoRedo, 
 }
 
 
-bool 
-GNEAdditionalHandler::parseAndBuildTAZSource(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+bool
+GNEAdditionalHandler::parseAndBuildTAZSource(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Vaporizer
     const std::string edgeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_TAZSOURCE, SUMO_ATTR_ID, abort);
@@ -1132,7 +1156,7 @@ GNEAdditionalHandler::parseAndBuildTAZSource(GNEViewNet* viewNet, bool allowUndo
         GNEEdge* edge = viewNet->getNet()->retrieveEdge(edgeID, false);
         GNEAdditional* TAZ = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             TAZ = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_TAZ);
         } else {
             bool ok = true;
@@ -1145,9 +1169,9 @@ GNEAdditionalHandler::parseAndBuildTAZSource(GNEViewNet* viewNet, bool allowUndo
             WRITE_WARNING("A " + toString(SUMO_TAG_TAZSOURCE) + " must be declared within the definition of a " + toString(SUMO_TAG_TAZ) + ".");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildTAZSource(viewNet, allowUndoRedo, TAZ, edge, departWeight);
+            GNEAdditional* additionalCreated = buildTAZSource(viewNet, allowUndoRedo, TAZ, edge, departWeight);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1157,8 +1181,8 @@ GNEAdditionalHandler::parseAndBuildTAZSource(GNEViewNet* viewNet, bool allowUndo
 }
 
 
-bool 
-GNEAdditionalHandler::parseAndBuildTAZSink(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+bool
+GNEAdditionalHandler::parseAndBuildTAZSink(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Vaporizer
     const std::string edgeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_TAZSINK, SUMO_ATTR_ID, abort);
@@ -1169,7 +1193,7 @@ GNEAdditionalHandler::parseAndBuildTAZSink(GNEViewNet* viewNet, bool allowUndoRe
         GNEEdge* edge = viewNet->getNet()->retrieveEdge(edgeID, false);
         GNEAdditional* TAZ = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             TAZ = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_TAZ);
         } else {
             bool ok = true;
@@ -1182,9 +1206,9 @@ GNEAdditionalHandler::parseAndBuildTAZSink(GNEViewNet* viewNet, bool allowUndoRe
             WRITE_WARNING("A " + toString(SUMO_TAG_TAZSINK) + " must be declared within the definition of a " + toString(SUMO_TAG_TAZ) + ".");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildTAZSink(viewNet, allowUndoRedo, TAZ, edge, arrivalWeight);
+            GNEAdditional* additionalCreated = buildTAZSink(viewNet, allowUndoRedo, TAZ, edge, arrivalWeight);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1195,7 +1219,7 @@ GNEAdditionalHandler::parseAndBuildTAZSink(GNEViewNet* viewNet, bool allowUndoRe
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRouteProbe(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRouteProbe(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of RouteProbe
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_ROUTEPROBE, SUMO_ATTR_ID, abort);
@@ -1203,7 +1227,9 @@ GNEAdditionalHandler::parseAndBuildRouteProbe(GNEViewNet* viewNet, bool allowUnd
     std::string freq = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_ROUTEPROBE, SUMO_ATTR_FREQUENCY, abort);
     std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_ROUTEPROBE, SUMO_ATTR_NAME, abort);
     std::string file = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_ROUTEPROBE, SUMO_ATTR_FILE, abort);
-    double begin = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_ROUTEPROBE, SUMO_ATTR_BEGIN, abort);
+    SUMOTime begin = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_ROUTEPROBE, SUMO_ATTR_BEGIN, abort);
+    // extra check for center element after creation
+    bool centerAfterCreation = attrs.hasAttribute(GNE_ATTR_CENTER_AFTER_CREATION);
     // Continue if all parameters were sucesfully loaded
     if (!abort) {
         // get edge
@@ -1228,9 +1254,9 @@ GNEAdditionalHandler::parseAndBuildRouteProbe(GNEViewNet* viewNet, bool allowUnd
                 freq = "";
             }
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildRouteProbe(viewNet, allowUndoRedo, id, edge, freq, name, file, begin);
+            GNEAdditional* additionalCreated = buildRouteProbe(viewNet, allowUndoRedo, id, edge, freq, name, file, begin, centerAfterCreation);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1241,28 +1267,28 @@ GNEAdditionalHandler::parseAndBuildRouteProbe(GNEViewNet* viewNet, bool allowUnd
 
 
 bool
-GNEAdditionalHandler::parseAndBuildCalibratorFlow(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildCalibratorFlow(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of calibrator flows
-    std::string vehicleTypeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_TYPE, abort);
-    std::string routeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_ROUTE, abort);
-    std::string vehsPerHour = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_VEHSPERHOUR, abort);
-    std::string speed = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_SPEED, abort);
-    RGBColor color = GNEAttributeCarrier::parseAttributeFromXML<RGBColor>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_COLOR, abort);
-    std::string departLane = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_DEPARTLANE, abort);
-    std::string departPos = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_DEPARTPOS, abort);
-    std::string departSpeed = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_DEPARTSPEED, abort);
-    std::string arrivalLane = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_ARRIVALLANE, abort);
-    std::string arrivalPos = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_ARRIVALPOS, abort);
-    std::string arrivalSpeed = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_ARRIVALSPEED, abort);
-    std::string line = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_LINE, abort);
-    int personNumber = GNEAttributeCarrier::parseAttributeFromXML<int>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_PERSON_NUMBER, abort);
-    int containerNumber = GNEAttributeCarrier::parseAttributeFromXML<int>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_CONTAINER_NUMBER, abort);
-    bool reroute = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_REROUTE, abort);
-    std::string departPosLat = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_DEPARTPOS_LAT, abort);
-    std::string arrivalPosLat = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_ARRIVALPOS_LAT, abort);
-    double begin = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_BEGIN, abort);
-    double end = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_CALIBRATORFLOW, SUMO_ATTR_END, abort);
+    std::string vehicleTypeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_TYPE, abort);
+    std::string routeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_ROUTE, abort);
+    std::string vehsPerHour = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_VEHSPERHOUR, abort);
+    std::string speed = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_SPEED, abort);
+    RGBColor color = GNEAttributeCarrier::parseAttributeFromXML<RGBColor>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_COLOR, abort);
+    std::string departLane = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_DEPARTLANE, abort);
+    std::string departPos = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_DEPARTPOS, abort);
+    std::string departSpeed = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_DEPARTSPEED, abort);
+    std::string arrivalLane = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_ARRIVALLANE, abort);
+    std::string arrivalPos = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_ARRIVALPOS, abort);
+    std::string arrivalSpeed = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_ARRIVALSPEED, abort);
+    std::string line = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_LINE, abort);
+    int personNumber = GNEAttributeCarrier::parseAttributeFromXML<int>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_PERSON_NUMBER, abort);
+    int containerNumber = GNEAttributeCarrier::parseAttributeFromXML<int>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_CONTAINER_NUMBER, abort);
+    bool reroute = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_REROUTE, abort);
+    std::string departPosLat = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_DEPARTPOS_LAT, abort);
+    std::string arrivalPosLat = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_ARRIVALPOS_LAT, abort);
+    SUMOTime begin = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_BEGIN, abort);
+    SUMOTime end = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, "", SUMO_TAG_FLOW_CALIBRATOR, SUMO_ATTR_END, abort);
     // Continue if all parameters were sucesfully loaded
     if (!abort) {
         // obtain route, vehicle type and calibrator parent
@@ -1270,7 +1296,7 @@ GNEAdditionalHandler::parseAndBuildCalibratorFlow(GNEViewNet* viewNet, bool allo
         GNEDemandElement* vtype = viewNet->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, vehicleTypeID, false);
         GNEAdditional* calibrator = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             calibrator = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_CALIBRATOR);
         } else {
             bool ok = true;
@@ -1278,20 +1304,20 @@ GNEAdditionalHandler::parseAndBuildCalibratorFlow(GNEViewNet* viewNet, bool allo
         }
         // check that all elements are valid
         if (route == nullptr) {
-            WRITE_WARNING(toString(SUMO_TAG_CALIBRATORFLOW) + " cannot be created; their " + toString(SUMO_TAG_ROUTE) + " with ID = '" + routeID + "' doesn't exist");
+            WRITE_WARNING(toString(SUMO_TAG_FLOW_CALIBRATOR) + " cannot be created; their " + toString(SUMO_TAG_ROUTE) + " with ID = '" + routeID + "' doesn't exist");
             abort = true;
         } else if (vtype == nullptr) {
-            WRITE_WARNING(toString(SUMO_TAG_CALIBRATORFLOW) + " cannot be created; their " + toString(SUMO_TAG_VTYPE) + " with ID = '" + vehicleTypeID + "' doesn't exist");
+            WRITE_WARNING(toString(SUMO_TAG_FLOW_CALIBRATOR) + " cannot be created; their " + toString(SUMO_TAG_VTYPE) + " with ID = '" + vehicleTypeID + "' doesn't exist");
             abort = true;
         } else if ((vehsPerHour.empty()) && (speed.empty())) {
-            WRITE_WARNING(toString(SUMO_TAG_CALIBRATORFLOW) + " cannot be created; At least parameters " + toString(SUMO_ATTR_VEHSPERHOUR) + " or " + toString(SUMO_ATTR_SPEED) + " has to be defined");
+            WRITE_WARNING(toString(SUMO_TAG_FLOW_CALIBRATOR) + " cannot be created; At least parameters " + toString(SUMO_ATTR_VEHSPERHOUR) + " or " + toString(SUMO_ATTR_SPEED) + " has to be defined");
             abort = true;
         } else if (calibrator != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildCalibratorFlow(viewNet, allowUndoRedo, calibrator, route, vtype, vehsPerHour, speed, color, departLane, departPos, departSpeed, arrivalLane, arrivalPos, arrivalSpeed,
-                                                                   line, personNumber, containerNumber, reroute, departPosLat, arrivalPosLat, begin, end);
+            GNEAdditional* additionalCreated = buildCalibratorFlow(viewNet, allowUndoRedo, calibrator, route, vtype, vehsPerHour, speed, color, departLane, departPos, departSpeed, arrivalLane, arrivalPos, arrivalSpeed,
+                                               line, personNumber, containerNumber, reroute, departPosLat, arrivalPosLat, begin, end);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1301,7 +1327,7 @@ GNEAdditionalHandler::parseAndBuildCalibratorFlow(GNEViewNet* viewNet, bool allo
 }
 
 
-void 
+void
 GNEAdditionalHandler::parseAndBuildPoly(const SUMOSAXAttributes& attrs) {
     bool abort = false;
     // parse attributes of polygons
@@ -1315,6 +1341,11 @@ GNEAdditionalHandler::parseAndBuildPoly(const SUMOSAXAttributes& attrs) {
     double angle = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, polygonID, SUMO_TAG_POLY, SUMO_ATTR_ANGLE, abort);
     std::string imgFile = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, polygonID, SUMO_TAG_POLY, SUMO_ATTR_IMGFILE, abort);
     bool relativePath = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, polygonID, SUMO_TAG_POLY, SUMO_ATTR_RELATIVEPATH, abort);
+    // check if ID is valid
+    if (SUMOXMLDefinitions::isValidTypeID(polygonID) == false) {
+        WRITE_WARNING("Invalid characters for polygon ID");
+        abort = true;
+    }
     // Continue if all parameters were sucesfully loaded
     if (!abort) {
         // check if shape must be loaded as geo attribute
@@ -1347,7 +1378,7 @@ GNEAdditionalHandler::parseAndBuildPoly(const SUMOSAXAttributes& attrs) {
 
 
 bool
-GNEAdditionalHandler::parseAndBuildVariableSpeedSign(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildVariableSpeedSign(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of VSS
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_VSS, SUMO_ATTR_ID, abort);
@@ -1357,7 +1388,7 @@ GNEAdditionalHandler::parseAndBuildVariableSpeedSign(GNEViewNet* viewNet, bool a
     Position pos = GNEAttributeCarrier::parseAttributeFromXML<Position>(attrs, id, SUMO_TAG_VSS, SUMO_ATTR_POSITION, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_VSS, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1374,9 +1405,9 @@ GNEAdditionalHandler::parseAndBuildVariableSpeedSign(GNEViewNet* viewNet, bool a
             WRITE_WARNING("A Variable Speed Sign needs at least one lane.");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildVariableSpeedSign(viewNet, allowUndoRedo, id, pos, lanes, name, blockMovement);
+            GNEAdditional* additionalCreated = buildVariableSpeedSign(viewNet, allowUndoRedo, id, pos, lanes, name, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1387,7 +1418,7 @@ GNEAdditionalHandler::parseAndBuildVariableSpeedSign(GNEViewNet* viewNet, bool a
 
 
 bool
-GNEAdditionalHandler::parseAndBuildVariableSpeedSignStep(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildVariableSpeedSignStep(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // Load step values
     double time = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_STEP, SUMO_ATTR_TIME, abort);
@@ -1397,7 +1428,7 @@ GNEAdditionalHandler::parseAndBuildVariableSpeedSignStep(GNEViewNet* viewNet, bo
         // get Variable Speed Signal
         GNEAdditional* variableSpeedSign = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             variableSpeedSign = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_VSS);
         } else {
             bool ok = true;
@@ -1406,9 +1437,9 @@ GNEAdditionalHandler::parseAndBuildVariableSpeedSignStep(GNEViewNet* viewNet, bo
         // check that all parameters are valid
         if (variableSpeedSign != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildVariableSpeedSignStep(viewNet, allowUndoRedo, variableSpeedSign, time, speed);
+            GNEAdditional* additionalCreated = buildVariableSpeedSignStep(viewNet, allowUndoRedo, variableSpeedSign, time, speed);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1419,7 +1450,7 @@ GNEAdditionalHandler::parseAndBuildVariableSpeedSignStep(GNEViewNet* viewNet, bo
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouter(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouter(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_REROUTER, SUMO_ATTR_ID, abort);
@@ -1428,12 +1459,12 @@ GNEAdditionalHandler::parseAndBuildRerouter(GNEViewNet* viewNet, bool allowUndoR
     std::string file = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_REROUTER, SUMO_ATTR_FILE, abort);
     double probability = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_REROUTER, SUMO_ATTR_PROB, abort);
     bool off = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_REROUTER, SUMO_ATTR_OFF, abort);
-    double timeThreshold = attrs.getOpt<double>(SUMO_ATTR_HALTING_TIME_THRESHOLD, id.c_str(), abort, 0);
+    SUMOTime timeThreshold = attrs.getOpt<SUMOTime>(SUMO_ATTR_HALTING_TIME_THRESHOLD, id.c_str(), abort, 0);
     const std::string vTypes = attrs.getOpt<std::string>(SUMO_ATTR_VTYPES, id.c_str(), abort, "");
     Position pos = GNEAttributeCarrier::parseAttributeFromXML<Position>(attrs, id, SUMO_TAG_REROUTER, SUMO_ATTR_POSITION, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_REROUTER, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1450,10 +1481,10 @@ GNEAdditionalHandler::parseAndBuildRerouter(GNEViewNet* viewNet, bool allowUndoR
             WRITE_WARNING("A rerouter needs at least one Edge");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildRerouter(viewNet, allowUndoRedo, id, pos, edges, probability, name, 
-                                                             file, off, timeThreshold, vTypes, blockMovement);
+            GNEAdditional* additionalCreated = buildRerouter(viewNet, allowUndoRedo, id, pos, edges, probability, name,
+                                               file, off, timeThreshold, vTypes, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1464,17 +1495,17 @@ GNEAdditionalHandler::parseAndBuildRerouter(GNEViewNet* viewNet, bool allowUndoR
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouterInterval(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouterInterval(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
-    double begin = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_INTERVAL, SUMO_ATTR_BEGIN, abort);
-    double end = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_INTERVAL, SUMO_ATTR_END, abort);
+    SUMOTime begin = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, "", SUMO_TAG_INTERVAL, SUMO_ATTR_BEGIN, abort);
+    SUMOTime end = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, "", SUMO_TAG_INTERVAL, SUMO_ATTR_END, abort);
     // Continue if all parameters were sucesfully loaded
     if (!abort) {
         // obtain rerouter
         GNEAdditional* rerouter;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             rerouter = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_REROUTER);
         } else {
             bool ok = true;
@@ -1484,14 +1515,14 @@ GNEAdditionalHandler::parseAndBuildRerouterInterval(GNEViewNet* viewNet, bool al
         if (rerouter == nullptr) {
             GNEAdditional* lastInsertedRerouterInterval = nullptr;
             // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 lastInsertedRerouterInterval = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_INTERVAL);
             } else {
                 bool ok = true;
                 lastInsertedRerouterInterval = viewNet->getNet()->retrieveAdditional(SUMO_TAG_INTERVAL, attrs.get<std::string>(GNE_ATTR_PARENT, "", ok));
             }
             if (lastInsertedRerouterInterval) {
-                rerouter = lastInsertedRerouterInterval->getFirstAdditionalParent();
+                rerouter = lastInsertedRerouterInterval->getAdditionalParents().at(0);
             }
         }
         // check that rerouterInterval can be created
@@ -1499,9 +1530,9 @@ GNEAdditionalHandler::parseAndBuildRerouterInterval(GNEViewNet* viewNet, bool al
             WRITE_WARNING(toString(SUMO_TAG_INTERVAL) + " cannot be created; Attribute " + toString(SUMO_ATTR_END) + " must be greather than " + toString(SUMO_ATTR_BEGIN) + ".");
         } else if (rerouter != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildRerouterInterval(viewNet, allowUndoRedo, rerouter, begin, end);
+            GNEAdditional* additionalCreated = buildRerouterInterval(viewNet, allowUndoRedo, rerouter, begin, end);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1512,7 +1543,7 @@ GNEAdditionalHandler::parseAndBuildRerouterInterval(GNEViewNet* viewNet, bool al
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouterClosingLaneReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouterClosingLaneReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
     std::string laneID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CLOSING_LANE_REROUTE, SUMO_ATTR_ID, abort);
@@ -1524,7 +1555,7 @@ GNEAdditionalHandler::parseAndBuildRerouterClosingLaneReroute(GNEViewNet* viewNe
         GNELane* lane = viewNet->getNet()->retrieveLane(laneID, false, true);
         GNEAdditional* rerouterInterval = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             rerouterInterval = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_INTERVAL);
         } else {
             bool ok = true;
@@ -1535,9 +1566,9 @@ GNEAdditionalHandler::parseAndBuildRerouterClosingLaneReroute(GNEViewNet* viewNe
             WRITE_WARNING("The lane '" + laneID + "' to use within the " + toString(SUMO_TAG_CLOSING_LANE_REROUTE) + " is not known.");
         } else if (rerouterInterval != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildClosingLaneReroute(viewNet, allowUndoRedo, rerouterInterval, lane, parseVehicleClasses(allow, disallow));
+            GNEAdditional* additionalCreated = buildClosingLaneReroute(viewNet, allowUndoRedo, rerouterInterval, lane, parseVehicleClasses(allow, disallow));
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1548,7 +1579,7 @@ GNEAdditionalHandler::parseAndBuildRerouterClosingLaneReroute(GNEViewNet* viewNe
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouterClosingReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouterClosingReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
     std::string edgeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CLOSING_REROUTE, SUMO_ATTR_ID, abort);
@@ -1560,7 +1591,7 @@ GNEAdditionalHandler::parseAndBuildRerouterClosingReroute(GNEViewNet* viewNet, b
         GNEEdge* edge = viewNet->getNet()->retrieveEdge(edgeID, false);
         GNEAdditional* rerouterInterval = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             rerouterInterval = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_INTERVAL);
         } else {
             bool ok = true;
@@ -1571,9 +1602,9 @@ GNEAdditionalHandler::parseAndBuildRerouterClosingReroute(GNEViewNet* viewNet, b
             WRITE_WARNING("The edge '" + edgeID + "' to use within the " + toString(SUMO_TAG_CLOSING_REROUTE) + " is not known.");
         } else if (rerouterInterval != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildClosingReroute(viewNet, allowUndoRedo, rerouterInterval, edge, parseVehicleClasses(allow, disallow));
+            GNEAdditional* additionalCreated = buildClosingReroute(viewNet, allowUndoRedo, rerouterInterval, edge, parseVehicleClasses(allow, disallow));
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1584,7 +1615,7 @@ GNEAdditionalHandler::parseAndBuildRerouterClosingReroute(GNEViewNet* viewNet, b
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouterDestProbReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouterDestProbReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
     std::string edgeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_DEST_PROB_REROUTE, SUMO_ATTR_ID, abort);
@@ -1595,7 +1626,7 @@ GNEAdditionalHandler::parseAndBuildRerouterDestProbReroute(GNEViewNet* viewNet, 
         GNEEdge* edge = viewNet->getNet()->retrieveEdge(edgeID, false);
         GNEAdditional* rerouterInterval = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             rerouterInterval = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_INTERVAL);
         } else {
             bool ok = true;
@@ -1606,9 +1637,9 @@ GNEAdditionalHandler::parseAndBuildRerouterDestProbReroute(GNEViewNet* viewNet, 
             WRITE_WARNING("The edge '" + edgeID + "' to use within the " + toString(SUMO_TAG_DEST_PROB_REROUTE) + " is not known.");
         } else if (rerouterInterval != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = builDestProbReroute(viewNet, allowUndoRedo, rerouterInterval, edge, probability);
+            GNEAdditional* additionalCreated = builDestProbReroute(viewNet, allowUndoRedo, rerouterInterval, edge, probability);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1619,7 +1650,7 @@ GNEAdditionalHandler::parseAndBuildRerouterDestProbReroute(GNEViewNet* viewNet, 
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouterParkingAreaReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouterParkingAreaReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
     std::string parkingAreaID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_PARKING_ZONE_REROUTE, SUMO_ATTR_ID, abort);
@@ -1631,7 +1662,7 @@ GNEAdditionalHandler::parseAndBuildRerouterParkingAreaReroute(GNEViewNet* viewNe
         GNEAdditional* parkingArea = viewNet->getNet()->retrieveAdditional(SUMO_TAG_PARKING_AREA, parkingAreaID, false);
         GNEAdditional* rerouterInterval = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             rerouterInterval = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_INTERVAL);
         } else {
             bool ok = true;
@@ -1642,9 +1673,9 @@ GNEAdditionalHandler::parseAndBuildRerouterParkingAreaReroute(GNEViewNet* viewNe
             WRITE_WARNING("The parkingArea '" + parkingAreaID + "' to use within the " + toString(SUMO_TAG_PARKING_ZONE_REROUTE) + " is not known.");
         } else if (rerouterInterval != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = builParkingAreaReroute(viewNet, allowUndoRedo, rerouterInterval, parkingArea, probability, visible);
+            GNEAdditional* additionalCreated = builParkingAreaReroute(viewNet, allowUndoRedo, rerouterInterval, parkingArea, probability, visible);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1655,7 +1686,7 @@ GNEAdditionalHandler::parseAndBuildRerouterParkingAreaReroute(GNEViewNet* viewNe
 
 
 bool
-GNEAdditionalHandler::parseAndBuildRerouterRouteProbReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildRerouterRouteProbReroute(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Rerouter
     std::string routeID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_ROUTE_PROB_REROUTE, SUMO_ATTR_ID, abort);
@@ -1665,7 +1696,7 @@ GNEAdditionalHandler::parseAndBuildRerouterRouteProbReroute(GNEViewNet* viewNet,
         // obtain rerouter interval
         GNEAdditional* rerouterInterval = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             rerouterInterval = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_INTERVAL);
         } else {
             bool ok = true;
@@ -1674,9 +1705,9 @@ GNEAdditionalHandler::parseAndBuildRerouterRouteProbReroute(GNEViewNet* viewNet,
         // check that all elements are valid
         if (rerouterInterval != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildRouteProbReroute(viewNet, allowUndoRedo, rerouterInterval, routeID, probability);
+            GNEAdditional* additionalCreated = buildRouteProbReroute(viewNet, allowUndoRedo, rerouterInterval, routeID, probability);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1687,7 +1718,7 @@ GNEAdditionalHandler::parseAndBuildRerouterRouteProbReroute(GNEViewNet* viewNet,
 
 
 bool
-GNEAdditionalHandler::parseAndBuildBusStop(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildBusStop(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of bus stop
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_BUS_STOP, SUMO_ATTR_ID, abort);
@@ -1696,10 +1727,11 @@ GNEAdditionalHandler::parseAndBuildBusStop(GNEViewNet* viewNet, bool allowUndoRe
     std::string endPos = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_BUS_STOP, SUMO_ATTR_ENDPOS, abort);
     std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_BUS_STOP, SUMO_ATTR_NAME, abort);
     std::vector<std::string> lines = GNEAttributeCarrier::parseAttributeFromXML<std::vector<std::string> >(attrs, id, SUMO_TAG_BUS_STOP, SUMO_ATTR_LINES, abort);
+    const int personCapacity = GNEAttributeCarrier::parseAttributeFromXML<int>(attrs, id, SUMO_TAG_BUS_STOP, SUMO_ATTR_PERSON_CAPACITY, abort);
     bool friendlyPosition = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_BUS_STOP, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_BUS_STOP, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1712,14 +1744,40 @@ GNEAdditionalHandler::parseAndBuildBusStop(GNEViewNet* viewNet, bool allowUndoRe
         } else if (lane == nullptr) {
             // Write error if lane isn't valid
             WRITE_WARNING("The lane '" + laneId + "' to use within the " + toString(SUMO_TAG_BUS_STOP) + " '" + id + "' is not known.");
-        } else if (!GNEStoppingPlace::checkStoppinPlacePosition(startPos, endPos, lane->getParentEdge().getNBEdge()->getFinalLength(), friendlyPosition)) {
-            // Write error if position isn't valid
-            WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_BUS_STOP) + " with ID = '" + id + "'.");
-        } else {
+        } else { 
+            // declare variables for start and end position
+            double startPosDouble = 0;
+            double endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            const double stoppingPlaceLength = (endPosDouble - startPosDouble);
+            int parametersSet = 0;
+            // check if startPos and endPos were defined
+            if (GNEAttributeCarrier::canParse<double>(startPos)) {
+                startPosDouble = GNEAttributeCarrier::parse<double>(startPos);
+                parametersSet |= STOPPINGPLACE_STARTPOS_SET;
+            }
+            if (GNEAttributeCarrier::canParse<double>(endPos)) {
+                endPosDouble = GNEAttributeCarrier::parse<double>(endPos);
+                parametersSet |= STOPPINGPLACE_ENDPOS_SET;
+            }
+            // check if stoppingPlace has to be adjusted
+            SUMORouteHandler::StopPos checkStopPosResult = SUMORouteHandler::checkStopPos(startPosDouble, endPosDouble, lane->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, friendlyPosition);
+            // update start and end positions depending of checkStopPosResult
+            if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_STARTPOS) {
+                startPosDouble = 0;
+                endPosDouble = stoppingPlaceLength;
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_ENDPOS) {
+                startPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength() - stoppingPlaceLength;
+                endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_LANELENGTH) {
+                // Write error if position isn't valid
+                WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_BUS_STOP) + " with ID = '" + id + "'.");
+                return false;
+            }
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildBusStop(viewNet, allowUndoRedo, id, lane, startPos, endPos, name, lines, friendlyPosition, blockMovement);
+            GNEAdditional* additionalCreated = buildBusStop(viewNet, allowUndoRedo, id, lane, startPosDouble, endPosDouble, parametersSet, 
+                                                            name, lines, personCapacity, friendlyPosition, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1730,7 +1788,7 @@ GNEAdditionalHandler::parseAndBuildBusStop(GNEViewNet* viewNet, bool allowUndoRe
 
 
 bool
-GNEAdditionalHandler::parseAndBuildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of container stop
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CONTAINER_STOP, SUMO_ATTR_ID, abort);
@@ -1742,7 +1800,7 @@ GNEAdditionalHandler::parseAndBuildContainerStop(GNEViewNet* viewNet, bool allow
     bool friendlyPosition = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_CONTAINER_STOP, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_CONTAINER_STOP, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1755,14 +1813,40 @@ GNEAdditionalHandler::parseAndBuildContainerStop(GNEViewNet* viewNet, bool allow
         } else if (lane == nullptr) {
             // Write error if lane isn't valid
             WRITE_WARNING("The lane '" + laneId + "' to use within the " + toString(SUMO_TAG_CONTAINER_STOP) + " '" + id + "' is not known.");
-        } else if (!GNEStoppingPlace::checkStoppinPlacePosition(startPos, endPos, lane->getParentEdge().getNBEdge()->getFinalLength(), friendlyPosition)) {
-            // write error if position isn't valid
-            WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_CONTAINER_STOP) + " with ID = '" + id + "'.");
-        } else {
+        } else { 
+            // declare variables for start and end position
+            double startPosDouble = 0;
+            double endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            const double stoppingPlaceLength = (endPosDouble - startPosDouble);
+            int parametersSet = 0;
+            // check if startPos and endPos were defined
+            if (GNEAttributeCarrier::canParse<double>(startPos)) {
+                startPosDouble = GNEAttributeCarrier::parse<double>(startPos);
+                parametersSet |= STOPPINGPLACE_STARTPOS_SET;
+            }
+            if (GNEAttributeCarrier::canParse<double>(endPos)) {
+                endPosDouble = GNEAttributeCarrier::parse<double>(endPos);
+                parametersSet |= STOPPINGPLACE_ENDPOS_SET;
+            }
+            // check if stoppingPlace has to be adjusted
+            SUMORouteHandler::StopPos checkStopPosResult = SUMORouteHandler::checkStopPos(startPosDouble, endPosDouble, lane->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, friendlyPosition);
+            // update start and end positions depending of checkStopPosResult
+            if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_STARTPOS) {
+                startPosDouble = 0;
+                endPosDouble = stoppingPlaceLength;
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_ENDPOS) {
+                startPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength() - stoppingPlaceLength;
+                endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_LANELENGTH) {
+                // Write error if position isn't valid
+                WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_CONTAINER_STOP) + " with ID = '" + id + "'.");
+                return false;
+            }
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildContainerStop(viewNet, allowUndoRedo, id, lane, startPos, endPos, name, lines, friendlyPosition, blockMovement);
+            GNEAdditional* additionalCreated = buildContainerStop(viewNet, allowUndoRedo, id, lane, startPosDouble, endPosDouble, parametersSet, 
+                                                                  name, lines, friendlyPosition, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1773,7 +1857,7 @@ GNEAdditionalHandler::parseAndBuildContainerStop(GNEViewNet* viewNet, bool allow
 
 
 bool
-GNEAdditionalHandler::parseAndBuildAccess(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildAccess(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Entry
     std::string laneId = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_ACCESS, SUMO_ATTR_LANE, abort);
@@ -1782,7 +1866,7 @@ GNEAdditionalHandler::parseAndBuildAccess(GNEViewNet* viewNet, bool allowUndoRed
     bool friendlyPos = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_ACCESS, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_ACCESS, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Check if parsing of parameters was correct
@@ -1792,7 +1876,7 @@ GNEAdditionalHandler::parseAndBuildAccess(GNEViewNet* viewNet, bool allowUndoRed
         GNELane* lane = viewNet->getNet()->retrieveLane(laneId, false, true);
         GNEAdditional* busStop = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             busStop = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_BUS_STOP);
         } else {
             bool ok = true;
@@ -1809,9 +1893,9 @@ GNEAdditionalHandler::parseAndBuildAccess(GNEViewNet* viewNet, bool allowUndoRed
             WRITE_WARNING("Edge '" + lane->getParentEdge().getID() + "' already has an Access for busStop '" + busStop->getID() + "'");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildAccess(viewNet, allowUndoRedo, busStop, lane, toString(posDouble), length, friendlyPos, blockMovement);
+            GNEAdditional* additionalCreated = buildAccess(viewNet, allowUndoRedo, busStop, lane, toString(posDouble), length, friendlyPos, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1822,7 +1906,7 @@ GNEAdditionalHandler::parseAndBuildAccess(GNEViewNet* viewNet, bool allowUndoRed
 
 
 bool
-GNEAdditionalHandler::parseAndBuildChargingStation(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildChargingStation(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of charging station
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_CHARGING_STATION, SUMO_ATTR_ID, abort);
@@ -1833,11 +1917,11 @@ GNEAdditionalHandler::parseAndBuildChargingStation(GNEViewNet* viewNet, bool all
     double chargingPower = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_CHARGING_STATION, SUMO_ATTR_CHARGINGPOWER, abort);
     double efficiency = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_CHARGING_STATION, SUMO_ATTR_EFFICIENCY, abort);
     bool chargeInTransit = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_CHARGING_STATION, SUMO_ATTR_CHARGEINTRANSIT, abort);
-    double chargeDelay = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_CHARGING_STATION, SUMO_ATTR_CHARGEDELAY, abort);
+    SUMOTime chargeDelay = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_CHARGING_STATION, SUMO_ATTR_CHARGEDELAY, abort);
     bool friendlyPosition = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_CHARGING_STATION, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_CHARGING_STATION, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1850,15 +1934,40 @@ GNEAdditionalHandler::parseAndBuildChargingStation(GNEViewNet* viewNet, bool all
         } else if (lane == nullptr) {
             // Write error if lane isn't valid
             WRITE_WARNING("The lane '" + laneId + "' to use within the " + toString(SUMO_TAG_CHARGING_STATION) + " '" + id + "' is not known.");
-        } else if (!GNEStoppingPlace::checkStoppinPlacePosition(startPos, endPos, lane->getParentEdge().getNBEdge()->getFinalLength(), friendlyPosition)) {
-            // write error if position isn't valid
-            WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_CHARGING_STATION) + " with ID = '" + id + "'.");
-        } else {
+        } else { 
+            // declare variables for start and end position
+            double startPosDouble = 0;
+            double endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            const double stoppingPlaceLength = (endPosDouble - startPosDouble);
+            int parametersSet = 0;
+            // check if startPos and endPos were defined
+            if (GNEAttributeCarrier::canParse<double>(startPos)) {
+                startPosDouble = GNEAttributeCarrier::parse<double>(startPos);
+                parametersSet |= STOPPINGPLACE_STARTPOS_SET;
+            }
+            if (GNEAttributeCarrier::canParse<double>(endPos)) {
+                endPosDouble = GNEAttributeCarrier::parse<double>(endPos);
+                parametersSet |= STOPPINGPLACE_ENDPOS_SET;
+            }
+            // check if stoppingPlace has to be adjusted
+            SUMORouteHandler::StopPos checkStopPosResult = SUMORouteHandler::checkStopPos(startPosDouble, endPosDouble, lane->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, friendlyPosition);
+            // update start and end positions depending of checkStopPosResult
+            if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_STARTPOS) {
+                startPosDouble = 0;
+                endPosDouble = stoppingPlaceLength;
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_ENDPOS) {
+                startPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength() - stoppingPlaceLength;
+                endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_LANELENGTH) {
+                // Write error if position isn't valid
+                WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_CHARGING_STATION) + " with ID = '" + id + "'.");
+                return false;
+            }
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildChargingStation(viewNet, allowUndoRedo, id, lane, startPos, endPos, name, chargingPower, 
-                                                                    efficiency, chargeInTransit, chargeDelay, friendlyPosition, blockMovement);
+            GNEAdditional* additionalCreated = buildChargingStation(viewNet, allowUndoRedo, id, lane, startPosDouble, endPosDouble, parametersSet, 
+                                                                    name, chargingPower, efficiency, chargeInTransit, chargeDelay, friendlyPosition, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1869,7 +1978,7 @@ GNEAdditionalHandler::parseAndBuildChargingStation(GNEViewNet* viewNet, bool all
 
 
 bool
-GNEAdditionalHandler::parseAndBuildParkingArea(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildParkingArea(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of charging station
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_PARKING_AREA, SUMO_ATTR_ID, abort);
@@ -1885,7 +1994,7 @@ GNEAdditionalHandler::parseAndBuildParkingArea(GNEViewNet* viewNet, bool allowUn
     double angle = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_PARKING_AREA, SUMO_ATTR_ANGLE, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_PARKING_AREA, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1898,15 +2007,40 @@ GNEAdditionalHandler::parseAndBuildParkingArea(GNEViewNet* viewNet, bool allowUn
         } else if (lane == nullptr) {
             // Write error if lane isn't valid
             WRITE_WARNING("The lane '" + laneId + "' to use within the " + toString(SUMO_TAG_PARKING_AREA) + " '" + id + "' is not known.");
-        } else if (!GNEStoppingPlace::checkStoppinPlacePosition(startPos, endPos, lane->getParentEdge().getNBEdge()->getFinalLength(), friendlyPosition)) {
-            // write error if position isn't valid
-            WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_PARKING_AREA) + " with ID = '" + id + "'.");
-        } else {
+        } else { 
+            // declare variables for start and end position
+            double startPosDouble = 0;
+            double endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            const double stoppingPlaceLength = (endPosDouble - startPosDouble);
+            int parametersSet = 0;
+            // check if startPos and endPos were defined
+            if (GNEAttributeCarrier::canParse<double>(startPos)) {
+                startPosDouble = GNEAttributeCarrier::parse<double>(startPos);
+                parametersSet |= STOPPINGPLACE_STARTPOS_SET;
+            }
+            if (GNEAttributeCarrier::canParse<double>(endPos)) {
+                endPosDouble = GNEAttributeCarrier::parse<double>(endPos);
+                parametersSet |= STOPPINGPLACE_ENDPOS_SET;
+            }
+            // check if stoppingPlace has to be adjusted
+            SUMORouteHandler::StopPos checkStopPosResult = SUMORouteHandler::checkStopPos(startPosDouble, endPosDouble, lane->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, friendlyPosition);
+            // update start and end positions depending of checkStopPosResult
+            if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_STARTPOS) {
+                startPosDouble = 0;
+                endPosDouble = stoppingPlaceLength;
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_ENDPOS) {
+                startPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength() - stoppingPlaceLength;
+                endPosDouble = lane->getParentEdge().getNBEdge()->getFinalLength();
+            } else if (checkStopPosResult == SUMORouteHandler::StopPos::STOPPOS_INVALID_LANELENGTH) {
+                // Write error if position isn't valid
+                WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_PARKING_AREA) + " with ID = '" + id + "'.");
+                return false;
+            }
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildParkingArea(viewNet, allowUndoRedo, id, lane, startPos, endPos, name, friendlyPosition, 
-                                                                roadSideCapacity, onRoad, width, length, angle, blockMovement);
+            GNEAdditional* additionalCreated = buildParkingArea(viewNet, allowUndoRedo, id, lane, startPosDouble, endPosDouble, parametersSet, 
+                                                                name, friendlyPosition, roadSideCapacity, onRoad, width, length, angle, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1917,7 +2051,7 @@ GNEAdditionalHandler::parseAndBuildParkingArea(GNEViewNet* viewNet, bool allowUn
 
 
 bool
-GNEAdditionalHandler::parseAndBuildParkingSpace(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildParkingSpace(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Parking Spaces
     Position pos = GNEAttributeCarrier::parseAttributeFromXML<Position>(attrs, "", SUMO_TAG_PARKING_SPACE, SUMO_ATTR_POSITION, abort);
@@ -1926,7 +2060,7 @@ GNEAdditionalHandler::parseAndBuildParkingSpace(GNEViewNet* viewNet, bool allowU
     double angle = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, "", SUMO_TAG_PARKING_SPACE, SUMO_ATTR_ANGLE, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_PARKING_SPACE, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -1934,7 +2068,7 @@ GNEAdditionalHandler::parseAndBuildParkingSpace(GNEViewNet* viewNet, bool allowU
         // get Parking Area Parent
         GNEAdditional* parkingAreaParent = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             parkingAreaParent = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_PARKING_AREA);
         } else {
             bool ok = true;
@@ -1943,9 +2077,9 @@ GNEAdditionalHandler::parseAndBuildParkingSpace(GNEViewNet* viewNet, bool allowU
         // check that Parking Area Parent exists
         if (parkingAreaParent != nullptr) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildParkingSpace(viewNet, allowUndoRedo, parkingAreaParent, pos, width, length, angle, blockMovement);
+            GNEAdditional* additionalCreated = buildParkingSpace(viewNet, allowUndoRedo, parkingAreaParent, pos, width, length, angle, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -1956,7 +2090,7 @@ GNEAdditionalHandler::parseAndBuildParkingSpace(GNEViewNet* viewNet, bool allowU
 
 
 bool
-GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // due there is two differents calibrators, has to be parsed in a different way
     std::string edgeID, laneId, id;
@@ -1967,8 +2101,10 @@ GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUnd
         std::string outfile = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_CALIBRATOR, SUMO_ATTR_OUTPUT, abort);
         double position = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_CALIBRATOR, SUMO_ATTR_POSITION, abort);
         std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_CALIBRATOR, SUMO_ATTR_NAME, abort);
-        double freq = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_CALIBRATOR, SUMO_ATTR_FREQUENCY, abort);
+        SUMOTime freq = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_CALIBRATOR, SUMO_ATTR_FREQUENCY, abort);
         std::string routeProbe = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_CALIBRATOR, SUMO_ATTR_ROUTEPROBE, abort);
+        // extra check for center element after creation
+        bool centerAfterCreation = attrs.hasAttribute(GNE_ATTR_CENTER_AFTER_CREATION);
         // Continue if all parameters were sucesfully loaded
         if (!abort) {
             // get pointer and edge
@@ -1980,9 +2116,9 @@ GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUnd
                 WRITE_WARNING("The  edge '" + edgeID + "' to use within the " + toString(SUMO_TAG_CALIBRATOR) + " '" + id + "' is not known.");
             } else {
                 // save ID of last created element
-                GNEAdditional *additionalCreated = buildCalibrator(viewNet, allowUndoRedo, id, edge, position, name, outfile, freq, routeProbe);
+                GNEAdditional* additionalCreated = buildCalibrator(viewNet, allowUndoRedo, id, edge, position, name, outfile, freq, routeProbe, centerAfterCreation);
                 // check if insertion has to be commited
-                if(insertedAdditionals) {
+                if (insertedAdditionals) {
                     insertedAdditionals->commitElementInsertion(additionalCreated);
                 }
                 return true;
@@ -1994,8 +2130,10 @@ GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUnd
         std::string outfile = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_LANECALIBRATOR, SUMO_ATTR_OUTPUT, abort);
         double position = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_LANECALIBRATOR, SUMO_ATTR_POSITION, abort);
         std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_LANECALIBRATOR, SUMO_ATTR_NAME, abort);
-        double freq = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_LANECALIBRATOR, SUMO_ATTR_FREQUENCY, abort);
+        SUMOTime freq = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_LANECALIBRATOR, SUMO_ATTR_FREQUENCY, abort);
         std::string routeProbe = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_LANECALIBRATOR, SUMO_ATTR_ROUTEPROBE, abort);
+        // extra check for center element after creation
+        bool centerAfterCreation = attrs.hasAttribute(GNE_ATTR_CENTER_AFTER_CREATION);
         // Continue if all parameters were sucesfully loaded
         if (!abort) {
             // get pointer to lane
@@ -2007,9 +2145,9 @@ GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUnd
                 WRITE_WARNING("The lane '" + laneId + "' to use within the " + toString(SUMO_TAG_CALIBRATOR) + " '" + id + "' is not known.");
             } else {
                 // save ID of last created element
-                GNEAdditional *additionalCreated = buildCalibrator(viewNet, allowUndoRedo, id, lane, position, name, outfile, freq, routeProbe);
+                GNEAdditional* additionalCreated = buildCalibrator(viewNet, allowUndoRedo, id, lane, position, name, outfile, freq, routeProbe, centerAfterCreation);
                 // check if insertion has to be commited
-                if(insertedAdditionals) {
+                if (insertedAdditionals) {
                     insertedAdditionals->commitElementInsertion(additionalCreated);
                 }
                 return true;
@@ -2023,20 +2161,20 @@ GNEAdditionalHandler::parseAndBuildCalibrator(GNEViewNet* viewNet, bool allowUnd
 
 
 bool
-GNEAdditionalHandler::parseAndBuildDetectorE1(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildDetectorE1(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of E1
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_E1DETECTOR, SUMO_ATTR_ID, abort);
     std::string laneId = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_LANE, abort);
     double position = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_POSITION, abort);
-    double frequency = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_FREQUENCY, abort);
+    SUMOTime frequency = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_FREQUENCY, abort);
     std::string file = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_FILE, abort);
     std::string vehicleTypes = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_VTYPES, abort);
     std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_NAME, abort);
     bool friendlyPos = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_E1DETECTOR, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_E1DETECTOR, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -2053,9 +2191,9 @@ GNEAdditionalHandler::parseAndBuildDetectorE1(GNEViewNet* viewNet, bool allowUnd
             WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_E1DETECTOR) + " with ID = '" + id + "'.");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildDetectorE1(viewNet, allowUndoRedo, id, lane, position, frequency, file, vehicleTypes, name, friendlyPos, blockMovement);
+            GNEAdditional* additionalCreated = buildDetectorE1(viewNet, allowUndoRedo, id, lane, position, frequency, file, vehicleTypes, name, friendlyPos, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -2066,31 +2204,31 @@ GNEAdditionalHandler::parseAndBuildDetectorE1(GNEViewNet* viewNet, bool allowUnd
 
 
 bool
-GNEAdditionalHandler::parseAndBuildDetectorE2(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildDetectorE2(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     // Tag E2 detectors can build either E2 single lanes or E2 multilanes, depending of attribute "lanes"
-    SumoXMLTag E2Tag = attrs.hasAttribute(SUMO_ATTR_LANES)? SUMO_TAG_E2DETECTOR_MULTILANE : SUMO_TAG_E2DETECTOR;
+    SumoXMLTag E2Tag = attrs.hasAttribute(SUMO_ATTR_LANES) ? SUMO_TAG_E2DETECTOR_MULTILANE : SUMO_TAG_E2DETECTOR;
     bool abort = false;
     // start parsing ID
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", E2Tag, SUMO_ATTR_ID, abort);
     // parse attributes of E2 SingleLanes
-    std::string laneId = (E2Tag == SUMO_TAG_E2DETECTOR)?GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_LANE, abort):"";
-    double length = (E2Tag == SUMO_TAG_E2DETECTOR)?GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_LENGTH, abort):0;
+    std::string laneId = (E2Tag == SUMO_TAG_E2DETECTOR) ? GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_LANE, abort) : "";
+    double length = (E2Tag == SUMO_TAG_E2DETECTOR) ? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_LENGTH, abort) : 0;
     // parse attributes of E2 Multilanes
-    std::string laneIds = (E2Tag == SUMO_TAG_E2DETECTOR_MULTILANE)?GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_LANES, abort):"";
-    double endPos = (E2Tag == SUMO_TAG_E2DETECTOR_MULTILANE)?GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_ENDPOS, abort):0;
+    std::string laneIds = (E2Tag == SUMO_TAG_E2DETECTOR_MULTILANE) ? GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_LANES, abort) : "";
+    double endPos = (E2Tag == SUMO_TAG_E2DETECTOR_MULTILANE) ? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_ENDPOS, abort) : 0;
     // parse common attributes
     double position = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_POSITION, abort);
-    double frequency = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_FREQUENCY, abort);
+    SUMOTime frequency = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, E2Tag, SUMO_ATTR_FREQUENCY, abort);
     std::string file = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_FILE, abort);
     std::string vehicleTypes = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_VTYPES, abort);
     std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, E2Tag, SUMO_ATTR_NAME, abort);
-    double haltingTimeThreshold = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_HALTING_TIME_THRESHOLD, abort);
+    SUMOTime haltingTimeThreshold = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, E2Tag, SUMO_ATTR_HALTING_TIME_THRESHOLD, abort);
     double haltingSpeedThreshold = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_HALTING_SPEED_THRESHOLD, abort);
     double jamDistThreshold = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, E2Tag, SUMO_ATTR_JAM_DIST_THRESHOLD, abort);
     bool friendlyPos = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, E2Tag, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, E2Tag, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // cont attribute is deprecated
@@ -2098,7 +2236,7 @@ GNEAdditionalHandler::parseAndBuildDetectorE2(GNEViewNet* viewNet, bool allowUnd
     // Continue if all parameters were sucesfully loaded
     if (!abort) {
         // check if at leas lane or laneIDS are defined
-        if(laneId.empty() && laneIds.empty()) {
+        if (laneId.empty() && laneIds.empty()) {
             WRITE_WARNING("A " + toString(E2Tag) + " needs at least a lane or a list of lanes.");
         } else {
             // get pointer to lane
@@ -2106,7 +2244,7 @@ GNEAdditionalHandler::parseAndBuildDetectorE2(GNEViewNet* viewNet, bool allowUnd
             // get list of lanes
             std::vector<GNELane*> lanes;
             bool laneConsecutives = true;
-            if(GNEAttributeCarrier::canParse<std::vector<GNELane*> >(viewNet->getNet(), laneIds, false)) {
+            if (GNEAttributeCarrier::canParse<std::vector<GNELane*> >(viewNet->getNet(), laneIds, false)) {
                 lanes = GNEAttributeCarrier::parse<std::vector<GNELane*> >(viewNet->getNet(), laneIds);
                 // check if lanes are consecutives
                 laneConsecutives = GNEAttributeCarrier::lanesConsecutives(lanes);
@@ -2134,19 +2272,19 @@ GNEAdditionalHandler::parseAndBuildDetectorE2(GNEViewNet* viewNet, bool allowUnd
                 WRITE_WARNING("Invalid end position for " + toString(E2Tag) + " with ID = '" + id + "'.");
             } else if (lane) {
                 // save ID of last created element
-                GNEAdditional *additionalCreated = buildSingleLaneDetectorE2(viewNet, allowUndoRedo, id, lane, position, length, frequency, file, vehicleTypes, 
-                                                                             name, haltingTimeThreshold, haltingSpeedThreshold, jamDistThreshold, friendlyPos, blockMovement);
+                GNEAdditional* additionalCreated = buildSingleLaneDetectorE2(viewNet, allowUndoRedo, id, lane, position, length, frequency, file, vehicleTypes,
+                                                   name, haltingTimeThreshold, haltingSpeedThreshold, jamDistThreshold, friendlyPos, blockMovement);
                 // check if insertion has to be commited
-                if(insertedAdditionals) {
+                if (insertedAdditionals) {
                     insertedAdditionals->commitElementInsertion(additionalCreated);
                 }
                 return true;
             } else {
                 // save ID of last created element
-                GNEAdditional *additionalCreated = buildMultiLaneDetectorE2(viewNet, allowUndoRedo, id, lanes, position, endPos, frequency, file, vehicleTypes, 
-                                                                            name, haltingTimeThreshold, haltingSpeedThreshold, jamDistThreshold, friendlyPos, blockMovement);
+                GNEAdditional* additionalCreated = buildMultiLaneDetectorE2(viewNet, allowUndoRedo, id, lanes, position, endPos, frequency, file, vehicleTypes,
+                                                   name, haltingTimeThreshold, haltingSpeedThreshold, jamDistThreshold, friendlyPos, blockMovement);
                 // check if insertion has to be commited
-                if(insertedAdditionals) {
+                if (insertedAdditionals) {
                     insertedAdditionals->commitElementInsertion(additionalCreated);
                 }
                 return true;
@@ -2158,20 +2296,20 @@ GNEAdditionalHandler::parseAndBuildDetectorE2(GNEViewNet* viewNet, bool allowUnd
 
 
 bool
-GNEAdditionalHandler::parseAndBuildDetectorE3(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildDetectorE3(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of E3
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_E3DETECTOR, SUMO_ATTR_ID, abort);
-    double frequency = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_FREQUENCY, abort);
+    SUMOTime frequency = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_FREQUENCY, abort);
     std::string file = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_FILE, abort);
     std::string vehicleTypes = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_VTYPES, abort);
     std::string name = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_NAME, abort);
-    double haltingTimeThreshold = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_HALTING_TIME_THRESHOLD, abort);
+    SUMOTime haltingTimeThreshold = GNEAttributeCarrier::parseAttributeFromXML<SUMOTime>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_HALTING_TIME_THRESHOLD, abort);
     double haltingSpeedThreshold = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_HALTING_SPEED_THRESHOLD, abort);
     Position pos = GNEAttributeCarrier::parseAttributeFromXML<Position>(attrs, id, SUMO_TAG_E3DETECTOR, SUMO_ATTR_POSITION, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_E3DETECTOR, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -2181,9 +2319,9 @@ GNEAdditionalHandler::parseAndBuildDetectorE3(GNEViewNet* viewNet, bool allowUnd
             WRITE_WARNING("There is another " + toString(SUMO_TAG_E3DETECTOR) + " with the same ID='" + id + "'.");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildDetectorE3(viewNet, allowUndoRedo, id, pos, frequency, file, vehicleTypes, name, haltingTimeThreshold, haltingSpeedThreshold, blockMovement);
+            GNEAdditional* additionalCreated = buildDetectorE3(viewNet, allowUndoRedo, id, pos, frequency, file, vehicleTypes, name, haltingTimeThreshold, haltingSpeedThreshold, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -2194,7 +2332,7 @@ GNEAdditionalHandler::parseAndBuildDetectorE3(GNEViewNet* viewNet, bool allowUnd
 
 
 bool
-GNEAdditionalHandler::parseAndBuildDetectorEntry(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildDetectorEntry(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Entry
     std::string laneId = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_DET_ENTRY, SUMO_ATTR_LANE, abort);
@@ -2202,7 +2340,7 @@ GNEAdditionalHandler::parseAndBuildDetectorEntry(GNEViewNet* viewNet, bool allow
     bool friendlyPos = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_DET_ENTRY, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_DET_ENTRY, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Check if parsing of parameters was correct
@@ -2211,7 +2349,7 @@ GNEAdditionalHandler::parseAndBuildDetectorEntry(GNEViewNet* viewNet, bool allow
         GNELane* lane = viewNet->getNet()->retrieveLane(laneId, false, true);
         GNEAdditional* E3Parent = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             E3Parent = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_E3DETECTOR);
         } else {
             bool ok = true;
@@ -2224,9 +2362,9 @@ GNEAdditionalHandler::parseAndBuildDetectorEntry(GNEViewNet* viewNet, bool allow
             WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_DET_ENTRY) + ".");
         } else if (E3Parent) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildDetectorEntry(viewNet, allowUndoRedo, E3Parent, lane, position, friendlyPos, blockMovement);
+            GNEAdditional* additionalCreated = buildDetectorEntry(viewNet, allowUndoRedo, E3Parent, lane, position, friendlyPos, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -2237,7 +2375,7 @@ GNEAdditionalHandler::parseAndBuildDetectorEntry(GNEViewNet* viewNet, bool allow
 
 
 bool
-GNEAdditionalHandler::parseAndBuildDetectorExit(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildDetectorExit(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of Exit
     std::string laneId = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_DET_EXIT, SUMO_ATTR_LANE, abort);
@@ -2245,7 +2383,7 @@ GNEAdditionalHandler::parseAndBuildDetectorExit(GNEViewNet* viewNet, bool allowU
     bool friendlyPos = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_DET_EXIT, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, "", SUMO_TAG_DET_EXIT, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Check if parsing of parameters was correct
@@ -2254,7 +2392,7 @@ GNEAdditionalHandler::parseAndBuildDetectorExit(GNEViewNet* viewNet, bool allowU
         GNELane* lane = viewNet->getNet()->retrieveLane(laneId, false, true);
         GNEAdditional* E3Parent = nullptr;
         // obtain parent depending if we're loading or creating it using GNEAdditionalFrame
-        if(insertedAdditionals) {
+        if (insertedAdditionals) {
             E3Parent = insertedAdditionals->retrieveAdditionalParent(viewNet, SUMO_TAG_E3DETECTOR);
         } else {
             bool ok = true;
@@ -2267,9 +2405,9 @@ GNEAdditionalHandler::parseAndBuildDetectorExit(GNEViewNet* viewNet, bool allowU
             WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_DET_EXIT) + ".");
         } else if (E3Parent) {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildDetectorExit(viewNet, allowUndoRedo, E3Parent, lane, position, friendlyPos, blockMovement);
+            GNEAdditional* additionalCreated = buildDetectorExit(viewNet, allowUndoRedo, E3Parent, lane, position, friendlyPos, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -2280,7 +2418,7 @@ GNEAdditionalHandler::parseAndBuildDetectorExit(GNEViewNet* viewNet, bool allowU
 
 
 bool
-GNEAdditionalHandler::parseAndBuildDetectorE1Instant(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals *insertedAdditionals) {
+GNEAdditionalHandler::parseAndBuildDetectorE1Instant(GNEViewNet* viewNet, bool allowUndoRedo, const SUMOSAXAttributes& attrs, HierarchyInsertedAdditionals* insertedAdditionals) {
     bool abort = false;
     // parse attributes of E1Instant
     std::string id = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_INSTANT_INDUCTION_LOOP, SUMO_ATTR_ID, abort);
@@ -2292,7 +2430,7 @@ GNEAdditionalHandler::parseAndBuildDetectorE1Instant(GNEViewNet* viewNet, bool a
     bool friendlyPos = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_INSTANT_INDUCTION_LOOP, SUMO_ATTR_FRIENDLY_POS, abort);
     // parse Netedit attributes
     bool blockMovement = false;
-    if(attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
+    if (attrs.hasAttribute(GNE_ATTR_BLOCK_MOVEMENT)) {
         blockMovement = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, id, SUMO_TAG_INSTANT_INDUCTION_LOOP, GNE_ATTR_BLOCK_MOVEMENT, abort);
     }
     // Continue if all parameters were sucesfully loaded
@@ -2309,9 +2447,9 @@ GNEAdditionalHandler::parseAndBuildDetectorE1Instant(GNEViewNet* viewNet, bool a
             WRITE_WARNING("Invalid position for " + toString(SUMO_TAG_INSTANT_INDUCTION_LOOP) + " with ID = '" + id + "'.");
         } else {
             // save ID of last created element
-            GNEAdditional *additionalCreated = buildDetectorE1Instant(viewNet, allowUndoRedo, id, lane, position, file, vehicleTypes, name, friendlyPos, blockMovement);
+            GNEAdditional* additionalCreated = buildDetectorE1Instant(viewNet, allowUndoRedo, id, lane, position, file, vehicleTypes, name, friendlyPos, blockMovement);
             // check if insertion has to be commited
-            if(insertedAdditionals) {
+            if (insertedAdditionals) {
                 insertedAdditionals->commitElementInsertion(additionalCreated);
             }
             return true;
@@ -2324,22 +2462,22 @@ GNEAdditionalHandler::parseAndBuildDetectorE1Instant(GNEViewNet* viewNet, bool a
 // private method definitions
 // ===========================================================================
 
-void 
+void
 GNEAdditionalHandler::parseAndBuildPOI(const SUMOSAXAttributes& attrs) {
     bool abort = false;
-    // parse attributes of POIs    
+    // parse attributes of POIs
     std::string POIID = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, "", SUMO_TAG_POI, SUMO_ATTR_ID, abort);
     // POIs can be defined using a X,Y position,...
-    Position pos = attrs.hasAttribute(SUMO_ATTR_X)? GNEAttributeCarrier::parseAttributeFromXML<Position>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_POSITION, abort) : Position::INVALID;
+    Position pos = attrs.hasAttribute(SUMO_ATTR_X) ? GNEAttributeCarrier::parseAttributeFromXML<Position>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_POSITION, abort) : Position::INVALID;
     // ... a Lon-Lat,...
-    double lon = attrs.hasAttribute(SUMO_ATTR_LON)? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_LON, abort) : GNEAttributeCarrier::INVALID_POSITION;
-    double lat = attrs.hasAttribute(SUMO_ATTR_LAT)? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_LAT, abort) : GNEAttributeCarrier::INVALID_POSITION;
+    double lon = attrs.hasAttribute(SUMO_ATTR_LON) ? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_LON, abort) : GNEAttributeCarrier::INVALID_POSITION;
+    double lat = attrs.hasAttribute(SUMO_ATTR_LAT) ? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_LAT, abort) : GNEAttributeCarrier::INVALID_POSITION;
     // .. or as Lane-PosLane
-    std::string laneID = attrs.hasAttribute(SUMO_ATTR_LANE)? GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, POIID, SUMO_TAG_POILANE, SUMO_ATTR_LANE, abort) : "";
-    double lanePos = attrs.hasAttribute(SUMO_ATTR_POSITION)? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POILANE, SUMO_ATTR_POSITION, abort) : GNEAttributeCarrier::INVALID_POSITION;
+    std::string laneID = attrs.hasAttribute(SUMO_ATTR_LANE) ? GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, POIID, SUMO_TAG_POILANE, SUMO_ATTR_LANE, abort) : "";
+    double lanePos = attrs.hasAttribute(SUMO_ATTR_POSITION) ? GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POILANE, SUMO_ATTR_POSITION, abort) : GNEAttributeCarrier::INVALID_POSITION;
     double lanePosLat = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POILANE, SUMO_ATTR_POSITION_LAT, abort);
     // continue with common parameters
-    double layer = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_LAYER, abort);    
+    double layer = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_LAYER, abort);
     std::string type = GNEAttributeCarrier::parseAttributeFromXML<std::string>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_TYPE, abort);
     RGBColor color = GNEAttributeCarrier::parseAttributeFromXML<RGBColor>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_COLOR, abort);
     double angle = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_ANGLE, abort);
@@ -2347,6 +2485,11 @@ GNEAdditionalHandler::parseAndBuildPOI(const SUMOSAXAttributes& attrs) {
     bool relativePath = GNEAttributeCarrier::parseAttributeFromXML<bool>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_RELATIVEPATH, abort);
     double width = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_WIDTH, abort);
     double height = GNEAttributeCarrier::parseAttributeFromXML<double>(attrs, POIID, SUMO_TAG_POI, SUMO_ATTR_HEIGHT, abort);
+    // check if ID is valid
+    if (SUMOXMLDefinitions::isValidTypeID(POIID) == false) {
+        WRITE_WARNING("Invalid characters for POI ID");
+        abort = true;
+    }
     // Continue if all parameters were sucesfully loaded
     if (!abort) {
         // check if img file is absolute
@@ -2396,73 +2539,73 @@ GNEAdditionalHandler::parseAndBuildPOI(const SUMOSAXAttributes& attrs) {
 
 
 void
-GNEAdditionalHandler::parseGenericParameter(const SUMOSAXAttributes& attrs) {
+GNEAdditionalHandler::parseParameter(const SUMOSAXAttributes& attrs) {
     // we have two cases: if we're parsing a Shape or we're parsing an Additional
-    if(getLastParameterised()) {
+    if (getLastParameterised()) {
         bool ok = true;
         std::string key;
         if (attrs.hasAttribute(SUMO_ATTR_KEY)) {
             // obtain key
             key = attrs.get<std::string>(SUMO_ATTR_KEY, nullptr, ok);
             if (key.empty()) {
-                WRITE_WARNING("Error parsing key from shape generic parameter. Key cannot be empty");
+                WRITE_WARNING("Error parsing key from shape parameter. Key cannot be empty");
                 ok = false;
             }
             if (!SUMOXMLDefinitions::isValidTypeID(key)) {
-                WRITE_WARNING("Error parsing key from shape generic parameter. Key contains invalid characters");
+                WRITE_WARNING("Error parsing key from shape parameter. Key contains invalid characters");
                 ok = false;
             }
         } else {
-            WRITE_WARNING("Error parsing key from shape generic parameter. Key doesn't exist");
+            WRITE_WARNING("Error parsing key from shape parameter. Key doesn't exist");
             ok = false;
         }
         // circumventing empty string test
         const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
         if (!SUMOXMLDefinitions::isValidAttribute(val)) {
-            WRITE_WARNING("Error parsing value from shape generic parameter. Value contains invalid characters");
+            WRITE_WARNING("Error parsing value from shape parameter. Value contains invalid characters");
             ok = false;
         }
         // set parameter in last inserted additional
         if (ok) {
-            WRITE_DEBUG("Inserting generic parameter '" + key + "|" + val + "' into shape.");
+            WRITE_DEBUG("Inserting parameter '" + key + "|" + val + "' into shape.");
             getLastParameterised()->setParameter(key, val);
         }
     } else if (myHierarchyInsertedAdditionals.getLastInsertedAdditional()) {
-        // first check if given additional supports generic parameters
-        if (myHierarchyInsertedAdditionals.getLastInsertedAdditional()->getTagProperty().hasGenericParameters()) {
+        // first check if given additional supports parameters
+        if (myHierarchyInsertedAdditionals.getLastInsertedAdditional()->getTagProperty().hasParameters()) {
             bool ok = true;
             std::string key;
             if (attrs.hasAttribute(SUMO_ATTR_KEY)) {
                 // obtain key
                 key = attrs.get<std::string>(SUMO_ATTR_KEY, nullptr, ok);
                 if (key.empty()) {
-                    WRITE_WARNING("Error parsing key from additional generic parameter. Key cannot be empty");
+                    WRITE_WARNING("Error parsing key from additional parameter. Key cannot be empty");
                     ok = false;
                 }
                 if (!SUMOXMLDefinitions::isValidTypeID(key)) {
-                    WRITE_WARNING("Error parsing key from additional generic parameter. Key contains invalid characters");
+                    WRITE_WARNING("Error parsing key from additional parameter. Key contains invalid characters");
                     ok = false;
                 }
             } else {
-                WRITE_WARNING("Error parsing key from additional generic parameter. Key doesn't exist");
+                WRITE_WARNING("Error parsing key from additional parameter. Key doesn't exist");
                 ok = false;
             }
             // circumventing empty string test
             const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
             if (!SUMOXMLDefinitions::isValidAttribute(val)) {
-                WRITE_WARNING("Error parsing value from additional generic parameter. Value contains invalid characters");
+                WRITE_WARNING("Error parsing value from additional parameter. Value contains invalid characters");
                 ok = false;
             }
             // set parameter in last inserted additional
             if (ok) {
-                WRITE_DEBUG("Inserting generic parameter '" + key + "|" + val + "' into additional " + myHierarchyInsertedAdditionals.getLastInsertedAdditional()->getTagStr() + ".");
+                WRITE_DEBUG("Inserting parameter '" + key + "|" + val + "' into additional " + myHierarchyInsertedAdditionals.getLastInsertedAdditional()->getTagStr() + ".");
                 myHierarchyInsertedAdditionals.getLastInsertedAdditional()->setParameter(key, val);
             }
         } else {
-            WRITE_WARNING("Additionals of type '" + myHierarchyInsertedAdditionals.getLastInsertedAdditional()->getTagStr() + "' doesn't support Generic Parameters");
+            WRITE_WARNING("Additionals of type '" + myHierarchyInsertedAdditionals.getLastInsertedAdditional()->getTagStr() + "' doesn't support parameters");
         }
     } else {
-        WRITE_WARNING("Generic Parameters has to be declared within the definition of an additional or a shape element");
+        WRITE_WARNING("Parameters has to be declared within the definition of an additional or a shape element");
     }
 }
 

@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poiLane")
+netedit.changeElement("poiLane")
 
 # change width (invalid, dummy)
-netedit.modifyShapeDefaultValue(7, "dummyWidth")
+netedit.changeDefaultValue(8, "dummyWidth")
 
 # try to create poi
 netedit.leftClick(referencePosition, 150, 215)
 
 # change width (invalid, negative)
-netedit.modifyShapeDefaultValue(7, "-2")
+netedit.changeDefaultValue(8, "-2")
 
 # try to create poi
 netedit.leftClick(referencePosition, 200, 215)
 
 # change width (valid)
-netedit.modifyShapeDefaultValue(7, "2.5")
+netedit.changeDefaultValue(8, "2.5")
 
 # create poi
 netedit.leftClick(referencePosition, 250, 215)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

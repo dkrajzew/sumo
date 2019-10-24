@@ -29,13 +29,13 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select containerStop
-netedit.changeAdditional("containerStop")
+netedit.changeElement("containerStop")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(6, "reference center")
+netedit.changeDefaultValue(7, "reference center")
 
 # create containerStop in mode "reference center"
-netedit.leftClick(referencePosition, 250, 250)
+netedit.leftClick(referencePosition, 250, 270)
 
 # change to move mode
 netedit.moveMode()
@@ -47,41 +47,41 @@ netedit.moveElement(referencePosition, 150, 275, 250, 275)
 netedit.inspectMode()
 
 # inspect containerStop
-netedit.leftClick(referencePosition, 350, 255)
+netedit.leftClick(referencePosition, 350, 275)
 
 # block additional
-netedit.modifyBoolAttribute(10, True)
+netedit.modifyBoolAttribute(6, True)
 
 # change to move mode
 netedit.moveMode()
 
 # try to move containerStop to right (must be blocked)
-netedit.moveElement(referencePosition, 250, 270, 350, 270)
+netedit.moveElement(referencePosition, 250, 275, 350, 275)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect containerStop
-netedit.leftClick(referencePosition, 350, 255)
+netedit.leftClick(referencePosition, 350, 275)
 
 # unblock additional
-netedit.modifyBoolAttribute(10, True)
+netedit.modifyBoolAttribute(6, True)
 
 # change to move mode
 netedit.moveMode()
 
 # move containerStop to right (must be allowed)
-netedit.moveElement(referencePosition, 250, 270, 350, 270)
+netedit.moveElement(referencePosition, 250, 275, 350, 275)
 
 # Check undos and redos
 netedit.undo(referencePosition, 5)
 netedit.redo(referencePosition, 5)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

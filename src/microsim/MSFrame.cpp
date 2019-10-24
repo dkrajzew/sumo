@@ -100,7 +100,7 @@ MSFrame::fillOptions() {
     oc.addDescription("load-state", "Input", "Loads a network state from FILE");
     oc.doRegister("load-state.offset", new Option_String("0", "TIME"));//!!! check, describe
     oc.addDescription("load-state.offset", "Input", "Shifts all times loaded from a saved state by the given offset");
-    oc.doRegister("load-state.remove-vehicles", new Option_String(""));
+    oc.doRegister("load-state.remove-vehicles", new Option_StringVector(StringVector({""})));
     oc.addDescription("load-state.remove-vehicles", "Input", "Removes vehicles with the given IDs from the loaded state");
 
     //  register output options
@@ -140,6 +140,8 @@ MSFrame::fillOptions() {
     oc.addDescription("fcd-output.geo", "Output", "Save the Floating Car Data using geo-coordinates (lon/lat)");
     oc.doRegister("fcd-output.signals", new Option_Bool(false));
     oc.addDescription("fcd-output.signals", "Output", "Add the vehicle signal state to the FCD output (brake lights etc.)");
+    oc.doRegister("fcd-output.distance", new Option_Bool(false));
+    oc.addDescription("fcd-output.distance", "Output", "Add kilometrage to the FCD output (linear referencing)");
     oc.doRegister("fcd-output.filter-edges.input-file", new Option_FileName());
     oc.addDescription("fcd-output.filter-edges.input-file", "Output", "Restrict fcd output to the edge selection from the given input file");
 
@@ -202,9 +204,12 @@ MSFrame::fillOptions() {
     oc.doRegister("vehroute-output.skip-ptlines", new Option_Bool(false));
     oc.addDescription("vehroute-output.skip-ptlines", "Output", "Skip vehroute output for public transport vehicles");
 
+    oc.doRegister("vehroute-output.incomplete", new Option_Bool(false));
+    oc.addDescription("vehroute-output.incomplete", "Output", "Include invalid routes and route stubs in vehroute output");
+
     oc.doRegister("link-output", new Option_FileName());
     oc.addDescription("link-output", "Output", "Save links states into FILE");
-    
+
     oc.doRegister("railsignal-block-output", new Option_FileName());
     oc.addDescription("railsignal-block-output", "Output", "Save railsignal-blocks into FILE");
 
@@ -226,7 +231,7 @@ MSFrame::fillOptions() {
 #ifdef _DEBUG
     oc.doRegister("movereminder-output", new Option_FileName());
     oc.addDescription("movereminder-output", "Output", "Save movereminder states of selected vehicles into FILE");
-    oc.doRegister("movereminder-output.vehicles", new Option_String());
+    oc.doRegister("movereminder-output.vehicles", new Option_StringVector());
     oc.addDescription("movereminder-output.vehicles", "Output", "List of vehicle ids which shall save their movereminder states");
 #endif
 
@@ -234,7 +239,7 @@ MSFrame::fillOptions() {
     oc.addDescription("save-state.times", "Output", "Use INT[] as times at which a network state written");
     oc.doRegister("save-state.period", new Option_String("-1", "TIME"));
     oc.addDescription("save-state.period", "Output", "save state repeatedly after TIME period");
-    oc.doRegister("save-state.prefix", new Option_FileName("state"));
+    oc.doRegister("save-state.prefix", new Option_FileName(StringVector({ "state" })));
     oc.addDescription("save-state.prefix", "Output", "Prefix for network states");
     oc.doRegister("save-state.suffix", new Option_String(".sbx"));
     oc.addDescription("save-state.suffix", "Output", "Suffix for network states (.sbx or .xml)");
@@ -330,6 +335,9 @@ MSFrame::fillOptions() {
     oc.doRegister("tls.actuated.show-detectors", new Option_Bool(false));
     oc.addDescription("tls.actuated.show-detectors", "Processing", "Sets default visibility for actuation detectors");
 
+    oc.doRegister("tls.delay_based.detector-range", new Option_Float(100));
+    oc.addDescription("tls.delay_based.detector-range", "Processing", "Sets default range for detecting delayed vehicles");
+
     oc.doRegister("time-to-impatience", new Option_String("300", "TIME"));
     oc.addDescription("time-to-impatience", "Processing", "Specify how long a vehicle may wait until impatience grows from 0 to 1, defaults to 300, non-positive values disable impatience growth");
 
@@ -349,6 +357,9 @@ MSFrame::fillOptions() {
     oc.doRegister("emergencydecel.warning-threshold", new Option_Float(1));
     oc.addDescription("emergencydecel.warning-threshold", "Processing", "Sets the fraction of emergency decel capability that must be used to trigger a warning.");
 
+    oc.doRegister("parking.maneuver", new Option_Bool(false));
+    oc.addDescription("parking.maneuver", "Processing", "Whether parking simulation includes manoeuvering time and associated lane blocking");
+
     // pedestrian model
     oc.doRegister("pedestrian.model", new Option_String("striping"));
     oc.addDescription("pedestrian.model", "Processing", "Select among pedestrian models ['nonInteracting', 'striping', 'remote']");
@@ -357,13 +368,18 @@ MSFrame::fillOptions() {
     oc.addDescription("pedestrian.striping.stripe-width", "Processing", "Width of parallel stripes for segmenting a sidewalk (meters) for use with model 'striping'");
 
     oc.doRegister("pedestrian.striping.dawdling", new Option_Float(0.2));
-    oc.addDescription("pedestrian.striping.dawdling", "Processing", "factor for random slow-downs [0,1] for use with model 'striping'");
+    oc.addDescription("pedestrian.striping.dawdling", "Processing", "Factor for random slow-downs [0,1] for use with model 'striping'");
 
     oc.doRegister("pedestrian.striping.jamtime", new Option_String("300", "TIME"));
     oc.addDescription("pedestrian.striping.jamtime", "Processing", "Time in seconds after which pedestrians start squeezing through a jam when using model 'striping' (non-positive values disable squeezing)");
+    oc.doRegister("pedestrian.striping.jamtime.crossing", new Option_String("10", "TIME"));
+    oc.addDescription("pedestrian.striping.jamtime.crossing", "Processing", "Time in seconds after which pedestrians start squeezing through a jam while on a pedestrian crossing when using model 'striping' (non-positive values disable squeezing)");
 
     oc.doRegister("pedestrian.remote.address", new Option_String("localhost:9000"));
     oc.addDescription("pedestrian.remote.address", "Processing", "The address (host:port) of the external simulation");
+
+    oc.doRegister("ride.stop-tolerance", new Option_Float(10.));
+    oc.addDescription("ride.stop-tolerance", "Processing", "Tolerance to apply when matching pedestrian and vehicle positions on boarding at individual stops");
 
     // generic routing options
     oc.doRegister("routing-algorithm", new Option_String("dijkstra"));
@@ -383,12 +399,12 @@ MSFrame::fillOptions() {
     oc.doRegister("persontrip.walkfactor", new Option_Float(double(0.75)));
     oc.addDescription("persontrip.walkfactor", "Routing", "Use FLOAT as a factor on pedestrian maximum speed during intermodal routing");
 
-    oc.doRegister("persontrip.transfer.car-walk", new Option_String("parkingAreas"));
+    oc.doRegister("persontrip.transfer.car-walk", new Option_StringVector(StringVector({ "parkingAreas" })));
     oc.addDescription("persontrip.transfer.car-walk", "Routing", "Where are mode changes from car to walking allowed (possible values: 'parkingAreas', 'ptStops', 'allJunctions' and combinations)");
 
     // devices
     oc.addOptionSubTopic("Emissions");
-    oc.doRegister("phemlight-path", new Option_FileName("./PHEMlight/"));
+    oc.doRegister("phemlight-path", new Option_FileName(StringVector({ "./PHEMlight/" })));
     oc.addDescription("phemlight-path", "Emissions", "Determines where to load PHEMlight definitions from.");
 
     oc.addOptionSubTopic("Communication");
@@ -412,11 +428,7 @@ MSFrame::fillOptions() {
     oc.addDescription("remote-port", "TraCI Server", "Enables TraCI Server if set");
     oc.doRegister("num-clients", new Option_Integer(1));
     oc.addDescription("num-clients", "TraCI Server", "Expected number of connecting clients");
-#ifdef HAVE_PYTHON
-    oc.doRegister("python-script", new Option_String());
-    oc.addDescription("python-script", "TraCI Server", "Runs TraCI script with embedded python");
-#endif
-    //
+
     oc.addOptionSubTopic("Mesoscopic");
     oc.doRegister("mesosim", new Option_Bool(false));
     oc.addDescription("mesosim", "Mesoscopic", "Enables mesoscopic simulation");
@@ -469,10 +481,13 @@ MSFrame::fillOptions() {
     oc.doRegister("game", 'G', new Option_Bool(false));
     oc.addDescription("game", "GUI Only", "Start the GUI in gaming mode");
 
+    oc.doRegister("game.mode", new Option_String("tls"));
+    oc.addDescription("game.mode", "GUI Only", "Select the game type ('tls', 'drt')");
+
     oc.doRegister("start", 'S', new Option_Bool(false));
     oc.addDescription("start", "GUI Only", "Start the simulation after loading");
 
-    oc.doRegister("breakpoints", new Option_String());
+    oc.doRegister("breakpoints", 'B', new Option_StringVector());
     oc.addDescription("breakpoints", "GUI Only", "Use TIME[] as times when the simulation should halt");
 
     oc.doRegister("edgedata-files", new Option_FileName());
@@ -487,10 +502,10 @@ MSFrame::fillOptions() {
     oc.doRegister("registry-viewport", new Option_Bool(false));
     oc.addDescription("registry-viewport", "GUI Only", "Load current viewport from registry");
 
-    oc.doRegister("window-size", new Option_String());
+    oc.doRegister("window-size", new Option_StringVector());
     oc.addDescription("window-size", "GUI Only", "Create initial window with the given x,y size");
 
-    oc.doRegister("window-pos", new Option_String());
+    oc.doRegister("window-pos", new Option_StringVector());
     oc.addDescription("window-pos", "GUI Only", "Create initial window at the given x,y position");
 
     oc.doRegister("tracker-interval", new Option_Float(1.0));
@@ -508,6 +523,10 @@ MSFrame::fillOptions() {
     // gui testing - debug
     oc.doRegister("gui-testing-debug", new Option_Bool(false));
     oc.addDescription("gui-testing-debug", "GUI Only", "Enable output messages during GUI-Testing");
+
+    // gui testing - settings output
+    oc.doRegister("gui-testing.setting-output", new Option_FileName());
+    oc.addDescription("gui-testing.setting-output", "GUI Only", "Save gui settings in the given settingsoutput file");
 }
 
 
@@ -574,8 +593,10 @@ MSFrame::checkOptions() {
     if (oc.getBool("meso-junction-control.limited") && !oc.getBool("meso-junction-control")) {
         oc.set("meso-junction-control", "true");
     }
-    if (oc.getBool("mesosim") && oc.isDefault("pedestrian.model")) {
-        oc.set("pedestrian.model", "nonInteracting");
+    if (oc.getBool("mesosim")) {
+        if (oc.isDefault("pedestrian.model")) {
+            oc.set("pedestrian.model", "nonInteracting");
+        }
     }
     const SUMOTime begin = string2time(oc.getString("begin"));
     const SUMOTime end = string2time(oc.getString("end"));
@@ -583,6 +604,7 @@ MSFrame::checkOptions() {
         WRITE_ERROR("The begin time should not be negative.");
         ok = false;
     }
+    checkStepLengthMultiple(begin, " for begin");
     if (end != string2time("-1")) {
         if (end < begin) {
             WRITE_ERROR("The end time should be after the begin time.");
@@ -592,6 +614,14 @@ MSFrame::checkOptions() {
     if (string2time(oc.getString("step-length")) <= 0) {
         WRITE_ERROR("the minimum step-length is 0.001");
         ok = false;
+    }
+    const SUMOTime period = string2time(oc.getString("device.fcd.period"));
+    if (period > 0) {
+        checkStepLengthMultiple(period, " for device.fcd.period");
+    }
+    const SUMOTime statePeriod = string2time(oc.getString("save-state.period"));
+    if (statePeriod > 0) {
+        checkStepLengthMultiple(period, " for save-state.period");
     }
 #ifdef _DEBUG
     if (oc.isSet("movereminder-output.vehicles") && !oc.isSet("movereminder-output")) {
@@ -608,11 +638,6 @@ MSFrame::checkOptions() {
     if (oc.getBool("ignore-accidents")) {
         WRITE_WARNING("The option 'ignore-accidents' is deprecated. Use 'collision.action none' instead.");
     }
-#ifdef HAVE_PYTHON
-    if (oc.isSet("python-script")) {
-        WRITE_WARNING("The option 'python-script' is deprecated. Use libsumo or TraCI instead.");
-    }
-#endif
     if (oc.getBool("duration-log.statistics") && oc.isDefault("verbose")) {
         oc.set("verbose", "true");
     }
@@ -658,6 +683,18 @@ MSFrame::checkOptions() {
     };
     if (oc.getInt("threads") > oc.getInt("thread-rngs")) {
         WRITE_WARNING("Number of threads exceeds number of thread-rngs. Simulation runs with the same seed may produce different results");
+    }
+    if (oc.getString("game.mode") != "tls" && oc.getString("game.mode") != "drt") {
+        WRITE_ERROR("game.mode must be one of ['tls', 'drt']");
+    }
+
+    if (oc.isSet("persontrip.transfer.car-walk")) {
+        for (const std::string& opt : OptionsCont::getOptions().getStringVector("persontrip.transfer.car-walk")) {
+            if (opt != "parkingAreas" && opt != "ptStops" && opt != "allJunctions") {
+                WRITE_ERROR("Invalid transfer option '" + opt + "'. Must be one of 'parkingAreas', 'ptStops' and 'allJunctions'");
+                ok = false;
+            }
+        }
     }
 
     ok &= MSDevice::checkOptions(oc);
@@ -724,6 +761,8 @@ MSFrame::setMSGlobals(OptionsCont& oc) {
 
     MSGlobals::gEmergencyDecelWarningThreshold = oc.getFloat("emergencydecel.warning-threshold");
     MSGlobals::gMinorPenalty = oc.getFloat("weights.minor-penalty");
+
+    MSGlobals::gModelParkingManoeuver = oc.getBool("parking.maneuver");
 
 #ifdef _DEBUG
     if (oc.isSet("movereminder-output")) {

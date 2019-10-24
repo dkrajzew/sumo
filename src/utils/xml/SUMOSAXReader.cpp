@@ -24,6 +24,7 @@
 #include <config.h>
 
 #include <string>
+#include <memory>
 #include <iostream>
 #include <xercesc/sax2/XMLReaderFactory.hpp>
 #include <xercesc/framework/LocalFileInputSource.hpp>
@@ -36,6 +37,10 @@
 #include <utils/iodevices/BinaryInputDevice.h>
 #include "SUMOSAXAttributesImpl_Binary.h"
 #include "GenericSAXHandler.h"
+#ifdef HAVE_ZLIB
+#include <foreign/zstr/zstr.hpp>
+#endif
+#include "IStreamInputSource.h"
 #include "SUMOSAXReader.h"
 
 
@@ -43,7 +48,7 @@
 // method definitions
 // ===========================================================================
 SUMOSAXReader::SUMOSAXReader(GenericSAXHandler& handler, const XERCES_CPP_NAMESPACE::SAX2XMLReader::ValSchemes validationScheme)
-    : myHandler(nullptr), myValidationScheme(validationScheme), myXMLReader(nullptr), myBinaryInput(nullptr) {
+    : myHandler(nullptr), myValidationScheme(validationScheme), myXMLReader(nullptr), myBinaryInput(nullptr), myIStream(nullptr), myInputStream(nullptr) {
     setHandler(handler);
 }
 
@@ -93,7 +98,18 @@ SUMOSAXReader::parse(std::string systemID) {
         if (myXMLReader == nullptr) {
             myXMLReader = getSAXReader();
         }
+        if (!FileHelpers::isReadable(systemID)) {
+            throw ProcessError("Cannot read file '" + systemID + "'!");
+        }
+        if (FileHelpers::isDirectory(systemID)) {
+            throw ProcessError("File '" + systemID + "' is a directory!");
+        }
+#ifdef HAVE_ZLIB
+        zstr::ifstream istream(systemID.c_str(), std::fstream::in | std::fstream::binary);
+        myXMLReader->parse(IStreamInputSource(istream));
+#else
         myXMLReader->parse(systemID.c_str());
+#endif
     }
 }
 
@@ -138,11 +154,20 @@ SUMOSAXReader::parseFirst(std::string systemID) {
         // !!! check followers here
         return parseNext();
     } else {
+        if (!FileHelpers::isReadable(systemID)) {
+            throw ProcessError("Cannot read file '" + systemID + "'!");
+        }
         if (myXMLReader == nullptr) {
             myXMLReader = getSAXReader();
         }
         myToken = XERCES_CPP_NAMESPACE::XMLPScanToken();
+#ifdef HAVE_ZLIB
+        myIStream = std::unique_ptr<zstr::ifstream>(new zstr::ifstream(systemID.c_str(), std::fstream::in | std::fstream::binary));
+        myInputStream = std::unique_ptr<IStreamInputSource>(new IStreamInputSource(*myIStream));
+        return myXMLReader->parseFirst(*myInputStream, myToken);
+#else
         return myXMLReader->parseFirst(systemID.c_str(), myToken);
+#endif
     }
 }
 
@@ -217,26 +242,22 @@ SUMOSAXReader::getSAXReader() {
 XERCES_CPP_NAMESPACE::InputSource*
 SUMOSAXReader::LocalSchemaResolver::resolveEntity(const XMLCh* const /* publicId */, const XMLCh* const systemId) {
     const std::string url = StringUtils::transcode(systemId);
-    const std::string::size_type pos = url.rfind("/");
+    const std::string::size_type pos = url.find("/xsd/");
     if (pos != std::string::npos) {
-        const std::string dir = url.substr(0, pos);
-        if (dir == "http://sumo.sf.net/xsd" || dir == "http://sumo-sim.org/xsd" || dir == "http://sumo-sim.org/xsd/amitran" ||
-                dir == "http://sumo.dlr.de/xsd" || dir == "http://sumo.dlr.de/xsd/amitran") {
-            myHandler->setSchemaSeen();
-            const char* sumoPath = std::getenv("SUMO_HOME");
-            if (sumoPath == nullptr) {
-                WRITE_WARNING("Environment variable SUMO_HOME is not set, schema resolution will use slow website lookups.");
-                return nullptr;
-            }
-            const std::string file = sumoPath + std::string("/data/xsd") + url.substr(url.find("/xsd/") + 4);
-            if (FileHelpers::isReadable(file)) {
-                XMLCh* t = XERCES_CPP_NAMESPACE::XMLString::transcode(file.c_str());
-                XERCES_CPP_NAMESPACE::InputSource* const result = new XERCES_CPP_NAMESPACE::LocalFileInputSource(t);
-                XERCES_CPP_NAMESPACE::XMLString::release(&t);
-                return result;
-            } else {
-                WRITE_WARNING("Cannot find local schema '" + file + "', will try website lookup.");
-            }
+        myHandler->setSchemaSeen();
+        const char* sumoPath = std::getenv("SUMO_HOME");
+        if (sumoPath == nullptr) {
+            WRITE_WARNING("Environment variable SUMO_HOME is not set, schema resolution will use slow website lookups.");
+            return nullptr;
+        }
+        const std::string file = sumoPath + std::string("/data") + url.substr(pos);
+        if (FileHelpers::isReadable(file)) {
+            XMLCh* t = XERCES_CPP_NAMESPACE::XMLString::transcode(file.c_str());
+            XERCES_CPP_NAMESPACE::InputSource* const result = new XERCES_CPP_NAMESPACE::LocalFileInputSource(t);
+            XERCES_CPP_NAMESPACE::XMLString::release(&t);
+            return result;
+        } else {
+            WRITE_WARNING("Cannot read local schema '" + file + "', will try website lookup.");
         }
     }
     return nullptr;

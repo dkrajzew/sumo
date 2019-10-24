@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Sat Jan 12 20:51:02 2019 by Eclipse SUMO jtrrouter Version v1_0_1+1015-8e01b2d
+<!-- generated on Tue Oct 15 18:37:30 2019 by Eclipse SUMO jtrrouter Version v1_3_1+0470-4a6b08f445
 -->
 
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/jtrrouterConfiguration.xsd">
@@ -32,6 +32,9 @@
 
         <!-- Read sumo routes, alternatives, flows, and trips from FILE(s) -->
         <route-files value="" synonymes="alternative-files alternatives-files f flow-files flows r trip-files trips" type="FILE"/>
+
+        <!-- Determines where to load PHEMlight definitions from. -->
+        <phemlight-path value="./PHEMlight/" type="FILE"/>
 
         <!-- Read turning ratios from FILE(s) -->
         <turn-ratio-files value="" synonymes="t turns" type="FILE"/>
@@ -111,14 +114,17 @@
         <!-- The number of parallel execution threads used for routing -->
         <routing-threads value="0" type="INT"/>
 
+        <!-- Comma separated list of param keys to compare for additional restrictions -->
+        <restriction-params value="" type="STR[]"/>
+
         <!-- Routes are cut off when the route edges to net edges ratio is larger than FLOAT -->
         <max-edges-factor value="2" type="FLOAT"/>
 
-        <!-- Use STR as default turn definition -->
-        <turn-defaults value="30,50,20" synonymes="T" type="STR"/>
+        <!-- Use STR[] as default turn definition -->
+        <turn-defaults value="30,50,20" synonymes="T" type="STR[]"/>
 
-        <!-- Use STR as list of sink edges -->
-        <sink-edges value="" synonymes="sinks" type="STR"/>
+        <!-- Use STR[] as list of sink edges -->
+        <sink-edges value="" synonymes="sinks" type="STR[]"/>
 
         <!-- Whether all edges are allowed as sink edges -->
         <accept-all-destinations value="false" synonymes="A" type="BOOL"/>
@@ -171,7 +177,7 @@
         <!-- Prints option values before processing -->
         <print-options value="false" type="BOOL"/>
 
-        <!-- Prints this screen -->
+        <!-- Prints this screen or selected topics -->
         <help value="false" synonymes="?" type="BOOL"/>
 
         <!-- Prints the current version -->

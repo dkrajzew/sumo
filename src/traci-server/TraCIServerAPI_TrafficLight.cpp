@@ -75,8 +75,12 @@ TraCIServerAPI_TrafficLight::processGet(TraCIServer& server, tcpip::Storage& inp
                             storage.writeDouble(phase.minDur);
                             storage.writeUnsignedByte(libsumo::TYPE_DOUBLE);
                             storage.writeDouble(phase.maxDur);
-                            storage.writeUnsignedByte(libsumo::TYPE_INTEGER);
-                            storage.writeInt(phase.next);
+                            storage.writeUnsignedByte(libsumo::TYPE_COMPOUND);
+                            storage.writeInt((int)phase.next.size());
+                            for (int n : phase.next) {
+                                storage.writeUnsignedByte(libsumo::TYPE_INTEGER);
+                                storage.writeInt(n);
+                            }
                             storage.writeUnsignedByte(libsumo::TYPE_STRING);
                             storage.writeString(phase.name);
                         }
@@ -111,6 +115,15 @@ TraCIServerAPI_TrafficLight::processGet(TraCIServer& server, tcpip::Storage& inp
                     }
                     server.getWrapperStorage().writeInt(cnt);
                     server.getWrapperStorage().writeStorage(tempContent);
+                    break;
+                }
+                case libsumo::VAR_PERSON_NUMBER: {
+                    int index = 0;
+                    if (!server.readTypeCheckingInt(inputStorage, index)) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "The phase index must be given as an integer.", outputStorage);
+                    }
+                    server.getWrapperStorage().writeUnsignedByte(libsumo::TYPE_INTEGER);
+                    server.getWrapperStorage().writeInt(libsumo::TrafficLight::getServedPersonCount(id, index));
                     break;
                 }
                 case libsumo::VAR_PARAMETER: {
@@ -274,12 +287,12 @@ TraCIServerAPI_TrafficLight::processSet(TraCIServer& server, tcpip::Storage& inp
                     if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
                         return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "A compound object is needed for every phase.", outputStorage);
                     }
-                    int items = inputStorage.readInt();
+                    const int items = inputStorage.readInt();
                     if (items != 6 && items != 5) {
                         return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "A phase compound object requires 5 or 6 items.", outputStorage);
                     }
                     double duration = 0., minDuration = 0., maxDuration = 0.;
-                    int next = -1;
+                    std::vector<int> next;
                     std::string name;
                     if (!server.readTypeCheckingDouble(inputStorage, duration)) {
                         return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "set program: 4.1. parameter (duration) must be a double.", outputStorage);
@@ -294,8 +307,16 @@ TraCIServerAPI_TrafficLight::processSet(TraCIServer& server, tcpip::Storage& inp
                     if (!server.readTypeCheckingDouble(inputStorage, maxDuration)) {
                         return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "set program: 4.4. parameter (max duration) must be a double.", outputStorage);
                     }
-                    if (!server.readTypeCheckingInt(inputStorage, next)) {
-                        return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "set program: 4.5. parameter (next) must be an int.", outputStorage);
+                    if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
+                        return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "set program 4.5 parameter (next) must be a compound (list of ints).", outputStorage);
+                    }
+                    const int numNext = inputStorage.readInt();
+                    for (int k = 0; k < numNext; k++) {
+                        int nextEntry;
+                        if (!server.readTypeCheckingInt(inputStorage, nextEntry)) {
+                            return server.writeErrorStatusCmd(libsumo::CMD_SET_TL_VARIABLE, "set program: 4.5. parameter (next) must be a list of int.", outputStorage);
+                        }
+                        next.push_back(nextEntry);
                     }
                     if (items == 6) {
                         if (!server.readTypeCheckingString(inputStorage, name)) {

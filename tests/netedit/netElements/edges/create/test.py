@@ -40,7 +40,7 @@ netedit.leftClick(referencePosition, 100, 400)
 netedit.leftClick(referencePosition, 500, 400)
 
 # select two-way mode
-netedit.changeTwoWayOption()
+netedit.changeEditMode('4')
 
 # create square
 netedit.leftClick(referencePosition, 100, 400)
@@ -59,7 +59,7 @@ netedit.redo(referencePosition, 4)
 netedit.rebuildNetwork()
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

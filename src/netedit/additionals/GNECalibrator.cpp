@@ -36,10 +36,8 @@
 // member method definitions
 // ===========================================================================
 
-GNECalibrator::GNECalibrator(const std::string& id, GNEViewNet* viewNet, GNEEdge* edge, double pos, double frequency, const std::string& name, const std::string& output, const std::string& routeprobe) :
-    GNEAdditional(id, viewNet, GLO_CALIBRATOR, SUMO_TAG_CALIBRATOR, name, false),
-    myEdge(edge),
-    myLane(nullptr),
+GNECalibrator::GNECalibrator(const std::string& id, GNEViewNet* viewNet, GNEEdge* edge, double pos, SUMOTime frequency, const std::string& name, const std::string& output, const std::string& routeprobe) :
+    GNEAdditional(id, viewNet, GLO_CALIBRATOR, SUMO_TAG_CALIBRATOR, name, false, {edge}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
     myPositionOverLane(pos),
     myFrequency(frequency),
     myOutput(output),
@@ -47,10 +45,8 @@ GNECalibrator::GNECalibrator(const std::string& id, GNEViewNet* viewNet, GNEEdge
 }
 
 
-GNECalibrator::GNECalibrator(const std::string& id, GNEViewNet* viewNet, GNELane* lane, double pos, double frequency, const std::string& name, const std::string& output, const std::string& routeprobe) :
-    GNEAdditional(id, viewNet, GLO_CALIBRATOR, SUMO_TAG_LANECALIBRATOR, name, false),
-    myEdge(nullptr),
-    myLane(lane),
+GNECalibrator::GNECalibrator(const std::string& id, GNEViewNet* viewNet, GNELane* lane, double pos, SUMOTime frequency, const std::string& name, const std::string& output, const std::string& routeprobe) :
+    GNEAdditional(id, viewNet, GLO_CALIBRATOR, SUMO_TAG_LANECALIBRATOR, name, false, {}, {lane}, {}, {}, {}, {}, {}, {}, {}, {}),
     myPositionOverLane(pos),
     myFrequency(frequency),
     myOutput(output),
@@ -74,42 +70,31 @@ GNECalibrator::commitGeometryMoving(GNEUndoList*) {
 
 
 void
-GNECalibrator::updateGeometry(bool updateGrid) {
-    // first check if object has to be removed from grid (SUMOTree)
-    if (updateGrid) {
-        myViewNet->getNet()->removeGLObjectFromGrid(this);
-    }
-
+GNECalibrator::updateGeometry() {
     // Clear all containers
     myGeometry.clearGeometry();
-
     // get shape depending of we have a edge or a lane
-    if (myLane) {
+    if (getLaneParents().size() > 0) {
         // Get shape of lane parent
-        myGeometry.shape.push_back(myLane->getShape().positionAtOffset(myPositionOverLane));
+        myGeometry.shape.push_back(getLaneParents().front()->getGeometry().shape.positionAtOffset(myPositionOverLane));
         // Save rotation (angle) of the vector constructed by points f and s
-        myGeometry.shapeRotations.push_back(myLane->getShape().rotationDegreeAtOffset(myPositionOverLane) * -1);
-    } else if (myEdge) {
-        for (auto i : myEdge->getLanes()) {
+        myGeometry.shapeRotations.push_back(getLaneParents().front()->getGeometry().shape.rotationDegreeAtOffset(myPositionOverLane) * -1);
+    } else if (getEdgeParents().size() > 0) {
+        for (auto i : getEdgeParents().front()->getLanes()) {
             // Get shape of lane parent
-            myGeometry.shape.push_back(i->getShape().positionAtOffset(myPositionOverLane));
+            myGeometry.shape.push_back(i->getGeometry().shape.positionAtOffset(myPositionOverLane));
             // Save rotation (angle) of the vector constructed by points f and s
-            myGeometry.shapeRotations.push_back(myEdge->getLanes().at(0)->getShape().rotationDegreeAtOffset(myPositionOverLane) * -1);
+            myGeometry.shapeRotations.push_back(getEdgeParents().front()->getLanes().at(0)->getGeometry().shape.rotationDegreeAtOffset(myPositionOverLane) * -1);
         }
     } else {
         throw ProcessError("Both myEdge and myLane aren't defined");
-    }
-
-    // last step is to check if object has to be added into grid (SUMOTree) again
-    if (updateGrid) {
-        myViewNet->getNet()->addGLObjectIntoGrid(this);
     }
 }
 
 
 Position
 GNECalibrator::getPositionInView() const {
-    PositionVector shape = myLane ? myLane->getShape() : myEdge->getLanes().at(0)->getShape();
+    PositionVector shape = (getLaneParents().size() > 0) ? getLaneParents().front()->getGeometry().shape : getEdgeParents().front()->getLanes().at(0)->getGeometry().shape;
     if (myPositionOverLane < 0) {
         return shape.front();
     } else if (myPositionOverLane > shape.length()) {
@@ -120,13 +105,19 @@ GNECalibrator::getPositionInView() const {
 }
 
 
+Boundary
+GNECalibrator::getCenteringBoundary() const {
+    return myGeometry.shape.getBoxBoundary().grow(10);
+}
+
+
 std::string
 GNECalibrator::getParentName() const {
     // get parent name depending of we have a edge or a lane
-    if (myLane) {
-        return myLane->getMicrosimID();
-    } else if (myEdge) {
-        return myEdge->getLanes().at(0)->getMicrosimID();
+    if (getLaneParents().size() > 0) {
+        return getLaneParents().front()->getMicrosimID();
+    } else if (getEdgeParents().size() > 0) {
+        return getEdgeParents().front()->getLanes().at(0)->getMicrosimID();
     } else {
         throw ProcessError("Both myEdge and myLane aren't defined");
     }
@@ -136,62 +127,63 @@ GNECalibrator::getParentName() const {
 void
 GNECalibrator::drawGL(const GUIVisualizationSettings& s) const {
     // get values
-    glPushName(getGlID());
-    glLineWidth(1.0);
     const double exaggeration = s.addSize.getExaggeration(s, this);
-
-    // iterate over every Calibrator symbol
-    for (int i = 0; i < (int)myGeometry.shape.size(); ++i) {
-        const Position& pos = myGeometry.shape[i];
-        double rot = myGeometry.shapeRotations[i];
-        glPushMatrix();
-        glTranslated(pos.x(), pos.y(), getType());
-        glRotated(rot, 0, 0, 1);
-        glTranslated(0, 0, getType());
-        glScaled(exaggeration, exaggeration, 1);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-        if (drawUsingSelectColor()) {
-            GLHelper::setColor(s.selectedAdditionalColor);
-        } else {
-            GLHelper::setColor(RGBColor(255, 204, 0));
-        }
-        // base
-        glBegin(GL_TRIANGLES);
-        glVertex2d(0 - 1.4, 0);
-        glVertex2d(0 - 1.4, 6);
-        glVertex2d(0 + 1.4, 6);
-        glVertex2d(0 + 1.4, 0);
-        glVertex2d(0 - 1.4, 0);
-        glVertex2d(0 + 1.4, 6);
-        glEnd();
-
-        // draw text if isn't being drawn for selecting
-        if ((s.scale * exaggeration >= 1.) && !s.drawForSelecting) {
-            // set color depending of selection status
-            RGBColor textColor = drawUsingSelectColor() ? s.selectionColor : RGBColor::BLACK;
-            // draw "C"
-            GLHelper::drawText("C", Position(0, 1.5), 0.1, 3, textColor, 180);
-            // draw "edge" or "lane "
-            if (myLane) {
-                GLHelper::drawText("lane", Position(0, 3), .1, 1, textColor, 180);
-            } else if (myEdge) {
-                GLHelper::drawText("edge", Position(0, 3), .1, 1, textColor, 180);
+    // first check if additional has to be drawn
+    if (s.drawAdditionals(exaggeration)) {
+        // begin draw
+        glPushName(getGlID());
+        glLineWidth(1.0);
+        // iterate over every Calibrator symbol
+        for (int i = 0; i < (int)myGeometry.shape.size(); ++i) {
+            const Position& pos = myGeometry.shape[i];
+            double rot = myGeometry.shapeRotations[i];
+            glPushMatrix();
+            glTranslated(pos.x(), pos.y(), getType());
+            glRotated(rot, 0, 0, 1);
+            glTranslated(0, 0, getType());
+            glScaled(exaggeration, exaggeration, 1);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            // set color
+            if (drawUsingSelectColor()) {
+                GLHelper::setColor(s.colorSettings.selectedAdditionalColor);
             } else {
-                throw ProcessError("Both myEdge and myLane aren't defined");
+                GLHelper::setColor(s.colorSettings.calibrator);
+            }
+            // base
+            glBegin(GL_TRIANGLES);
+            glVertex2d(0 - 1.4, 0);
+            glVertex2d(0 - 1.4, 6);
+            glVertex2d(0 + 1.4, 6);
+            glVertex2d(0 + 1.4, 0);
+            glVertex2d(0 - 1.4, 0);
+            glVertex2d(0 + 1.4, 6);
+            glEnd();
+            // draw text if isn't being drawn for selecting
+            if (!s.drawForSelecting && s.drawDetail(s.detailSettings.calibratorText, exaggeration)) {
+                // set color depending of selection status
+                RGBColor textColor = drawUsingSelectColor() ? s.colorSettings.selectionColor : RGBColor::BLACK;
+                // draw "C"
+                GLHelper::drawText("C", Position(0, 1.5), 0.1, 3, textColor, 180);
+                // draw "edge" or "lane "
+                if (getLaneParents().size() > 0) {
+                    GLHelper::drawText("lane", Position(0, 3), .1, 1, textColor, 180);
+                } else if (getEdgeParents().size() > 0) {
+                    GLHelper::drawText("edge", Position(0, 3), .1, 1, textColor, 180);
+                } else {
+                    throw ProcessError("Both myEdge and myLane aren't defined");
+                }
+            }
+            glPopMatrix();
+            // check if dotted contour has to be drawn
+            if (myViewNet->getDottedAC() == this) {
+                GLHelper::drawShapeDottedContourRectangle(s, getType(), pos, 2.8, 6, rot, 0, 3);
             }
         }
-        glPopMatrix();
-        // check if dotted contour has to be drawn
-        if (!s.drawForSelecting && (myViewNet->getDottedAC() == this)) {
-            GLHelper::drawShapeDottedContour(getType(), pos, 2.8, 6, rot, 0, 3);
-        }
+        // draw name
+        drawName(getPositionInView(), s.scale, s.addName);
+        // pop name
+        glPopName();
     }
-    // draw name
-    drawName(getCenteringBoundary().getCenter(), s.scale, s.addName);
-
-    // pop name
-    glPopName();
 }
 
 
@@ -208,13 +200,13 @@ GNECalibrator::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_EDGE:
-            return myEdge->getID();
+            return getEdgeParents().front()->getID();
         case SUMO_ATTR_LANE:
-            return myLane->getID();
+            return getLaneParents().front()->getID();
         case SUMO_ATTR_POSITION:
             return toString(myPositionOverLane);
         case SUMO_ATTR_FREQUENCY:
-            return toString(myFrequency);
+            return time2string(myFrequency);
         case SUMO_ATTR_NAME:
             return myAdditionalName;
         case SUMO_ATTR_OUTPUT:
@@ -223,11 +215,17 @@ GNECalibrator::getAttribute(SumoXMLAttr key) const {
             return myRouteProbe;
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+double 
+GNECalibrator::getAttributeDouble(SumoXMLAttr key) const {
+    throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
 }
 
 
@@ -246,7 +244,7 @@ GNECalibrator::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoLi
         case SUMO_ATTR_OUTPUT:
         case SUMO_ATTR_ROUTEPROBE:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -277,7 +275,7 @@ GNECalibrator::isValid(SumoXMLAttr key, const std::string& value) {
             if (canParse<double>(value)) {
                 // obtain position and check if is valid
                 double newPosition = parse<double>(value);
-                PositionVector shape = myLane ? myLane->getShape() : myEdge->getLanes().at(0)->getShape();
+                PositionVector shape = (getLaneParents().size() > 0) ? getLaneParents().front()->getGeometry().shape : getEdgeParents().front()->getLanes().at(0)->getGeometry().shape;
                 if ((newPosition < 0) || (newPosition > shape.length())) {
                     return false;
                 } else {
@@ -287,7 +285,7 @@ GNECalibrator::isValid(SumoXMLAttr key, const std::string& value) {
                 return false;
             }
         case SUMO_ATTR_FREQUENCY:
-            return (canParse<double>(value) && parse<double>(value) >= 0);
+            return canParse<SUMOTime>(value);
         case SUMO_ATTR_NAME:
             return SUMOXMLDefinitions::isValidAttribute(value);
         case SUMO_ATTR_OUTPUT:
@@ -296,11 +294,17 @@ GNECalibrator::isValid(SumoXMLAttr key, const std::string& value) {
             return SUMOXMLDefinitions::isValidNetID(value);
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+bool 
+GNECalibrator::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 
@@ -326,16 +330,16 @@ GNECalibrator::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_EDGE:
-            myEdge = changeEdge(myEdge, value);
+            changeEdgeParents(this, value);
             break;
         case SUMO_ATTR_LANE:
-            myLane = changeLane(myLane, value);
+            changeLaneParents(this, value);
             break;
         case SUMO_ATTR_POSITION:
             myPositionOverLane = parse<double>(value);
             break;
         case SUMO_ATTR_FREQUENCY:
-            myFrequency = parse<double>(value);
+            myFrequency = parse<SUMOTime>(value);
             break;
         case SUMO_ATTR_NAME:
             myAdditionalName = value;
@@ -353,15 +357,11 @@ GNECalibrator::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
-    }
-    // Update Geometry after setting a new attribute (but avoided for certain attributes)
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
-        updateGeometry(true);
     }
 }
 

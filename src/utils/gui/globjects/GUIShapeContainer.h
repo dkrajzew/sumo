@@ -69,8 +69,21 @@ public:
      */
     virtual bool addPolygon(const std::string& id, const std::string& type, const RGBColor& color, double layer,
                             double angle, const std::string& imgFile, bool relativePath, const PositionVector& shape, bool geo,
-                            bool fill, double lineWidth, bool ignorePruning = false);
+                            bool fill, double lineWidth, bool ignorePruning = false) override;
 
+    /// @brief Adds dynamics to the given Polygon, @see ShapeContainer addPolygonDynamics
+    /// @note  Supplies the visualisation RTree to the dynamics for updating the object when moving
+    PolygonDynamics* addPolygonDynamics(double simtime,
+                                        std::string polyID,
+                                        SUMOTrafficObject* trackedObject,
+                                        const std::vector<double>& timeSpan,
+                                        const std::vector<double>& alphaSpan,
+                                        bool looped,
+                                        bool rotate) override;
+
+    /// @brief Update PolygonDynamics, @see ShapeContainer
+    /// @note  Locks the visualisation RTree
+    SUMOTime polygonDynamicsUpdate(SUMOTime t, PolygonDynamics* pd) override;
 
     /** @brief Builds a POI using the given values and adds it to the container
      * @param[in] id The name of the POI
@@ -91,7 +104,7 @@ public:
      */
     virtual bool addPOI(const std::string& id, const std::string& type, const RGBColor& color, const Position& pos, bool geo,
                         const std::string& lane, double posOverLane, double posLat, double layer, double angle,
-                        const std::string& imgFile, bool relativePath, double width, double height, bool ignorePruning = false);
+                        const std::string& imgFile, bool relativePath, double width, double height, bool ignorePruning = false) override;
 
 
 
@@ -99,14 +112,14 @@ public:
      * @param[in] id The id of the polygon
      * @return Whether the polygon could be removed
      */
-    virtual bool removePolygon(const std::string& id);
+    virtual bool removePolygon(const std::string& id, bool useLock = true) override;
 
 
     /** @brief Removes a PoI from the container
      * @param[in] id The id of the PoI
      * @return Whether the poi could be removed
      */
-    virtual bool removePOI(const std::string& id);
+    virtual bool removePOI(const std::string& id) override;
 
 
 
@@ -114,14 +127,14 @@ public:
      * @param[in] id The id of the PoI to move
      * @param[in] pos The PoI's new position
      */
-    virtual void movePOI(const std::string& id, const Position& pos);
+    virtual void movePOI(const std::string& id, const Position& pos) override;
 
 
     /** @brief Assigns a shape to the named polygon
      * @param[in] id The id of the polygon to reshape
      * @param[in] shape The polygon's new shape
      */
-    virtual void reshapePolygon(const std::string& id, const PositionVector& shape);
+    virtual void reshapePolygon(const std::string& id, const PositionVector& shape) override;
 
 
 

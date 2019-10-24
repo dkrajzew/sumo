@@ -41,7 +41,7 @@ netedit.selectMode()
 netedit.leftClickControl(referencePosition, 210, 210)
 
 # toogle edges selection
-netedit.toogleSelectEdges()
+netedit.changeEditMode('2')
 
 # select lane using a simple click
 netedit.leftClickControl(referencePosition, 210, 240)
@@ -59,10 +59,10 @@ netedit.leftClickControl(referencePosition, 210, 240)
 netedit.leftClickControl(referencePosition, 210, 210)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

@@ -37,8 +37,7 @@
 // ===========================================================================
 
 GNEAccess::GNEAccess(GNEAdditional* busStop, GNELane* lane, GNEViewNet* viewNet, const std::string& pos, const std::string& length, bool friendlyPos, bool blockMovement) :
-    GNEAdditional(busStop, viewNet, GLO_ACCESS, SUMO_TAG_ACCESS, "", blockMovement),
-    myLane(lane),
+    GNEAdditional(busStop, viewNet, GLO_ACCESS, SUMO_TAG_ACCESS, "", blockMovement, {}, {lane}, {}, {busStop}, {}, {}, {}, {}, {}, {}),
     myPositionOverLane(pos),
     myLength(length),
     myFriendlyPosition(friendlyPos) {
@@ -56,9 +55,9 @@ GNEAccess::moveGeometry(const Position& offset) {
     newPosition.add(offset);
     // filtern position using snap to active grid
     newPosition = myViewNet->snapToActiveGrid(newPosition);
-    myPositionOverLane = toString(myLane->getShape().nearest_offset_to_point2D(newPosition, false));
+    myPositionOverLane = toString(getLaneParents().front()->getGeometry().shape.nearest_offset_to_point2D(newPosition, false));
     // Update geometry
-    updateGeometry(false);
+    updateGeometry();
 }
 
 
@@ -74,34 +73,29 @@ GNEAccess::commitGeometryMoving(GNEUndoList* undoList) {
 
 
 void
-GNEAccess::updateGeometry(bool updateGrid) {
-    // first check if object has to be removed from grid (SUMOTree)
-    if (updateGrid) {
-        myViewNet->getNet()->removeGLObjectFromGrid(this);
-    }
-
+GNEAccess::updateGeometry() {
     // Clear all containers
     myGeometry.clearGeometry();
 
     // Get shape of lane parent
-    myGeometry.shape = myLane->getShape();
+    myGeometry.shape = getLaneParents().front()->getGeometry().shape;
 
     // set start position
     double fixedPositionOverLane;
     if (!canParse<double>(myPositionOverLane)) {
-        fixedPositionOverLane = myLane->getParentEdge().getNBEdge()->getFinalLength();
+        fixedPositionOverLane = getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength();
     } else if (parse<double>(myPositionOverLane) < 0) {
         fixedPositionOverLane = 0;
-    } else if (parse<double>(myPositionOverLane) > myLane->getParentEdge().getNBEdge()->getFinalLength()) {
-        fixedPositionOverLane = myLane->getParentEdge().getNBEdge()->getFinalLength();
+    } else if (parse<double>(myPositionOverLane) > getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength()) {
+        fixedPositionOverLane = getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength();
     } else {
         fixedPositionOverLane = parse<double>(myPositionOverLane);
     }
     // obtain position
-    myGeometry.shape[0] = myLane->getShape().positionAtOffset(fixedPositionOverLane * myLane->getLengthGeometryFactor());
+    myGeometry.shape[0] = getLaneParents().front()->getGeometry().shape.positionAtOffset(fixedPositionOverLane * getLaneParents().front()->getLengthGeometryFactor());
 
     // Save rotation (angle) of the vector constructed by points f and s
-    myGeometry.shapeRotations.push_back(myLane->getShape().rotationDegreeAtOffset(fixedPositionOverLane) * -1);
+    myGeometry.shapeRotations.push_back(getLaneParents().front()->getGeometry().shape.rotationDegreeAtOffset(fixedPositionOverLane) * -1);
 
     // Set block icon position
     myBlockIcon.position = myGeometry.shape.getLineCenter();
@@ -110,29 +104,30 @@ GNEAccess::updateGeometry(bool updateGrid) {
     myBlockIcon.offset = Position(-1, 0);
 
     // Set block icon rotation, and using their rotation for logo
-    myBlockIcon.setRotation(myLane);
-
-    // last step is to check if object has to be added into grid (SUMOTree) again
-    if (updateGrid) {
-        myViewNet->getNet()->addGLObjectIntoGrid(this);
-    }
+    myBlockIcon.setRotation(getLaneParents().front());
 }
 
 
 Position
 GNEAccess::getPositionInView() const {
     if (!canParse<double>(myPositionOverLane)) {
-        return myLane->getShape().front();
+        return getLaneParents().front()->getGeometry().shape.front();
     } else {
         double posOverLane = parse<double>(myPositionOverLane);
         if (posOverLane < 0) {
-            return myLane->getShape().front();
-        } else if (posOverLane > myLane->getShape().length()) {
-            return myLane->getShape().back();
+            return getLaneParents().front()->getGeometry().shape.front();
+        } else if (posOverLane > getLaneParents().front()->getGeometry().shape.length()) {
+            return getLaneParents().front()->getGeometry().shape.back();
         } else {
-            return myLane->getShape().positionAtOffset(posOverLane);
+            return getLaneParents().front()->getGeometry().shape.positionAtOffset(posOverLane);
         }
     }
+}
+
+
+Boundary
+GNEAccess::getCenteringBoundary() const {
+    return myGeometry.shape.getBoxBoundary().grow(10);
 }
 
 
@@ -143,7 +138,7 @@ GNEAccess::isAccessPositionFixed() const {
         return true;
     } else {
         if (canParse<double>(myPositionOverLane)) {
-            return (parse<double>(myPositionOverLane) >= 0) && ((parse<double>(myPositionOverLane)) <= myLane->getParentEdge().getNBEdge()->getFinalLength());
+            return (parse<double>(myPositionOverLane) >= 0) && ((parse<double>(myPositionOverLane)) <= getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength());
         } else {
             return false;
         }
@@ -153,13 +148,13 @@ GNEAccess::isAccessPositionFixed() const {
 
 GNEEdge&
 GNEAccess::getEdge() const {
-    return myLane->getParentEdge();
+    return getLaneParents().front()->getParentEdge();
 }
 
 
 std::string
 GNEAccess::getParentName() const {
-    return myFirstAdditionalParent->getID();
+    return getAdditionalParents().at(0)->getID();
 }
 
 
@@ -167,31 +162,34 @@ void
 GNEAccess::drawGL(const GUIVisualizationSettings& s) const {
     // Obtain exaggeration of the draw
     const double exaggeration = s.addSize.getExaggeration(s, this);
-    // Start drawing adding an gl identificator
-    glPushName(getGlID());
-    // push matrix
-    glPushMatrix();
-    // set color depending of selection
-    if (mySelected) {
-        GLHelper::setColor(s.selectedAdditionalColor);
-    } else {
-        GLHelper::setColor(s.SUMO_color_busStop);
-    }
-    glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), GLO_ACCESS);
-    // draw circle
-    if (s.drawForSelecting) {
-        GLHelper::drawFilledCircle((double) 0.5 * exaggeration, 8);
-    } else {
-        std::vector<Position> vertices = GLHelper::drawFilledCircleReturnVertices((double) 0.5 * exaggeration, 16);
-        // check if dotted contour has to be drawn
-        if (myViewNet->getDottedAC() == this) {
-            GLHelper::drawShapeDottedContour(getType(), vertices);
+    // first check if additional has to be drawn
+    if (s.drawAdditionals(exaggeration)) {
+        // Start drawing adding an gl identificator
+        glPushName(getGlID());
+        // push matrix
+        glPushMatrix();
+        // set color depending of selection
+        if (drawUsingSelectColor()) {
+            GLHelper::setColor(s.colorSettings.selectedAdditionalColor);
+        } else {
+            GLHelper::setColor(s.colorSettings.busStop);
         }
+        glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), GLO_ACCESS);
+        // draw circle
+        if (s.drawForSelecting) {
+            GLHelper::drawFilledCircle((double) 0.5 * exaggeration, 8);
+        } else {
+            std::vector<Position> vertices = GLHelper::drawFilledCircleReturnVertices((double) 0.5 * exaggeration, 16);
+            // check if dotted contour has to be drawn
+            if (myViewNet->getDottedAC() == this) {
+                GLHelper::drawShapeDottedContourAroundClosedShape(s, getType(), vertices);
+            }
+        }
+        // pop matrix
+        glPopMatrix();
+        // pop gl identficador
+        glPopName();
     }
-    // pop matrix
-    glPopMatrix();
-    // pop gl identficador
-    glPopName();
 }
 
 
@@ -201,7 +199,7 @@ GNEAccess::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_LANE:
-            return myLane->getID();
+            return getLaneParents().front()->getID();
         case SUMO_ATTR_POSITION:
             return toString(myPositionOverLane);
         case SUMO_ATTR_LENGTH:
@@ -211,14 +209,20 @@ GNEAccess::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_BLOCK_MOVEMENT:
             return toString(myBlockMovement);
         case GNE_ATTR_PARENT:
-            return myFirstAdditionalParent->getID();
+            return getAdditionalParents().at(0)->getID();
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+double 
+GNEAccess::getAttributeDouble(SumoXMLAttr key) const {
+    throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
 }
 
 
@@ -235,7 +239,7 @@ GNEAccess::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* 
         case SUMO_ATTR_FRIENDLY_POS:
         case GNE_ATTR_BLOCK_MOVEMENT:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -252,8 +256,8 @@ GNEAccess::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_LANE: {
             GNELane* lane = myViewNet->getNet()->retrieveLane(value, false);
             if (lane != nullptr) {
-                if (myLane->getParentEdge().getID() != lane->getParentEdge().getID()) {
-                    return GNEAdditionalHandler::accessCanBeCreated(myFirstAdditionalParent, lane->getParentEdge());
+                if (getLaneParents().front()->getParentEdge().getID() != lane->getParentEdge().getID()) {
+                    return GNEAdditionalHandler::accessCanBeCreated(getAdditionalParents().at(0), lane->getParentEdge());
                 } else {
                     return true;
                 }
@@ -279,11 +283,17 @@ GNEAccess::isValid(SumoXMLAttr key, const std::string& value) {
             return canParse<bool>(value);
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+bool 
+GNEAccess::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 
@@ -295,7 +305,7 @@ GNEAccess::getPopUpID() const {
 
 std::string
 GNEAccess::getHierarchyName() const {
-    return getTagStr() + ": " + myLane->getParentEdge().getID();
+    return getTagStr() + ": " + getLaneParents().front()->getParentEdge().getID();
 }
 
 // ===========================================================================
@@ -309,7 +319,7 @@ GNEAccess::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_LANE:
-            myLane = changeLane(myLane, value);
+            changeLaneParents(this, value);
             break;
         case SUMO_ATTR_POSITION:
             myPositionOverLane = value;
@@ -330,15 +340,11 @@ GNEAccess::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
-    }
-    // Update Geometry after setting a new attribute (but avoided for certain attributes)
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
-        updateGeometry(true);
     }
 }
 

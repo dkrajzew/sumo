@@ -32,6 +32,7 @@
 // class declarations
 // ===========================================================================
 class SUMOVehicle;
+class SUMOTrafficObject;
 
 // ===========================================================================
 // class definitions
@@ -46,6 +47,11 @@ class SUMOVehicle;
  */
 class MSDevice_Tripinfo : public MSVehicleDevice {
 public:
+    /** @brief Inserts MSDevice_Tripinfo-options
+     * @param[filled] oc The options container to add the options to
+     */
+    static void insertOptions(OptionsCont& oc);
+
     /** @brief Build devices for the given vehicle, if needed
      *
      * The options are read and evaluated whether a tripinfo-device shall be built
@@ -57,9 +63,6 @@ public:
      * @param[filled] into The vector to store the built device in
      */
     static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
-
-    /// @brief update tripinfo statistics
-    void updateStatistics(SUMOTime timeLoss) const;
 
     /// @brief generate output for vehicles which are still in the network
     static void generateOutputForUnfinished();
@@ -108,7 +111,7 @@ public:
      * @param[in] newSpeed Moving speed.
      * @return True (always).
      */
-    bool notifyMove(SUMOVehicle& veh, double oldPos, double newPos, double newSpeed);
+    bool notifyMove(SUMOTrafficObject& veh, double oldPos, double newPos, double newSpeed);
 
 
     /** @brief Saves departure info on insertion
@@ -119,7 +122,7 @@ public:
      * @see MSMoveReminder::notifyEnter
      * @see MSMoveReminder::Notification
      */
-    bool notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
+    bool notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
 
 
     /** @brief Saves arrival info
@@ -130,7 +133,7 @@ public:
      * @param[in] isLaneChange whether the vehicle changed from the lane
      * @return True if it did not leave the net.
      */
-    bool notifyLeave(SUMOVehicle& veh, double lastPos, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
+    bool notifyLeave(SUMOTrafficObject& veh, double lastPos, MSMoveReminder::Notification reason, const MSLane* enteredLane = 0);
     /// @}
 
 
@@ -169,19 +172,11 @@ private:
     MSDevice_Tripinfo(SUMOVehicle& holder, const std::string& id);
 
 
-    /// @brief dummy constructor
-    MSDevice_Tripinfo();
-
-
-    /* @brief compute trip length and duration (depending on whether the
-       vehicle arrived or not */
-    void computeLengthAndDuration(double& routeLength, SUMOTime& duration) const;
-
 protected:
     /** @brief Internal notification about the vehicle moves, see MSMoveReminder::notifyMoveInternal()
      *
      */
-    void notifyMoveInternal(const SUMOVehicle& veh,
+    void notifyMoveInternal(const SUMOTrafficObject& veh,
                             const double frontOnLane,
                             const double timeOnLane,
                             const double meanSpeedFrontOnLane,
@@ -232,6 +227,9 @@ private:
 
     /// @brief The time loss when compared to the desired and allowed speed
     SUMOTime myMesoTimeLoss;
+
+    /// @brief The route length
+    double myRouteLength;
 
     /// @brief devices which may still need to produce output
     static std::set<const MSDevice_Tripinfo*, ComparatorNumericalIdLess> myPendingOutput;

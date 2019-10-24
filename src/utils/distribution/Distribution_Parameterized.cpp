@@ -27,23 +27,23 @@
 #include <utils/common/StringTokenizer.h>
 #include <utils/common/ToString.h>
 #include <utils/common/StringUtils.h>
+#include <utils/common/MsgHandler.h>
+
 #include "Distribution_Parameterized.h"
 
 
 // ===========================================================================
 // method definitions
 // ===========================================================================
-Distribution_Parameterized::Distribution_Parameterized(const std::string& id,
-        double mean, double deviation)
-    : Distribution(id) {
+Distribution_Parameterized::Distribution_Parameterized(const std::string& id, double mean, double deviation) :
+    Distribution(id) {
     myParameter.push_back(mean);
     myParameter.push_back(deviation);
 }
 
 
-Distribution_Parameterized::Distribution_Parameterized(const std::string& id,
-        double mean, double deviation, double min, double max)
-    : Distribution(id) {
+Distribution_Parameterized::Distribution_Parameterized(const std::string& id, double mean, double deviation, double min, double max) :
+    Distribution(id) {
     myParameter.push_back(mean);
     myParameter.push_back(deviation);
     myParameter.push_back(min);
@@ -55,19 +55,28 @@ Distribution_Parameterized::~Distribution_Parameterized() {}
 
 
 void
-Distribution_Parameterized::parse(const std::string& description) {
-    const std::string distName = description.substr(0, description.find('('));
-    if (distName == "norm" || distName == "normc") {
-        std::vector<std::string> params = StringTokenizer(description.substr(distName.size() + 1, description.size() - distName.size() - 2), ',').getVector();
-        myParameter.resize(params.size());
-        std::transform(params.begin(), params.end(), myParameter.begin(), StringUtils::toDouble);
-        setID(distName);
-    } else {
-        myParameter[0] = StringUtils::toDouble(description);
-    }
-    assert(!myParameter.empty());
-    if (myParameter.size() == 1) {
-        myParameter.push_back(0.);
+Distribution_Parameterized::parse(const std::string& description, const bool hardFail) {
+    try {
+        const std::string distName = description.substr(0, description.find('('));
+        if (distName == "norm" || distName == "normc") {
+            std::vector<std::string> params = StringTokenizer(description.substr(distName.size() + 1, description.size() - distName.size() - 2), ',').getVector();
+            myParameter.resize(params.size());
+            std::transform(params.begin(), params.end(), myParameter.begin(), StringUtils::toDouble);
+            setID(distName);
+        } else {
+            myParameter[0] = StringUtils::toDouble(description);
+        }
+        if (myParameter.size() == 1) {
+            myParameter.push_back(0.);
+        }
+    } catch (...) {
+        // set default distribution parameterized
+        myParameter = {0., 0.};
+        if (hardFail) {
+            throw ProcessError("Invalid format of distribution parameterized");
+        } else {
+            WRITE_ERROR("Invalid format of distribution parameterized");
+        }
     }
 }
 
@@ -98,13 +107,25 @@ Distribution_Parameterized::getMax() const {
 }
 
 
+std::vector<double>&
+Distribution_Parameterized::getParameter() {
+    return myParameter;
+}
+
+
+const std::vector<double>&
+Distribution_Parameterized::getParameter() const {
+    return myParameter;
+}
+
+
 std::string
 Distribution_Parameterized::toStr(std::streamsize accuracy) const {
     if (myParameter[1] < 0) {
         // only write simple speedFactor
         return toString(myParameter[0]);
     } else {
-        return (myParameter[1] == 0. 
+        return (myParameter[1] == 0.
                 ? myID + "(" + toString(myParameter[0], accuracy) + "," + toString(myParameter[1], accuracy) + ")"
                 : myID + "(" + joinToString(myParameter, ",", accuracy) + ")");
     }
@@ -113,7 +134,7 @@ Distribution_Parameterized::toStr(std::streamsize accuracy) const {
 
 bool
 Distribution_Parameterized::isValid(std::string& error) {
-    if (myParameter.size() > 2) {
+    if (myParameter.size() > 2 && myParameter[1] != 0) {
         if (myParameter[0] > getMax()) {
             error = "distribution mean " + toString(myParameter[0]) + " is larger than upper boundary " + toString(getMax());
             return false;

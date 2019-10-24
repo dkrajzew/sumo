@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select E1
-netedit.changeAdditional("instantInductionLoop")
+netedit.changeElement("instantInductionLoop")
 
 # create E1
 netedit.leftClick(referencePosition, 250, 250)
@@ -66,10 +66,10 @@ netedit.undo(referencePosition, 10)
 netedit.redo(referencePosition, 10)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

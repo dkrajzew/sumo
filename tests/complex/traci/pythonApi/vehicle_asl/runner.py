@@ -21,10 +21,7 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 sumoBinary = sumolib.checkBinary('sumo')
@@ -73,7 +70,7 @@ for i in range(10):
     step = traci.simulation.getTime()
     traci.simulationStep(step + 1.)
 traci.vehicle.setSpeed(vehID, -1)
-for i in range(10):
+for i in range(11):
     step = traci.simulation.getTime()
     traci.simulationStep(step + 1.)
 

@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2Detector")
+netedit.changeElement("e2Detector")
 
 # set invalid speed threshold (dummy)
-netedit.modifyAdditionalDefaultValue(8, "dummySpeedTreshold")
+netedit.changeDefaultValue(9, "dummySpeedTreshold")
 
 # try to create E2 with invalid speed threshold
 netedit.leftClick(referencePosition, 350, 220)
 
 # set invalid speed threshold (negative)
-netedit.modifyAdditionalDefaultValue(8, "-14")
+netedit.changeDefaultValue(9, "-14")
 
 # try to create E2 with invalid speed threshold
 netedit.leftClick(referencePosition, 350, 220)
 
 # set valid speed threshold
-netedit.modifyAdditionalDefaultValue(8, "2.5")
+netedit.changeDefaultValue(9, "2.5")
 
 # create E2 with valid speed threshold
 netedit.leftClick(referencePosition, 350, 220)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

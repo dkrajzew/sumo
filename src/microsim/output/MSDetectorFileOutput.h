@@ -33,7 +33,7 @@
 #include <utils/common/SUMOTime.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/iodevices/OutputDevice.h>
-#include <utils/vehicle/SUMOVehicle.h>
+#include <utils/vehicle/SUMOTrafficObject.h>
 #include <microsim/MSVehicleType.h>
 #include <microsim/MSVehicleControl.h>
 #include <microsim/MSNet.h>
@@ -64,16 +64,17 @@ enum DetectorUsage {
 class MSDetectorFileOutput : public Named {
 public:
     /// @brief Constructor
-    MSDetectorFileOutput(const std::string& id, const std::string& vTypes)
-        : Named(id) {
+    MSDetectorFileOutput(const std::string& id, const std::string& vTypes, const int detectPersons = false) :
+        Named(id),
+        myDetectPersons(detectPersons) {
         const std::vector<std::string> vt = StringTokenizer(vTypes).getVector();
         myVehicleTypes.insert(vt.begin(), vt.end());
     }
 
     /// @brief Constructor
-    MSDetectorFileOutput(const std::string& id, const std::set<std::string>& vTypes)
-        : Named(id), myVehicleTypes(vTypes) {
-    }
+    MSDetectorFileOutput(const std::string& id, const std::set<std::string>& vTypes, const int detectPersons = false)
+        : Named(id), myVehicleTypes(vTypes), myDetectPersons(detectPersons)
+    { }
 
 
     /// @brief (virtual) destructor
@@ -138,11 +139,13 @@ public:
     * @param[in] veh the vehicle of which the type is checked.
     * @return whether it should be measured
     */
-    bool vehicleApplies(const SUMOVehicle& veh) const {
-        if (myVehicleTypes.empty() || myVehicleTypes.count(veh.getVehicleType().getID()) > 0) {
+    bool vehicleApplies(const SUMOTrafficObject& veh) const {
+        if (veh.isVehicle() == detectPersons()) {
+            return false;
+        } else if (myVehicleTypes.empty() || myVehicleTypes.count(veh.getVehicleType().getOriginalID()) > 0) {
             return true;
         } else {
-            std::set<std::string> vTypeDists = MSNet::getInstance()->getVehicleControl().getVTypeDistributionMembership(veh.getVehicleType().getID());
+            std::set<std::string> vTypeDists = MSNet::getInstance()->getVehicleControl().getVTypeDistributionMembership(veh.getVehicleType().getOriginalID());
             for (auto vTypeDist : vTypeDists) {
                 if (myVehicleTypes.count(vTypeDist) > 0) {
                     return true;
@@ -161,10 +164,16 @@ public:
         return !myVehicleTypes.empty();
     }
 
+    inline bool detectPersons() const {
+        return myDetectPersons != 0;
+    }
 
 protected:
     /// @brief The vehicle types to look for (empty means all)
     std::set<std::string> myVehicleTypes;
+
+    /// @brief Whether pedestrians shall be detected instead of vehicles
+    const int myDetectPersons;
 
 private:
     /// @brief Invalidated copy constructor.

@@ -78,7 +78,7 @@ TraCIServerAPI_Polygon::processSet(TraCIServer& server, tcpip::Storage& inputSto
     // variable
     int variable = inputStorage.readUnsignedByte();
     if (variable != libsumo::VAR_TYPE && variable != libsumo::VAR_COLOR && variable != libsumo::VAR_SHAPE && variable != libsumo::VAR_FILL
-            && variable != libsumo::VAR_WIDTH
+            && variable != libsumo::VAR_WIDTH && variable != libsumo::VAR_MOVE_TO
             && variable != libsumo::ADD && variable != libsumo::REMOVE && variable != libsumo::VAR_PARAMETER) {
         return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE,
                                           "Change Polygon State: unsupported variable " + toHex(variable, 2) + " specified", outputStorage);
@@ -164,9 +164,45 @@ TraCIServerAPI_Polygon::processSet(TraCIServer& server, tcpip::Storage& inputSto
                     }
                 }
                 libsumo::TraCIPositionVector tp = libsumo::Helper::makeTraCIPositionVector(shape);
+                libsumo::Polygon::add(id, tp, col, fill, type, layer, lineWidth);
+            }
+            break;
+            case libsumo::VAR_ADD_DYNAMICS : {
+                // Add dynamics to polygon.
+                if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE, "A compound object is needed for adding dynamics to a polygon.", outputStorage);
+                }
+                int itemNo = inputStorage.readInt();
+                if (itemNo != 5) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_VEHICLE_VARIABLE, "Adding polygon dynamics needs four parameters.", outputStorage);
+                }
 
-                libsumo::Polygon::add(id, tp, col, fill, lineWidth, type, layer);
+                std::string trackedID;
+                if (!server.readTypeCheckingString(inputStorage, trackedID)) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE, "The first parameter for adding polygon dynamics must be ID of the tracked object as a string ('' to disregard tracking).", outputStorage);
+                }
 
+                std::vector<double> timeSpan;
+                if (!server.readTypeCheckingDoubleList(inputStorage, timeSpan)) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE, "The second parameter for adding polygon dynamics must be the timespan of the animation (length=0 to disregard animation).", outputStorage);
+                }
+
+                std::vector<double> alphaSpan;
+                if (!server.readTypeCheckingDoubleList(inputStorage, alphaSpan)) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE, "The third parameter for adding polygon dynamics must be the alphaSpanStr of the animation (length=0 to disregard alpha animation).", outputStorage);
+                }
+
+                int looped;
+                if (!server.readTypeCheckingUnsignedByte(inputStorage, looped)) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE, "The fourth parameter for adding polygon dynamics must be boolean indicating whether the animation should be looped.", outputStorage);
+                }
+
+                int rotate;
+                if (!server.readTypeCheckingUnsignedByte(inputStorage, rotate)) {
+                    return server.writeErrorStatusCmd(libsumo::CMD_SET_POLYGON_VARIABLE, "The fifth parameter for adding polygon dynamics must be boolean indicating whether the tracking polygon should be rotated.", outputStorage);
+                }
+
+                libsumo::Polygon::addDynamics(id, trackedID, timeSpan, alphaSpan, looped != 0, rotate != 0);
             }
             break;
             case libsumo::REMOVE: {

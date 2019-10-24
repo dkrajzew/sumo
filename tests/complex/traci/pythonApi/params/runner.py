@@ -21,15 +21,12 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 
 def step():
-    s = traci.simulation.getCurrentTime() / 1000
+    s = traci.simulation.getTime()
     traci.simulationStep()
     return s
 

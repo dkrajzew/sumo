@@ -15,6 +15,7 @@
 /// @author  Eric Nicolay
 /// @author  Clemens Honomichl
 /// @author  Michael Behrisch
+/// @author  Leonhard Luecken
 /// @date    Mon, 12 Mar 2001
 /// @version $Id$
 ///
@@ -37,6 +38,7 @@
 #include <iostream>
 #include <cmath>
 #include <iomanip>
+#include <memory>
 #include <utils/common/SUMOTime.h>
 #include <utils/common/UtilExceptions.h>
 #include <utils/common/NamedObjectCont.h>
@@ -44,6 +46,10 @@
 #include <utils/router/SUMOAbstractRouter.h>
 #include <microsim/trigger/MSChargingStation.h>
 #include "MSJunction.h"
+
+#ifdef HAVE_FOX
+#include <utils/foxtools/FXConditionalLock.h>
+#endif
 
 
 // ===========================================================================
@@ -64,6 +70,8 @@ class MSTLLogicControl;
 class MSTrafficLightLogic;
 class MSDetectorControl;
 class ShapeContainer;
+class MSDynamicShapeUpdater;
+class PolygonDynamics;
 class BinaryInputDevice;
 class MSEdgeWeightsStorage;
 class SUMOVehicle;
@@ -115,6 +123,13 @@ public:
      * @exception ProcessError If a network was not yet constructed
      */
     static MSNet* getInstance();
+
+    /**
+     * @brief Returns whether this is a GUI Net
+     */
+    virtual bool isGUINet() const {
+        return false;
+    }
 
     /// @brief Place for static initializations of simulation components (called after successful net build)
     static void initStatic();
@@ -446,6 +461,18 @@ public:
         return *myShapeContainer;
     }
 
+    /** @brief Returns the dynamic shapes updater
+     * @see PolygonDynamics
+     */
+    MSDynamicShapeUpdater* getDynamicShapeUpdater() {
+        return myDynamicShapeUpdater.get();
+    }
+
+    /** @brief Creates and returns a dynamic shapes updater
+     * @see PolygonDynamics
+     */
+    MSDynamicShapeUpdater* makeDynamicShapeUpdater();
+
     /** @brief Returns the net's internal edge travel times/efforts container
      *
      * If the net does not have such a container, it is built.
@@ -486,9 +513,13 @@ public:
     std::string getStoppingPlaceID(const MSLane* lane, const double pos, const SumoXMLTag category) const;
     /// @}
 
+    const NamedObjectCont<MSStoppingPlace*>& getStoppingPlaces(SumoXMLTag category) const;
 
     /// @brief write charging station output
     void writeChargingStationOutput() const;
+
+    /// @brief write rail signal block output
+    void writeRailSignalBlocks() const;
 
     /// @brief creates a wrapper for the given logic (see GUINet)
     virtual void createTLWrapper(MSTrafficLightLogic*) {};
@@ -526,7 +557,9 @@ public:
         /// @brief The vehicle is involved in a collision
         VEHICLE_STATE_COLLISION,
         /// @brief The vehicle had to brake harder than permitted
-        VEHICLE_STATE_EMERGENCYSTOP
+        VEHICLE_STATE_EMERGENCYSTOP,
+        /// @brief Vehicle maneuvering either entering or exiting a parking space
+        VEHICLE_STATE_MANEUVERING
     };
 
 
@@ -607,11 +640,6 @@ public:
     static void adaptIntermodalRouter(MSIntermodalRouter& router);
 
 
-    /** @brief Returns an RTree that contains lane IDs
-     * @return An Rtree containing lane IDs
-     */
-    const NamedRTree& getLanesRTree() const;
-
     /// @brief return whether the network contains internal links
     bool hasInternalLinks() const {
         return myHasInternalLinks;
@@ -620,6 +648,16 @@ public:
     /// @brief return whether the network contains elevation data
     bool hasElevation() const {
         return myHasElevation;
+    }
+
+    /// @brief return whether the network contains walkingareas and crossings
+    bool hasPedestrianNetwork() const {
+        return myHasPedestrianNetwork;
+
+    }
+    /// @brief return whether the network contains bidirectional rail edges
+    bool hasBidiEdges() const {
+        return myHasBidiEdges;
     }
 
     /// @brief return whether the network was built for lefthand traffic
@@ -647,6 +685,11 @@ protected:
     /// @brief check all lanes for elevation data
     bool checkElevation();
 
+    /// @brief check all lanes for type walkingArea
+    bool checkWalkingarea();
+
+    /// @brief check wether bidirectional edges occur in the network
+    bool checkBidiEdges();
 
 protected:
     /// @brief Unique instance of MSNet
@@ -709,13 +752,14 @@ protected:
     bool myLogStepNumber;
 
     /// @brief The last simulation step duration
-    long myTraCIStepDuration, mySimStepDuration;
+    long myTraCIStepDuration = 0, mySimStepDuration = 0;
 
     /// @brief The overall simulation duration
     long mySimBeginMillis;
 
     /// @brief The overall number of vehicle movements
     long long int myVehiclesMoved;
+    long long int myPersonsMoved;
     //}
 
 
@@ -748,6 +792,12 @@ protected:
     /// @brief Whether the network contains elevation data
     bool myHasElevation;
 
+    /// @brief Whether the network contains pedestrian network elements
+    bool myHasPedestrianNetwork;
+
+    /// @brief Whether the network contains bidirectional rail edges
+    bool myHasBidiEdges;
+
     /// @brief Whether the network was built for left-hand traffic
     bool myLefthand;
 
@@ -763,6 +813,11 @@ protected:
     /// @brief Container for vehicle state listener
     std::vector<VehicleStateListener*> myVehicleStateListeners;
 
+#ifdef HAVE_FOX
+    /// @brief to avoid concurrent access to the state update function
+    FXMutex myStateListenerMutex;
+#endif
+
     /// @brief container to record warnings that shall only be issued once
     std::map<std::string, bool> myWarnedOnce;
 
@@ -775,9 +830,13 @@ protected:
     mutable MSPedestrianRouter* myPedestrianRouter;
     mutable std::map<int, MSIntermodalRouter*> myIntermodalRouter;
 
-
     /// @brief An RTree structure holding lane IDs
     mutable std::pair<bool, NamedRTree> myLanesRTree;
+
+    /// @brief Updater for dynamic shapes that are tracking traffic objects
+    ///        (ensures removal of shape dynamics when the objects are removed)
+    /// @see utils/shapes/PolygonDynamics
+    std::unique_ptr<MSDynamicShapeUpdater> myDynamicShapeUpdater;
 
 
     /// @brief string constants for simstep stages

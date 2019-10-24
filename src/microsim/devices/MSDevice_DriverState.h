@@ -72,6 +72,14 @@ public:
      */
     static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
+    /// update internal state
+    void update();
+
+    /// return internal state
+    inline std::shared_ptr<MSSimpleDriverState> getDriverState() const {
+        return myDriverState;
+    }
+
 private:
     /// @name Helpers for parameter parsing
     /// @{
@@ -83,6 +91,7 @@ private:
     static double getSpeedDifferenceChangePerceptionThreshold(const SUMOVehicle& v, const OptionsCont& oc);
     static double getHeadwayChangePerceptionThreshold(const SUMOVehicle& v, const OptionsCont& oc);
     static double getHeadwayErrorCoefficient(const SUMOVehicle& v, const OptionsCont& oc);
+    static double getMaximalReactionTime(const SUMOVehicle& v, const OptionsCont& oc);
     /// @}
 
 
@@ -116,18 +125,19 @@ private:
                          double speedDifferenceErrorCoefficient,
                          double speedDifferenceChangePerceptionThreshold,
                          double headwayChangePerceptionThreshold,
-                         double headwayErrorCoefficient);
+                         double headwayErrorCoefficient,
+                         double maximalReactionTime);
 
     /// @brief Initializeses the driver state parameters
     void initDriverState();
-
-    /// @brief Creates a DriverState for the equipped vehicle
-    SUMOTime createDriverState(SUMOTime);
 
 private:
     /// @brief The holder vehicle casted to MSVehicle*
     MSVehicle* myHolderMS;
 
+    /// @name Temporary to hold driverstate parameters until initialization.
+    /// @note Invalid after call to initDriverState().
+    /// @{
     double myMinAwareness;
     double myInitialAwareness;
     double myErrorTimeScaleCoefficient;
@@ -136,6 +146,8 @@ private:
     double mySpeedDifferenceChangePerceptionThreshold;
     double myHeadwayChangePerceptionThreshold;
     double myHeadwayErrorCoefficient;
+    double myMaximalReactionTime;
+    /// @}
 
     /// @brief The driver state of the holder.
     std::shared_ptr<MSSimpleDriverState> myDriverState;

@@ -29,19 +29,19 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select chargingStation
-netedit.changeAdditional("chargingStation")
+netedit.changeElement("chargingStation")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(9, "reference center")
+netedit.changeDefaultValue(10, "reference center")
 
 # create chargingStation in mode "reference center"
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 170)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first chargingStation
-netedit.leftClick(referencePosition, 250, 160)
+netedit.leftClick(referencePosition, 250, 168)
 
 # Change parameter lane with a non valid value (dummy lane)
 netedit.modifyAttribute(1, "dummy lane", True)
@@ -60,10 +60,10 @@ netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

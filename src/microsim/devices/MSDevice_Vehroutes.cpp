@@ -30,6 +30,7 @@
 #include <microsim/MSRoute.h>
 #include <microsim/MSVehicle.h>
 #include <microsim/MSVehicleType.h>
+#include <microsim/MSTransportableControl.h>
 #include <utils/vehicle/SUMOVehicle.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice_String.h>
@@ -48,6 +49,7 @@ bool MSDevice_Vehroutes::mySorted = false;
 bool MSDevice_Vehroutes::myIntendedDepart = false;
 bool MSDevice_Vehroutes::myRouteLength = false;
 bool MSDevice_Vehroutes::mySkipPTLines = false;
+bool MSDevice_Vehroutes::myIncludeIncomplete = false;
 MSDevice_Vehroutes::StateListener MSDevice_Vehroutes::myStateListener;
 std::map<const SUMOTime, int> MSDevice_Vehroutes::myDepartureCounts;
 std::map<const SUMOTime, std::map<const std::string, std::string> > MSDevice_Vehroutes::myRouteInfos;
@@ -72,6 +74,7 @@ MSDevice_Vehroutes::init() {
         myIntendedDepart = oc.getBool("vehroute-output.intended-depart");
         myRouteLength = oc.getBool("vehroute-output.route-length");
         mySkipPTLines = oc.getBool("vehroute-output.skip-ptlines");
+        myIncludeIncomplete = oc.getBool("vehroute-output.incomplete");
         MSNet::getInstance()->addVehicleStateListener(&myStateListener);
     }
 }
@@ -132,15 +135,16 @@ MSDevice_Vehroutes::~MSDevice_Vehroutes() {
 
 
 bool
-MSDevice_Vehroutes::notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_Vehroutes::notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+    MSVehicle& vehicle = static_cast<MSVehicle&>(veh);
     if (reason == MSMoveReminder::NOTIFICATION_DEPARTED) {
-        if (mySorted && myStateListener.myDevices[&veh] == this) {
+        if (mySorted && myStateListener.myDevices[&vehicle] == this) {
             const SUMOTime departure = myIntendedDepart ? myHolder.getParameter().depart : MSNet::getInstance()->getCurrentTimeStep();
             myDepartureCounts[departure]++;
         }
         if (!MSGlobals::gUseMesoSim) {
-            myDepartLane = static_cast<MSVehicle&>(veh).getLane()->getIndex();
-            myDepartPosLat = static_cast<MSVehicle&>(veh).getLateralPositionOnLane();
+            myDepartLane = vehicle.getLane()->getIndex();
+            myDepartPosLat = vehicle.getLateralPositionOnLane();
         }
         myDepartSpeed = veh.getSpeed();
         myDepartPos = veh.getPositionOnLane();
@@ -150,7 +154,7 @@ MSDevice_Vehroutes::notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification r
 
 
 bool
-MSDevice_Vehroutes::notifyLeave(SUMOVehicle& veh, double /*lastPos*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+MSDevice_Vehroutes::notifyLeave(SUMOTrafficObject& veh, double /*lastPos*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
     if (mySaveExits && reason != NOTIFICATION_LANE_CHANGE) {
         if (reason != NOTIFICATION_TELEPORT && myLastSavedAt == veh.getEdge()) { // need to check this for internal lanes
             myExits.back() = MSNet::getInstance()->getCurrentTimeStep();
@@ -171,7 +175,7 @@ MSDevice_Vehroutes::stopEnded(const SUMOVehicleParameter::Stop& stop) {
 
 void
 MSDevice_Vehroutes::writeXMLRoute(OutputDevice& os, int index) const {
-    if (index == 0 && myReplacedRoutes[index].route->size() == 2 &&
+    if (index == 0 && !myIncludeIncomplete && myReplacedRoutes[index].route->size() == 2 &&
             myReplacedRoutes[index].route->getEdges().front()->isTazConnector() &&
             myReplacedRoutes[index].route->getEdges().back()->isTazConnector()) {
         return;
@@ -198,7 +202,7 @@ MSDevice_Vehroutes::writeXMLRoute(OutputDevice& os, int index) const {
         os << " edges=\"";
         // get the route
         int i = index;
-        while (i > 0 && myReplacedRoutes[i - 1].edge) {
+        while (i > 0 && myReplacedRoutes[i - 1].edge != nullptr && !myIncludeIncomplete) {
             i--;
         }
         const MSEdge* lastEdge = nullptr;
@@ -325,15 +329,16 @@ MSDevice_Vehroutes::writeOutput(const bool hasArrived) const {
             writeXMLRoute(od);
         }
     } else {
-        if (myReplacedRoutes.size() > 0) {
+        const int routesToSkip = myHolder.getParameter().wasSet(VEHPARS_FORCE_REROUTE) && !myIncludeIncomplete ? 1 : 0;
+        if ((int)myReplacedRoutes.size() > routesToSkip) {
             od.openTag(SUMO_TAG_ROUTE_DISTRIBUTION);
-            for (int i = 0; i < (int)myReplacedRoutes.size(); ++i) {
+            for (int i = routesToSkip; i < (int)myReplacedRoutes.size(); ++i) {
                 writeXMLRoute(od, i);
             }
-        }
-        writeXMLRoute(od);
-        if (myReplacedRoutes.size() > 0) {
+            writeXMLRoute(od);
             od.closeTag();
+        } else {
+            writeXMLRoute(od);
         }
     }
     od << myStopOut.getString();
@@ -394,6 +399,14 @@ MSDevice_Vehroutes::generateOutputForUnfinished() {
     for (const auto& it : myStateListener.myDevices) {
         if (it.first->hasDeparted()) {
             it.second->writeOutput(false);
+        }
+    }
+    // unfinished persons
+    MSNet* net = MSNet::getInstance();
+    if (net->hasPersons()) {
+        MSTransportableControl& pc = net->getPersonControl();
+        while (pc.loadedBegin() != pc.loadedEnd()) {
+            pc.erase(pc.loadedBegin()->second);
         }
     }
 }

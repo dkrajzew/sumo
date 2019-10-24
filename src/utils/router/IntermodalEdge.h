@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 #include <utils/common/ValueTimeLine.h>
+#include <utils/common/RandHelper.h>
 #include "IntermodalTrip.h"
 
 
@@ -116,6 +117,10 @@ public:
         return edge == nullptr ? 0. : edge->getTravelTime(trip, time);
     }
 
+    static inline double getTravelTimeStaticRandomized(const IntermodalEdge* const edge, const IntermodalTrip<E, N, V>* const trip, double time) {
+        return edge == nullptr ? 0. : edge->getTravelTime(trip, time) * RandHelper::rand(1., gWeightsRandomFactor);
+    }
+
     virtual double getEffort(const IntermodalTrip<E, N, V>* const /* trip */, double /* time */) const {
         return 0.;
     }
@@ -160,7 +165,7 @@ public:
 
     // only used by AStar
     inline double getDistanceTo(const IntermodalEdge* other) const {
-        return myEdge != nullptr && other->myEdge != nullptr ? myEdge->getDistanceTo(other->myEdge, true) : 0.;
+        return myEdge != nullptr && other->myEdge != nullptr && myEdge != other->myEdge ? myEdge->getDistanceTo(other->myEdge, true) : 0.;
     }
 
     // only used by AStar

@@ -61,7 +61,7 @@ Person::getIDList() {
             ids.push_back(i->first);
         }
     }
-    return std::move(ids);
+    return ids;
 }
 
 
@@ -74,6 +74,12 @@ Person::getIDCount() {
 TraCIPosition
 Person::getPosition(const std::string& personID, const bool includeZ) {
     return Helper::makeTraCIPosition(getPerson(personID)->getPosition(), includeZ);
+}
+
+
+TraCIPosition
+Person::getPosition3D(const std::string& personID) {
+    return Helper::makeTraCIPosition(getPerson(personID)->getPosition(), true);
 }
 
 
@@ -155,22 +161,70 @@ Person::getEdges(const std::string& personID, int nextStageIndex) {
     }
     std::vector<std::string> edgeIDs;
     for (auto& e : p->getEdges(nextStageIndex)) {
-        edgeIDs.push_back(e->getID());
+        if (e != nullptr) {
+            edgeIDs.push_back(e->getID());
+        }
     }
     return edgeIDs;
 }
 
 
-int
+TraCIStage
 Person::getStage(const std::string& personID, int nextStageIndex) {
     MSTransportable* p = getPerson(personID);
+    TraCIStage result;
     if (nextStageIndex >= p->getNumRemainingStages()) {
         throw TraCIException("The stage index must be lower than the number of remaining stages.");
     }
     if (nextStageIndex < (p->getNumRemainingStages() - p->getNumStages())) {
         throw TraCIException("The negative stage index must refer to a valid previous stage.");
     }
-    return p->getStageType(nextStageIndex);
+    //stageType, arrivalPos, edges, destStop, vType, and description can be retrieved directly from the base Stage class.
+    MSTransportable::Stage* stage = p->getNextStage(nextStageIndex);
+    result.type = stage->getStageType();
+    result.arrivalPos = stage->getArrivalPos();
+    for (auto e : stage->getEdges()) {
+        if (e != nullptr) {
+            result.edges.push_back(e->getID());
+        }
+    }
+    MSStoppingPlace* destinationStop = stage->getDestinationStop();
+    if (destinationStop != nullptr) {
+        result.destStop = destinationStop->getID();
+    }
+    SUMOVehicle* vehicle = stage->getVehicle();
+    if (vehicle != nullptr) {
+        result.vType = vehicle->getVehicleType().getID();
+    }
+    result.description = stage->getStageDescription();
+    result.length = stage->getDistance();
+    // negative values indicate that the information is not available
+    result.cost = -1;
+    result.travelTime = -1;
+    // Some stage type dependant attributes
+    switch (stage->getStageType()) {
+        case STAGE_DRIVING: {
+            auto* drivingStage = (MSTransportable::Stage_Driving*) stage;
+            result.intended = drivingStage->getIntendedVehicleID();
+            result.depart = STEPS2TIME(drivingStage->getIntendedDepart());
+            const std::set<std::string> lines = drivingStage->getLines();
+            for (auto line = lines.begin(); line != lines.end(); line++) {
+                if (line != lines.begin()) {
+                    result.line += " ";
+                }
+                result.line += *line;
+            }
+            break;
+        }
+        case STAGE_WALKING: {
+            auto* walkingStage = (MSPerson::MSPersonStage_Walking*) stage;
+            result.departPos = walkingStage->getDepartPos();
+            break;
+        }
+        default:
+            break;
+    }
+    return result;
 }
 
 
@@ -314,6 +368,10 @@ Person::getHeight(const std::string& personID) {
 }
 
 
+int
+Person::getPersonCapacity(const std::string& personID) {
+    return getPerson(personID)->getVehicleType().getPersonCapacity();
+}
 
 
 void
@@ -385,7 +443,7 @@ Person::add(const std::string& personID, const std::string& edgeID, double pos, 
 
     SUMOVehicleParameter* params = new SUMOVehicleParameter(vehicleParams);
     MSTransportable::MSTransportablePlan* plan = new MSTransportable::MSTransportablePlan();
-    plan->push_back(new MSTransportable::Stage_Waiting(edge, 0, depart, pos, "awaiting departure", true));
+    plan->push_back(new MSTransportable::Stage_Waiting(edge, nullptr, 0, depart, pos, "awaiting departure", true));
 
     try {
         MSTransportable* person = MSNet::getInstance()->getPersonControl().buildPerson(params, vehicleType, plan, nullptr);
@@ -395,6 +453,100 @@ Person::add(const std::string& personID, const std::string& edgeID, double pos, 
         delete plan;
         throw TraCIException(e.what());
     }
+}
+
+MSTransportable::Stage*
+Person::convertTraCIStage(const TraCIStage& stage, const std::string personID) {
+    switch (stage.type) {
+        case MSTransportable::StageType::DRIVING: {
+            if (stage.edges.empty()) {
+                throw TraCIException("The stage should have at least one edge");
+            }
+            std::string edgeId = stage.edges.back();
+            MSEdge* edge = MSEdge::dictionary(edgeId);
+            if (!edge) {
+                throw TraCIException("Invalid edge '" + edgeId + "' for person: '" + personID + "'");
+            }
+            MSStoppingPlace* bs = nullptr;
+            if (!stage.destStop.empty()) {
+                bs = MSNet::getInstance()->getStoppingPlace(stage.destStop, SUMO_TAG_BUS_STOP);
+                if (bs == nullptr) {
+                    throw TraCIException("Invalid stopping place id '" + stage.destStop + "' for person: '" + personID + "'");
+                }
+            }
+            if (stage.line.empty()) {
+                throw TraCIException("Empty lines parameter for person: '" + personID + "'");
+            }
+            return new MSPerson::MSPersonStage_Driving(edge, bs, -NUMERICAL_EPS, StringTokenizer(stage.line).getVector());
+        }
+
+        case MSTransportable::StageType::MOVING_WITHOUT_VEHICLE: {
+            MSTransportable* p = getPerson(personID);
+            ConstMSEdgeVector edges;
+            try {
+                MSEdge::parseEdgesList(stage.edges, edges, "<unknown>");
+            } catch (ProcessError& e) {
+                throw TraCIException(e.what());
+            }
+            if (edges.empty()) {
+                throw TraCIException("Empty edge list for walking stage of person '" + personID + "'.");
+            }
+            double arrivalPos = stage.arrivalPos;
+            if (fabs(arrivalPos) > edges.back()->getLength()) {
+                throw TraCIException("Invalid arrivalPos for walking stage of person '" + personID + "'.");
+            }
+            if (arrivalPos < 0) {
+                arrivalPos += edges.back()->getLength();
+            }
+            double speed = p->getVehicleType().getMaxSpeed();
+            MSStoppingPlace* bs = nullptr;
+            if (!stage.destStop.empty()) {
+                bs = MSNet::getInstance()->getStoppingPlace(stage.destStop, SUMO_TAG_BUS_STOP);
+                if (bs == nullptr) {
+                    throw TraCIException("Invalid stopping place id '" + stage.destStop + "' for person: '" + personID + "'");
+                }
+            }
+            return new MSPerson::MSPersonStage_Walking(p->getID(), edges, bs, -1, speed, p->getArrivalPos(), arrivalPos, 0);
+        }
+
+        case MSTransportable::StageType::WAITING: {
+            MSTransportable* p = getPerson(personID);
+            if (stage.travelTime < 0) {
+                throw TraCIException("Duration for person: '" + personID + "' must not be negative");
+            }
+            MSStoppingPlace* bs = nullptr;
+            if (!stage.destStop.empty()) {
+                bs = MSNet::getInstance()->getStoppingPlace(stage.destStop, SUMO_TAG_BUS_STOP);
+                if (bs == nullptr) {
+                    throw TraCIException("Invalid stopping place id '" + stage.destStop + "' for person: '" + personID + "'");
+                }
+            }
+            return new MSTransportable::Stage_Waiting(p->getArrivalEdge(), nullptr, TIME2STEPS(stage.travelTime), 0, p->getArrivalPos(), stage.description, false);
+        }
+        default:
+            return nullptr;
+    }
+}
+
+
+void
+Person::appendStage(const TraCIStage& stage, const std::string& personID) {
+    MSTransportable* p = getPerson(personID);
+    MSTransportable::Stage* personStage = convertTraCIStage(stage, personID);
+    p->appendStage(personStage);
+}
+
+void
+Person::replaceStage(const std::string& personID, const int stageIndex, const TraCIStage& stage) {
+    MSTransportable* p = getPerson(personID);
+    if (stageIndex >= p->getNumRemainingStages()) {
+        throw TraCIException("Specified stage index:  is not valid for person " + personID);
+    }
+    MSTransportable::Stage* personStage = convertTraCIStage(stage, personID);
+    // removing the current stage triggers abort+proceed so the replacement
+    // stage must be ready beforehand
+    p->appendStage(personStage, stageIndex + 1);
+    p->removeStage(stageIndex);
 }
 
 
@@ -432,7 +584,7 @@ Person::appendWaitingStage(const std::string& personID, double duration, const s
             throw TraCIException("Invalid stopping place id '" + stopID + "' for person: '" + personID + "'");
         }
     }
-    p->appendStage(new MSTransportable::Stage_Waiting(p->getArrivalEdge(), TIME2STEPS(duration), 0, p->getArrivalPos(), description, false));
+    p->appendStage(new MSTransportable::Stage_Waiting(p->getArrivalEdge(), nullptr, TIME2STEPS(duration), 0, p->getArrivalPos(), description, false));
 }
 
 
@@ -559,10 +711,12 @@ Person::moveTo(const std::string& personID, const std::string& edgeID, double /*
 
 
 void
-Person::moveToXY(const std::string& personID, const std::string& edgeID, const double x, const double y, double angle, const int keepRouteFlag) {
+Person::moveToXY(const std::string& personID, const std::string& edgeID, const double x, const double y, double angle, const int keepRoute) {
     MSPerson* p = getPerson(personID);
-    bool keepRoute = (keepRouteFlag == 1);
-    bool mayLeaveNetwork = (keepRouteFlag == 2);
+    const bool doKeepRoute = (keepRoute & 1) != 0;
+    const bool mayLeaveNetwork = (keepRoute & 2) != 0;
+    const bool ignorePermissions = (keepRoute & 4) != 0;
+    SUMOVehicleClass vClass = ignorePermissions ? SVC_IGNORING : p->getVClass();
     Position pos(x, y);
 #ifdef DEBUG_MOVEXY
     const double origAngle = angle;
@@ -607,17 +761,18 @@ Person::moveToXY(const std::string& personID, const std::string& edgeID, const d
         default:
             break;
     }
-    if (keepRoute) {
+    if (doKeepRoute) {
         // case a): vehicle is on its earlier route
         //  we additionally assume it is moving forward (SUMO-limit);
         //  note that the route ("edges") is not changed in this case
         found = Helper::moveToXYMap_matchingRoutePosition(pos, edgeID,
-                ev, routeIndex,
+                ev, routeIndex, vClass,
                 bestDistance, &lane, lanePos, routeOffset);
     } else {
         double speed = pos.distanceTo2D(p->getPosition()); // !!!veh->getSpeed();
         found = Helper::moveToXYMap(pos, maxRouteDistance, mayLeaveNetwork, edgeID, angle,
                                     speed, ev, routeIndex, currentLane, p->getEdgePos(), true,
+                                    vClass,
                                     bestDistance, &lane, lanePos, routeOffset, edges);
     }
     if ((found && bestDistance <= maxRouteDistance) || mayLeaveNetwork) {

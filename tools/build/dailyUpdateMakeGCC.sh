@@ -26,6 +26,7 @@ else
 fi
 basename $MAKELOG >> $STATUSLOG
 git pull &> $MAKELOG || (echo "git pull failed" | tee -a $STATUSLOG; tail -10 $MAKELOG)
+git submodule update >> $MAKELOG 2>&1 || (echo "git submodule update failed" | tee -a $STATUSLOG; tail -10 $MAKELOG)
 GITREV=`tools/build/version.py -`
 date >> $MAKELOG
 if test "${CONFIGURE_OPT::5}" == "cmake"; then
@@ -40,7 +41,6 @@ if make -j32 >> $MAKELOG 2>&1; then
   if make install >> $MAKELOG 2>&1; then
     if test "$FILEPREFIX" == "gcc4_64"; then
       make -j distcheck >> $MAKELOG 2>&1 || (echo "make distcheck failed" | tee -a $STATUSLOG; tail -10 $MAKELOG)
-      make dist-complete >> $MAKELOG 2>&1 || (echo "make dist-complete failed" | tee -a $STATUSLOG; tail -10 $MAKELOG)
     fi
   else
     echo "make install failed" | tee -a $STATUSLOG; tail -10 $MAKELOG
@@ -49,7 +49,7 @@ else
   echo "make failed" | tee -a $STATUSLOG; tail -20 $MAKELOG
 fi
 date >> $MAKELOG
-echo `grep -c '[Ww]arn[iu]ng:' $MAKELOG` warnings >> $STATUSLOG
+echo `grep -ci 'warn[iu]ng:' $MAKELOG` warnings >> $STATUSLOG
 
 echo "--" >> $STATUSLOG
 cd $PREFIX/sumo
@@ -60,12 +60,12 @@ if test -e $SUMO_BINDIR/sumo -a $SUMO_BINDIR/sumo -nt $PREFIX/sumo/configure; th
   TESTLABEL=`LANG=C date +%d%b%y`r$GITREV
   rm -rf $TEXTTEST_TMP/*
   if test ${FILEPREFIX::6} == "extra_"; then
-    tests/runInternalTests.py --gui "b $FILEPREFIX" &> $TESTLOG
+    tests/runExtraTests.py --gui "b $FILEPREFIX" &> $TESTLOG
   else
     tests/runTests.sh -b $FILEPREFIX -name $TESTLABEL &> $TESTLOG
     if which Xvfb &>/dev/null; then
       tests/runTests.sh -a sumo.gui -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
-      tests/runTests.sh -a netedit.daily -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
+      tests/runTests.sh -a netedit.gui -b $FILEPREFIX -name $TESTLABEL >> $TESTLOG 2>&1
     fi
   fi
   tests/runTests.sh -b $FILEPREFIX -name $TESTLABEL -coll >> $TESTLOG 2>&1
@@ -74,7 +74,7 @@ fi
 
 if test -e $PREFIX/sumo/src/sumo_main.gcda; then
   date >> $TESTLOG
-  tests/runInternalTests.py --gui "b $FILEPREFIX" >> $TESTLOG 2>&1
+  tests/runExtraTests.py --gui "b $FILEPREFIX" >> $TESTLOG 2>&1
   $SIP_HOME/tests/runTests.sh -b $FILEPREFIX >> $TESTLOG 2>&1
   make lcov >> $TESTLOG 2>&1 || (echo "make lcov failed"; tail -10 $TESTLOG)
   date >> $TESTLOG
@@ -96,5 +96,5 @@ if make -j32 >> $MAKEALLLOG 2>&1; then
 else
   echo "make with all options failed" | tee -a $STATUSLOG; tail -20 $MAKEALLLOG
 fi
-echo `grep -c '[Ww]arn[iu]ng:' $MAKEALLLOG` warnings >> $STATUSLOG
+echo `grep -ci 'warn[iu]ng:' $MAKEALLLOG` warnings >> $STATUSLOG
 echo "--" >> $STATUSLOG

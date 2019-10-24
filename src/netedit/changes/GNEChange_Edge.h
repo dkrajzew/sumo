@@ -80,6 +80,42 @@ private:
      * @note we assume shared responsibility for the pointer (via reference counting)
      */
     GNEEdge* myEdge;
+
+    /// @brief reference to vector of shape parents
+    const std::vector<GNEShape*>& myEdgeShapeParents;
+
+    /// @brief reference to vector of additional parents
+    const std::vector<GNEAdditional*>& myEdgeAdditionalParents;
+
+    /// @brief reference to vector of demand element parents
+    const std::vector<GNEDemandElement*>& myEdgeDemandElementParents;
+
+    /// @brief reference to vector of shape children
+    const std::vector<GNEShape*>& myEdgeShapeChildren;
+
+    /// @brief reference to vector of additional children
+    const std::vector<GNEAdditional*>& myEdgeAdditionalChildren;
+
+    /// @brief vector of references to vector of demand element children (used by lanes)
+    const std::vector<GNEDemandElement*>& myEdgeDemandElementChildren;
+
+    /// @brief vector of references to vector of shape parents (used by lanes)
+    std::vector<std::vector<GNEShape*> > myLaneShapeParents;
+
+    /// @brief vector of references to vector of additional parents (used by lanes)
+    std::vector<std::vector<GNEAdditional*> > myLaneAdditionalParents;
+
+    /// @brief vector of references to vector of demand element parents (used by lanes)
+    std::vector<std::vector<GNEDemandElement*> > myLaneDemandElementParents;
+
+    /// @brief vector of references to vector of shape children (used by lanes)
+    std::vector<std::vector<GNEShape*> > myLaneShapeChildren;
+
+    /// @brief vector of references to vector of additional children (used by lanes)
+    std::vector<std::vector<GNEAdditional*> > myLaneAdditionalChildren;
+
+    /// @brief vector of references to vector of demand element children (used by lanes)
+    std::vector<std::vector<GNEDemandElement*> > myLaneDemandElementChildren;
 };
 
 #endif

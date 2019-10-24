@@ -29,9 +29,12 @@ from datetime import datetime
 from argparse import ArgumentParser
 from duaIterate import call, writeSUMOConf, addGenericOptions
 
-TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-sys.path.append(TOOLS_DIR)
-import sumolib  # noqa
+if 'SUMO_HOME' in os.environ:
+    TOOLS_DIR = os.path.join(os.environ['SUMO_HOME'], 'tools')
+    sys.path.append(TOOLS_DIR)
+    import sumolib  # noqa
+else:
+    sys.exit("please declare environment variable 'SUMO_HOME'")
 
 
 def initOptions():
@@ -91,10 +94,7 @@ def main():
         argParser.error(
             "--net-file, --routes and --detector-values have to be given!")
 
-    if options.mesosim:
-        sumoBinary = sumolib.checkBinary("meso", options.path)
-    else:
-        sumoBinary = sumolib.checkBinary("sumo", options.path)
+    sumoBinary = sumolib.checkBinary("sumo", options.path)
     calibrator = ["java", "-cp", options.classpath, "-Xmx1G",
                   "floetteroed.cadyts.interfaces.sumo.SumoController"]
     log = open("cadySumo-log.txt", "w+")

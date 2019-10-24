@@ -515,6 +515,11 @@ public:
      */
     static MSVehicleType* build(SUMOVTypeParameter& from);
 
+    /// @brief   Accessor function for parameter equivalent returning entry time for a specific manoeuver angle
+    SUMOTime getEntryManoeuvreTime(const int angle) const;
+    /// @brief   Accessor function for parameter equivalent returning exit time for a specific manoeuver angle
+    SUMOTime getExitManoeuvreTime(const int angle) const;
+
 
     /** @brief Duplicates the microsim vehicle type giving the newly created type the given id,
      *         marking it as vehicle specific
@@ -541,7 +546,15 @@ public:
      * @return Whether this vehicle type is based on a different one, and belongs to one vehicle only
      */
     bool isVehicleSpecific() const {
-        return myOriginalType != 0;
+        return myOriginalType != nullptr;
+    }
+
+
+    /** @brief Returns the id of the original vehicle type if this is a vehicle specific type, the id otherwise
+     * @return the original vehicle type id
+     */
+    const std::string& getOriginalID() const {
+        return myOriginalType != nullptr ? myOriginalType->getID() : getID();
     }
 
 
@@ -556,9 +569,8 @@ public:
     void check();
 
 protected:
-
-    // init further param values
-    void initParameters(); 
+    /// @brief init Rail Visualization Parameters
+    void initRailVisualizationParameters();
 
 private:
     /// @brief the parameter container
@@ -586,11 +598,10 @@ private:
 
 private:
     /// @brief Invalidated copy constructor
-    MSVehicleType(const MSVehicleType&);
+    MSVehicleType(const MSVehicleType&) = delete;
 
     /// @brief Invalidated assignment operator
-    MSVehicleType& operator=(const MSVehicleType&);
-
+    MSVehicleType& operator=(const MSVehicleType&) = delete;
 };
 
 

@@ -29,22 +29,22 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # go to shape mode
-netedit.changeShape("poi")
+netedit.changeElement("poi")
 
 # change layer (invalid)
-netedit.modifyShapeDefaultValue(5, "dummyLayer")
+netedit.changeDefaultValue(6, "dummyLayer")
 
 # try to create poi
 netedit.leftClick(referencePosition, 100, 50)
 
 # change layer (valid, negative)
-netedit.modifyShapeDefaultValue(5, "-2")
+netedit.changeDefaultValue(6, "-2")
 
 # create poi
 netedit.leftClick(referencePosition, 150, 50)
 
 # change layer (valid, positive)
-netedit.modifyShapeDefaultValue(5, "6.5")
+netedit.changeDefaultValue(6, "6.5")
 
 # create poi
 netedit.leftClick(referencePosition, 200, 50)
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

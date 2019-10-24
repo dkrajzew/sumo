@@ -32,10 +32,10 @@ netedit.rebuildNetwork()
 netedit.selectMode()
 
 # show connections
-netedit.toogleShowConnections()
+netedit.changeEditMode('3')
 
 # use a rectangle to check add mode
-netedit.selectionRectangle(referencePosition, 25, 0, 550, 470)
+netedit.selectionRectangle(referencePosition, 25, 0, 590, 500)
 
 # clear selection
 netedit.selectionClear()
@@ -44,7 +44,7 @@ netedit.selectionClear()
 netedit.lockSelection(6)
 
 # use a rectangle to check add mode
-netedit.selectionRectangle(referencePosition, 25, 0, 550, 470)
+netedit.selectionRectangle(referencePosition, 25, 0, 590, 500)
 
 # clear selection
 netedit.selectionClear()
@@ -54,10 +54,10 @@ netedit.undo(referencePosition, 6)
 netedit.redo(referencePosition, 6)
 
 # save additionals and shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

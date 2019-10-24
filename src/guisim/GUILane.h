@@ -77,7 +77,8 @@ public:
     GUILane(const std::string& id, double maxSpeed,
             double length, MSEdge* const edge, int numericalID,
             const PositionVector& shape, double width,
-            SVCPermissions permissions, int index, bool isRampAccel);
+            SVCPermissions permissions, int index, bool isRampAccel,
+            const std::string& type);
 
 
     /// @brief Destructor
@@ -126,7 +127,7 @@ public:
 
     /** the same as in MSLane, but locks the access for the visualisation
         first; the access will be granted at the end of this method */
-    void setJunctionApproaches(const SUMOTime t);
+    void setJunctionApproaches(const SUMOTime t) const;
 
     /** the same as in MSLane, but locks the access for the visualisation
         first; the access will be granted at the end of this method */
@@ -235,6 +236,14 @@ public:
      */
     double getLoadedEdgeWeight() const;
 
+    void setReachability(double value) {
+        myReachability = value;
+    }
+
+    double getReachability() const {
+        return myReachability;
+    }
+
 #ifdef HAVE_OSG
     void setGeometry(osg::Geometry* geom) {
         myGeom = geom;
@@ -336,6 +345,9 @@ private:
 
     /// @brief Quarter of lane width, for speed-up
     double myQuarterLaneWidth;
+
+    /// @brief the time distance from a particular edge
+    double myReachability;
 
 #ifdef HAVE_OSG
     osg::Geometry* myGeom;

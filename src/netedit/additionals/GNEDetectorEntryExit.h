@@ -65,12 +65,6 @@ public:
     void fixAdditionalProblem();
     /// @}
 
-    /// @name inherited from GNEDetector
-    /// @{
-    /// @brief get lane
-    GNELane* getLane() const;
-    /// @}
-
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
@@ -84,7 +78,7 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -117,11 +111,12 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-protected:
-    /// @brief The lane in which this detector is placed
-    GNELane* myLane;
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
+    /// @}
 
 private:
     /// @brief set attribute after validation

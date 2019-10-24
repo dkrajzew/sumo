@@ -27,6 +27,7 @@
 #include <libsumo/TraCIDefs.h>
 #include <libsumo/VehicleType.h>
 #include <libsumo/TraCIConstants.h>
+#include <microsim/MSTransportable.h>
 
 
 // ===========================================================================
@@ -53,13 +54,14 @@ public:
     static int getIDCount();
     static double getSpeed(const std::string& personID);
     static TraCIPosition getPosition(const std::string& personID, const bool includeZ = false);
+    static TraCIPosition getPosition3D(const std::string& personID);
     static std::string getRoadID(const std::string& personID);
     static std::string getTypeID(const std::string& personID);
     static double getWaitingTime(const std::string& personID);
     static std::string getNextEdge(const std::string& personID);
     static std::string getVehicle(const std::string& personID);
     static int getRemainingStages(const std::string& personID);
-    static int getStage(const std::string& personID, int nextStageIndex = 0);
+    static TraCIStage getStage(const std::string& personID, int nextStageIndex = 0);
     static std::vector<std::string> getEdges(const std::string& personID, int nextStageIndex = 0);
     static std::string getParameter(const std::string& routeID, const std::string& param);
     static double getAngle(const std::string& personID);
@@ -69,13 +71,15 @@ public:
     LIBSUMO_VEHICLE_TYPE_GETTER
 
     static void add(const std::string& personID, const std::string& edgeID, double pos, double depart = DEPARTFLAG_NOW, const std::string typeID = "DEFAULT_PEDTYPE");
+    static void appendStage(const TraCIStage& stage, const std::string& personID);
+    static void replaceStage(const std::string& personID, const int stageIndex, const TraCIStage& stage);
     static void appendWaitingStage(const std::string& personID, double duration, const std::string& description = "waiting", const std::string& stopID = "");
     static void appendWalkingStage(const std::string& personID, const std::vector<std::string>& edgeIDs, double arrivalPos, double duration = -1, double speed = -1, const std::string& stopID = "");
     static void appendDrivingStage(const std::string& personID, const std::string& toEdge, const std::string& lines, const std::string& stopID = "");
     static void removeStage(const std::string& personID, int nextStageIndex);
     static void rerouteTraveltime(const std::string& personID);
     static void moveTo(const std::string& personID, const std::string& edgeID, double position);
-    static void moveToXY(const std::string& personID, const std::string& edgeID, const double x, const double y, double angle, const int keepRouteFlag);
+    static void moveToXY(const std::string& personID, const std::string& edgeID, const double x, const double y, double angle = INVALID_DOUBLE_VALUE, const int keepRoute = 1);
     static void setParameter(const std::string& personID, const std::string& key, const std::string& value);
     static void setSpeed(const std::string& personID, double speed);
     static void setType(const std::string& personID, const std::string& typeID);
@@ -96,6 +100,7 @@ public:
 
 private:
     static MSPerson* getPerson(const std::string& id);
+    static MSTransportable::Stage* convertTraCIStage(const TraCIStage& stage, const std::string personID);
 
 private:
     static SubscriptionResults mySubscriptionResults;

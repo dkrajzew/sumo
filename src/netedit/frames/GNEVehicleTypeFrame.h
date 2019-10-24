@@ -58,10 +58,13 @@ public:
         GNEDemandElement* getCurrentVehicleType() const;
 
         /// @brief set current Vehicle Type
-        void setCurrentVehicleType(GNEDemandElement *vType);
+        void setCurrentVehicleType(GNEDemandElement* vType);
 
-        /// @brief refresh vehicle type
+        /// @brief refresh vehicle type selector
         void refreshVehicleTypeSelector();
+
+        /// @brief refresh vehicle type selector (only IDs, without refreshing attributes)
+        void refreshVehicleTypeSelectorIDs();
 
         /// @name FOX-callbacks
         /// @{
@@ -70,12 +73,14 @@ public:
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        VehicleTypeSelector() {}
+		FOX_CONSTRUCTOR(VehicleTypeSelector)
 
     private:
         /// @brief pointer to Frame Parent
         GNEVehicleTypeFrame* myVehicleTypeFrameParent;
+
+        /// @brief pointer to current vehicle type
+        GNEDemandElement* myCurrentVehicleType;
 
         /// @brief comboBox with the list of elements type
         FXComboBox* myTypeMatchBox;
@@ -113,13 +118,15 @@ public:
         /// @brief Called when "Delete Vehicle Type" button is clicked
         long onCmdDeleteVehicleType(FXObject*, FXSelector, void*);
 
+        /// @brief Called when "Delete Vehicle Type" button is clicked
+        long onCmdResetVehicleType(FXObject*, FXSelector, void*);
+
         /// @brief Called when "Copy Vehicle Type" button is clicked
         long onCmdCopyVehicleType(FXObject*, FXSelector, void*);
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        VehicleTypeEditor() {};
+		FOX_CONSTRUCTOR(VehicleTypeEditor)
 
     private:
         /// @brief pointer to vehicle type Frame Parent
@@ -130,6 +137,9 @@ public:
 
         /// @brief "delete vehicle type" button
         FXButton* myDeleteVehicleTypeButton;
+
+        /// @brief "delete default vehicle type" button
+        FXButton* myResetDefaultVehicleTypeButton;
 
         /// @brief "copy vehicle type"
         FXButton* myCopyVehicleTypeButton;
@@ -151,24 +161,21 @@ public:
     VehicleTypeSelector* getVehicleTypeSelector() const;
 
 protected:
-    /// @brief enable moduls depending of item selected in VehicleTypeSelector
-    void enableModuls(GNEDemandElement *vType);
+    /// @brief function called after set a valid attribute in AttributeCreator/AttributeEditor/ParametersEditor/...
+    void attributeUpdated();
 
-    /// @brief disable moduls if element selected in itemSelector isn't valid
-    void disableModuls();
-
-    /// @brief open ACAttributes extended dialog (used for editing advance attributes of Vehicle Types)
-    void openACAttributesExtendedDialog();
+    /// @brief open AttributesCreator extended dialog (used for editing advance attributes of Vehicle Types)
+    void attributesEditorExtendedDialogOpened();
 
 private:
     /// @brief vehicle type selector
     VehicleTypeSelector* myVehicleTypeSelector;
 
-    /// @brief internal vehicle type attributes
-    ACAttributes* myVehicleTypeAttributes;
+    /// @brief editorinternal vehicle type attributes
+    GNEFrameAttributesModuls::AttributesEditor* myVehicleTypeAttributesEditor;
 
     /// @brief modul for open extended attributes dialog
-    ACAttributesExtended* myACAttributesExtended;
+    GNEFrameAttributesModuls::AttributesEditorExtended* myAttributesEditorExtended;
 
     /// @brief Vehicle Type editor (Create, copy, etc.)
     VehicleTypeEditor* myVehicleTypeEditor;

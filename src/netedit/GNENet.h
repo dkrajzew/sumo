@@ -17,7 +17,7 @@
 // wrap netbuild-components of this underlying NBNetBuilder and supply
 // visualisation and editing capabilities (adapted from GUINet)
 //
-// Workflow (rough draft)
+// WorkrouteFlow (rough draft)
 //   wrap NB-components
 //   do netedit stuff
 //   call NBNetBuilder::buildLoaded to save results
@@ -90,6 +90,24 @@ class GNENet : public GUIGlObject, public ShapeContainer {
     friend class GNEChange_DemandElement;
 
 public:
+    /// @brief struct used for saving all attribute carriers of net, in different formats
+    struct AttributeCarriers {
+        /// @brief map with the name and pointer to junctions of net
+        std::map<std::string, GNEJunction*> junctions;
+
+        /// @brief map with the name and pointer to edges of net
+        std::map<std::string, GNEEdge*> edges;
+
+        /// @brief map with the name and pointer to additional elements of net
+        std::map<SumoXMLTag, std::map<std::string, GNEAdditional*> > additionals;
+
+        /// @brief map with the name and pointer to demand elements of net
+        std::map<SumoXMLTag, std::map<std::string, GNEDemandElement*> > demandElements;
+
+        /// @brief special map used for saving Demand Elements of type "Vehicle" (Vehicles, routeFlows, etc.) sorted by depart time
+        std::map<std::string, GNEDemandElement*> vehicleDepartures;
+    };
+
     /**@brief Constructor
      * @param[in] netbuilder the netbuilder which may already have been filled
      * GNENet becomes responsible for cleaning this up
@@ -330,6 +348,9 @@ public:
      */
     void mergeJunctions(GNEJunction* moved, GNEJunction* target, GNEUndoList* undoList);
 
+    /// @brief retrieve all attribute carriers of Net
+    const AttributeCarriers& getAttributeCarriers() const;
+
     /**@brief get junction by id
      * @param[in] id The id of the desired junction
      * @param[in] failHard Whether attempts to retrieve a nonexisting junction should result in an exception
@@ -436,7 +457,7 @@ public:
     std::vector<GNEShape*> retrieveShapes(bool onlySelected = false);
 
     /// @brief inform that net has to be saved
-    void requiereSaveNet(bool value);
+    void requireSaveNet(bool value);
 
     /// @brief return if net has to be saved
     bool isNetSaved() const;
@@ -499,7 +520,12 @@ public:
      * param[in] additionalPath path in wich additionals were saved before recomputing with volatile options
      * param[in] demandPath path in wich demand elements were saved before recomputing with volatile options
      */
-    void computeEverything(GNEApplicationWindow* window, bool force = false, bool volatileOptions = false, std::string additionalPath = "", std::string demandPath = "");
+    void computeNetwork(GNEApplicationWindow* window, bool force = false, bool volatileOptions = false, std::string additionalPath = "", std::string demandPath = "");
+
+    /**@brief compute demand elements
+     * param[in] window The window to inform about delay
+     */
+    void computeDemandElements(GNEApplicationWindow* window);
 
     /**@brief join selected junctions
      * @note difference to mergeJunctions:
@@ -515,11 +541,20 @@ public:
     /// @brief removes junctions that have no edges
     void removeSolitaryJunctions(GNEUndoList* undoList);
 
+    /// @brief clean unused routes
+    void cleanUnusedRoutes(GNEUndoList* undoList);
+
+    /// @brief join routes
+    void joinRoutes(GNEUndoList* undoList);
+
+    /// @brief clean invalid demand elements
+    void cleanInvalidDemandElements(GNEUndoList* undoList);
+
     /// @brief replace the selected junction by geometry node(s) and merge the edges
     void replaceJunctionByGeometry(GNEJunction* junction, GNEUndoList* undoList);
 
     /// @brief replace the selected junction by a list of junctions for each unique edge endpoint
-    void splitJunction(GNEJunction* junction, GNEUndoList* undoList);
+    void splitJunction(GNEJunction* junction, bool reconnect, GNEUndoList* undoList);
 
     /// @brief clear junction's connections
     void clearJunctionConnections(GNEJunction* junction, GNEUndoList* undoList);
@@ -565,12 +600,6 @@ public:
      */
     std::vector<GNEAdditional*> retrieveAdditionals(bool onlySelected = false) const;
 
-    /**@brief get map with IDs and pointers to additionals
-     * @param[in] type type of additional to get. SUMO_TAG_NOTHING will get all additionals
-     * @return map with IDs and pointers to additionals.
-     */
-    const std::map<std::string, GNEAdditional*>& getAdditionalByType(SumoXMLTag type) const;
-
     /**@brief Returns the number of additionals of the net
      * @param[in] type type of additional to count. SUMO_TAG_NOTHING will count all additionals
      * @return Number of additionals of the net
@@ -583,12 +612,15 @@ public:
     void updateAdditionalID(const std::string& oldID, GNEAdditional* additional);
 
     /// @brief inform that additionals has to be saved
-    void requiereSaveAdditionals(bool value);
+    void requireSaveAdditionals(bool value);
 
     /**@brief save additional elements of the network
     * @param[in] filename name of the file in wich save additionals
     */
     void saveAdditionals(const std::string& filename);
+
+    /// @brief check if additionals are saved
+    bool isAdditionalsSaved() const;
 
     /// @brief generate additional id
     std::string generateAdditionalID(SumoXMLTag type) const;
@@ -610,12 +642,6 @@ public:
      */
     std::vector<GNEDemandElement*> retrieveDemandElements(bool onlySelected = false) const;
 
-    /**@brief get map with IDs and pointers to demand elements
-     * @param[in] type type of demand element to get. SUMO_TAG_NOTHING will get all demand elements
-     * @return map with IDs and pointers to demand elements.
-     */
-    const std::map<std::string, GNEDemandElement*>& getDemandElementByType(SumoXMLTag type) const;
-
     /**@brief Returns the number of demand elements of the net
      * @param[in] type type of demand element to count. SUMO_TAG_NOTHING will count all demand elements
      * @return Number of demand elements of the net
@@ -633,15 +659,18 @@ public:
     void updateDemandElementBegin(const std::string& oldBegin, GNEDemandElement* demandElement);
 
     /// @brief inform that demand elements has to be saved
-    void requiereSaveDemandElements(bool value);
+    void requireSaveDemandElements(bool value);
 
     /**@brief save demand element elements of the network
     * @param[in] filename name of the file in wich save demand elements
     */
     void saveDemandElements(const std::string& filename);
 
+    /// @brief check if demand elements are saved
+    bool isDemandElementsSaved() const;
+
     /// @brief generate demand element id
-    std::string generateDemandElementID(SumoXMLTag type) const;
+    std::string generateDemandElementID(const std::string& prefix, SumoXMLTag type) const;
 
     /// @}
 
@@ -674,7 +703,7 @@ public:
     /// @name Functions related to TLS Programs
     /// @{
     /// @brief inform that TLS Programs has to be saved
-    void requiereSaveTLSPrograms();
+    void requireSaveTLSPrograms();
 
     /**@brief save TLS Programs elements of the network
      * @param[in] filename name of the file in wich save TLS Programs
@@ -685,25 +714,20 @@ public:
     int getNumberOfTLSPrograms() const;
     /// @}
 
+    /// @name Functions related to Enable or disable update geometry of elements after insertio
+    /// @{
+    /// @brief enable update geometry of elements after inserting or removing an element in net
+    void enableUpdateGeometry();
+
+    /// @brief disable update geometry of elements after inserting or removing an element in net
+    void disableUpdateGeometry();
+
+    /// @brief check if update geometry after inserting or removing has to be updated
+    bool isUpdateGeometryEnabled() const;
+
+    /// @}
+
 protected:
-    /// @brief struct used for saving all attribute carriers of net, in different formats
-    struct AttributeCarriers {
-        /// @brief map with the name and pointer to junctions of net
-        std::map<std::string, GNEJunction*> junctions;
-
-        /// @brief map with the name and pointer to edges of net
-        std::map<std::string, GNEEdge*> edges;
-
-        /// @brief map with the name and pointer to additional elements of net
-        std::map<SumoXMLTag, std::map<std::string, GNEAdditional*> > additionals;
-
-        /// @brief map with the name and pointer to demand elements of net
-        std::map<SumoXMLTag, std::map<std::string, GNEDemandElement*> > demandElements;
-
-        /// @brief special map used for saving Demand Elements of type "Vehicle" (Vehicles, flows, etc.) sorted by depart time
-        std::map<std::string, GNEDemandElement*> vehicleDepartures;
-    };
-
     /// @brief the rtree which contains all GUIGlObjects (so named for historical reasons)
     SUMORTree myGrid;
 
@@ -740,11 +764,14 @@ protected:
     /// @brief Flag to check if demand elements has to be saved
     bool myDemandElementsSaved;
 
+    /// @brief Flag to enable or disable update geometry of elements after inserting or removing element in net
+    bool myUpdateGeometryEnabled;
+
     /// @name Insertion and erasing of GNEAdditionals items
     /// @{
 
     /// @brief return true if additional exist (use pointer instead ID)
-    bool additionalExist(GNEAdditional* additional);
+    bool additionalExist(GNEAdditional* additional) const;
 
     /**@brief Insert a additional element int GNENet container.
      * @throw processError if route was already inserted
@@ -754,7 +781,7 @@ protected:
     /**@brief delete additional element of GNENet container
      * @throw processError if additional wasn't previously inserted
      */
-    bool deleteAdditional(GNEAdditional* additional);
+    bool deleteAdditional(GNEAdditional* additional, bool updateViewAfterDeleting);
 
     /// @}
 
@@ -762,7 +789,7 @@ protected:
     /// @{
 
     /// @brief return true if demand element exist (use pointer instead ID)
-    bool demandElementExist(GNEDemandElement* demandElement);
+    bool demandElementExist(GNEDemandElement* demandElement) const;
 
     /**@brief Insert a demand element element int GNENet container.
      * @throw processError if route was already inserted
@@ -772,7 +799,7 @@ protected:
     /**@brief delete demand element element of GNENet container
      * @throw processError if demand element wasn't previously inserted
      */
-    bool deleteDemandElement(GNEDemandElement* demandElement);
+    bool deleteDemandElement(GNEDemandElement* demandElement, bool updateViewAfterDeleting);
 
     /// @}
 
@@ -793,16 +820,16 @@ private:
     GNEEdge* registerEdge(GNEEdge* edge);
 
     /// @brief deletes a single junction
-    void deleteSingleJunction(GNEJunction* junction);
+    void deleteSingleJunction(GNEJunction* junction, bool updateViewAfterDeleting);
 
     /// @brief deletes a single edge
-    void deleteSingleEdge(GNEEdge* edge);
+    void deleteSingleEdge(GNEEdge* edge, bool updateViewAfterDeleting);
 
     /// @brief insert shape
-    void insertShape(GNEShape* shape);
+    void insertShape(GNEShape* shape, bool updateViewAfterDeleting);
 
     /// @brief remove created shape (but NOT delete)
-    void removeShape(GNEShape* shape);
+    void removeShape(GNEShape* shape, bool updateViewAfterDeleting);
 
     /// @brief notify myViewNet
     void update();

@@ -7,12 +7,18 @@ set(netedit_demandelements_SRCS
    GNERoute.cpp
    GNEVehicleType.h
    GNEVehicleType.cpp
-   GNEFlow.h
-   GNEFlow.cpp
    GNEVehicle.h
    GNEVehicle.cpp
-   GNETrip.h
-   GNETrip.cpp
+   GNEStop.h
+   GNEStop.cpp
+   GNEWalk.h
+   GNEWalk.cpp
+   GNERide.h
+   GNERide.cpp
+   GNEPersonTrip.h
+   GNEPersonTrip.cpp
+   GNEPerson.h
+   GNEPerson.cpp
    )
 
 add_library(netedit_demandelements STATIC ${netedit_demandelements_SRCS})

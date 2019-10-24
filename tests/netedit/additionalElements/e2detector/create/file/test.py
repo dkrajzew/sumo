@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2Detector")
+netedit.changeElement("e2Detector")
 
 # set invalid filename
-netedit.modifyAdditionalDefaultValue(5, "&&&&&&&&")
+netedit.changeDefaultValue(6, "&&&&&&&&")
 
 # try to create E2 with invalid filename
 netedit.leftClick(referencePosition, 400, 250)
 
 # set valid filename
-netedit.modifyAdditionalDefaultValue(5, "myOwnFilename.txt")
+netedit.changeDefaultValue(6, "myOwnFilename.txt")
 
 # create E2 with valid filename
 netedit.leftClick(referencePosition, 400, 250)
@@ -48,10 +48,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

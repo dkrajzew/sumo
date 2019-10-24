@@ -29,16 +29,16 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.additionalMode()
 
 # select E1
-netedit.changeAdditional("instantInductionLoop")
+netedit.changeElement("instantInductionLoop")
 
 # create E1 1
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 140)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect first E1
-netedit.leftClick(referencePosition, 250, 150)
+netedit.leftClick(referencePosition, 250, 140)
 
 # Change parameter name with an non valid value
 netedit.modifyAttribute(3, "%%%;:..&&%$%$", True)
@@ -51,10 +51,10 @@ netedit.undo(referencePosition, 2)
 netedit.redo(referencePosition, 2)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

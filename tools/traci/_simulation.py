@@ -16,14 +16,53 @@
 
 from __future__ import absolute_import
 import struct
-import collections
 import warnings
 from . import constants as tc
 from .domain import Domain
 from .storage import Storage
+from .exceptions import FatalTraCIError
 
-Stage = collections.namedtuple('Stage', ['stageType', 'vType', 'line', 'destStop', 'edges', 'travelTime', 'cost',
-                                         'length', 'intended', 'depart', 'departPos', 'arrivalPos', 'description'])
+
+class Stage(object):
+
+    def __init__(self, type, vType, line, destStop, edges, travelTime, cost, length, intended,
+                 depart, departPos, arrivalPos, description):
+        self.type = type
+        self.vType = vType
+        self.line = line
+        self.destStop = destStop
+        self.edges = edges
+        self.travelTime = travelTime
+        self.cost = cost
+        self.length = length
+        self.intended = intended
+        self.depart = depart
+        self.departPos = departPos
+        self.arrivalPos = arrivalPos
+        self.description = description
+
+    def __attr_repr__(self, attrname, default=""):
+        if getattr(self, attrname) == default:
+            return ""
+        else:
+            return "%s=%s" % (attrname, getattr(self, attrname))
+
+    def __repr__(self):
+        return "Stage(%s)" % ', '.join([v for v in [
+            self.__attr_repr__("type"),
+            self.__attr_repr__("vType"),
+            self.__attr_repr__("line"),
+            self.__attr_repr__("destStop"),
+            self.__attr_repr__("edges"),
+            self.__attr_repr__("travelTime"),
+            self.__attr_repr__("cost"),
+            self.__attr_repr__("length"),
+            self.__attr_repr__("intended"),
+            self.__attr_repr__("depart"),
+            self.__attr_repr__("departPos"),
+            self.__attr_repr__("arrivalPos"),
+            self.__attr_repr__("description"),
+        ] if v != ""])
 
 
 def _readStage(result):
@@ -44,6 +83,41 @@ def _readStage(result):
     description = result.readTypedString()
     return Stage(stageType, vType, line, destStop, edges, travelTime, cost,
                  length, intended, depart, departPos, arrivalPos, description)
+
+
+def _stageSize(stage):
+    size = 1 + 4  # compound
+    size += 1 + 4  # stage type
+    size += 1 + 4 + len(stage.vType)  # vType
+    size += 1 + 4 + len(stage.line)  # line
+    size += 1 + 4 + len(stage.destStop)  # destStop
+    size += 1 + 4 + sum(map(len, stage.edges)) + 4 * len(stage.edges)  # edges
+    size += 1 + 8  # travelTime
+    size += 1 + 8  # cost
+    size += 1 + 8  # length
+    size += 1 + 4 + len(stage.intended)  # intended
+    size += 1 + 8  # depart
+    size += 1 + 8  # departPos
+    size += 1 + 8  # arrivalPos
+    size += 1 + 4 + len(stage.description)
+    return size
+
+
+def _writeStage(stage, connection):
+    connection._string += struct.pack("!Bi", tc.TYPE_COMPOUND, 13)
+    connection._string += struct.pack("!Bi", tc.TYPE_INTEGER, stage.type)
+    connection._packString(stage.vType)
+    connection._packString(stage.line)
+    connection._packString(stage.destStop)
+    connection._packStringList(stage.edges)
+    connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, stage.travelTime)
+    connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, stage.cost)
+    connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, stage.length)
+    connection._packString(stage.intended)
+    connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, stage.depart)
+    connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, stage.departPos)
+    connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, stage.arrivalPos)
+    connection._packString(stage.description)
 
 
 _RETURN_VALUE_FUNC = {tc.VAR_TIME: Storage.readDouble,
@@ -67,7 +141,9 @@ _RETURN_VALUE_FUNC = {tc.VAR_TIME: Storage.readDouble,
                       tc.VAR_EMERGENCYSTOPPING_VEHICLES_NUMBER: Storage.readInt,
                       tc.VAR_EMERGENCYSTOPPING_VEHICLES_IDS: Storage.readStringList,
                       tc.VAR_MIN_EXPECTED_VEHICLES: Storage.readInt,
+                      tc.VAR_BUS_STOP_ID_LIST: Storage.readStringList,
                       tc.VAR_BUS_STOP_WAITING: Storage.readInt,
+                      tc.VAR_BUS_STOP_WAITING_IDS: Storage.readStringList,
                       tc.VAR_TELEPORT_STARTING_VEHICLES_NUMBER: Storage.readInt,
                       tc.VAR_TELEPORT_STARTING_VEHICLES_IDS: Storage.readStringList,
                       tc.VAR_TELEPORT_ENDING_VEHICLES_NUMBER: Storage.readInt,
@@ -78,11 +154,17 @@ _RETURN_VALUE_FUNC = {tc.VAR_TIME: Storage.readDouble,
 
 class SimulationDomain(Domain):
 
+    Stage = Stage
+
     def __init__(self):
         Domain.__init__(self, "simulation", tc.CMD_GET_SIM_VARIABLE, tc.CMD_SET_SIM_VARIABLE,
                         tc.CMD_SUBSCRIBE_SIM_VARIABLE, tc.RESPONSE_SUBSCRIBE_SIM_VARIABLE,
                         tc.CMD_SUBSCRIBE_SIM_CONTEXT, tc.RESPONSE_SUBSCRIBE_SIM_CONTEXT,
                         _RETURN_VALUE_FUNC)
+
+    @staticmethod
+    def walkingStage(edges, arrivalPos, destStop="", description=""):
+        return Stage(2, "", "", destStop, edges, 0, 0, 0, "", 0, 0, arrivalPos, description)
 
     def getTime(self):
         """getTime() -> double
@@ -97,6 +179,8 @@ class SimulationDomain(Domain):
         If the given value is 0 or absent, exactly one step is performed.
         Values smaller than or equal to the current sim time result in no action.
         """
+        if self._connection is None:
+            raise FatalTraCIError("Not connected.")
         return self._connection.simulationStep(time)
 
     def getCurrentTime(self):
@@ -104,9 +188,8 @@ class SimulationDomain(Domain):
 
         Returns the current simulation time in ms.
         """
-        # we should raise the awareness by removing the DeprecationWarning category below after 1.0
         warnings.warn("getCurrentTime is deprecated, please use getTime which returns floating point seconds",
-                      DeprecationWarning, stacklevel=2)
+                      stacklevel=2)
         return self._getUniversal(tc.VAR_TIME_STEP)
 
     def getLoadedNumber(self):
@@ -247,11 +330,20 @@ class SimulationDomain(Domain):
         """
         return self._getUniversal(tc.VAR_MIN_EXPECTED_VEHICLES)
 
+    def getBusStopIDList(self):
+        return self._getUniversal(tc.VAR_BUS_STOP_ID_LIST)
+
     def getBusStopWaiting(self, stopID):
         """getBusStopWaiting() -> integer
         Get the total number of waiting persons at the named bus stop.
         """
         return self._getUniversal(tc.VAR_BUS_STOP_WAITING, stopID)
+
+    def getBusStopWaitingIDList(self, stopID):
+        """getBusStopWaiting() -> integer
+        Get the IDs of waiting persons at the named bus stop.
+        """
+        return self._getUniversal(tc.VAR_BUS_STOP_WAITING_IDS, stopID)
 
     def getStartingTeleportNumber(self):
         """getStartingTeleportNumber() -> integer
@@ -318,16 +410,16 @@ class SimulationDomain(Domain):
                                                 pos, laneIndex, tc.TYPE_UBYTE, posType)
         return self._connection._checkResult(tc.CMD_GET_SIM_VARIABLE, tc.POSITION_CONVERSION, "").read("!ddd")
 
-    def convertRoad(self, x, y, isGeo=False):
+    def convertRoad(self, x, y, isGeo=False, vClass="ignoring"):
         posType = tc.POSITION_2D
         if isGeo:
             posType = tc.POSITION_LON_LAT
         self._connection._beginMessage(
-            tc.CMD_GET_SIM_VARIABLE, tc.POSITION_CONVERSION, "", 1 + 4 + 1 + 8 + 8 + 1 + 1)
-        self._connection._string += struct.pack("!Bi", tc.TYPE_COMPOUND, 2)
+            tc.CMD_GET_SIM_VARIABLE, tc.POSITION_CONVERSION, "", 1 + 4 + 1 + 8 + 8 + 1 + 1 + 1 + 4 + len(vClass))
+        self._connection._string += struct.pack("!Bi", tc.TYPE_COMPOUND, 3)
         self._connection._string += struct.pack("!Bdd", posType, x, y)
-        self._connection._string += struct.pack("!BB",
-                                                tc.TYPE_UBYTE, tc.POSITION_ROADMAP)
+        self._connection._string += struct.pack("!BB", tc.TYPE_UBYTE, tc.POSITION_ROADMAP)
+        self._connection._packString(vClass)
         result = self._connection._checkResult(
             tc.CMD_GET_SIM_VARIABLE, tc.POSITION_CONVERSION, "")
         return result.readString(), result.readDouble(), result.read("!B")[0]
@@ -420,7 +512,7 @@ class SimulationDomain(Domain):
         self._connection._packString(destStop)
         answer = self._connection._checkResult(tc.CMD_GET_SIM_VARIABLE, tc.FIND_INTERMODAL_ROUTE, "")
         result = []
-        for c in range(answer.readInt()):
+        for _ in range(answer.readInt()):
             answer.read("!B")                   # Type
             result.append(_readStage(answer))
         return result
@@ -452,6 +544,3 @@ class SimulationDomain(Domain):
         from the last time step.
         """
         return Domain.getSubscriptionResults(self, "")
-
-
-SimulationDomain()

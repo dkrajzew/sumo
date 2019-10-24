@@ -33,19 +33,22 @@
 // ===========================================================================
 
 GNETAZSourceSink::GNETAZSourceSink(SumoXMLTag sourceSinkTag, GNEAdditional* TAZParent, GNEEdge* edge, double departWeight) :
-    GNEAdditional(TAZParent, TAZParent->getViewNet(), GLO_TAZ, sourceSinkTag, "", false),
-    myEdge(edge),
+    GNEAdditional(TAZParent, TAZParent->getViewNet(), GLO_TAZ, sourceSinkTag, "", false, {edge}, {}, {}, {TAZParent}, {}, {}, {}, {}, {}, {}),
     myDepartWeight(departWeight) {
     //check that this is a TAZ Source OR a TAZ Sink
     if ((sourceSinkTag != SUMO_TAG_TAZSOURCE) && (sourceSinkTag != SUMO_TAG_TAZSINK)) {
         throw InvalidArgument("Invalid TAZ Child Tag");
     }
-    // set edge as child
-    addEdgeChild(edge);
 }
 
 
 GNETAZSourceSink::~GNETAZSourceSink() {}
+
+
+double
+GNETAZSourceSink::getDepartWeight() const {
+    return myDepartWeight;
+}
 
 
 void
@@ -61,20 +64,26 @@ GNETAZSourceSink::commitGeometryMoving(GNEUndoList*) {
 
 
 void
-GNETAZSourceSink::updateGeometry(bool /*updateGrid*/) {
+GNETAZSourceSink::updateGeometry() {
     // Currently this additional doesn't own a Geometry
 }
 
 
 Position
 GNETAZSourceSink::getPositionInView() const {
-    return myFirstAdditionalParent->getPositionInView();
+    return getAdditionalParents().at(0)->getPositionInView();
+}
+
+
+Boundary
+GNETAZSourceSink::getCenteringBoundary() const {
+    return getEdgeParents().front()->getCenteringBoundary();
 }
 
 
 std::string
 GNETAZSourceSink::getParentName() const {
-    return myFirstAdditionalParent->getID();
+    return getAdditionalParents().at(0)->getID();
 }
 
 
@@ -90,17 +99,17 @@ GNETAZSourceSink::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_EDGE:
-            return myEdge->getID();
+            return getEdgeParents().front()->getID();
         case SUMO_ATTR_WEIGHT:
             return toString(myDepartWeight);
         case GNE_ATTR_PARENT:
-            return myFirstAdditionalParent->getID();
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+            return getAdditionalParents().at(0)->getID();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         case GNE_ATTR_TAZCOLOR: {
             // obtain max and min weight source
-            double maxWeightSource = parse<double>(myFirstAdditionalParent->getAttribute(GNE_ATTR_MAX_SOURCE));
-            double minWeightSource = parse<double>(myFirstAdditionalParent->getAttribute(GNE_ATTR_MIN_SOURCE));
+            double maxWeightSource = getAdditionalParents().at(0)->getAttributeDouble(GNE_ATTR_MAX_SOURCE);
+            double minWeightSource = getAdditionalParents().at(0)->getAttributeDouble(GNE_ATTR_MIN_SOURCE);
             // avoid division between zero
             if ((maxWeightSource - minWeightSource) == 0) {
                 return "0";
@@ -122,6 +131,16 @@ GNETAZSourceSink::getAttribute(SumoXMLAttr key) const {
     }
 }
 
+double 
+GNETAZSourceSink::getAttributeDouble(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_WEIGHT:
+            return myDepartWeight;
+        default:
+            throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
+    }
+}
+
 
 void
 GNETAZSourceSink::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* undoList) {
@@ -135,7 +154,7 @@ GNETAZSourceSink::setAttribute(SumoXMLAttr key, const std::string& value, GNEUnd
         switch (key) {
             case SUMO_ATTR_ID:
             case SUMO_ATTR_WEIGHT:
-            case GNE_ATTR_GENERIC:
+            case GNE_ATTR_PARAMETERS:
                 undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
                 break;
             default:
@@ -152,10 +171,22 @@ GNETAZSourceSink::isValid(SumoXMLAttr key, const std::string& value) {
             return isValidAdditionalID(value);
         case SUMO_ATTR_WEIGHT:
             return canParse<double>(value) && (parse<double>(value) >= 0);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
+    }
+}
+
+
+
+bool
+GNETAZSourceSink::isAttributeEnabled(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_EDGE:
+            return false;
+        default:
+            return true;
     }
 }
 
@@ -171,11 +202,6 @@ GNETAZSourceSink::getHierarchyName() const {
     return getTagStr() + ": " + getAttribute(SUMO_ATTR_WEIGHT);
 }
 
-Boundary
-GNETAZSourceSink::getCenteringBoundary() const {
-    return myEdge->getNBEdge()->getGeometry().getBoxBoundary();
-}
-
 // ===========================================================================
 // private
 // ===========================================================================
@@ -189,10 +215,10 @@ GNETAZSourceSink::setAttribute(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_WEIGHT:
             myDepartWeight = parse<double>(value);
             // update statictis of TAZ parent
-            myFirstAdditionalParent->updateAdditionalParent();
+            getAdditionalParents().at(0)->updateAdditionalParent();
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");

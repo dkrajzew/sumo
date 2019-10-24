@@ -86,7 +86,7 @@ public:
     }
 
     /// @brief gets the color value according to the current scheme index
-    double getColorValue(int activeScheme) const;
+    double getColorValue(const GUIVisualizationSettings& s, int activeScheme) const;
 
     /// @brief draws the given guiShape with distinct carriages/modules
     void drawAction_drawCarriageClass(const GUIVisualizationSettings& s, bool asImage) const;
@@ -100,10 +100,14 @@ public:
     /** @brief Draws the route
      * @param[in] r The route to draw
      */
-    void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r) const;
+    void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future) const;
 
     /// @brief retrieve information about the current stop state
     std::string getStopInfo() const;
+
+    std::string getEdgeID() const;
+
+    int getSegmentIndex() const;
 
     /// @brief adds the blocking foes to the current selection
     void selectBlockingFoes() const;

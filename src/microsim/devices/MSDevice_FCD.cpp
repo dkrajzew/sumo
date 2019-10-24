@@ -23,7 +23,6 @@
 #include <config.h>
 
 #include <utils/common/StringUtils.h>
-#include <utils/common/StringUtils.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/vehicle/SUMOVehicle.h>
@@ -31,7 +30,6 @@
 #include <microsim/MSLane.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSVehicle.h>
-#include "MSDevice_Tripinfo.h"
 #include "MSDevice_FCD.h"
 
 // ===========================================================================

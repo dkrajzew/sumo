@@ -21,30 +21,363 @@
 // ===========================================================================
 #include <config.h>
 
+#include <netbuild/NBNetBuilder.h>
 #include <netedit/GNENet.h>
 #include <netedit/GNEViewNet.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/netelements/GNEJunction.h>
-#include <netedit/netelements/GNELane.h>
-#include <utils/common/StringTokenizer.h>
 #include <utils/gui/div/GUIParameterTableWindow.h>
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
+#include <utils/router/DijkstraRouter.h>
 
 #include "GNEDemandElement.h"
+
+// ===========================================================================
+// static members
+// ===========================================================================
+
+GNEDemandElement::RouteCalculator* GNEDemandElement::myRouteCalculatorInstance = nullptr;
 
 // ===========================================================================
 // member method definitions
 // ===========================================================================
 
-GNEDemandElement::GNEDemandElement(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag) :
+// ---------------------------------------------------------------------------
+// GNEDemandElement::DemandElementGeometry - methods
+// ---------------------------------------------------------------------------
+
+GNEDemandElement::DemandElementGeometry::DemandElementGeometry() {}
+
+
+void
+GNEDemandElement::DemandElementGeometry::clearGeometry() {
+    shape.clear();
+    shapeRotations.clear();
+    shapeLengths.clear();
+}
+
+
+void
+GNEDemandElement::DemandElementGeometry::calculateShapeRotationsAndLengths() {
+    // Get number of parts of the shape
+    int numberOfSegments = (int)shape.size() - 1;
+    // If number of segments is more than 0
+    if (numberOfSegments >= 0) {
+        // Reserve memory (To improve efficiency)
+        shapeRotations.reserve(numberOfSegments);
+        shapeLengths.reserve(numberOfSegments);
+        // For every part of the shape
+        for (int i = 0; i < numberOfSegments; ++i) {
+            // Obtain first position
+            const Position& f = shape[i];
+            // Obtain next position
+            const Position& s = shape[i + 1];
+            // Save distance between position into myShapeLengths
+            shapeLengths.push_back(f.distanceTo(s));
+            // Save rotation (angle) of the vector constructed by points f and s
+            shapeRotations.push_back((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GNEDemandElement::DemandElementSegmentGeometry::Segment - methods
+// ---------------------------------------------------------------------------
+
+GNEDemandElement::DemandElementSegmentGeometry::Segment::Segment(const GNEDemandElement* _element, const GNEEdge* _edge, const Position _pos, const bool _visible, const bool _valid) :
+    element(_element),
+    edge(_edge),
+    junction(nullptr),
+    pos(_pos),
+    visible(_visible),
+    valid(_valid),
+    length(-1),
+    rotation(0) {
+}
+
+
+GNEDemandElement::DemandElementSegmentGeometry::Segment::Segment(const GNEDemandElement* _element, const GNEEdge* _edge, const Position _pos, double _length, double _rotation, const bool _visible, const bool _valid) :
+    element(_element),
+    edge(_edge),
+    junction(nullptr),
+    pos(_pos),
+    visible(_visible),
+    valid(_valid),
+    length(_length),
+    rotation(_rotation) {
+}
+
+
+GNEDemandElement::DemandElementSegmentGeometry::Segment::Segment(const GNEDemandElement* _element, const GNEJunction* _junction, const Position _pos, const bool _visible, const bool _valid) :
+    element(_element),
+    edge(nullptr),
+    junction(_junction),
+    pos(_pos),
+    visible(_visible),
+    valid(_valid),
+    length(-1),
+    rotation(0) {
+}
+
+
+// ---------------------------------------------------------------------------
+// GNEDemandElement::DemandElementGeometry - methods
+// ---------------------------------------------------------------------------
+
+GNEDemandElement::DemandElementSegmentGeometry::DemandElementSegmentGeometry() :
+    geometryDeprecated(true) {
+}
+
+
+void
+GNEDemandElement::DemandElementSegmentGeometry::insertEdgeSegment(const GNEDemandElement* element, const GNEEdge* edge, const Position pos, const bool visible, const bool valid) {
+    // add segment in myShapeSegments
+    myShapeSegments.push_back(Segment(element, edge, pos, visible, valid));
+}
+
+
+void
+GNEDemandElement::DemandElementSegmentGeometry::insertEdgeLengthRotSegment(const GNEDemandElement* element, const GNEEdge* edge, const Position pos, double length, double rotation, const bool visible, const bool valid) {
+    // add segment in myShapeSegments
+    myShapeSegments.push_back(Segment(element, edge, pos, length, rotation, visible, valid));
+}
+
+
+void
+GNEDemandElement::DemandElementSegmentGeometry::insertJunctionSegment(const GNEDemandElement* element, const GNEJunction* junction, const Position pos, const bool visible, const bool valid) {
+    // add segment in myShapeSegments
+    myShapeSegments.push_back(Segment(element, junction, pos, visible, valid));
+}
+
+
+void
+GNEDemandElement::DemandElementSegmentGeometry::clearDemandElementSegmentGeometry() {
+    // clear segments
+    myShapeSegments.clear();
+}
+
+
+void
+GNEDemandElement::DemandElementSegmentGeometry::calculatePartialShapeRotationsAndLengths() {
+    // Get number of parts of the shapeSegments
+    int numberOfSegments = (int)myShapeSegments.size() - 1;
+    // If number of segments is more than 0
+    if (numberOfSegments >= 0) {
+        // Iterate over every segment
+        for (int i = 0; i < numberOfSegments; ++i) {
+            // check if length and rotation has to be calculated
+            if (myShapeSegments[i].length == -1) {
+                // Obtain first position
+                const Position& f = myShapeSegments[i].pos;
+                // Obtain next position
+                const Position& s = myShapeSegments[i + 1].pos;
+                // Save distance between position into myShapeLengths
+                myShapeSegments[i].length = f.distanceTo2D(s);
+                // Save rotation (angle) of the vector constructed by points f and s
+                myShapeSegments[i].rotation = ((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
+            }
+        }
+    }
+}
+
+
+std::vector<GNEDemandElement::DemandElementSegmentGeometry::Segment>::const_iterator
+GNEDemandElement::DemandElementSegmentGeometry::begin() const {
+    return myShapeSegments.cbegin();
+}
+
+
+std::vector<GNEDemandElement::DemandElementSegmentGeometry::Segment>::const_iterator
+GNEDemandElement::DemandElementSegmentGeometry::end() const {
+    return myShapeSegments.cend();
+}
+
+
+int 
+GNEDemandElement::DemandElementSegmentGeometry::size() const {
+    return (int)myShapeSegments.size();
+}
+
+// ---------------------------------------------------------------------------
+// GNEDemandElement::RouteCalculator - methods
+// ---------------------------------------------------------------------------
+
+GNEDemandElement::RouteCalculator::RouteCalculator(GNENet* net) :
+    myNet(net) {
+    myDijkstraRouter = new DijkstraRouter<NBRouterEdge, NBVehicle, SUMOAbstractRouter<NBRouterEdge, NBVehicle> >(
+        myNet->getNetBuilder()->getEdgeCont().getAllRouterEdges(),
+        true, &NBRouterEdge::getTravelTimeStatic, nullptr, true);
+}
+
+
+GNEDemandElement::RouteCalculator::~RouteCalculator() {
+    delete myDijkstraRouter;
+}
+
+
+void
+GNEDemandElement::RouteCalculator::updateDijkstraRouter() {
+    // simply delete and create myDijkstraRouter again
+    if (myDijkstraRouter) {
+        delete myDijkstraRouter;
+    }
+    myDijkstraRouter = new DijkstraRouter<NBRouterEdge, NBVehicle, SUMOAbstractRouter<NBRouterEdge, NBVehicle> >(
+        myNet->getNetBuilder()->getEdgeCont().getAllRouterEdges(),
+        true, &NBRouterEdge::getTravelTimeStatic, nullptr, true);
+}
+
+
+std::vector<GNEEdge*>
+GNEDemandElement::RouteCalculator::calculateDijkstraRoute(SUMOVehicleClass vClass, const std::vector<GNEEdge*>& partialEdges) const {
+    // declare a solution vector
+    std::vector<GNEEdge*> solution;
+    // calculate route depending of number of partial edges
+    if (partialEdges.size() == 1) {
+        // if there is only one partialEdges, route has only one edge
+        solution.push_back(partialEdges.front());
+    } else {
+        // declare temporal vehicle
+        NBVehicle tmpVehicle("temporalNBVehicle", vClass);
+        // obtain pointer to GNENet
+        GNENet* net = partialEdges.front()->getNet();
+        // iterate over every selected edges
+        for (int i = 1; i < (int)partialEdges.size(); i++) {
+            // declare a temporal route in which save route between two last edges
+            std::vector<const NBRouterEdge*> partialRoute;
+            myDijkstraRouter->compute(partialEdges.at(i - 1)->getNBEdge(), partialEdges.at(i)->getNBEdge(), &tmpVehicle, 10, partialRoute);
+            // save partial route in solution
+            for (const auto& j : partialRoute) {
+                solution.push_back(net->retrieveEdge(j->getID()));
+            }
+        }
+    }
+    // filter solution
+    auto solutionIt = solution.begin();
+    // iterate over solution
+    while (solutionIt != solution.end()) {
+        if ((solutionIt + 1) != solution.end()) {
+            // if next edge is the same of current edge, remove it
+            if (*solutionIt == *(solutionIt + 1)) {
+                solutionIt = solution.erase(solutionIt);
+            } else {
+                solutionIt++;
+            }
+        } else {
+            solutionIt++;
+        }
+    }
+    return solution;
+}
+
+
+std::vector<GNEEdge*>
+GNEDemandElement::RouteCalculator::calculateDijkstraRoute(GNENet* net, SUMOVehicleClass vClass, const std::vector<std::string>& partialEdgesStr) const {
+    // declare a vector of GNEEdges
+    std::vector<GNEEdge*> partialEdges;
+    partialEdges.reserve(partialEdgesStr.size());
+    // convert to vector of GNEEdges
+    for (const auto& i : partialEdgesStr) {
+        partialEdges.push_back(net->retrieveEdge(i));
+    }
+    // calculate DijkstraRoute using partialEdges
+    return calculateDijkstraRoute(vClass, partialEdges);
+}
+
+
+bool
+GNEDemandElement::RouteCalculator::areEdgesConsecutives(SUMOVehicleClass vClass, GNEEdge* from, GNEEdge* to) const {
+    // the same edge cannot be consecutive of itself
+    if (from == to) {
+        return false;
+    }
+    // for pedestrian edges are always consecutives
+    if (vClass == SVC_PEDESTRIAN) {
+        return true;
+    }
+    // obtain NBEdges from both edges
+    NBEdge* nbFrom = from->getNBEdge();
+    NBEdge* nbTo = to->getNBEdge();
+    // iterate over all connections of NBFrom
+    for (NBEdge::Connection c : nbFrom->getConnectionsFromLane(-1, nbTo, -1)) {
+        //check if given VClass is allowed for from and to lanes
+        if ((nbFrom->getPermissions(c.fromLane) & nbTo->getPermissions(c.toLane) & vClass) == vClass) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
+// GNEDemandElement - methods
+// ---------------------------------------------------------------------------
+
+GNEDemandElement::GNEDemandElement(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
+                                   const std::vector<GNEEdge*>& edgeParents,
+                                   const std::vector<GNELane*>& laneParents,
+                                   const std::vector<GNEShape*>& shapeParents,
+                                   const std::vector<GNEAdditional*>& additionalParents,
+                                   const std::vector<GNEDemandElement*>& demandElementParents,
+                                   const std::vector<GNEEdge*>& edgeChildren,
+                                   const std::vector<GNELane*>& laneChildren,
+                                   const std::vector<GNEShape*>& shapeChildren,
+                                   const std::vector<GNEAdditional*>& additionalChildren,
+                                   const std::vector<GNEDemandElement*>& demandElementChildren) :
     GUIGlObject(type, id),
     GNEAttributeCarrier(tag),
-    Parameterised(),
+    GNEHierarchicalElementParents(this, edgeParents, laneParents, shapeParents, additionalParents, demandElementParents),
+    GNEHierarchicalElementChildren(this, edgeChildren, laneChildren, shapeChildren, additionalChildren, demandElementChildren),
     myViewNet(viewNet) {
 }
 
 
+GNEDemandElement::GNEDemandElement(GNEDemandElement* demandElementParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
+                                   const std::vector<GNEEdge*>& edgeParents,
+                                   const std::vector<GNELane*>& laneParents,
+                                   const std::vector<GNEShape*>& shapeParents,
+                                   const std::vector<GNEAdditional*>& additionalParents,
+                                   const std::vector<GNEDemandElement*>& demandElementParents,
+                                   const std::vector<GNEEdge*>& edgeChildren,
+                                   const std::vector<GNELane*>& laneChildren,
+                                   const std::vector<GNEShape*>& shapeChildren,
+                                   const std::vector<GNEAdditional*>& additionalChildren,
+                                   const std::vector<GNEDemandElement*>& demandElementChildren) :
+    GUIGlObject(type, demandElementParent->generateChildID(tag)),
+    GNEAttributeCarrier(tag),
+    GNEHierarchicalElementParents(this, edgeParents, laneParents, shapeParents, additionalParents, demandElementParents),
+    GNEHierarchicalElementChildren(this, edgeChildren, laneChildren, shapeChildren, additionalChildren, demandElementChildren),
+    myViewNet(viewNet) {
+}
+
+
+std::string
+GNEDemandElement::generateChildID(SumoXMLTag childTag) {
+    int counter = (int)getDemandElementChildren().size();
+    while (myViewNet->getNet()->retrieveDemandElement(childTag, getID() + toString(childTag) + toString(counter), false) != nullptr) {
+        counter++;
+    }
+    return (getID() + toString(childTag) + toString(counter));
+}
+
+
 GNEDemandElement::~GNEDemandElement() {}
+
+
+const GNEDemandElement::DemandElementGeometry&
+GNEDemandElement::getDemandElementGeometry() const {
+    return myDemandElementGeometry;
+}
+
+
+const GNEDemandElement::DemandElementSegmentGeometry&
+GNEDemandElement::getDemandElementSegmentGeometry() const {
+    return myDemandElementSegmentGeometry;
+}
+
+
+void
+GNEDemandElement::markSegmentGeometryDeprecated() {
+    myDemandElementSegmentGeometry.geometryDeprecated = true;
+}
 
 
 bool
@@ -71,57 +404,9 @@ GNEDemandElement::openDemandElementDialog() {
 }
 
 
-std::string 
+std::string
 GNEDemandElement::getBegin() const {
     throw InvalidArgument(getTagStr() + " doesn't have an begin time");
-}
-
-
-void
-GNEDemandElement::startGeometryMoving() {
-    // always save original position over view
-    myMove.originalViewPosition = getPositionInView();
-    // check if position over lane or lanes has to be saved
-    if (myTagProperty.canBePlacedOverLane()) {
-        if (myTagProperty.canMaskStartEndPos()) {
-            // obtain start and end position
-            myMove.firstOriginalLanePosition = getAttribute(SUMO_ATTR_STARTPOS);
-            myMove.secondOriginalPosition = getAttribute(SUMO_ATTR_ENDPOS);
-        } else {
-            // obtain position attribute
-            myMove.firstOriginalLanePosition = getAttribute(SUMO_ATTR_POSITION);
-        }
-    } else if (myTagProperty.canBePlacedOverLanes()) {
-        // obtain start and end position
-        myMove.firstOriginalLanePosition = getAttribute(SUMO_ATTR_POSITION);
-        myMove.secondOriginalPosition = getAttribute(SUMO_ATTR_ENDPOS);
-    }
-    // save current centering boundary
-    myMove.movingGeometryBoundary = getCenteringBoundary();
-    // Iterate over demand element childs and start geometry moving
-    for (auto i : myDemandElementChilds) {
-        i->startGeometryMoving();
-    }
-}
-
-
-void
-GNEDemandElement::endGeometryMoving() {
-    // check that endGeometryMoving was called only once
-    if (myMove.movingGeometryBoundary.isInitialised()) {
-        // Remove object from net
-        myViewNet->getNet()->removeGLObjectFromGrid(this);
-        // reset myMovingGeometryBoundary
-        myMove.movingGeometryBoundary.reset();
-        // update geometry without updating grid
-        updateGeometry(false);
-        // Iterate over demand element childs and end geometry moving
-        for (auto i : myDemandElementChilds) {
-            i->endGeometryMoving();
-        }
-        // add object into grid again (using the new centering boundary)
-        myViewNet->getNet()->addGLObjectIntoGrid(this);
-    }
 }
 
 
@@ -131,66 +416,34 @@ GNEDemandElement::getViewNet() const {
 }
 
 
-PositionVector
-GNEDemandElement::getShape() const {
-    return myGeometry.shape;
-}
-
-
-const std::vector<GNEEdge*>& 
-GNEDemandElement::getGNEEdges() const {
-    return myEdges;
-}
-
-
 void
-GNEDemandElement::addDemandElementChild(GNEDemandElement* demandElementName) {
-    // First check that demand element wasn't already inserted
-    if (std::find(myDemandElementChilds.begin(), myDemandElementChilds.end(), demandElementName) != myDemandElementChilds.end()) {
-        throw ProcessError(demandElementName->getTagStr() + " with ID='" + demandElementName->getID() + "' was already inserted in " + getTagStr() + " with ID='" + getID() + "'");
+GNEDemandElement::createRouteCalculatorInstance(GNENet* net) {
+    if (myRouteCalculatorInstance == nullptr) {
+        myRouteCalculatorInstance = new RouteCalculator(net);
     } else {
-        myDemandElementChilds.push_back(demandElementName);
-        // Check if childs has to be sorted automatically
-        if (myTagProperty.canAutomaticSortChilds()) {
-            sortDemandElementChilds();
-        }
-        // update demand element parent after add demand element (note: by default non-implemented)
-        updateDemandElementParent();
-        // update geometry (for set geometry of lines between Parents and Childs)
-        updateGeometry(true);
+        throw ProcessError("Instance already created");
     }
 }
 
 
 void
-GNEDemandElement::removeDemandElementChild(GNEDemandElement* demandElementName) {
-    // First check that demand element was already inserted
-    auto it = std::find(myDemandElementChilds.begin(), myDemandElementChilds.end(), demandElementName);
-    if (it == myDemandElementChilds.end()) {
-        throw ProcessError(demandElementName->getTagStr() + " with ID='" + demandElementName->getID() + "' doesn't exist in " + getTagStr() + " with ID='" + getID() + "'");
+GNEDemandElement::deleteRouteCalculatorInstance() {
+    if (myRouteCalculatorInstance) {
+        delete myRouteCalculatorInstance;
+        myRouteCalculatorInstance = nullptr;
     } else {
-        myDemandElementChilds.erase(it);
-        // Check if childs has to be sorted automatically
-        if (myTagProperty.canAutomaticSortChilds()) {
-            sortDemandElementChilds();
-        }
-        // update demand element parent after add demand element (note: by default non-implemented)
-        updateDemandElementParent();
-        // update geometry (for remove geometry of lines between Parents and Childs)
-        updateGeometry(true);
+        throw ProcessError("Instance wasn't created");
     }
 }
 
 
-const std::vector<GNEDemandElement*>&
-GNEDemandElement::getDemandElementChilds() const {
-    return myDemandElementChilds;
-}
-
-
-void
-GNEDemandElement::sortDemandElementChilds() {
-    //
+GNEDemandElement::RouteCalculator*
+GNEDemandElement::getRouteCalculatorInstance() {
+    if (myRouteCalculatorInstance) {
+        return myRouteCalculatorInstance;
+    } else {
+        throw ProcessError("Instance wasn't created");
+    }
 }
 
 
@@ -214,30 +467,7 @@ GNEDemandElement::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) 
         new FXMenuCommand(ret, ("Open " + getTagStr() + " Dialog").c_str(), getIcon(), &parent, MID_OPEN_ADDITIONAL_DIALOG);
         new FXMenuSeparator(ret);
     }
-    // Show position parameters
-    if (myTagProperty.hasAttribute(SUMO_ATTR_LANE)) {
-        GNELane* lane = myViewNet->getNet()->retrieveLane(getAttribute(SUMO_ATTR_LANE));
-        // Show menu command inner position
-        const double innerPos = myGeometry.shape.nearest_offset_to_point2D(parent.getPositionInformation());
-        new FXMenuCommand(ret, ("Cursor position inner demand element: " + toString(innerPos)).c_str(), nullptr, nullptr, 0);
-        // If shape isn't empty, show menu command lane position
-        if (myGeometry.shape.size() > 0) {
-            const double lanePos = lane->getShape().nearest_offset_to_point2D(myGeometry.shape[0]);
-            new FXMenuCommand(ret, ("Cursor position over " + toString(SUMO_TAG_LANE) + ": " + toString(innerPos + lanePos)).c_str(), nullptr, nullptr, 0);
-        }
-    } else if (myTagProperty.hasAttribute(SUMO_ATTR_EDGE)) {
-        GNEEdge* edge = myViewNet->getNet()->retrieveEdge(getAttribute(SUMO_ATTR_EDGE));
-        // Show menu command inner position
-        const double innerPos = myGeometry.shape.nearest_offset_to_point2D(parent.getPositionInformation());
-        new FXMenuCommand(ret, ("Cursor position inner demand element: " + toString(innerPos)).c_str(), nullptr, nullptr, 0);
-        // If shape isn't empty, show menu command edge position
-        if (myGeometry.shape.size() > 0) {
-            const double edgePos = edge->getLanes().at(0)->getShape().nearest_offset_to_point2D(myGeometry.shape[0]);
-            new FXMenuCommand(ret, ("Mouse position over " + toString(SUMO_TAG_EDGE) + ": " + toString(innerPos + edgePos)).c_str(), nullptr, nullptr, 0);
-        }
-    } else {
-        new FXMenuCommand(ret, ("Cursor position in view: " + toString(getPositionInView().x()) + "," + toString(getPositionInView().y())).c_str(), nullptr, nullptr, 0);
-    }
+    new FXMenuCommand(ret, ("Cursor position in view: " + toString(getPositionInView().x()) + "," + toString(getPositionInView().y())).c_str(), nullptr, nullptr, 0);
     return ret;
 }
 
@@ -249,35 +479,15 @@ GNEDemandElement::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView&) {
     // Iterate over attributes
     for (const auto& i : myTagProperty) {
         // Add attribute and set it dynamic if aren't unique
-        if (i.second.isUnique()) {
-            ret->mkItem(toString(i.first).c_str(), false, getAttribute(i.first));
+        if (i.isUnique()) {
+            ret->mkItem(i.getAttrStr().c_str(), false, getAttribute(i.getAttr()));
         } else {
-            ret->mkItem(toString(i.first).c_str(), true, getAttribute(i.first));
+            ret->mkItem(i.getAttrStr().c_str(), true, getAttribute(i.getAttr()));
         }
     }
     // close building
     ret->closeBuilding();
     return ret;
-}
-
-
-Boundary
-GNEDemandElement::getCenteringBoundary() const {
-    // Return Boundary depending if myMovingGeometryBoundary is initialised (important for move geometry)
-    if (myMove.movingGeometryBoundary.isInitialised()) {
-        return myMove.movingGeometryBoundary;
-    } else if (myGeometry.shape.size() > 0) {
-        Boundary b = myGeometry.shape.getBoxBoundary();
-        b.grow(20);
-        return b;
-    } else if (myGeometry.multiShape.size() > 0) {
-        // obtain boundary of multishape fixed
-        Boundary b = myGeometry.multiShapeUnified.getBoxBoundary();
-        b.grow(20);
-        return b;
-    } else {
-        return Boundary(-0.1, -0.1, 0.1, 0.1);
-    }
 }
 
 
@@ -316,91 +526,6 @@ GNEDemandElement::isRouteValid(const std::vector<GNEEdge*>& edges, bool report) 
 }
 
 
-void
-GNEDemandElement::updateDemandElementParent() {
-    // by default nothing to do
-}
-
-
-GNEDemandElement::DemandElementGeometry::DemandElementGeometry() {}
-
-
-void
-GNEDemandElement::DemandElementGeometry::clearGeometry() {
-    shape.clear();
-    multiShape.clear();
-    shapeRotations.clear();
-    shapeLengths.clear();
-    multiShapeRotations.clear();
-    multiShapeLengths.clear();
-    multiShapeUnified.clear();
-}
-
-
-void
-GNEDemandElement::DemandElementGeometry::calculateMultiShapeUnified() {
-    // merge all multishape parts in a single shape
-    for (auto i : multiShape) {
-        multiShapeUnified.append(i);
-    }
-}
-
-
-void
-GNEDemandElement::DemandElementGeometry::calculateShapeRotationsAndLengths() {
-    // Get number of parts of the shape
-    int numberOfSegments = (int)shape.size() - 1;
-    // If number of segments is more than 0
-    if (numberOfSegments >= 0) {
-        // Reserve memory (To improve efficiency)
-        shapeRotations.reserve(numberOfSegments);
-        shapeLengths.reserve(numberOfSegments);
-        // For every part of the shape
-        for (int i = 0; i < numberOfSegments; ++i) {
-            // Obtain first position
-            const Position& f = shape[i];
-            // Obtain next position
-            const Position& s = shape[i + 1];
-            // Save distance between position into myShapeLengths
-            shapeLengths.push_back(f.distanceTo(s));
-            // Save rotation (angle) of the vector constructed by points f and s
-            shapeRotations.push_back((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
-        }
-    }
-}
-
-
-void
-GNEDemandElement::DemandElementGeometry::calculateMultiShapeRotationsAndLengths() {
-    // Get number of parts of the shape for every part shape
-    std::vector<int> numberOfSegments;
-    for (auto i : multiShape) {
-        // numseg cannot be 0
-        int numSeg = (int)i.size() - 1;
-        numberOfSegments.push_back((numSeg >= 0) ? numSeg : 0);
-        multiShapeRotations.push_back(std::vector<double>());
-        multiShapeLengths.push_back(std::vector<double>());
-    }
-    // If number of segments is more than 0
-    for (int i = 0; i < (int)multiShape.size(); i++) {
-        // Reserve size for every part
-        multiShapeRotations.back().reserve(numberOfSegments.at(i));
-        multiShapeLengths.back().reserve(numberOfSegments.at(i));
-        // iterate over each segment
-        for (int j = 0; j < numberOfSegments.at(i); j++) {
-            // Obtain first position
-            const Position& f = multiShape[i][j];
-            // Obtain next position
-            const Position& s = multiShape[i][j + 1];
-            // Save distance between position into myShapeLengths
-            multiShapeLengths.at(i).push_back(f.distanceTo(s));
-            // Save rotation (angle) of the vector constructed by points f and s
-            multiShapeRotations.at(i).push_back((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
-        }
-    }
-}
-
-
 const std::string&
 GNEDemandElement::getDemandElementID() const {
     return getMicrosimID();
@@ -409,17 +534,7 @@ GNEDemandElement::getDemandElementID() const {
 
 bool
 GNEDemandElement::isValidDemandElementID(const std::string& newID) const {
-    if (SUMOXMLDefinitions::isValidNetID(newID) && (myViewNet->getNet()->retrieveDemandElement(myTagProperty.getTag(), newID, false) == nullptr)) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
-bool
-GNEDemandElement::isValidDetectorID(const std::string& newID) const {
-    if (SUMOXMLDefinitions::isValidDetectorID(newID) && (myViewNet->getNet()->retrieveDemandElement(myTagProperty.getTag(), newID, false) == nullptr)) {
+    if (SUMOXMLDefinitions::isValidVehicleID(newID) && (myViewNet->getNet()->retrieveDemandElement(myTagProperty.getTag(), newID, false) == nullptr)) {
         return true;
     } else {
         return false;
@@ -438,34 +553,6 @@ GNEDemandElement::changeDemandElementID(const std::string& newID) {
         setMicrosimID(newID);
         // update demand element ID in the container of net
         myViewNet->getNet()->updateDemandElementID(oldID, this);
-    }
-}
-
-
-GNEEdge*
-GNEDemandElement::changeEdge(GNEEdge* oldEdge, const std::string& newEdgeID) {
-    if (oldEdge == nullptr) {
-        throw InvalidArgument(getTagStr() + " with ID '" + getMicrosimID() + "' doesn't belong to an " + toString(SUMO_TAG_EDGE));
-    } else {
-        oldEdge->removeDemandElementChild(this);
-        GNEEdge* newEdge = myViewNet->getNet()->retrieveEdge(newEdgeID);
-        newEdge->addDemandElementChild(this);
-        updateGeometry(true);
-        return newEdge;
-    }
-}
-
-
-GNELane*
-GNEDemandElement::changeLane(GNELane* oldLane, const std::string& newLaneID) {
-    if (oldLane == nullptr) {
-        throw InvalidArgument(getTagStr() + " with ID '" + getMicrosimID() + "' doesn't belong to a " + toString(SUMO_TAG_LANE));
-    } else {
-        oldLane->removeDemandElementChild(this);
-        GNELane* newLane = myViewNet->getNet()->retrieveLane(newLaneID);
-        newLane->addDemandElementChild(this);
-        updateGeometry(true);
-        return newLane;
     }
 }
 
@@ -490,57 +577,6 @@ bool
 GNEDemandElement::checkDemandElementChildRestriction() const {
     // throw exception because this function mus be implemented in child (see GNEE3Detector)
     throw ProcessError("Calling non-implemented function checkDemandElementChildRestriction during saving of " + getTagStr() + ". It muss be reimplemented in child class");
-}
-
-
-std::string
-GNEDemandElement::getGenericParametersStr() const {
-    std::string result;
-    // Generate an string using the following structure: "key1=value1|key2=value2|...
-    for (auto i : getParametersMap()) {
-        result += i.first + "=" + i.second + "|";
-    }
-    // remove the last "|"
-    if (!result.empty()) {
-        result.pop_back();
-    }
-    return result;
-}
-
-
-std::vector<std::pair<std::string, std::string> >
-GNEDemandElement::getGenericParameters() const {
-    std::vector<std::pair<std::string, std::string> >  result;
-    // iterate over parameters map and fill result
-    for (auto i : getParametersMap()) {
-        result.push_back(std::make_pair(i.first, i.second));
-    }
-    return result;
-}
-
-
-void
-GNEDemandElement::setGenericParametersStr(const std::string& value) {
-    // clear parameters
-    clearParameter();
-    // separate value in a vector of string using | as separator
-    std::vector<std::string> parsedValues;
-    StringTokenizer stValues(value, "|", true);
-    while (stValues.hasNext()) {
-        parsedValues.push_back(stValues.next());
-    }
-    // check that parsed values (A=B)can be parsed in generic parameters
-    for (auto i : parsedValues) {
-        std::vector<std::string> parsedParameters;
-        StringTokenizer stParam(i, "=", true);
-        while (stParam.hasNext()) {
-            parsedParameters.push_back(stParam.next());
-        }
-        // Check that parsed parameters are exactly two and contains valid chracters
-        if (parsedParameters.size() == 2 && SUMOXMLDefinitions::isValidGenericParameterKey(parsedParameters.front()) && SUMOXMLDefinitions::isValidGenericParameterValue(parsedParameters.back())) {
-            setParameter(parsedParameters.front(), parsedParameters.back());
-        }
-    }
 }
 
 /****************************************************************************/

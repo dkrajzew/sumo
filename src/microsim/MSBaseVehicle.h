@@ -76,6 +76,9 @@ public:
     /// @brief Destructor
     virtual ~MSBaseVehicle();
 
+    bool isVehicle() const {
+        return true;
+    }
 
     /// Returns the name of the vehicle
     const std::string& getID() const;
@@ -290,6 +293,13 @@ public:
      */
     virtual bool hasArrived() const;
 
+    /// @brief return index of edge within route
+    int getRoutePosition() const;
+
+    /// @brief reset index of edge within route
+    void resetRoutePosition(int index, DepartLaneDefinition departLaneProcedure);
+
+
     /** @brief Returns the number of new routes this vehicle got
      * @return the number of new routes this vehicle got
      */
@@ -466,6 +476,14 @@ public:
 
     inline NumericalID getNumericalID() const {
         return myNumericalID;
+    }
+
+    const MSDevice_Transportable* getPersonDevice() const {
+        return myPersonDevice;
+    }
+
+    const MSDevice_Transportable* getContainerDevice() const {
+        return myContainerDevice;
     }
 
 protected:

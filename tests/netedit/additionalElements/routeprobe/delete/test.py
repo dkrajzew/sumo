@@ -29,22 +29,25 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select routeProbe
-netedit.changeAdditional("routeProbe")
+netedit.changeElement("routeProbe")
 
 # create routeProbe
-netedit.leftClick(referencePosition, 380, 200)
+netedit.leftClick(referencePosition, 380, 215)
+
+# recompute
+netedit.rebuildNetwork()
 
 # Change to delete
 netedit.deleteMode()
 
 # delete loaded routeProbe
-netedit.leftClick(referencePosition, 310, 200)
+netedit.leftClick(referencePosition, 310, 215)
 
 # delete created routeProbe (using stack)
-netedit.leftClick(referencePosition, 310, 200)
+netedit.leftClick(referencePosition, 310, 215)
 
 # delete lane with the second loaded routeProbe
-netedit.leftClick(referencePosition, 280, 250)
+netedit.leftClick(referencePosition, 280, 265)
 
 # Check undo
 netedit.undo(referencePosition, 3)
@@ -56,19 +59,19 @@ netedit.deleteMode()
 netedit.changeAutomaticallyDeleteAdditionals(referencePosition)
 
 # try to delete lane with the second loaded routeProbe (doesn't allowed)
-netedit.leftClick(referencePosition, 280, 250)
+netedit.leftClick(referencePosition, 280, 265)
 
 # wait warning
-netedit.waitAutomaticallyDeleteAdditionalsWarning()
+netedit.waitDeleteWarning()
 
 # check redo
 netedit.redo(referencePosition, 3)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

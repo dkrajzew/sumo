@@ -24,7 +24,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
 #include <sstream>
 #include <string>
@@ -117,6 +116,17 @@ inline std::string toString<RightOfWay>(const RightOfWay& row, std::streamsize a
     return SUMOXMLDefinitions::RightOfWayValues.getString(row);
 }
 
+template <>
+inline std::string toString<FringeType>(const FringeType& fringeType, std::streamsize accuracy) {
+    UNUSED_PARAMETER(accuracy);
+    return SUMOXMLDefinitions::FringeTypeValues.getString(fringeType);
+}
+
+template <>
+inline std::string toString<PersonMode>(const PersonMode& personMode, std::streamsize accuracy) {
+    UNUSED_PARAMETER(accuracy);
+    return SUMOXMLDefinitions::PersonModeValues.getString(personMode);
+}
 
 template <>
 inline std::string toString<LinkState>(const LinkState& linkState, std::streamsize accuracy) {

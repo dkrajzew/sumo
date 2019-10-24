@@ -29,7 +29,7 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot)
 netedit.rebuildNetwork()
 
 # show connections
-netedit.toogleShowConnections()
+netedit.changeEditMode('3')
 
 # inspect connection
 netedit.leftClick(referencePosition, 250, 138)
@@ -56,7 +56,7 @@ netedit.rebuildNetwork()
 netedit.redo(referencePosition, 3)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

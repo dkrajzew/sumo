@@ -74,6 +74,7 @@ ROEdge::ROEdge(const std::string& id, RONode* from, RONode* to, int index, const
         // TAZ edge, no lanes
         myCombinedPermissions = SVCAll;
     } else {
+        // TODO we should not calculate the boundary here, the position for the nodes is not valid yet
         myBoundary.add(from->getPosition());
         myBoundary.add(to->getPosition());
     }
@@ -111,12 +112,12 @@ ROEdge::addSuccessor(ROEdge* s, ROEdge* via, std::string) {
     if (find(myFollowingEdges.begin(), myFollowingEdges.end(), s) == myFollowingEdges.end()) {
         myFollowingEdges.push_back(s);
         myFollowingViaEdges.push_back(std::make_pair(s, via));
-        if (isTazConnector()) {
+        if (isTazConnector()) {//s->getFromJunction() != nullptr) {
             myBoundary.add(s->getFromJunction()->getPosition());
         }
         if (!isInternal()) {
             s->myApproachingEdges.push_back(this);
-            if (s->isTazConnector()) {
+            if (s->isTazConnector()) {//getToJunction() != nullptr) {
                 s->myBoundary.add(getToJunction()->getPosition());
             }
             if (via != nullptr) {
@@ -155,6 +156,7 @@ ROEdge::getEffort(const ROVehicle* const veh, double time) const {
 
 double
 ROEdge::getDistanceTo(const ROEdge* other, const bool doBoundaryEstimate) const {
+    assert(this != other);
     if (doBoundaryEstimate) {
         return myBoundary.distanceTo2D(other->myBoundary);
     }
@@ -167,7 +169,8 @@ ROEdge::getDistanceTo(const ROEdge* other, const bool doBoundaryEstimate) const 
     if (other->isTazConnector()) {
         return other->myBoundary.distanceTo2D(getToJunction()->getPosition());
     }
-    return getToJunction()->getPosition().distanceTo2D(other->getFromJunction()->getPosition());
+    return getLanes()[0]->getShape()[-1].distanceTo2D(other->getLanes()[0]->getShape()[0]);
+    //return getToJunction()->getPosition().distanceTo2D(other->getFromJunction()->getPosition());
 }
 
 
@@ -309,6 +312,21 @@ ROEdge::buildTimeLines(const std::string& measure, const bool boundariesOverride
     if (myUsingTTTimeLine) {
         myTravelTimes.fillGaps(myLength / mySpeed + myTimePenalty, boundariesOverride);
     }
+}
+
+
+void
+ROEdge::cacheParamRestrictions(const std::vector<std::string>& restrictionKeys) {
+    for (const std::string& key : restrictionKeys) {
+        const std::string value = getParameter(key, "1e40");
+        myParamRestrictions.push_back(StringUtils::toDouble(value));
+    }
+}
+
+
+double
+ROEdge::getLengthGeometryFactor() const {
+    return myLanes.empty() ? 1. : myLanes[0]->getShape().length() / myLanes[0]->getLength();
 }
 
 

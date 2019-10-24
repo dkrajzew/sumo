@@ -1,3 +1,5 @@
+Debug: Selected item 'DEFAULT_VEHTYPE' in DemandElementSelector
+Debug: Selected item 'DEFAULT_PEDTYPE' in DemandElementSelector
 Debug: Adding busStop 'busStop1' in GNEChange_Additional
 Debug: Additionals has to be saved
 Debug: Current saving Status: net saved, additionals unsaved, demand elements saved
@@ -69,7 +71,9 @@ Debug: Setting new attribute modificationStatusNotForPrinting 'guessed' into edg
 Debug: invalidating (removing) connections of edge 'gneE9' due it were guessed
 Debug: Setting new attribute modificationStatusNotForPrinting 'guessed' into junction 'gneJ2'
 Debug: Removing lane 'gneE3_1' from edge
+Debug: Value 'dummyLanes' for attribute numLanes of edge isn't valid
 Debug: Value '-6' for attribute numLanes of edge isn't valid
+Debug: Value '' for attribute numLanes of edge isn't valid
 Debug: Setting new attribute modificationStatusNotForPrinting 'guessed' into edge 'gneE3'
 Debug: invalidating (removing) connections of edge 'gneE3' due it were guessed
 Debug: Setting new attribute modificationStatusNotForPrinting 'guessed' into edge 'gneE9'
@@ -110,7 +114,8 @@ Debug: Created connection 'fromgneE9_0togneE2_1' in retrieveGNEConnection()
 Debug: Created connection 'fromgneE9_0togneE2_2' in retrieveGNEConnection()
 Debug: Created connection 'fromgneE9_0togneE2_3' in retrieveGNEConnection()
 Debug: ObjectsUnderCursor: GUIGlObjects: 0, AttributeCarriers: 0, NetElements: 0, Additionals: 0, DemandElements: 0, Shapes: 0, Junctions: 0, Edges: 0, Lanes: 0, Crossings: 0, Connections: 0, TAZs: 0, POIs: 0, Polys: 0
-Debug: Keys Ctrl + Z (Undo) pressed
+Debug: Keys Ctrl+Z (Undo) pressed
+Debug: Calling GNEUndoList::undo()
 Debug: Removing nullptr lane from edge
 Debug: Deleting unreferenced lane 'gneE3_3' in removeLane()
 Debug: Deleting unreferenced connection 'fromgneE3_3togneE2_3' in rebuildGNEConnections()
@@ -163,7 +168,8 @@ Debug: Created connection 'fromgneE3_0togneE2_0' in retrieveGNEConnection()
 Debug: Created connection 'fromgneE5_0togneE3_0' in retrieveGNEConnection()
 Debug: Created connection 'fromgneE9_0togneE2_0' in retrieveGNEConnection()
 Debug: ObjectsUnderCursor: GUIGlObjects: 0, AttributeCarriers: 0, NetElements: 0, Additionals: 0, DemandElements: 0, Shapes: 0, Junctions: 0, Edges: 0, Lanes: 0, Crossings: 0, Connections: 0, TAZs: 0, POIs: 0, Polys: 0
-Debug: Keys Ctrl + Y (Redo) pressed
+Debug: Keys Ctrl+Y (Redo) pressed
+Debug: Calling GNEUndoList::redo()
 Debug: Setting new attribute modificationStatusNotForPrinting 'guessed' into edge 'gneE3'
 Debug: invalidating (removing) connections of edge 'gneE3' due it were guessed
 Debug: Deleting unreferenced connection 'fromgneE3_0togneE8_0' in clearGNEConnections()
@@ -212,9 +218,9 @@ Debug: Created connection 'fromgneE9_0togneE2_3' in retrieveGNEConnection()
 Debug: Deleting unreferenced lane 'gneE3_1' in GNEChange_Lane
 Debug: Deleting unreferenced lane 'gneE2_1' in GNEChange_Lane
 Debug: Deleting unreferenced busStop 'busStop6'
-Debug: Deleting unreferenced busStop 'busStop5'
 Debug: Additionals has to be saved
 Debug: Current saving Status: net saved, additionals unsaved, demand elements saved
+Debug: Deleting unreferenced busStop 'busStop5'
 Debug: Deleting unreferenced busStop 'busStop4'
 Debug: Deleting unreferenced busStop 'busStop3'
 Debug: Deleting unreferenced busStop 'busStop2'
@@ -263,5 +269,7 @@ Debug: Deleting unreferenced junction 'gneJ0' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ1' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ2' in GNENet destructor
 Debug: Deleting unreferenced junction 'gneJ3' in GNENet destructor
+Debug: Deleting unreferenced vType 'DEFAULT_BIKETYPE' in GNENet destructor
 Debug: Deleting unreferenced vType 'DEFAULT_VEHTYPE' in GNENet destructor
+Debug: Deleting unreferenced pType 'DEFAULT_PEDTYPE' in GNENet destructor
 Debug: Deleting net builder in GNENet destructor

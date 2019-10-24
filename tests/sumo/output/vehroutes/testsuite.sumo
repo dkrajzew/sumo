@@ -43,6 +43,9 @@ sorted
 # output with route length
 route_length
 
+# record generic vehicle parameters
+params
+
 # write vehroutes for vehicles which have not arrived at simulation end
 write_unfinished
 
@@ -51,6 +54,9 @@ write_unfinished_exit_times
 
 # output of person route
 with_person
+
+# output of person route
+write_unfinished_person
 
 # output of stops
 with_stops
@@ -66,6 +72,12 @@ dua_trip
 
 # public transport and walk possible
 person_route_length
+
+# trips as input, districts used
+trip_with_taz
+
+# all vehicles have the device due to trip def
+auto_trip
 
 # Testing error cases
 errors

@@ -45,9 +45,9 @@ const double GNEPoly::myHintSize = 0.8;
 // method definitions
 // ===========================================================================
 GNEPoly::GNEPoly(GNENet* net, const std::string& id, const std::string& type, const PositionVector& shape, bool geo, bool fill, double lineWidth,
-                 const RGBColor& color, double layer, double angle, const std::string& imgFile, bool relativePath, bool movementBlocked, bool shapeBlocked) :
+    const RGBColor& color, double layer, double angle, const std::string& imgFile, bool relativePath, bool movementBlocked, bool shapeBlocked) :
     GUIPolygon(id, type, color, shape, geo, fill, lineWidth, layer, angle, imgFile, relativePath),
-    GNEShape(net, SUMO_TAG_POLY, movementBlocked),
+    GNEShape(net, SUMO_TAG_POLY, movementBlocked, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
     myNetElementShapeEdited(nullptr),
     myBlockShape(shapeBlocked),
     myClosedShape(shape.front() == shape.back()),
@@ -68,6 +68,16 @@ GNEPoly::GNEPoly(GNENet* net, const std::string& id, const std::string& type, co
 GNEPoly::~GNEPoly() {}
 
 
+std::string
+GNEPoly::generateChildID(SumoXMLTag childTag) {
+    int counter = myNet->getPolygons().size();
+    while (myNet->retrievePolygon(getID() + toString(childTag) + toString(counter), false) != nullptr) {
+        counter++;
+    }
+    return (getID() + toString(childTag) + toString(counter));
+}
+
+
 void
 GNEPoly::startGeometryMoving() {
     // save current centering boundary
@@ -83,8 +93,6 @@ GNEPoly::endGeometryMoving() {
         myNet->removeGLObjectFromGrid(this);
         // reset myMovingGeometryBoundary
         myMovingGeometryBoundary.reset();
-        // update geometry without updating grid
-        updateGeometry(false);
         // add object into grid again (using the new centering boundary)
         myNet->addGLObjectIntoGrid(this);
     }
@@ -137,7 +145,7 @@ GNEPoly::moveEntireShape(const PositionVector& oldShape, const Position& offset)
             i.add(offset);
         }
         // update Geometry after moving
-        updateGeometry(true);
+        updateGeometry();
     }
 }
 
@@ -153,9 +161,10 @@ GNEPoly::commitShapeChange(const PositionVector& oldShape, GNEUndoList* undoList
         myShape = oldShape;
         // first check if double points has to be removed
         shapeToCommit.removeDoublePoints(myHintSize);
-        if (shapeToCommit.size() != myShape.size()) {
+        if (shapeToCommit.size() != myShape.size() && !myNet->getViewNet()->getEditShapes().editingNetElementShapes) {
             WRITE_WARNING("Merged shape's point")
         }
+
         // check if polygon has to be closed
         if (shapeToCommit.size() > 1 && shapeToCommit.front().distanceTo2D(shapeToCommit.back()) < (2 * myHintSize)) {
             shapeToCommit.pop_back();
@@ -176,7 +185,7 @@ GNEPoly::commitShapeChange(const PositionVector& oldShape, GNEUndoList* undoList
 
 
 void
-GNEPoly::updateGeometry(bool /*updateGrid*/) {
+GNEPoly::updateGeometry() {
     // nothing to do
 }
 
@@ -189,6 +198,17 @@ GNEPoly::writeShape(OutputDevice& device) {
 Position
 GNEPoly::getPositionInView() const {
     return myShape.getPolygonCenter();
+}
+
+
+Boundary
+GNEPoly::getCenteringBoundary() const {
+    // Return Boundary depending if myMovingGeometryBoundary is initialised (important for move geometry)
+    if (myMovingGeometryBoundary.isInitialised()) {
+        return myMovingGeometryBoundary;
+    }  else {
+        return GUIPolygon::getCenteringBoundary();
+    }
 }
 
 
@@ -254,111 +274,110 @@ GNEPoly::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView& parent) {
 }
 
 
-Boundary
-GNEPoly::getCenteringBoundary() const {
-    // Return Boundary depending if myMovingGeometryBoundary is initialised (important for move geometry)
-    if (myMovingGeometryBoundary.isInitialised()) {
-        return myMovingGeometryBoundary;
-    }  else {
-        return GUIPolygon::getCenteringBoundary();
-    }
-}
-
-
 void
 GNEPoly::drawGL(const GUIVisualizationSettings& s) const {
-    // push name (needed for getGUIGlObjectsUnderCursor(...)
-    glPushName(getGlID());
-    // first check if inner polygon can be drawn
-    if (checkDraw(s)) {
-        // draw inner polygon
-        drawInnerPolygon(s, drawUsingSelectColor());
-    }
-    // draw details of Netedit
-    double circleWidth = myHintSize * MIN2((double)1, s.polySize.getExaggeration(s, this));
-    double circleWidthSquared = circleWidth * circleWidth;
-    int circleResolution = GNEAttributeCarrier::getCircleResolution(s);
-    // draw geometry details hints if is not too small and isn't in selecting mode
-    if (s.scale * circleWidth > 1.) {
-        // set values relative to mouse position regarding to shape
-        bool mouseOverVertex = false;
-        bool modeMove = myNet->getViewNet()->getEditModes().networkEditMode == GNE_NMODE_MOVE;
-        Position mousePosition = myNet->getViewNet()->getPositionInformation();
-        double distanceToShape = myShape.distance2D(mousePosition);
-        // set colors
-        RGBColor invertedColor, darkerColor;
-        if (drawUsingSelectColor()) {
-            invertedColor = s.selectionColor.invertedColor();
-            darkerColor = s.selectionColor.changedBrightness(-32);
-        } else {
-            invertedColor = GLHelper::getColor().invertedColor();
-            darkerColor = GLHelper::getColor().changedBrightness(-32);
+    // first check if poly can be drawn
+    if (myNet->getViewNet()->getDemandViewOptions().showShapes()) {
+        // check if boundary has to be drawn
+        if (s.drawBoundaries) {
+            GLHelper::drawBoundary(getCenteringBoundary());
         }
-        // Draw geometry hints if polygon's shape isn't blocked
-        if (myBlockShape == false) {
-            // draw a boundary for moving using darkerColor
-            glPushMatrix();
-            glTranslated(0, 0, GLO_POLYGON + 0.01);
-            GLHelper::setColor(darkerColor);
-            GLHelper::drawBoxLines(myShape, (myHintSize / 4) * s.polySize.getExaggeration(s, this));
-            glPopMatrix();
-            // draw points of shape
-            for (auto i : myShape) {
-                if (!s.drawForSelecting || (myNet->getViewNet()->getPositionInformation().distanceSquaredTo2D(i) <= (circleWidthSquared + 2))) {
-                    glPushMatrix();
-                    glTranslated(i.x(), i.y(), GLO_POLYGON + 0.02);
-                    // Change color of vertex and flag mouseOverVertex if mouse is over vertex
-                    if (modeMove && (i.distanceTo(mousePosition) < circleWidth)) {
-                        mouseOverVertex = true;
-                        GLHelper::setColor(invertedColor);
-                    } else {
-                        GLHelper::setColor(darkerColor);
+        // push name (needed for getGUIGlObjectsUnderCursor(...)
+        glPushName(getGlID());
+        // first check if inner polygon can be drawn
+        if (checkDraw(s)) {
+            // draw inner polygon
+            drawInnerPolygon(s, drawUsingSelectColor());
+        }
+        // draw details of Netedit
+        double circleWidth = myHintSize * MIN2((double)1, s.polySize.getExaggeration(s, this));
+        double circleWidthSquared = circleWidth * circleWidth;
+        // Obtain exaggeration of the draw
+        const double exaggeration = s.addSize.getExaggeration(s, this);
+        // draw geometry details hints if is not too small and isn't in selecting mode
+        if (s.scale * circleWidth > 1.) {
+            // set values relative to mouse position regarding to shape
+            bool mouseOverVertex = false;
+            bool modeMove = myNet->getViewNet()->getEditModes().networkEditMode == GNE_NMODE_MOVE;
+            Position mousePosition = myNet->getViewNet()->getPositionInformation();
+            double distanceToShape = myShape.distance2D(mousePosition);
+            // set colors
+            RGBColor invertedColor, darkerColor;
+            if (drawUsingSelectColor()) {
+                invertedColor = s.colorSettings.selectionColor.invertedColor();
+                darkerColor = s.colorSettings.selectionColor.changedBrightness(-32);
+            } else {
+                invertedColor = GLHelper::getColor().invertedColor();
+                darkerColor = GLHelper::getColor().changedBrightness(-32);
+            }
+            // Draw geometry hints if polygon's shape isn't blocked
+            if (myBlockShape == false) {
+                // draw a boundary for moving using darkerColor
+                glPushMatrix();
+                glTranslated(0, 0, GLO_POLYGON + 0.01);
+                GLHelper::setColor(darkerColor);
+                GLHelper::drawBoxLines(myShape, (myHintSize / 4) * s.polySize.getExaggeration(s, this));
+                glPopMatrix();
+                // draw shape points only in Network supemode
+                if (myNet->getViewNet()->getEditModes().currentSupermode != GNE_SUPERMODE_DEMAND) {
+                    for (auto i : myShape) {
+                        if (!s.drawForSelecting || (myNet->getViewNet()->getPositionInformation().distanceSquaredTo2D(i) <= (circleWidthSquared + 2))) {
+                            glPushMatrix();
+                            glTranslated(i.x(), i.y(), GLO_POLYGON + 0.02);
+                            // Change color of vertex and flag mouseOverVertex if mouse is over vertex
+                            if (modeMove && (i.distanceTo(mousePosition) < circleWidth)) {
+                                mouseOverVertex = true;
+                                GLHelper::setColor(invertedColor);
+                            } else {
+                                GLHelper::setColor(darkerColor);
+                            }
+                            GLHelper::drawFilledCircle(circleWidth, s.getCircleResolution());
+                            glPopMatrix();
+                            // draw elevation or special symbols (Start, End and Block)
+                            if (!s.drawForSelecting && myNet->getViewNet()->getNetworkViewOptions().editingElevation()) {
+                                // Push matrix
+                                glPushMatrix();
+                                // Traslate to center of detector
+                                glTranslated(i.x(), i.y(), getType() + 1);
+                                // draw Z
+                                GLHelper::drawText(toString(i.z()), Position(), .1, 0.7, RGBColor::BLUE);
+                                // pop matrix
+                                glPopMatrix();
+                            } else if ((i == myShape.front()) && !s.drawForSelecting && s.drawDetail(s.detailSettings.geometryPointsText, exaggeration)) {
+                                // draw a "s" over first point
+                                glPushMatrix();
+                                glTranslated(i.x(), i.y(), GLO_POLYGON + 0.03);
+                                GLHelper::drawText("S", Position(), .1, 2 * circleWidth, invertedColor);
+                                glPopMatrix();
+                            } else if ((i == myShape.back()) && (myClosedShape == false) && !s.drawForSelecting && s.drawDetail(s.detailSettings.geometryPointsText, exaggeration)) {
+                                // draw a "e" over last point if polygon isn't closed
+                                glPushMatrix();
+                                glTranslated(i.x(), i.y(), GLO_POLYGON + 0.03);
+                                GLHelper::drawText("E", Position(), .1, 2 * circleWidth, invertedColor);
+                                glPopMatrix();
+                            }
+                        }
                     }
-                    GLHelper::drawFilledCircle(circleWidth, circleResolution);
-                    glPopMatrix();
-                    // draw elevation or special symbols (Start, End and Block)
-                    if (!s.drawForSelecting && myNet->getViewNet()->getMoveOptions().editingElevation()) {
-                        // Push matrix
+                    // check if draw moving hint has to be drawed
+                    if (modeMove && (mouseOverVertex == false) && (myBlockMovement == false) && (distanceToShape < circleWidth)) {
+                        // push matrix
                         glPushMatrix();
-                        // Traslate to center of detector
-                        glTranslated(i.x(), i.y(), getType() + 1);
-                        // draw Z
-                        GLHelper::drawText(toString(i.z()), Position(), .1, 0.7, RGBColor::BLUE);
-                        // pop matrix
-                        glPopMatrix();
-                    } else if ((i == myShape.front()) && !s.drawForSelecting) {
-                        // draw a "s" over first point
-                        glPushMatrix();
-                        glTranslated(i.x(), i.y(), GLO_POLYGON + 0.03);
-                        GLHelper::drawText("S", Position(), .1, 2 * circleWidth, invertedColor);
-                        glPopMatrix();
-                    } else if ((i == myShape.back()) && (myClosedShape == false) && !s.drawForSelecting) {
-                        // draw a "e" over last point if polygon isn't closed
-                        glPushMatrix();
-                        glTranslated(i.x(), i.y(), GLO_POLYGON + 0.03);
-                        GLHelper::drawText("E", Position(), .1, 2 * circleWidth, invertedColor);
+                        Position hintPos = myShape.size() > 1 ? myShape.positionAtOffset2D(myShape.nearest_offset_to_point2D(mousePosition)) : myShape[0];
+                        glTranslated(hintPos.x(), hintPos.y(), GLO_POLYGON + 0.04);
+                        GLHelper::setColor(invertedColor);
+                        GLHelper:: drawFilledCircle(circleWidth, s.getCircleResolution());
                         glPopMatrix();
                     }
                 }
             }
-            // check if draw moving hint has to be drawed
-            if (modeMove && (mouseOverVertex == false) && (myBlockMovement == false) && (distanceToShape < circleWidth)) {
-                // push matrix
-                glPushMatrix();
-                Position hintPos = myShape.size() > 1 ? myShape.positionAtOffset2D(myShape.nearest_offset_to_point2D(mousePosition)) : myShape[0];
-                glTranslated(hintPos.x(), hintPos.y(), GLO_POLYGON + 0.04);
-                GLHelper::setColor(invertedColor);
-                GLHelper:: drawFilledCircle(circleWidth, circleResolution);
-                glPopMatrix();
-            }
         }
+        // check if dotted contour has to be drawn
+        if (myNet->getViewNet()->getDottedAC() == this) {
+            GLHelper::drawShapeDottedContourAroundClosedShape(s, getType(), getShape());
+        }
+        // pop name
+        glPopName();
     }
-    // check if dotted contour has to be drawn
-    if (myNet->getViewNet()->getDottedAC() == this) {
-        GLHelper::drawShapeDottedContour(getType(), getShape());
-    }
-    // pop name
-    glPopName();
 }
 
 
@@ -462,7 +481,7 @@ GNEPoly::openPolygon(bool allowUndo) {
             // disable simplified shape flag
             mySimplifiedShape = false;
             // update geometry to avoid grabbing Problems
-            updateGeometry(true);
+            updateGeometry();
         }
     } else {
         WRITE_WARNING("Polygon already opened")
@@ -484,7 +503,7 @@ GNEPoly::closePolygon(bool allowUndo) {
             // disable simplified shape flag
             mySimplifiedShape = false;
             // update geometry to avoid grabbing Problems
-            updateGeometry(true);
+            updateGeometry();
         }
     } else {
         WRITE_WARNING("Polygon already closed")
@@ -528,7 +547,7 @@ GNEPoly::changeFirstGeometryPoint(int oldIndex, bool allowUndo) {
             // disable simplified shape flag
             mySimplifiedShape = false;
             // update geometry to avoid grabbing Problems
-            updateGeometry(true);
+            updateGeometry();
         }
     }
 }
@@ -562,7 +581,7 @@ GNEPoly::simplifyShape(bool allowUndo) {
             // Check if new shape is closed
             myClosedShape = (myShape.front() == myShape.back());
             // update geometry to avoid grabbing Problems
-            updateGeometry(true);
+            updateGeometry();
         }
         // change flag after setting simplified shape
         mySimplifiedShape = true;
@@ -611,8 +630,8 @@ GNEPoly::getAttribute(SumoXMLAttr key) const {
             return toString(myClosedShape);
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
@@ -641,7 +660,7 @@ GNEPoly::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList* un
         case GNE_ATTR_BLOCK_SHAPE:
         case GNE_ATTR_CLOSE_SHAPE:
         case GNE_ATTR_SELECTED:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myNet, key, value));
             break;
         default:
@@ -654,7 +673,7 @@ bool
 GNEPoly::isValid(SumoXMLAttr key, const std::string& value) {
     switch (key) {
         case SUMO_ATTR_ID:
-            return SUMOXMLDefinitions::isValidNetID(value) && (myNet->retrievePolygon(value, false) == nullptr);
+            return SUMOXMLDefinitions::isValidTypeID(value) && (myNet->retrievePolygon(value, false) == nullptr);
         case SUMO_ATTR_SHAPE:
         case SUMO_ATTR_GEOSHAPE:
             // empty shapes AREN'T allowed
@@ -711,61 +730,20 @@ GNEPoly::isValid(SumoXMLAttr key, const std::string& value) {
             }
         case GNE_ATTR_SELECTED:
             return canParse<bool>(value);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
 }
 
-
-std::string
-GNEPoly::getGenericParametersStr() const {
-    std::string result;
-    // Generate an string using the following structure: "key1=value1|key2=value2|...
-    for (auto i : getParametersMap()) {
-        result += i.first + "=" + i.second + "|";
-    }
-    // remove the last "|"
-    if (!result.empty()) {
-        result.pop_back();
-    }
-    return result;
-}
-
-
-std::vector<std::pair<std::string, std::string> >
-GNEPoly::getGenericParameters() const {
-    std::vector<std::pair<std::string, std::string> >  result;
-    // iterate over parameters map and fill result
-    for (auto i : getParametersMap()) {
-        result.push_back(std::make_pair(i.first, i.second));
-    }
-    return result;
-}
-
-
-void
-GNEPoly::setGenericParametersStr(const std::string& value) {
-    // clear parameters
-    clearParameter();
-    // separate value in a vector of string using | as separator
-    std::vector<std::string> parsedValues;
-    StringTokenizer stValues(value, "|", true);
-    while (stValues.hasNext()) {
-        parsedValues.push_back(stValues.next());
-    }
-    // check that parsed values (A=B)can be parsed in generic parameters
-    for (auto i : parsedValues) {
-        std::vector<std::string> parsedParameters;
-        StringTokenizer stParam(i, "=", true);
-        while (stParam.hasNext()) {
-            parsedParameters.push_back(stParam.next());
-        }
-        // Check that parsed parameters are exactly two and contains valid chracters
-        if (parsedParameters.size() == 2 && SUMOXMLDefinitions::isValidGenericParameterKey(parsedParameters.front()) && SUMOXMLDefinitions::isValidGenericParameterValue(parsedParameters.back())) {
-            setParameter(parsedParameters.front(), parsedParameters.back());
-        }
+bool 
+GNEPoly::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    // check if we're in supermode Network
+    if (myNet->getViewNet()->getEditModes().currentSupermode == GNE_SUPERMODE_NETWORK) {
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -776,7 +754,7 @@ GNEPoly::setGenericParametersStr(const std::string& value) {
 void
 GNEPoly::setAttribute(SumoXMLAttr key, const std::string& value) {
     // first remove object from grid due almost modificactions affects to boundary (but avoided for certain attributes)
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
+    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_PARAMETERS) && (key != GNE_ATTR_SELECTED)) {
         myNet->removeGLObjectFromGrid(this);
     }
     switch (key) {
@@ -801,7 +779,7 @@ GNEPoly::setAttribute(SumoXMLAttr key, const std::string& value) {
             mySimplifiedShape = false;
             // update geometry of shape edited element
             if (myNetElementShapeEdited) {
-                myNetElementShapeEdited->updateGeometry(true);
+                myNetElementShapeEdited->updateGeometry();
             }
             break;
         }
@@ -819,7 +797,7 @@ GNEPoly::setAttribute(SumoXMLAttr key, const std::string& value) {
             mySimplifiedShape = false;
             // update geometry of shape edited element
             if (myNetElementShapeEdited) {
-                myNetElementShapeEdited->updateGeometry(true);
+                myNetElementShapeEdited->updateGeometry();
             }
             break;
         }
@@ -881,16 +859,22 @@ GNEPoly::setAttribute(SumoXMLAttr key, const std::string& value) {
                 unselectAttributeCarrier();
             }
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
     // add object into grid again (but avoided for certain attributes)
-    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_GENERIC) && (key != GNE_ATTR_SELECTED)) {
+    if ((key != SUMO_ATTR_ID) && (key != GNE_ATTR_PARAMETERS) && (key != GNE_ATTR_SELECTED)) {
         myNet->addGLObjectIntoGrid(this);
     }
+}
+
+
+const GUIGlObject*
+GNEPoly::getGUIGlObject() const {
+    return this;
 }
 
 /****************************************************************************/

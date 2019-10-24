@@ -24,7 +24,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 #include <string>
 #include <cmath>
 #include <limits>
@@ -55,11 +54,16 @@ const double SUMO_const_quarterLaneWidth = SUMO_const_laneWidth / 4;
 const double SUMO_const_laneWidthAndOffset = SUMO_const_laneWidth + SUMO_const_laneOffset;
 const double SUMO_const_halfLaneAndOffset = SUMO_const_halfLaneWidth + SUMO_const_laneOffset;
 const double SUMO_const_laneMarkWidth = (double) 0.1;
+const double SUMO_const_waitingPersonWidth = 0.8;
+const double SUMO_const_waitingPersonDepth = 0.67;
 
 /// @brief the speed threshold at which vehicles are considered as halting
 const double SUMO_const_haltingSpeed = (double) 0.1;
 
 const double INVALID_DOUBLE = std::numeric_limits<double>::max();
+
+/// @brief version for written networks and default version for loading
+const double NETWORK_VERSION = 1.3;
 
 
 /* -------------------------------------------------------------------------
@@ -119,6 +123,7 @@ extern int gPrecision;
 extern int gPrecisionGeo; // for lon,lat
 extern bool gHumanReadableTime;
 extern bool gSimulation; // whether the current application is sumo or sumo-gui (as opposed to a router)
+extern double gWeightsRandomFactor; // randomization for edge weights
 
 
 /// @brief global utility flags for debugging

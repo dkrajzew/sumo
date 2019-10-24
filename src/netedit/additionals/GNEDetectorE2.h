@@ -51,8 +51,8 @@ public:
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
      */
-    GNEDetectorE2(const std::string& id, GNELane* lane, GNEViewNet* viewNet, double pos, double length, double freq, const std::string& filename, const std::string& vehicleTypes,
-                  const std::string& name, const double timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement);
+    GNEDetectorE2(const std::string& id, GNELane* lane, GNEViewNet* viewNet, double pos, double length, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes,
+                  const std::string& name, SUMOTime timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement);
 
     /**@brief Constructor for Multi-Lane detectors
      * @param[in] id The storage of gl-ids to get the one for this lane representation from
@@ -70,8 +70,8 @@ public:
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
      */
-    GNEDetectorE2(const std::string& id, std::vector<GNELane*> lanes, GNEViewNet* viewNet, double pos, double endPos, double freq, const std::string& filename, const std::string& vehicleTypes,
-                  const std::string& name, const double timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement);
+    GNEDetectorE2(const std::string& id, std::vector<GNELane*> lanes, GNEViewNet* viewNet, double pos, double endPos, SUMOTime freq, const std::string& filename, const std::string& vehicleTypes,
+                  const std::string& name, SUMOTime timeThreshold, double speedThreshold, double jamThreshold, bool friendlyPos, bool blockMovement);
 
     /// @brief Destructor
     ~GNEDetectorE2();
@@ -94,12 +94,6 @@ public:
     /// @brief check if E2 is valid (all of their lanes are connected, it must called after every operation which involves lane's connections)
     void checkE2MultilaneIntegrity();
 
-    /// @name inherited from GNEDetector
-    /// @{
-    /// @brief get lane
-    GNELane* getLane() const;
-    /// @}
-
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
@@ -113,7 +107,7 @@ public:
     void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry(bool updateGrid);
+    void updateGeometry();
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -146,12 +140,14 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
+
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
 protected:
-    /// @brief E2 lanes (Single lanes uses only the first lane)
-    std::vector<GNELane*> myLanes;
-
     /// @brief E2 detector length
     double myLength;
 
@@ -159,7 +155,7 @@ protected:
     double myEndPositionOverLane;
 
     /// @brief The time-based threshold that describes how much time has to pass until a vehicle is recognized as halting
-    double myTimeThreshold;
+    SUMOTime myTimeThreshold;
 
     /// @brief The speed-based threshold that describes how slow a vehicle has to be to be recognized as halting
     double mySpeedThreshold;

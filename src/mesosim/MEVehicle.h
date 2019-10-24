@@ -169,7 +169,16 @@ public:
 
     /** @brief return whether the given position is within range of the current stop
      */
-    bool isStoppedInRange(double pos) const;
+    bool isStoppedInRange(const double pos, const double tolerance) const;
+
+    /** @brief Returns whether the vehicle stops at the given stopping place */
+    bool stopsAt(MSStoppingPlace* /*stop*/) const {
+        return false;
+    };
+
+    bool stopsAtEdge(const MSEdge* /*edge*/) const {
+        return false;
+    };
 
     /** @brief Returns until when to stop at the given segment
      * @param[in] seg The segment in question
@@ -184,7 +193,7 @@ public:
     const ConstMSEdgeVector getStopEdges(double& firstPos, double& lastPos) const;
 
     /// @brief return list of route indices for the remaining stops
-    std::vector<int> getStopIndices() const;
+    std::vector<std::pair<int, double> > getStopIndices() const;
 
     /// @brief get distance for coming to a stop (used for rerouting checks)
     double getBrakeGap() const {

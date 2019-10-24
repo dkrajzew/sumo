@@ -204,15 +204,14 @@ public:
      * @brief A structure which describes changes of lane number or speed along the road
      */
     struct Split {
-        Split() : offset(0), offsetFactor(1) {}
         /// @brief The lanes after this change
         std::vector<int> lanes;
         /// @brief The position of this change
-        double pos;
+        double pos = INVALID_DOUBLE;
         /// @brief The speed after this change
-        double speed;
+        double speed = INVALID_DOUBLE;
         /// @brief The new node that is created for this split
-        NBNode* node;
+        NBNode* node = nullptr;
         /// @brief The id for the edge before the split
         std::string idBefore;
         /// @brief The id for the edge after the split
@@ -220,9 +219,9 @@ public:
         /// @brief the default node id
         std::string nameID;
         /// @brief lateral offset to edge geometry
-        double offset;
+        double offset = 0.;
         /// @brief direction in which to apply the offset (used by netgenerate for lefthand networks)
-        int offsetFactor;
+        int offsetFactor = 1;
     };
 
     void processSplits(NBEdge* e, std::vector<Split> splits,
@@ -343,7 +342,7 @@ public:
      * @param[in] nc The node container needed to build (geometry) nodes
      * @see NBEdge::splitGeometry
      */
-    void splitGeometry(NBNodeCont& nc);
+    void splitGeometry(NBDistrictCont& dc, NBNodeCont& nc);
 
 
     /** @brief
@@ -359,7 +358,7 @@ public:
      * @param[in] fix Whether to prune geometry points to avoid sharp turns at start and end
      * @see NBEdge::checkGeometry
      */
-    void checkGeometries(const double maxAngle, const double minRadius, bool fix);
+    void checkGeometries(const double maxAngle, const double minRadius, bool fix, bool fixRailways, bool silent=false);
     /// @}
 
 
@@ -543,6 +542,8 @@ public:
                                   bool uncontrolled,
                                   bool warnOnly);
 
+    bool hasPostProcessConnection(const std::string& from, const std::string& to = "");
+
 
     /** @brief Try to set any stored connections
      */
@@ -553,7 +554,7 @@ public:
     void generateStreetSigns();
 
     /// @brief add sidwalks to edges within the given limits or permissions and return the number of edges affected
-    int guessSidewalks(double width, double minSpeed, double maxSpeed, bool fromPermissions);
+    int guessSpecialLanes(SUMOVehicleClass svc, double width, double minSpeed, double maxSpeed, bool fromPermissions, const std::string& excludeOpt);
 
 
     /** @brief Returns the determined roundabouts
@@ -563,6 +564,9 @@ public:
 
     /// @brief add user specified roundabout
     void addRoundabout(const EdgeSet& roundabout);
+
+    /// @brief remove roundabout that contains the given node
+    void removeRoundabout(const NBNode* node);
 
     /// @brief mark edge priorities and prohibit turn-arounds for all roundabout edges
     void markRoundabouts();
@@ -591,8 +595,12 @@ public:
      */
     EdgeVector getGeneratedFrom(const std::string& id) const;
 
+    /// @brief join adjacent lanes with the given permissions
+    int joinLanes(SVCPermissions perms);
+
     /// @brief return all edges
     EdgeVector getAllEdges() const;
+    RouterEdgeVector getAllRouterEdges() const;
 
 private:
     /// @brief compute the form factor for a loop of edges
@@ -653,7 +661,7 @@ private:
     };
 
     /// @brief The list of connections to recheck
-    std::vector<PostProcessConnection> myConnections;
+    std::map<std::string, std::vector<PostProcessConnection> > myConnections;
 
 
     /// @brief The type of the dictionary where an edge may be found by its id

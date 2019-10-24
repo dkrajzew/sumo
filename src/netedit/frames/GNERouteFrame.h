@@ -35,10 +35,9 @@ public:
 
     /// @brief route creation modes
     enum RouteMode {
-        ROUTEMODE_INVALID,          // invalid RouteMode
-        ROUTEMODE_EDGETOEDGE,       // Create route clicking over consecutive edges
-        ROUTEMODE_MAXVELOCITY,      // Give start and end edges, and calculate route with maximum velocity
-        ROUTEMODE_MINIMUMLENGHT,    // Give start and end edges, and calculate route with minimum edge lenghts
+        ROUTEMODE_INVALID,              // invalid RouteMode
+        ROUTEMODE_CONSECUTIVE_EDGES,    // Create route clicking over consecutive edges
+        ROUTEMODE_NONCONSECUTIVE_EDGES  // Create route clicking over non consecutive edges
     };
 
     // ===========================================================================
@@ -57,7 +56,13 @@ public:
         ~RouteModeSelector();
 
         /// @brief get current route mode
-        const RouteMode& getCurrenRouteMode() const;
+        const RouteMode& getCurrentRouteMode() const;
+
+        /// @brief get current selected VClass
+        SUMOVehicleClass getCurrentVehicleClass() const;
+
+        /// @brief check if current VClass is Valid
+        bool isValidVehicleClass() const;
 
         /// @brief set current route mode type manually
         void setCurrentRouteMode(RouteMode routemode);
@@ -66,55 +71,69 @@ public:
         /// @{
         /// @brief Called when the user select another route mode in ComboBox
         long onCmdSelectRouteMode(FXObject*, FXSelector, void*);
+
+        /// @brief Called when the user select another VClass
+        long onCmdSelectVClass(FXObject*, FXSelector, void*);
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        RouteModeSelector() {}
+		FOX_CONSTRUCTOR(RouteModeSelector)
 
     private:
         /// @brief pointer to Frame Parent
         GNERouteFrame* myRouteFrameParent;
 
         /// @brief comboBox with the list of route modes
-        FXComboBox* myTypeMatchBox;
+        FXComboBox* myRouteModeMatchBox;
+
+        /// @brief comboBox with the list of VClass
+        FXComboBox* myVClassMatchBox;
 
         /// @brief current selected route mode
         RouteMode myCurrentRouteMode;
+
+        /// @brief current selected VClass
+        SUMOVehicleClass myCurrentVehicleClass;
+
+        /// @brief flag to check if VClass is Valid
+        bool myValidVClass;
 
         /// @brief list of Route modes that will be shown in Match Box
         std::vector<std::pair<RouteMode, std::string> > myRouteModesStrings;
     };
 
     // ===========================================================================
-    // class EdgeToEdge
+    // class ConsecutiveEdges
     // ===========================================================================
 
-    class EdgeToEdge : protected FXGroupBox {
+    class ConsecutiveEdges : protected FXGroupBox {
         /// @brief FOX-declaration
-        FXDECLARE(GNERouteFrame::EdgeToEdge)
+        FXDECLARE(GNERouteFrame::ConsecutiveEdges)
 
     public:
         /// @brief constructor
-        EdgeToEdge(GNERouteFrame* routeFrameParent);
+        ConsecutiveEdges(GNERouteFrame* routeFrameParent);
 
         /// @brief destructor
-        ~EdgeToEdge();
+        ~ConsecutiveEdges();
 
-        /// @brief show EdgeToEdge modul
-        void showEdgeToEdgeModul();
+        /// @brief show ConsecutiveEdges modul
+        void showConsecutiveEdgesModul();
 
-        /// @brief hide EdgeToEdge modul
-        void hideEdgeToEdgeModul();
+        /// @brief hide ConsecutiveEdges modul
+        void hideConsecutiveEdgesModul();
 
         /// @brief add edge to current route (note: edge must be included in set of candidate edges
-        bool addEdgeIntoRoute(GNEEdge* edge);
+        bool addEdge(GNEEdge* edge);
 
-        /// @brief create route with the current edges
-        void createRoute();
+        /// @brief refresh edge candidates
+        void refreshEdgeCandidates();
 
-        /// @brief abort creation of current route
-        void abortRouteCreation();
+        /// @brief clear edges (and restore colors)
+        void clearEdges();
+
+        /// @brief get temporal route
+        const std::vector<GNEEdge*>& getRouteEdges() const;
 
         /// @name FOX-callbacks
         /// @{
@@ -122,12 +141,14 @@ public:
         long onCmdCreateRoute(FXObject*, FXSelector, void*);
 
         /// @brief Called when the user press create route button
-        long onCmdAbortCreateRoute(FXObject*, FXSelector, void*);
+        long onCmdAbortRoute(FXObject*, FXSelector, void*);
+
+        /// @brief Called when the user click over button "Remove las inserted edge"
+        long onCmdRemoveLastRouteEdge(FXObject*, FXSelector, void*);
         /// @}
 
     protected:
-        /// @brief FOX needs this
-        EdgeToEdge() {}
+		FOX_CONSTRUCTOR(ConsecutiveEdges)
 
         /// @brief update InfoRouteLabel
         void updateInfoRouteLabel();
@@ -145,8 +166,88 @@ public:
         /// @bief FXButton for abort creating route
         FXButton* myAbortCreationButton;
 
+        /// @brief button for removing last inserted edge
+        FXButton* myRemoveLastInsertedEdge;
+
         /// @brief vector with current route edges
         std::vector<GNEEdge*> myRouteEdges;
+    };
+
+    // ===========================================================================
+    // class NonConsecutiveEdges
+    // ===========================================================================
+
+    class NonConsecutiveEdges : protected FXGroupBox {
+        /// @brief FOX-declaration
+        FXDECLARE(GNERouteFrame::NonConsecutiveEdges)
+
+    public:
+        /// @brief default constructor
+        NonConsecutiveEdges(GNERouteFrame* routeFrameParent);
+
+        /// @brief destructor
+        ~NonConsecutiveEdges();
+
+        /// @brief show NonConsecutiveEdges
+        void showNonConsecutiveEdgesModul();
+
+        /// @brief show NonConsecutiveEdges
+        void hideNonConsecutiveEdgesModul();
+
+        /// @brief check if from and to edges create a valid route
+        bool isValid(SUMOVehicleClass vehicleClass) const;
+
+        /// @brief get current selected edgesm
+        std::vector<GNEEdge*> getSelectedEdges() const;
+
+        /// @brief set edge from (and change color)
+        bool addEdge(GNEEdge* edge);
+
+        /// @brief clear edges (and restore colors)
+        void clearEdges();
+
+        /// @brief get temporal route
+        const std::vector<GNEEdge*>& getTemporalRoute() const;
+
+        /// @name FOX-callbacks
+        /// @{
+        /// @brief Called when the user click over button "Finish route creation"
+        long onCmdCreateRoute(FXObject*, FXSelector, void*);
+
+        /// @brief Called when the user click over button "Abort route creation"
+        long onCmdAbortRoute(FXObject*, FXSelector, void*);
+
+        /// @brief Called when the user click over button "Remove las inserted edge"
+        long onCmdRemoveLastRouteEdge(FXObject*, FXSelector, void*);
+        /// @}
+
+    protected:
+		FOX_CONSTRUCTOR(NonConsecutiveEdges)
+
+        /// @brief update InfoRouteLabel
+        void updateInfoRouteLabel();
+
+    private:
+        /// @brief pointer to Vehicle Frame Parent
+        GNERouteFrame* myRouteFrameParent;
+
+        /// @brief label with route info
+        FXLabel* myInfoRouteLabel;
+
+        /// @brief current selected edges
+        std::vector<GNEEdge*> mySelectedEdges;
+
+        /// @brief vector with temporal route edges
+        std::vector<GNEEdge*> myTemporalRoute;
+
+        /// @brief button for finish route creation
+        FXButton* myFinishCreationButton;
+
+        /// @brief button for abort route creation
+        FXButton* myAbortCreationButton;
+
+        /// @brief button for removing last inserted edge
+        FXButton* myRemoveLastInsertedEdge;
     };
 
     /**@brief Constructor
@@ -168,17 +269,29 @@ public:
     void handleEdgeClick(GNEEdge* clickedEdge);
 
     /// @brief function called when user press ENTER key
-    void hotKeyEnter();
+    void hotkeyEnter();
+
+    /// @brief function called when user press BACKSPACE key
+    void hotkeyBackSpace();
 
     /// @brief function called when user press ESC key
-    void hotKeyEsc();
+    void hotkeyEsc();
+
+    /// @brief draw temporal route
+    void drawTemporalRoute() const;
 
 private:
     /// @brief route mode selector
     RouteModeSelector* myRouteModeSelector;
 
-    /// @brief Edge To Edge modul
-    EdgeToEdge* myEdgeToEdge;
+    /// @brief internal additional attributes
+    GNEFrameAttributesModuls::AttributesCreator* myRouteAttributes;
+
+    /// @brief Create routes using consecutive edges modul
+    ConsecutiveEdges* myConsecutiveEdges;
+
+    /// @brief Create routes using non consecutive edges modul
+    NonConsecutiveEdges* myNonConsecutiveEdges;
 };
 
 

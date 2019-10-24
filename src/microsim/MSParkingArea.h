@@ -97,8 +97,16 @@ public:
     /** @brief Returns the area occupancy
      *
      * @return The occupancy computed as number of vehicles in myEndPositions
+     * (reduced by 1 if at least one vehicle has finished parking but is blocked
+     * from entering the road)
      */
     int getOccupancy() const;
+
+    /** @brief Returns the area occupancy
+     *
+     * @return The occupancy computed as number of vehicles in myEndPositions
+     */
+    int getOccupancyIncludingBlocked() const;
 
 
     /** @brief Called if a vehicle enters this stop
@@ -148,6 +156,12 @@ public:
      */
     Position getVehiclePosition(const SUMOVehicle& forVehicle) const;
 
+    /** @brief Returns the insertion position of a parked vehicle
+     *
+     * @return The nsertion position of a parked vehicle along the lane
+     */
+    double getInsertionPosition(const SUMOVehicle& forVehicle) const;
+
 
     /** @brief Returns the angle of parked vehicle
      *
@@ -155,6 +169,12 @@ public:
      */
     double getVehicleAngle(const SUMOVehicle& forVehicle) const;
 
+/** @brief Return the angle of myLastFreeLot - the next parking lot
+ *         only expected to be called after we have established there is space in the parking area
+ *
+ * @return The angle of the lot in degrees
+ */
+    int getLastFreeLotAngle() const;
 
     /** @brief Add a lot entry to parking area
      *
@@ -194,6 +214,14 @@ public:
     /// @brief update state so that vehicles wishing to enter cooperate with exiting vehicles
     void notifyEgressBlocked();
 
+    void setNumAlternatives(int alternatives) {
+        myNumAlternatives = MAX2(myNumAlternatives, alternatives);
+    }
+
+    int getNumAlternatives() const {
+        return myNumAlternatives;
+    }
+
 protected:
 
     /** @struct LotSpaceDefinition
@@ -214,6 +242,8 @@ protected:
         double myLength;
         /// @brief The position along the lane that the vehicle needs to reach for entering this lot
         double myEndPos;
+        ///@brief The angle between lane and lot through which a vehicle must manoeuver to enter the lot
+        int myManoeuverAngle;
     };
 
 
@@ -257,6 +287,9 @@ protected:
     SUMOTime myReservationTime;
     int myReservations;
     double myReservationMaxLength;
+
+    /// @brief the number of alternative parkingAreas that are assigned to parkingAreaRerouter
+    int myNumAlternatives;
 
 private:
 

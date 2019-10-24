@@ -23,8 +23,9 @@
 #include <netedit/GNENet.h>
 #include <netedit/netelements/GNELane.h>
 #include <netedit/netelements/GNEEdge.h>
+#include <netedit/additionals/GNEShape.h>
+#include <netedit/additionals/GNEAdditional.h>
 #include <netedit/demandelements/GNEDemandElement.h>
-#include <netedit/frames/GNEInspectorFrame.h>
 #include <netedit/frames/GNEVehicleTypeFrame.h>
 #include <netedit/GNEViewParent.h>
 #include <netedit/GNEViewNet.h>
@@ -43,21 +44,17 @@ FXIMPLEMENT_ABSTRACT(GNEChange_DemandElement, GNEChange, nullptr, 0)
 GNEChange_DemandElement::GNEChange_DemandElement(GNEDemandElement* demandElement, bool forward) :
     GNEChange(demandElement->getViewNet()->getNet(), forward),
     myDemandElement(demandElement),
-    myRouteParent(nullptr),
-    myVehicletypeParent(nullptr) {
+    myEdgeParents(demandElement->getEdgeParents()),
+    myLaneParents(demandElement->getLaneParents()),
+    myShapeParents(demandElement->getShapeParents()),
+    myAdditionalParents(demandElement->getAdditionalParents()),
+    myDemandElementParents(demandElement->getDemandElementParents()),
+    myEdgeChildren(demandElement->getEdgeChildren()),
+    myLaneChildren(demandElement->getLaneChildren()),
+    myShapeChildren(demandElement->getShapeChildren()),
+    myAdditionalChildren(demandElement->getAdditionalChildren()),
+    myDemandElementChildren(demandElement->getDemandElementChildren()) {
     myDemandElement->incRef("GNEChange_DemandElement");
-    // Obtain route parent (ej: Vehicles)
-    if (demandElement->getTagProperty().canBePlacedOverRoute()) {
-        myRouteParent = demandElement->getViewNet()->getNet()->retrieveDemandElement(SUMO_TAG_ROUTE, myDemandElement->getAttribute(SUMO_ATTR_ROUTE));
-    }
-    // Obtain VType (ej: Vehicles)
-    if (demandElement->getTagProperty().isVehicle()) {
-        myVehicletypeParent = demandElement->getViewNet()->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, myDemandElement->getAttribute(SUMO_ATTR_TYPE));
-    }
-    // obtain edge parents (used by routes)
-    if (demandElement->getTagProperty().canBePlacedOverEdges()) {
-        myEdgeParents = GNEAttributeCarrier::parse<std::vector<GNEEdge*> >(demandElement->getViewNet()->getNet(), myDemandElement->getAttribute(SUMO_ATTR_EDGES));
-    }
 }
 
 
@@ -67,9 +64,41 @@ GNEChange_DemandElement::~GNEChange_DemandElement() {
     if (myDemandElement->unreferenced()) {
         // show extra information for tests
         WRITE_DEBUG("Deleting unreferenced " + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "'");
-        // make sure that demand element isn't in net before removing
+        // make sure that element isn't in net before removing
         if (myNet->demandElementExist(myDemandElement)) {
-            myNet->deleteDemandElement(myDemandElement);
+            myNet->deleteDemandElement(myDemandElement, false);
+            // Remove element from parent elements
+            for (const auto& i : myEdgeParents) {
+                i->removeDemandElementChild(myDemandElement);
+            }
+            for (const auto& i : myLaneParents) {
+                i->removeDemandElementChild(myDemandElement);
+            }
+            for (const auto& i : myShapeParents) {
+                i->removeDemandElementChild(myDemandElement);
+            }
+            for (const auto& i : myAdditionalParents) {
+                i->removeDemandElementChild(myDemandElement);
+            }
+            for (const auto& i : myDemandElementParents) {
+                i->removeDemandElementChild(myDemandElement);
+            }
+            // Remove element from child elements
+            for (const auto& i : myEdgeChildren) {
+                i->removeDemandElementParent(myDemandElement);
+            }
+            for (const auto& i : myLaneChildren) {
+                i->removeDemandElementParent(myDemandElement);
+            }
+            for (const auto& i : myShapeChildren) {
+                i->removeDemandElementParent(myDemandElement);
+            }
+            for (const auto& i : myAdditionalChildren) {
+                i->removeDemandElementParent(myDemandElement);
+            }
+            for (const auto& i : myDemandElementChildren) {
+                i->removeDemandElementParent(myDemandElement);
+            }
         }
         delete myDemandElement;
     }
@@ -81,52 +110,84 @@ GNEChange_DemandElement::undo() {
     if (myForward) {
         // show extra information for tests
         WRITE_DEBUG("Removing " + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "' in GNEChange_DemandElement");
-        // 2 - If demand element own a edge parent, remove it from edge
-        for (auto i : myEdgeParents) {
+        // delete demand element from net
+        myNet->deleteDemandElement(myDemandElement, false);
+        // Remove element from parent elements
+        for (const auto& i : myEdgeParents) {
             i->removeDemandElementChild(myDemandElement);
         }
-        // If demand element has a VType, remove it from VType parent
-        if (myVehicletypeParent) {
-            myVehicletypeParent->removeDemandElementChild(myDemandElement);
+        for (const auto& i : myLaneParents) {
+            i->removeDemandElementChild(myDemandElement);
         }
-        // If demand element has a Route, remove it from Route parent
-        if (myRouteParent) {
-            myRouteParent->removeDemandElementChild(myDemandElement);
+        for (const auto& i : myShapeParents) {
+            i->removeDemandElementChild(myDemandElement);
         }
-        // delete demand element of net
-        myNet->deleteDemandElement(myDemandElement);
-        // update vehicle type frame if it's shown
-        if (myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
-            myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
+        for (const auto& i : myAdditionalParents) {
+            i->removeDemandElementChild(myDemandElement);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->removeDemandElementChild(myDemandElement);
+        }
+        // Remove element from child elements
+        for (const auto& i : myEdgeChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myLaneChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->removeDemandElementParent(myDemandElement);
         }
     } else {
         // show extra information for tests
         WRITE_DEBUG("Adding " + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "' in GNEChange_DemandElement");
-        // insert demand element of test
+        // insert demand element into net
         myNet->insertDemandElement(myDemandElement);
-        // update vehicle type frame if it's shown
-        if (myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
-            myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
-        }
-        // 2 - If demand element own a edge parent, add it to edge
-        for (auto i : myEdgeParents) {
+        // add element in parent elements
+        for (const auto& i : myEdgeParents) {
             i->addDemandElementChild(myDemandElement);
         }
-        // If demand element has a VType, add it into VType parent
-        if (myVehicletypeParent) {
-            myVehicletypeParent->addDemandElementChild(myDemandElement);
+        for (const auto& i : myLaneParents) {
+            i->addDemandElementChild(myDemandElement);
         }
-        // If demand element has a Route, add it into Route parent
-        if (myRouteParent) {
-            myRouteParent->addDemandElementChild(myDemandElement);
+        for (const auto& i : myShapeParents) {
+            i->addDemandElementChild(myDemandElement);
+        }
+        for (const auto& i : myAdditionalParents) {
+            i->addDemandElementChild(myDemandElement);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->addDemandElementChild(myDemandElement);
+        }
+        // add element in child elements
+        for (const auto& i : myEdgeChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myLaneChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->addDemandElementParent(myDemandElement);
         }
     }
-    // Requiere always save demandElements
-    myNet->requiereSaveDemandElements(true);
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
+    // update vehicle type selector if demand element is a VType and vehicle type Frame is shown
+    if ((myDemandElement->getTagProperty().getTag() == SUMO_TAG_VTYPE) && myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
+        myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
     }
+    // Requiere always save elements
+    myNet->requireSaveDemandElements(true);
 }
 
 
@@ -137,50 +198,82 @@ GNEChange_DemandElement::redo() {
         WRITE_DEBUG("Adding " + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "' in GNEChange_DemandElement");
         // insert demand element into net
         myNet->insertDemandElement(myDemandElement);
-        // update vehicle type frame if it's shown
-        if (myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
-            myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
-        }
-        // 2 - If demand element own a edge parent, add it to edge
-        for (auto i : myEdgeParents) {
+        // add element in parent elements
+        for (const auto& i : myEdgeParents) {
             i->addDemandElementChild(myDemandElement);
         }
-        // If demand element has a VType, add it into VType parent
-        if (myVehicletypeParent) {
-            myVehicletypeParent->addDemandElementChild(myDemandElement);
+        for (const auto& i : myLaneParents) {
+            i->addDemandElementChild(myDemandElement);
         }
-        // If demand element has a Route, add it into Route parent
-        if (myRouteParent) {
-            myRouteParent->addDemandElementChild(myDemandElement);
+        for (const auto& i : myShapeParents) {
+            i->addDemandElementChild(myDemandElement);
+        }
+        for (const auto& i : myAdditionalParents) {
+            i->addDemandElementChild(myDemandElement);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->addDemandElementChild(myDemandElement);
+        }
+        // add element in child elements
+        for (const auto& i : myEdgeChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myLaneChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->addDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->addDemandElementParent(myDemandElement);
         }
     } else {
         // show extra information for tests
         WRITE_DEBUG("Removing " + myDemandElement->getTagStr() + " '" + myDemandElement->getID() + "' in GNEChange_DemandElement");
-        // 2 - If demand element own a edge parent, remove it from edge
-        for (auto i : myEdgeParents) {
+        // delete demand element from net
+        myNet->deleteDemandElement(myDemandElement, false);
+        // Remove element from parent elements
+        for (const auto& i : myEdgeParents) {
             i->removeDemandElementChild(myDemandElement);
         }
-        // If demand element has a VType, remove it from VType parent
-        if (myVehicletypeParent) {
-            myVehicletypeParent->removeDemandElementChild(myDemandElement);
+        for (const auto& i : myLaneParents) {
+            i->removeDemandElementChild(myDemandElement);
         }
-        // If demand element has a Route, remove it from Route parent
-        if (myRouteParent) {
-            myRouteParent->removeDemandElementChild(myDemandElement);
+        for (const auto& i : myShapeParents) {
+            i->removeDemandElementChild(myDemandElement);
         }
-        // delete demand element of net
-        myNet->deleteDemandElement(myDemandElement);
-        // update vehicle type frame if it's shown
-        if (myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
-            myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
+        for (const auto& i : myAdditionalParents) {
+            i->removeDemandElementChild(myDemandElement);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->removeDemandElementChild(myDemandElement);
+        }
+        // Remove element from child elements
+        for (const auto& i : myEdgeChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myLaneChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->removeDemandElementParent(myDemandElement);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->removeDemandElementParent(myDemandElement);
         }
     }
-    // Requiere always save demandElements
-    myNet->requiereSaveDemandElements(true);
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
+    // update vehicle type selector if demand element is a VType and vehicle type Frame is shown
+    if ((myDemandElement->getTagProperty().getTag() == SUMO_TAG_VTYPE) && myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->shown()) {
+        myNet->getViewNet()->getViewParent()->getVehicleTypeFrame()->getVehicleTypeSelector()->refreshVehicleTypeSelector();
     }
+    // Requiere always save elements
+    myNet->requireSaveDemandElements(true);
 }
 
 

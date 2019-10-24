@@ -117,16 +117,16 @@ MSMeanData_Net::MSLaneMeanDataValues::addTo(MSMeanData::MeanDataValues& val) con
 
 void
 MSMeanData_Net::MSLaneMeanDataValues::notifyMoveInternal(
-    const SUMOVehicle& veh, const double frontOnLane,
+    const SUMOTrafficObject& veh, const double frontOnLane,
     const double timeOnLane, const double /* meanSpeedFrontOnLane */,
     const double meanSpeedVehicleOnLane,
     const double travelledDistanceFrontOnLane,
     const double travelledDistanceVehicleOnLane,
     const double meanLengthOnLane) {
 #ifdef DEBUG_OCCUPANCY
-    if DEBUG_COND {
-    std::cout << SIMTIME << "\n  MSMeanData_Net::MSLaneMeanDataValues::notifyMoveInternal()\n"
-              << "  veh '" << veh.getID() << "' on lane '" << veh.getLane()->getID() << "'"
+    if (DEBUG_COND) {
+        std::cout << SIMTIME << "\n  MSMeanData_Net::MSLaneMeanDataValues::notifyMoveInternal()\n"
+                  << "  veh '" << veh.getID() << "' on lane '" << veh.getLane()->getID() << "'"
                   << ", timeOnLane=" << timeOnLane
                   << ", meanSpeedVehicleOnLane=" << meanSpeedVehicleOnLane
                   << ",\ntravelledDistanceFrontOnLane=" << travelledDistanceFrontOnLane
@@ -135,6 +135,9 @@ MSMeanData_Net::MSLaneMeanDataValues::notifyMoveInternal(
                   << std::endl;
     }
 #endif
+    if (myParent != nullptr && !myParent->vehicleApplies(veh)) {
+        return;
+    }
     sampleSeconds += timeOnLane;
     travelledDistance += travelledDistanceVehicleOnLane;
     vehLengthSum += veh.getVehicleType().getLength() * timeOnLane;
@@ -166,8 +169,9 @@ MSMeanData_Net::MSLaneMeanDataValues::notifyMoveInternal(
 
 
 bool
-MSMeanData_Net::MSLaneMeanDataValues::notifyLeave(SUMOVehicle& veh, double /*lastPos*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
-    if ((myParent == nullptr || myParent->vehicleApplies(veh)) && (getLane() == nullptr || getLane() == static_cast<MSVehicle&>(veh).getLane())) {
+MSMeanData_Net::MSLaneMeanDataValues::notifyLeave(SUMOTrafficObject& veh, double /*lastPos*/, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+    if ((myParent == nullptr || myParent->vehicleApplies(veh)) && (
+                getLane() == nullptr || !veh.isVehicle() || getLane() == static_cast<MSVehicle&>(veh).getLane())) {
         if (MSGlobals::gUseMesoSim) {
             removeFromVehicleUpdateValues(veh);
         }
@@ -190,14 +194,14 @@ MSMeanData_Net::MSLaneMeanDataValues::notifyLeave(SUMOVehicle& veh, double /*las
 
 
 bool
-MSMeanData_Net::MSLaneMeanDataValues::notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane) {
+MSMeanData_Net::MSLaneMeanDataValues::notifyEnter(SUMOTrafficObject& veh, MSMoveReminder::Notification reason, const MSLane* enteredLane) {
 #ifdef DEBUG_NOTIFY_ENTER
     std::cout << "\n" << SIMTIME << " MSMeanData_Net::MSLaneMeanDataValues: veh '" << veh.getID() << "' enters lane '" << enteredLane->getID() << "'" << std::endl;
 #else
     UNUSED_PARAMETER(enteredLane);
 #endif
     if (myParent == nullptr || myParent->vehicleApplies(veh)) {
-        if (getLane() == nullptr || getLane() == static_cast<MSVehicle&>(veh).getLane()) {
+        if (getLane() == nullptr || !veh.isVehicle() || getLane() == static_cast<MSVehicle&>(veh).getLane()) {
             if (reason == MSMoveReminder::NOTIFICATION_DEPARTED) {
                 ++nVehDeparted;
             } else if (reason == MSMoveReminder::NOTIFICATION_LANE_CHANGE) {
@@ -291,12 +295,13 @@ MSMeanData_Net::MSMeanData_Net(const std::string& id,
                                const bool withEmpty, const bool printDefaults,
                                const bool withInternal,
                                const bool trackVehicles,
+                               const int detectPersons,
                                const double maxTravelTime,
                                const double minSamples,
                                const double haltSpeed,
                                const std::string& vTypes)
     : MSMeanData(id, dumpBegin, dumpEnd, useLanes, withEmpty, printDefaults,
-                 withInternal, trackVehicles, maxTravelTime, minSamples, vTypes),
+                 withInternal, trackVehicles, detectPersons, maxTravelTime, minSamples, vTypes),
       myHaltSpeed(haltSpeed) {
 }
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Eclipse SUMO, Simulation of Urban MObility; see https://eclipse.org/sumo
 # Copyright (C) 2009-2019 German Aerospace Center (DLR) and others.
 # This program and the accompanying materials
@@ -70,12 +69,12 @@ def mapTrace(trace, net, delta, verbose=False, airDistFactor=2, fillGaps=False, 
                                     path[-1].getToNode().getCoord(),
                                     edge.getFromNode().getCoord())
                                 if gapPenalty < 0:
-                                    gapPenalty = airLineDist
+                                    gapPenalty = airDistFactor * advance
                                 baseDiff = abs(lastBase + advance -
                                                path[-1].getLength() - base - airLineDist) + gapPenalty
                                 extension = (edge,)
                             else:
-                                baseDiff = lastBase + advance - base - cost + path[-1].getLength()
+                                baseDiff = lastBase + advance - (cost - edge.getLength()) - base
                                 extension = extension[1:]
                         if dist + baseDiff * baseDiff < minDist:
                             minDist = dist + baseDiff * baseDiff

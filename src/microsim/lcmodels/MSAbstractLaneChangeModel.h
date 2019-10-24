@@ -187,6 +187,7 @@ public:
     void setManeuverDist(const double dist);
     /// @brief Returns the remaining unblocked distance for the current maneuver. (only used by sublane model)
     double getManeuverDist() const;
+    double getPreviousManeuverDist() const;
 
     /// @brief Updates the value of safe lateral distances (in SL2015) during maneuver continuation in non-action steps
     virtual void updateSafeLatDist(const double travelledLatDist);
@@ -265,6 +266,9 @@ public:
             myLastFollowerSecureGap = NO_NEIGHBOR;
             myLastOrigLeaderGap = NO_NEIGHBOR;
             myLastOrigLeaderSecureGap = NO_NEIGHBOR;
+            myLastLeaderSpeed = NO_NEIGHBOR;
+            myLastFollowerSpeed = NO_NEIGHBOR;
+            myLastOrigLeaderSpeed = NO_NEIGHBOR;
         }
         myCommittedSpeed = 0;
     }
@@ -503,7 +507,7 @@ public:
 
     /* @brief update lane change reservations after the vehicle moved to a new lane
      * @note  The shadow lane should always be updated before updating the target lane. */
-    void updateTargetLane();
+    MSLane* updateTargetLane();
 
     /* @brief Determines the lane which the vehicle intends to enter during its current action step.
      *        targetDir is set to the offset of the returned lane with respect to the vehicle'a current lane. */
@@ -644,6 +648,9 @@ protected:
     ///        Only used by sublane model, currently.
     double myManeuverDist;
 
+    /// @brief Maneuver distance from the previous simulation step
+    double myPreviousManeuverDist;
+
     /// @brief whether the vehicle has already moved this step
     bool myAlreadyChanged;
 
@@ -698,6 +705,10 @@ protected:
     /// @brief acutal and secure distance to closest leader vehicle on the original when performing lane change
     double myLastOrigLeaderGap;
     double myLastOrigLeaderSecureGap;
+    /// @brief speeds of surrounding vehicles at the time of lane change
+    double myLastLeaderSpeed;
+    double myLastFollowerSpeed;
+    double myLastOrigLeaderSpeed;
 
     /// @brief Flag to prevent resetting the memorized values for LC relevant gaps until the LC output is triggered
     ///        in the case of continuous LC.

@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.shapeMode()
 
 # select POI in list of shapes
-netedit.changeShape("poi")
+netedit.changeElement("poi")
 
 # create first POI
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 100, 55)
 
 # create second POI
 netedit.leftClick(referencePosition, 150, 50)
@@ -41,7 +41,7 @@ netedit.leftClick(referencePosition, 150, 50)
 netedit.inspectMode()
 
 # inspect first POI
-netedit.leftClick(referencePosition, 100, 50)
+netedit.leftClick(referencePosition, 100, 55)
 
 # Change parameter 0 with a non valid value (Duplicated ID)
 netedit.modifyAttribute(0, "POI_1", False)
@@ -60,10 +60,10 @@ netedit.undo(referencePosition, 3)
 netedit.redo(referencePosition, 3)
 
 # save shapes
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

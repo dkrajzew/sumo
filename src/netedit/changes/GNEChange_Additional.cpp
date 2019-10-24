@@ -23,9 +23,9 @@
 #include <netedit/GNENet.h>
 #include <netedit/netelements/GNELane.h>
 #include <netedit/netelements/GNEEdge.h>
+#include <netedit/additionals/GNEShape.h>
 #include <netedit/additionals/GNEAdditional.h>
-#include <netedit/frames/GNEInspectorFrame.h>
-#include <netedit/GNEViewParent.h>
+#include <netedit/demandelements/GNEDemandElement.h>
 #include <netedit/GNEViewNet.h>
 
 #include "GNEChange_Additional.h"
@@ -42,29 +42,17 @@ FXIMPLEMENT_ABSTRACT(GNEChange_Additional, GNEChange, nullptr, 0)
 GNEChange_Additional::GNEChange_Additional(GNEAdditional* additional, bool forward) :
     GNEChange(additional->getViewNet()->getNet(), forward),
     myAdditional(additional),
-    myFirstAdditionalParent(myAdditional->getFirstAdditionalParent()),
-    mySecondAdditionalParent(myAdditional->getSecondAdditionalParent()),
-    myEdgeChilds(myAdditional->getEdgeChilds()),
-    myLaneChilds(myAdditional->getLaneChilds()) {
+    myEdgeParents(myAdditional->getEdgeParents()),
+    myLaneParents(myAdditional->getLaneParents()),
+    myShapeParents(myAdditional->getShapeParents()),
+    myAdditionalParents(myAdditional->getAdditionalParents()),
+    myDemandElementParents(myAdditional->getDemandElementParents()),
+    myEdgeChildren(myAdditional->getEdgeChildren()),
+    myLaneChildren(myAdditional->getLaneChildren()),
+    myShapeChildren(myAdditional->getShapeChildren()),
+    myAdditionalChildren(myAdditional->getAdditionalChildren()),
+    myDemandElementChildren(myAdditional->getDemandElementChildren()) {
     myAdditional->incRef("GNEChange_Additional");
-    // handle additionals with lane parent
-    if (additional->getTagProperty().canBePlacedOverLane()) {
-        myLaneParents.push_back(myNet->retrieveLane(myAdditional->getAttribute(SUMO_ATTR_LANE)));
-    }
-    if (additional->getTagProperty().canBePlacedOverLanes()) {
-        myLaneParents = GNEAttributeCarrier::parse<std::vector<GNELane*> >(additional->getViewNet()->getNet(), myAdditional->getAttribute(SUMO_ATTR_LANES));
-    }
-    // handle additionals with edge parent (with an exception)
-    if (additional->getTagProperty().canBePlacedOverEdge() && (additional->getTagProperty().getTag() != SUMO_TAG_VAPORIZER)) {
-        myEdgeParents.push_back(myNet->retrieveEdge(myAdditional->getAttribute(SUMO_ATTR_EDGE)));
-    }
-    if (additional->getTagProperty().canBePlacedOverEdges()) {
-        myEdgeParents = GNEAttributeCarrier::parse<std::vector<GNEEdge*> >(additional->getViewNet()->getNet(), myAdditional->getAttribute(SUMO_ATTR_EDGES));
-    }
-    // special case for Vaporizers
-    if (myAdditional->getTagProperty().getTag() == SUMO_TAG_VAPORIZER) {
-        myEdgeParents.push_back(myNet->retrieveEdge(myAdditional->getAttribute(SUMO_ATTR_ID)));
-    }
 }
 
 
@@ -76,7 +64,39 @@ GNEChange_Additional::~GNEChange_Additional() {
         WRITE_DEBUG("Deleting unreferenced " + myAdditional->getTagStr() + " '" + myAdditional->getID() + "'");
         // make sure that additional isn't in net before removing
         if (myNet->additionalExist(myAdditional)) {
-            myNet->deleteAdditional(myAdditional);
+            myNet->deleteAdditional(myAdditional, false);
+            // Remove additional from parent elements
+            for (const auto& i : myEdgeParents) {
+                i->removeAdditionalChild(myAdditional);
+            }
+            for (const auto& i : myLaneParents) {
+                i->removeAdditionalChild(myAdditional);
+            }
+            for (const auto& i : myShapeParents) {
+                i->removeAdditionalChild(myAdditional);
+            }
+            for (const auto& i : myAdditionalParents) {
+                i->removeAdditionalChild(myAdditional);
+            }
+            for (const auto& i : myDemandElementParents) {
+                i->removeAdditionalChild(myAdditional);
+            }
+            // Remove additional from child elements
+            for (const auto& i : myEdgeChildren) {
+                i->removeAdditionalParent(myAdditional);
+            }
+            for (const auto& i : myLaneChildren) {
+                i->removeAdditionalParent(myAdditional);
+            }
+            for (const auto& i : myShapeChildren) {
+                i->removeAdditionalChild(myAdditional);
+            }
+            for (const auto& i : myAdditionalChildren) {
+                i->removeAdditionalParent(myAdditional);
+            }
+            for (const auto& i : myDemandElementChildren) {
+                i->removeAdditionalParent(myAdditional);
+            }
         }
         delete myAdditional;
     }
@@ -88,68 +108,80 @@ GNEChange_Additional::undo() {
     if (myForward) {
         // show extra information for tests
         WRITE_DEBUG("Removing " + myAdditional->getTagStr() + " '" + myAdditional->getID() + "' in GNEChange_Additional");
-        // 1 - If additional own a lane parent, remove it from lane
-        for (auto i : myLaneParents) {
-            i->removeAdditionalChild(myAdditional);
-        }
-        // 2 - If additional own a edge parent, remove it from edge
-        for (auto i : myEdgeParents) {
-            i->removeAdditionalChild(myAdditional);
-        }
-        // 3 - If additional has a first parent, remove it from their additional childs
-        if (myFirstAdditionalParent) {
-            myFirstAdditionalParent->removeAdditionalChild(myAdditional);
-        }
-        // 4 - If additiona has a second parent, remove it from their additional childs
-        if (mySecondAdditionalParent) {
-            mySecondAdditionalParent->removeAdditionalChild(myAdditional);
-        }
-        // 5 - if Additional has edge childs, remove it of their additional parents
-        for (auto i : myEdgeChilds) {
-            i->removeAdditionalParent(myAdditional);
-        }
-        // 6 - if Additional has lane childs, remove it of their additional parents
-        for (auto i : myLaneChilds) {
-            i->removeAdditionalParent(myAdditional);
-        }
         // delete additional from net
-        myNet->deleteAdditional(myAdditional);
+        myNet->deleteAdditional(myAdditional, false);
+        // Remove additional from parent elements
+        for (const auto& i : myEdgeParents) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        for (const auto& i : myLaneParents) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        for (const auto& i : myShapeParents) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        for (const auto& i : myAdditionalParents) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        for (const auto& i : myDemandElementParents) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        // Remove additional from child elements
+        for (const auto& i : myEdgeChildren) {
+            i->removeAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myLaneChildren) {
+            i->removeAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->removeAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->removeAdditionalParent(myAdditional);
+        }
     } else {
         // show extra information for tests
         WRITE_DEBUG("Adding " + myAdditional->getTagStr() + " '" + myAdditional->getID() + "' in GNEChange_Additional");
         // insert additional into net
         myNet->insertAdditional(myAdditional);
-        // 1 - If additional own a Lane parent, add it to lane
-        for (auto i : myLaneParents) {
+        // add additional in parent elements
+        for (const auto& i : myEdgeParents) {
             i->addAdditionalChild(myAdditional);
         }
-        // 2 - If additional own a edge parent, add it to edge
-        for (auto i : myEdgeParents) {
+        for (const auto& i : myLaneParents) {
             i->addAdditionalChild(myAdditional);
         }
-        // 3 - If additional has a parent, add it into additional parent
-        if (myFirstAdditionalParent) {
-            myFirstAdditionalParent->addAdditionalChild(myAdditional);
+        for (const auto& i : myShapeParents) {
+            i->addAdditionalChild(myAdditional);
         }
-        // 4 - If additional has a parent, add it into additional parent
-        if (mySecondAdditionalParent) {
-            mySecondAdditionalParent->addAdditionalChild(myAdditional);
+        for (const auto& i : myAdditionalParents) {
+            i->addAdditionalChild(myAdditional);
         }
-        // 5 - if Additional has edge childs, add id into additional parents
-        for (auto i : myEdgeChilds) {
+        for (const auto& i : myDemandElementParents) {
+            i->addAdditionalChild(myAdditional);
+        }
+        // add additional in child elements
+        for (const auto& i : myEdgeChildren) {
             i->addAdditionalParent(myAdditional);
         }
-        // 6 - if Additional has lane childs, add id into additional parents
-        for (auto i : myLaneChilds) {
+        for (const auto& i : myLaneChildren) {
+            i->addAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->addAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->addAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myDemandElementChildren) {
             i->addAdditionalParent(myAdditional);
         }
     }
     // Requiere always save additionals
-    myNet->requiereSaveAdditionals(true);
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
-    }
+    myNet->requireSaveAdditionals(true);
 }
 
 
@@ -160,66 +192,78 @@ GNEChange_Additional::redo() {
         WRITE_DEBUG("Adding " + myAdditional->getTagStr() + " '" + myAdditional->getID() + "' in GNEChange_Additional");
         // insert additional into net
         myNet->insertAdditional(myAdditional);
-        // 1 - If additional own a Lane parent, add it to lane
-        for (auto i : myLaneParents) {
+        // add additional in parent elements
+        for (const auto& i : myEdgeParents) {
             i->addAdditionalChild(myAdditional);
         }
-        // 2 - If additional own a edge parent, add it to edge
-        for (auto i : myEdgeParents) {
+        for (const auto& i : myLaneParents) {
             i->addAdditionalChild(myAdditional);
         }
-        // 3 - If additional has a parent, add it into additional parent
-        if (myFirstAdditionalParent) {
-            myFirstAdditionalParent->addAdditionalChild(myAdditional);
+        for (const auto& i : myShapeParents) {
+            i->addAdditionalChild(myAdditional);
         }
-        // 4 - If additional has a parent, add it into additional parent
-        if (mySecondAdditionalParent) {
-            mySecondAdditionalParent->addAdditionalChild(myAdditional);
+        for (const auto& i : myAdditionalParents) {
+            i->addAdditionalChild(myAdditional);
         }
-        // 5 - if Additional has edge childs, add id into additional parents
-        for (auto i : myEdgeChilds) {
+        for (const auto& i : myDemandElementParents) {
+            i->addAdditionalChild(myAdditional);
+        }
+        // add additional in child elements
+        for (const auto& i : myEdgeChildren) {
             i->addAdditionalParent(myAdditional);
         }
-        // 6 - if Additional has lane childs, add id into additional parents
-        for (auto i : myLaneChilds) {
+        for (const auto& i : myLaneChildren) {
+            i->addAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myShapeChildren) {
+            i->addAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->addAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myDemandElementChildren) {
             i->addAdditionalParent(myAdditional);
         }
     } else {
         // show extra information for tests
         WRITE_DEBUG("Removing " + myAdditional->getTagStr() + " '" + myAdditional->getID() + "' in GNEChange_Additional");
-        // 1 - If additional own a lane parent, remove it from lane
-        for (auto i : myLaneParents) {
+        // delete additional from net
+        myNet->deleteAdditional(myAdditional, false);
+        // Remove additional from parent elements
+        for (const auto& i : myEdgeParents) {
             i->removeAdditionalChild(myAdditional);
         }
-        // 2 - If additional own a edge parent, remove it from edge
-        for (auto i : myEdgeParents) {
+        for (const auto& i : myLaneParents) {
             i->removeAdditionalChild(myAdditional);
         }
-        // 3 - If additiona has a first parent, remove it from their additional childs
-        if (myFirstAdditionalParent) {
-            myFirstAdditionalParent->removeAdditionalChild(myAdditional);
+        for (const auto& i : myShapeParents) {
+            i->removeAdditionalChild(myAdditional);
         }
-        // 4 - If additiona has a second parent, remove it from their additional childs
-        if (mySecondAdditionalParent) {
-            mySecondAdditionalParent->removeAdditionalChild(myAdditional);
+        for (const auto& i : myAdditionalParents) {
+            i->removeAdditionalChild(myAdditional);
         }
-        // 5 - if Additional has edge childs, remove it of their additional parents
-        for (auto i : myEdgeChilds) {
+        for (const auto& i : myDemandElementParents) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        // Remove additional from child elements
+        for (const auto& i : myEdgeChildren) {
             i->removeAdditionalParent(myAdditional);
         }
-        // 6 - if Additional has lane childs, remove it of their additional parents
-        for (auto i : myLaneChilds) {
+        for (const auto& i : myLaneChildren) {
             i->removeAdditionalParent(myAdditional);
         }
-        // remove additional of test
-        myNet->deleteAdditional(myAdditional);
+        for (const auto& i : myShapeChildren) {
+            i->removeAdditionalChild(myAdditional);
+        }
+        for (const auto& i : myAdditionalChildren) {
+            i->removeAdditionalParent(myAdditional);
+        }
+        for (const auto& i : myDemandElementChildren) {
+            i->removeAdditionalParent(myAdditional);
+        }
     }
     // Requiere always save additionals
-    myNet->requiereSaveAdditionals(true);
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
-    }
+    myNet->requireSaveAdditionals(true);
 }
 
 

@@ -32,14 +32,16 @@
 // ===========================================================================
 
 GNERerouterInterval::GNERerouterInterval(GNERerouterDialog* rerouterDialog) :
-    GNEAdditional(rerouterDialog->getEditedAdditional(), rerouterDialog->getEditedAdditional()->getViewNet(), GLO_REROUTER, SUMO_TAG_INTERVAL, "", false) {
+    GNEAdditional(rerouterDialog->getEditedAdditional(), rerouterDialog->getEditedAdditional()->getViewNet(), GLO_REROUTER, SUMO_TAG_INTERVAL, "", false,
+        {}, {}, {}, {rerouterDialog->getEditedAdditional()}, {}, {}, {}, {}, {}, {}) {
     // fill reroute interval with default values
     setDefaultValues();
 }
 
 
-GNERerouterInterval::GNERerouterInterval(GNEAdditional* rerouterParent, double begin, double end) :
-    GNEAdditional(rerouterParent, rerouterParent->getViewNet(), GLO_REROUTER, SUMO_TAG_INTERVAL, "", false),
+GNERerouterInterval::GNERerouterInterval(GNEAdditional* rerouterParent, SUMOTime begin, SUMOTime end) :
+    GNEAdditional(rerouterParent, rerouterParent->getViewNet(), GLO_REROUTER, SUMO_TAG_INTERVAL, "", false,
+        {}, {}, {}, {rerouterParent}, {}, {}, {}, {}, {}, {}),
     myBegin(begin),
     myEnd(end) {
 }
@@ -60,20 +62,26 @@ GNERerouterInterval::commitGeometryMoving(GNEUndoList*) {
 
 
 void
-GNERerouterInterval::updateGeometry(bool /*updateGrid*/) {
+GNERerouterInterval::updateGeometry() {
     // Currently this additional doesn't own a Geometry
 }
 
 
 Position
 GNERerouterInterval::getPositionInView() const {
-    return myFirstAdditionalParent->getPositionInView();
+    return getAdditionalParents().at(0)->getPositionInView();
+}
+
+
+Boundary
+GNERerouterInterval::getCenteringBoundary() const {
+    return getAdditionalParents().at(0)->getCenteringBoundary();
 }
 
 
 std::string
 GNERerouterInterval::getParentName() const {
-    return myFirstAdditionalParent->getID();
+    return getAdditionalParents().at(0)->getID();
 }
 
 
@@ -89,15 +97,28 @@ GNERerouterInterval::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_BEGIN:
-            return toString(myBegin);
+            return time2string(myBegin);
         case SUMO_ATTR_END:
-            return toString(myEnd);
+            return time2string(myEnd);
         case GNE_ATTR_PARENT:
-            return myFirstAdditionalParent->getID();
-        case GNE_ATTR_GENERIC:
-            return getGenericParametersStr();
+            return getAdditionalParents().at(0)->getID();
+        case GNE_ATTR_PARAMETERS:
+            return getParametersStr();
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
+    }
+}
+
+
+double 
+GNERerouterInterval::getAttributeDouble(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_BEGIN:
+            return STEPS2TIME(myBegin);
+        case SUMO_ATTR_END:
+            return STEPS2TIME(myEnd);
+        default:
+            throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
     }
 }
 
@@ -111,15 +132,15 @@ GNERerouterInterval::setAttribute(SumoXMLAttr key, const std::string& value, GNE
         case SUMO_ATTR_ID: {
             // change ID of Rerouter Interval
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
-            // Change Ids of all Rerouter childs
-            for (auto i : myAdditionalChilds) {
-                i->setAttribute(SUMO_ATTR_ID, generateAdditionalChildID(i->getTagProperty().getTag()), undoList);
+            // Change Ids of all Rerouter children
+            for (auto i : getAdditionalChildren()) {
+                i->setAttribute(SUMO_ATTR_ID, generateChildID(i->getTagProperty().getTag()), undoList);
             }
             break;
         }
         case SUMO_ATTR_BEGIN:
         case SUMO_ATTR_END:
-        case GNE_ATTR_GENERIC:
+        case GNE_ATTR_PARAMETERS:
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             break;
         default:
@@ -134,14 +155,20 @@ GNERerouterInterval::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_ID:
             return isValidAdditionalID(value);
         case SUMO_ATTR_BEGIN:
-            return canParse<double>(value) && (parse<double>(value) >= 0) && (parse<double>(value) < myEnd);
+            return canParse<SUMOTime>(value) && (parse<SUMOTime>(value) < myEnd);
         case SUMO_ATTR_END:
-            return canParse<double>(value) && (parse<double>(value) >= 0) && (parse<double>(value) > myBegin);
-        case GNE_ATTR_GENERIC:
-            return isGenericParametersValid(value);
+            return canParse<SUMOTime>(value) && (parse<SUMOTime>(value) > myBegin);
+        case GNE_ATTR_PARAMETERS:
+            return Parameterised::areParametersValid(value);
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
     }
+}
+
+
+bool 
+GNERerouterInterval::isAttributeEnabled(SumoXMLAttr /* key */) const {
+    return true;
 }
 
 
@@ -167,13 +194,13 @@ GNERerouterInterval::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_BEGIN:
-            myBegin = parse<double>(value);
+            myBegin = parse<SUMOTime>(value);
             break;
         case SUMO_ATTR_END:
-            myEnd = parse<double>(value);
+            myEnd = parse<SUMOTime>(value);
             break;
-        case GNE_ATTR_GENERIC:
-            setGenericParametersStr(value);
+        case GNE_ATTR_PARAMETERS:
+            setParametersStr(value);
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");

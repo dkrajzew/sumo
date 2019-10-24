@@ -14,6 +14,9 @@ fringe_factor
 # detected the fringe despite turnarounds
 fringe_factor_turnarounds
 
+# modify the edge probability based on the edge position relative to the network center to promote a given direction of travel
+angle
+
 # consider vehicle class when picking source- and destination edges if option --vclass is used
 vclass
 
@@ -61,7 +64,13 @@ validate_intermediate
 period_positive
 all_fringe_network
 flows
+
+# create flows for jtrrouter (no to)
+flows_jtrrouter
 flows_binomial
 
 # load the vehicle type to use during routing from an additional file
 vtype_additional_file_validate
+
+# some extra options that are passed  directly to duarouter
+duarouter_options

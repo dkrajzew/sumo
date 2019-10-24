@@ -34,6 +34,9 @@ trafficlight
 # Tests the simulation API
 simulation
 
+# Tests the simulation API
+simulation_copy
+
 # Tests the route API
 route
 
@@ -54,6 +57,12 @@ poi
 
 # Tests the polygon API
 polygon
+
+# Tests adding polygon dynamics
+polygon_dynamics
+
+# Tests adding polygon dynamics with gui enabled
+polygon_dynamics_gui
 
 # Tests the stop resume
 resume
@@ -79,6 +88,15 @@ getNeighbors
 # Tests traci.vehicle.getNeighbors() method in presence of multiple leaders/followers
 getNeighborsSublane
 
+# use changeLaneRelative to change to the opposite side and back
+changeOpposite
+
+# force driving in the opposite direction
+# changeOpposite (automatically commented due to no test directory being found)
+
+# Test for the StepListener functions
+steplistener
+
 # test various functions and options for influencing the behavior of rerouting functions
 rerouting
 
@@ -87,4 +105,5 @@ moveToXY
 
 # Tests for lateral collisions
 lateralCollision
+
 bugs

@@ -1,5 +1,5 @@
-Eclipse SUMO Version v1_0_1+0645-93703db
- Copyright (C) 2001-2019 German Aerospace Center (DLR) and others; http://sumo.dlr.de
+Eclipse SUMO Version v1_3_1+0662-4405e9c
+ Copyright (C) 2001-2019 German Aerospace Center (DLR) and others; https://sumo.dlr.de
 A microscopic, multi-modal traffic simulation.
 
 Usage: sumo [OPTION]*
@@ -23,7 +23,7 @@ Input Options:
   --load-state FILE                    Loads a network state from FILE
   --load-state.offset TIME             Shifts all times loaded from a saved
                                          state by the given offset
-  --load-state.remove-vehicles STR     Removes vehicles with the given IDs from
+  --load-state.remove-vehicles STR[]   Removes vehicles with the given IDs from
                                          the loaded state
 
 Output Options:
@@ -56,6 +56,8 @@ Output Options:
                                          geo-coordinates (lon/lat)
   --fcd-output.signals                 Add the vehicle signal state to the FCD
                                          output (brake lights etc.)
+  --fcd-output.distance                Add kilometrage to the FCD output
+                                         (linear referencing)
   --fcd-output.filter-edges.input-file FILE  Restrict fcd output to the edge
                                          selection from the given input file
   --full-output FILE                   Save a lot of information for each
@@ -87,6 +89,8 @@ Output Options:
                                          have not arrived at simulation end
   --vehroute-output.skip-ptlines       Skip vehroute output for public
                                          transport vehicles
+  --vehroute-output.incomplete         Include invalid routes and route stubs
+                                         in vehroute output
   --link-output FILE                   Save links states into FILE
   --railsignal-block-output FILE       Save railsignal-blocks into FILE
   --bt-output FILE                     Save bluetooth visibilities into FILE
@@ -179,6 +183,8 @@ Processing Options:
   --tls.all-off                        Switches off all traffic lights.
   --tls.actuated.show-detectors        Sets default visibility for actuation
                                          detectors
+  --tls.delay_based.detector-range FLOAT  Sets default range for detecting
+                                         delayed vehicles
   --time-to-impatience TIME            Specify how long a vehicle may wait
                                          until impatience grows from 0 to 1,
                                          defaults to 300, non-positive values
@@ -207,20 +213,31 @@ Processing Options:
   --emergencydecel.warning-threshold FLOAT  Sets the fraction of emergency
                                          decel capability that must be used to
                                          trigger a warning.
+  --parking.maneuver                   Whether parking simulation includes
+                                         manoeuvering time and associated lane
+                                         blocking
   --pedestrian.model STR               Select among pedestrian models
                                          ['nonInteracting', 'striping',
                                          'remote']
   --pedestrian.striping.stripe-width FLOAT  Width of parallel stripes for
                                          segmenting a sidewalk (meters) for use
                                          with model 'striping'
-  --pedestrian.striping.dawdling FLOAT  factor for random slow-downs [0,1] for
+  --pedestrian.striping.dawdling FLOAT  Factor for random slow-downs [0,1] for
                                          use with model 'striping'
   --pedestrian.striping.jamtime TIME   Time in seconds after which pedestrians
                                          start squeezing through a jam when
                                          using model 'striping' (non-positive
                                          values disable squeezing)
+  --pedestrian.striping.jamtime.crossing TIME  Time in seconds after which
+                                         pedestrians start squeezing through a
+                                         jam while on a pedestrian crossing when
+                                         using model 'striping' (non-positive
+                                         values disable squeezing)
   --pedestrian.remote.address STR      The address (host:port) of the external
                                          simulation
+  --ride.stop-tolerance FLOAT          Tolerance to apply when matching
+                                         pedestrian and vehicle positions on
+                                         boarding at individual stops
 
 Routing Options:
   --routing-algorithm STR              Select among routing algorithms
@@ -239,13 +256,13 @@ Routing Options:
                                          ALT-variant from the given file
   --persontrip.walkfactor FLOAT        Use FLOAT as a factor on pedestrian
                                          maximum speed during intermodal routing
-  --persontrip.transfer.car-walk STR   Where are mode changes from car to
+  --persontrip.transfer.car-walk STR[]  Where are mode changes from car to
                                          walking allowed (possible values:
                                          'parkingAreas', 'ptStops',
                                          'allJunctions' and combinations)
   --device.rerouting.probability FLOAT  The probability for a vehicle to have a
                                          'rerouting' device
-  --device.rerouting.explicit STR      Assign a 'rerouting' device to named
+  --device.rerouting.explicit STR[]    Assign a 'rerouting' device to named
                                          vehicles
   --device.rerouting.deterministic     The 'rerouting' devices are set
                                          deterministic using a fraction of 1000
@@ -268,11 +285,19 @@ Routing Options:
   --device.rerouting.synchronize       Let rerouting happen at the same time
                                          for all vehicles
   --device.rerouting.output FILE       Save adapting weights to FILE
+  --person-device.rerouting.probability FLOAT  The probability for a person to
+                                         have a 'rerouting' device
+  --person-device.rerouting.explicit STR[]  Assign a 'rerouting' device to
+                                         named persons
+  --person-device.rerouting.deterministic  The 'rerouting' devices are set
+                                         deterministic using a fraction of 1000
+  --person-device.rerouting.period TIME  The period with which the person shall
+                                         be rerouted
 
 Report Options:
   -v, --verbose                        Switches to verbose output
   --print-options                      Prints option values before processing
-  -?, --help                           Prints this screen
+  -?, --help                           Prints this screen or selected topics
   -V, --version                        Prints the current version
   -X, --xml-validation STR             Set schema validation scheme of XML
                                          inputs ("never", "auto" or "always")
@@ -296,7 +321,7 @@ Emissions Options:
                                          definitions from.
   --device.emissions.probability FLOAT  The probability for a vehicle to have a
                                          'emissions' device
-  --device.emissions.explicit STR      Assign a 'emissions' device to named
+  --device.emissions.explicit STR[]    Assign a 'emissions' device to named
                                          vehicles
   --device.emissions.deterministic     The 'emissions' devices are set
                                          deterministic using a fraction of 1000
@@ -304,7 +329,7 @@ Emissions Options:
 Communication Options:
   --device.btreceiver.probability FLOAT  The probability for a vehicle to have
                                          a 'btreceiver' device
-  --device.btreceiver.explicit STR     Assign a 'btreceiver' device to named
+  --device.btreceiver.explicit STR[]   Assign a 'btreceiver' device to named
                                          vehicles
   --device.btreceiver.deterministic    The 'btreceiver' devices are set
                                          deterministic using a fraction of 1000
@@ -315,7 +340,7 @@ Communication Options:
                                          detection probability (in seconds)
   --device.btsender.probability FLOAT  The probability for a vehicle to have a
                                          'btsender' device
-  --device.btsender.explicit STR       Assign a 'btsender' device to named
+  --device.btsender.explicit STR[]     Assign a 'btsender' device to named
                                          vehicles
   --device.btsender.deterministic      The 'btsender' devices are set
                                          deterministic using a fraction of 1000
@@ -323,7 +348,7 @@ Communication Options:
 Battery Options:
   --device.battery.probability FLOAT   The probability for a vehicle to have a
                                          'battery' device
-  --device.battery.explicit STR        Assign a 'battery' device to named
+  --device.battery.explicit STR[]      Assign a 'battery' device to named
                                          vehicles
   --device.battery.deterministic       The 'battery' devices are set
                                          deterministic using a fraction of 1000
@@ -331,7 +356,7 @@ Battery Options:
 Example Device Options:
   --device.example.probability FLOAT   The probability for a vehicle to have a
                                          'example' device
-  --device.example.explicit STR        Assign a 'example' device to named
+  --device.example.explicit STR[]      Assign a 'example' device to named
                                          vehicles
   --device.example.deterministic       The 'example' devices are set
                                          deterministic using a fraction of 1000
@@ -341,7 +366,7 @@ Example Device Options:
 SSM Device Options:
   --device.ssm.probability FLOAT       The probability for a vehicle to have a
                                          'ssm' device
-  --device.ssm.explicit STR            Assign a 'ssm' device to named vehicles
+  --device.ssm.explicit STR[]          Assign a 'ssm' device to named vehicles
   --device.ssm.deterministic           The 'ssm' devices are set deterministic
                                          using a fraction of 1000
   --device.ssm.measures STR            Specifies which measures will be logged
@@ -374,7 +399,7 @@ SSM Device Options:
 ToC Device Options:
   --device.toc.probability FLOAT       The probability for a vehicle to have a
                                          'toc' device
-  --device.toc.explicit STR            Assign a 'toc' device to named vehicles
+  --device.toc.explicit STR[]          Assign a 'toc' device to named vehicles
   --device.toc.deterministic           The 'toc' devices are set deterministic
                                          using a fraction of 1000
   --device.toc.manualType STR          Vehicle type for manual driving regime.
@@ -391,6 +416,22 @@ ToC Device Options:
                                          after a ToC (value in [0,1]).
   --device.toc.mrmDecel FLOAT          Deceleration rate applied during a
                                          'minimum risk maneuver'.
+  --device.toc.dynamicToCThreshold FLOAT  Time, which the vehicle requires to
+                                         have ahead to continue in automated
+                                         mode. The default value of 0 indicates
+                                         no dynamic triggering of ToCs.
+  --device.toc.dynamicMRMProbability FLOAT  Probability that a dynamically
+                                         triggered TOR is not answered in time.
+  --device.toc.mrmKeepRight            If true, the vehicle tries to change to
+                                         the right during an MRM.
+  --device.toc.mrmSafeSpot STR         If set, the vehicle tries to reach the
+                                         given named stopping place during an
+                                         MRM.
+  --device.toc.mrmSafeSpotDuration FLOAT  Duration the vehicle stays at the
+                                         safe spot after an MRM.
+  --device.toc.maxPreparationAccel FLOAT  Maximal acceleration that may be
+                                         applied during the ToC preparation
+                                         phase.
   --device.toc.ogNewTimeHeadway FLOAT  Timegap for ToC preparation phase.
   --device.toc.ogNewSpaceHeadway FLOAT  Additional spacing for ToC preparation
                                          phase.
@@ -408,7 +449,7 @@ ToC Device Options:
 Driver State Device Options:
   --device.driverstate.probability FLOAT  The probability for a vehicle to have
                                          a 'driverstate' device
-  --device.driverstate.explicit STR    Assign a 'driverstate' device to named
+  --device.driverstate.explicit STR[]  Assign a 'driverstate' device to named
                                          vehicles
   --device.driverstate.deterministic   The 'driverstate' devices are set
                                          deterministic using a fraction of 1000
@@ -435,11 +476,15 @@ Driver State Device Options:
                                          (threshold also scales with distance).
   --device.driverstate.minAwareness FLOAT  Minimal admissible value for the
                                          driver's awareness.
+  --device.driverstate.maximalReactionTime FLOAT  Maximal reaction time
+                                         (~action step length) induced by
+                                         decreased awareness level (reached for
+                                         awareness=minAwareness).
 
 Bluelight Device Options:
   --device.bluelight.probability FLOAT  The probability for a vehicle to have a
                                          'bluelight' device
-  --device.bluelight.explicit STR      Assign a 'bluelight' device to named
+  --device.bluelight.explicit STR[]    Assign a 'bluelight' device to named
                                          vehicles
   --device.bluelight.deterministic     The 'bluelight' devices are set
                                          deterministic using a fraction of 1000
@@ -449,10 +494,24 @@ Bluelight Device Options:
 FCD Device Options:
   --device.fcd.probability FLOAT       The probability for a vehicle to have a
                                          'fcd' device
-  --device.fcd.explicit STR            Assign a 'fcd' device to named vehicles
+  --device.fcd.explicit STR[]          Assign a 'fcd' device to named vehicles
   --device.fcd.deterministic           The 'fcd' devices are set deterministic
                                          using a fraction of 1000
   --device.fcd.period STR              Recording period for FCD-data
+  --person-device.fcd.probability FLOAT  The probability for a person to have a
+                                         'fcd' device
+  --person-device.fcd.explicit STR[]   Assign a 'fcd' device to named persons
+  --person-device.fcd.deterministic    The 'fcd' devices are set deterministic
+                                         using a fraction of 1000
+  --person-device.fcd.period STR       Recording period for FCD-data
+
+Tripinfo Device Options:
+  --device.tripinfo.probability FLOAT  The probability for a vehicle to have a
+                                         'tripinfo' device
+  --device.tripinfo.explicit STR[]     Assign a 'tripinfo' device to named
+                                         vehicles
+  --device.tripinfo.deterministic      The 'tripinfo' devices are set
+                                         deterministic using a fraction of 1000
 
 TraCI Server Options:
   --remote-port INT                    Enables TraCI Server if set
@@ -511,8 +570,9 @@ GUI Only Options:
   -g, --gui-settings-file FILE         Load visualisation settings from FILE
   -Q, --quit-on-end                    Quits the GUI when the simulation stops
   -G, --game                           Start the GUI in gaming mode
+  --game.mode STR                      Select the game type ('tls', 'drt')
   -S, --start                          Start the simulation after loading
-  --breakpoints STR                    Use TIME[] as times when the simulation
+  -B, --breakpoints STR[]              Use TIME[] as times when the simulation
                                          should halt
   --edgedata-files FILE                Load edge/lane weights for visualization
                                          from FILE
@@ -520,9 +580,9 @@ GUI Only Options:
                                          (demo mode)
   -T, --disable-textures               Do not load background pictures
   --registry-viewport                  Load current viewport from registry
-  --window-size STR                    Create initial window with the given x,y
+  --window-size STR[]                  Create initial window with the given x,y
                                          size
-  --window-pos STR                     Create initial window at the given x,y
+  --window-pos STR[]                   Create initial window at the given x,y
                                          position
   --tracker-interval FLOAT             The aggregation period for value tracker
                                          windows

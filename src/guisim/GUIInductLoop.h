@@ -54,7 +54,7 @@ public:
      * @param[in] position Position of the detector within the lane
      * @param[in] vTypes which vehicle types are considered
      */
-    GUIInductLoop(const std::string& id, MSLane* const lane, double position, const std::string& vTypes);
+    GUIInductLoop(const std::string& id, MSLane* const lane, double position, const std::string& vTypes, bool show);
 
 
     /// @brief Destructor
@@ -89,7 +89,17 @@ public:
 
 
     /// @brief sets special caller for myWrapper
-    void setSpecialColor(const RGBColor* color); 
+    void setSpecialColor(const RGBColor* color);
+
+    /// @brief whether the induction loop shall be visible
+    bool isVisible() const {
+        return myShow;
+    }
+
+    /// @brief toggle visibility
+    void setVisible(bool show) {
+        myShow = show;
+    }
 
 protected:
     /// @name Methods that add and remove vehicles from internal container
@@ -103,7 +113,7 @@ protected:
      * @param entryTimestep Timestep (not necessary integer) of entrance.
      * @see MSInductLoop::enterDetectorByMove()
      */
-    void enterDetectorByMove(SUMOVehicle& veh, double entryTimestep);
+    void enterDetectorByMove(SUMOTrafficObject& veh, double entryTimestep);
 
 
     /** @brief Processes a vehicle that leaves the detector
@@ -114,7 +124,7 @@ protected:
      * @param leaveTimestep Timestep (not necessary integer) of leaving.
      * @see MSInductLoop::leaveDetectorByMove()
      */
-    void leaveDetectorByMove(SUMOVehicle& veh, double leaveTimestep);
+    void leaveDetectorByMove(SUMOTrafficObject& veh, double leaveTimestep);
 
 
     /** @brief Removes a vehicle from the detector's map myVehiclesOnDet.
@@ -124,7 +134,7 @@ protected:
      * @param veh The leaving vehicle.
      * @param lastPos The last position of the leaving vehicle.
      */
-    void leaveDetectorByLaneChange(SUMOVehicle& veh, double lastPos);
+    void leaveDetectorByLaneChange(SUMOTrafficObject& veh, double lastPos);
     /// @}
 
 
@@ -214,6 +224,9 @@ private:
 
     /// @brief the glObject wrapper for this induction loop
     MyWrapper* myWrapper;
+
+    /// @brief whether this induction loop shall be visible in the gui
+    bool myShow;
 
     /// @brief Mutex preventing parallel read/write access to internal MSInductLoop state
     mutable FXMutex myLock;

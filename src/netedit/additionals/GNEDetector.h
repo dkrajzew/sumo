@@ -46,8 +46,10 @@ public:
      * @param[in] name detector name
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
+     * @param[in] laneParents vector of lane parents
      */
-    GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
+    GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, double pos, SUMOTime freq, const std::string& filename,
+                const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement, const std::vector<GNELane*>& laneParents);
 
     /**@brief Constructor.
      * @param[in] additionalParent additional parent of this detector (ID will be generated automatically)
@@ -60,26 +62,28 @@ public:
      * @param[in] name detector name
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
+     * @param[in] laneParents vector of lane parents
      */
-    GNEDetector(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, double pos, double freq, const std::string& filename, const std::string& name, bool friendlyPos, bool blockMovement);
+    GNEDetector(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, double pos, SUMOTime freq, const std::string& filename,
+                const std::string& name, bool friendlyPos, bool blockMovement, const std::vector<GNELane*>& laneParents);
 
     /// @brief Destructor
     ~GNEDetector();
 
     /// @name members and functions relative to write additionals into XML
     /// @{
-    /// @brief check if current additional is valid to be writed into XML (must be reimplemented in all detector childs)
+    /// @brief check if current additional is valid to be writed into XML (must be reimplemented in all detector children)
     virtual bool isAdditionalValid() const = 0;
 
-    /// @brief return a string with the current additional problem (must be reimplemented in all detector childs)
+    /// @brief return a string with the current additional problem (must be reimplemented in all detector children)
     virtual std::string getAdditionalProblem() const = 0;
 
-    /// @brief fix additional problem (must be reimplemented in all detector childs)
+    /// @brief fix additional problem (must be reimplemented in all detector children)
     virtual void fixAdditionalProblem() = 0;
     /// @}
 
     /// @brief get lane
-    virtual GNELane* getLane() const = 0;
+    GNELane* getLane() const;
 
     /// @brief get position over lane
     double getPositionOverLane() const;
@@ -100,10 +104,13 @@ public:
     virtual void commitGeometryMoving(GNEUndoList* undoList) = 0;
 
     /// @brief update pre-computed geometry information
-    virtual void updateGeometry(bool updateGrid) = 0;
+    virtual void updateGeometry() = 0;
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
+
+    /// @brief Returns the boundary to which the view shall be centered in order to show the object
+    Boundary getCenteringBoundary() const;
     /// @}
 
     /// @name inherited from GUIGLObject
@@ -128,6 +135,12 @@ public:
      */
     virtual std::string getAttribute(SumoXMLAttr key) const = 0;
 
+    /* @brief method for getting the Attribute of an XML key in double format (to avoid unnecessary parse<double>(...) for certain attributes)
+     * @param[in] key The attribute key
+     * @return double with the value associated to key
+     */
+    double getAttributeDouble(SumoXMLAttr key) const;
+
     /* @brief method for setting the attribute and letting the object perform additional changes
      * @param[in] key The attribute key
      * @param[in] value The new value
@@ -142,6 +155,11 @@ public:
      */
     virtual bool isValid(SumoXMLAttr key, const std::string& value) = 0;
 
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    virtual bool isAttributeEnabled(SumoXMLAttr key) const = 0;
+
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
 
@@ -154,7 +172,7 @@ protected:
     double myPositionOverLane;
 
     /// @brief The aggregation period the values the detector collects shall be summed up.
-    double myFreq;
+    SUMOTime myFreq;
 
     /// @brief The path to the output file
     std::string myFilename;

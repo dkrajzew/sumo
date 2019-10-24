@@ -24,11 +24,10 @@
 #include <netedit/GNENet.h>
 #include <netedit/GNEViewNet.h>
 #include <netedit/GNEViewParent.h>
-#include <netedit/additionals/GNEAdditional.h>
-#include <netedit/demandelements/GNEDemandElement.h>
 #include <netedit/frames/GNESelectorFrame.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
 #include <utils/gui/div/GUIParameterTableWindow.h>
+#include <utils/geom/GeomHelper.h>
 
 #include "GNENetElement.h"
 
@@ -37,148 +36,76 @@
 // method definitions
 // ===========================================================================
 
+// ---------------------------------------------------------------------------
+// GNENetElement::NetElementGeometry - methods
+// ---------------------------------------------------------------------------
+
+GNENetElement::NetElementGeometry::NetElementGeometry() {}
+
+
+void
+GNENetElement::NetElementGeometry::clearGeometry() {
+    shape.clear();
+    shapeRotations.clear();
+    shapeLengths.clear();
+}
+
+
+void
+GNENetElement::NetElementGeometry::calculateShapeRotationsAndLengths() {
+    // Get number of parts of the shape
+    int numberOfSegments = (int)shape.size() - 1;
+    // If number of segments is more than 0
+    if (numberOfSegments >= 0) {
+        // Reserve memory (To improve efficiency)
+        shapeRotations.reserve(numberOfSegments);
+        shapeLengths.reserve(numberOfSegments);
+        // For every part of the shape
+        for (int i = 0; i < numberOfSegments; ++i) {
+            // Obtain first position
+            const Position& f = shape[i];
+            // Obtain next position
+            const Position& s = shape[i + 1];
+            // Save distance between position into myShapeLengths
+            shapeLengths.push_back(f.distanceTo(s));
+            // Save rotation (angle) of the vector constructed by points f and s
+            shapeRotations.push_back((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GNENetElement - methods
+// ---------------------------------------------------------------------------
 
 GNENetElement::GNENetElement(GNENet* net, const std::string& id, GUIGlObjectType type, SumoXMLTag tag) :
     GUIGlObject(type, id),
     GNEAttributeCarrier(tag),
-    myNet(net),
-    myMovingGeometryBoundary() {}
+    GNEHierarchicalElementParents(this, {}, {}, {}, {}, {}),
+                              GNEHierarchicalElementChildren(this, {}, {}, {}, {}, {}),
+                              myNet(net),
+myMovingGeometryBoundary() {
+}
 
 
 GNENetElement::~GNENetElement() {}
 
 
+const GNENetElement::NetElementGeometry&
+GNENetElement::getGeometry() const {
+    return myGeometry;
+}
+
+
+std::string
+GNENetElement::generateChildID(SumoXMLTag /*childTag*/) {
+    return "";
+}
+
+
 GNENet*
 GNENetElement::getNet() const {
     return myNet;
-}
-
-
-void
-GNENetElement::addAdditionalParent(GNEAdditional* additional) {
-    // First check that additional wasn't already inserted
-    if (std::find(myAdditionalParents.begin(), myAdditionalParents.end(), additional) != myAdditionalParents.end()) {
-        throw ProcessError(additional->getTagStr() + " with ID='" + additional->getID() + "' was already inserted in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myAdditionalParents.push_back(additional);
-        // update geometry is needed for stacked additionals (routeProbes and Vaporicers)
-        updateGeometry(true);
-    }
-}
-
-
-void
-GNENetElement::removeAdditionalParent(GNEAdditional* additional) {
-    // First check that additional was already inserted
-    auto it = std::find(myAdditionalParents.begin(), myAdditionalParents.end(), additional);
-    if (it == myAdditionalParents.end()) {
-        throw ProcessError(additional->getTagStr() + " with ID='" + additional->getID() + "' doesn't exist in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myAdditionalParents.erase(it);
-        // update geometry is needed for stacked additionals (routeProbes and Vaporizers)
-        updateGeometry(true);
-    }
-}
-
-
-void
-GNENetElement::addAdditionalChild(GNEAdditional* additional) {
-    // First check that additional wasn't already inserted
-    if (std::find(myAdditionalChilds.begin(), myAdditionalChilds.end(), additional) != myAdditionalChilds.end()) {
-        throw ProcessError(additional->getTagStr() + " with ID='" + additional->getID() + "' was already inserted in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myAdditionalChilds.push_back(additional);
-        // update geometry is needed for stacked additionals (routeProbes and Vaporicers)
-        updateGeometry(true);
-    }
-}
-
-
-void
-GNENetElement::removeAdditionalChild(GNEAdditional* additional) {
-    // First check that additional was already inserted
-    auto it = std::find(myAdditionalChilds.begin(), myAdditionalChilds.end(), additional);
-    if (it == myAdditionalChilds.end()) {
-        throw ProcessError(additional->getTagStr() + " with ID='" + additional->getID() + "' doesn't exist in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myAdditionalChilds.erase(it);
-        // update geometry is needed for stacked additionals (routeProbes and Vaporizers)
-        updateGeometry(true);
-    }
-}
-
-
-const std::vector<GNEAdditional*>&
-GNENetElement::getAdditionalParents() const {
-    return myAdditionalParents;
-}
-
-
-const std::vector<GNEAdditional*>&
-GNENetElement::getAdditionalChilds() const {
-    return myAdditionalChilds;
-}
-
-
-void
-GNENetElement::addDemandElementParent(GNEDemandElement* demandElement) {
-    // First check that demand element wasn't already inserted
-    if (std::find(myDemandElementParents.begin(), myDemandElementParents.end(), demandElement) != myDemandElementParents.end()) {
-        throw ProcessError(demandElement->getTagStr() + " with ID='" + demandElement->getID() + "' was already inserted in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myDemandElementParents.push_back(demandElement);
-        // update geometry is needed for stacked demandElements (routeProbes and Vaporicers)
-        updateGeometry(true);
-    }
-}
-
-
-void
-GNENetElement::removeDemandElementParent(GNEDemandElement* demandElement) {
-    // First check that demand element was already inserted
-    auto it = std::find(myDemandElementParents.begin(), myDemandElementParents.end(), demandElement);
-    if (it == myDemandElementParents.end()) {
-        throw ProcessError(demandElement->getTagStr() + " with ID='" + demandElement->getID() + "' doesn't exist in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myDemandElementParents.erase(it);
-        // update geometry is needed for stacked demandElements (routeProbes and Vaporizers)
-        updateGeometry(true);
-    }
-}
-
-
-void
-GNENetElement::addDemandElementChild(GNEDemandElement* demandElement) {
-    // demand element childs can be multiples
-    myDemandElementChilds.push_back(demandElement);
-    // update geometry is needed for stacked demandElements (routeProbes and Vaporicers)
-    updateGeometry(true);
-}
-
-
-void
-GNENetElement::removeDemandElementChild(GNEDemandElement* demandElement) {
-    // First check that at least one demand element was already inserted
-    auto it = std::find(myDemandElementChilds.begin(), myDemandElementChilds.end(), demandElement);
-    if (it == myDemandElementChilds.end()) {
-        throw ProcessError(demandElement->getTagStr() + " with ID='" + demandElement->getID() + "' doesn't exist in " + getTagStr() + " with ID='" + getID() + "'");
-    } else {
-        myDemandElementChilds.erase(it);
-        // update geometry is needed for stacked demandElements
-        updateGeometry(true);
-    }
-}
-
-
-const std::vector<GNEDemandElement*>&
-GNENetElement::getDemandElementParents() const {
-    return myDemandElementParents;
-}
-
-
-const std::vector<GNEDemandElement*>&
-GNENetElement::getDemandElementChilds() const {
-    return myDemandElementChilds;
 }
 
 
@@ -189,10 +116,10 @@ GNENetElement::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView&) {
     // Iterate over attributes
     for (const auto& i : myTagProperty) {
         // Add attribute and set it dynamic if aren't unique
-        if (i.second.isUnique()) {
-            ret->mkItem(toString(i.first).c_str(), false, getAttribute(i.first));
+        if (i.isUnique()) {
+            ret->mkItem(i.getAttrStr().c_str(), false, getAttribute(i.getAttr()));
         } else {
-            ret->mkItem(toString(i.first).c_str(), true, getAttribute(i.first));
+            ret->mkItem(i.getAttrStr().c_str(), true, getAttribute(i.getAttr()));
         }
     }
     // close building
@@ -248,6 +175,18 @@ GNENetElement::drawUsingSelectColor() const {
 }
 
 
+void
+GNENetElement::enableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) {
+    //
+}
+
+
+void
+GNENetElement::disableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) {
+    //
+}
+
+
 std::string
 GNENetElement::getPopUpID() const {
     if (myTagProperty.getTag() == SUMO_TAG_CONNECTION) {
@@ -269,6 +208,12 @@ GNENetElement::getHierarchyName() const {
     } else {
         return getTagStr();
     }
+}
+
+
+void
+GNENetElement::setEnabledAttribute(const int /*enabledAttributes*/) {
+    //
 }
 
 /****************************************************************************/

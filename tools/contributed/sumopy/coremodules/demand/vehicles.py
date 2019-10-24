@@ -29,7 +29,7 @@ from coremodules.network.network import SumoIdsConf, MODES
 
 LANECHANGEMODELS = ['LC2013', 'JE2013', 'DK2008', 'SL2015']
 
-# http://sumo.dlr.de/wiki/Models/Emissions/HBEFA3-based
+# https://sumo.dlr.de/wiki/Models/Emissions/HBEFA3-based
 EMISSIONCLASSES = {
     'HBEFA3/Bus': 'average urban bus (all fuel types)',
     'HBEFA3/Coach': 'average long distance bus (all fuel types)',
@@ -304,7 +304,7 @@ class VehicleTypes(am.ArrayObjman):
                                   groupnames=['parameters'],
                                   choices=get_inversemap(EMISSIONCLASSES),
                                   name='Emission',
-                                  info="HBEFA3 emission class, see sourceforge.net/apps/mediawiki/sumo/index.php?title=Simulation/Models/Emissions/HBEFA-based",
+                                  info="HBEFA3 emission class, see https://sumo.dlr.de/wiki/Models/Emissions/HBEFA3-based",
                                   xmltag='emissionClass',
                                   xmlmap=emissionclasses_xml,
                                   ))

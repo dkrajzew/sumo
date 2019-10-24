@@ -70,10 +70,17 @@ public:
     /// @brief Destructor.
     ~GNEEdge();
 
-    /**@brief update pre-computed geometry information
-     * @note if current editing mode is Move, connection's geometry will not be updated
-     */
-    void updateGeometry(bool updateGrid);
+    /// @brief gererate a new ID for an element child
+    std::string generateChildID(SumoXMLTag childTag);
+
+    /// @name Functions related with geometry of element
+    /// @{
+    /// @brief update pre-computed geometry information
+    void updateGeometry();
+
+    /// @brief Returns position of hierarchical element in view
+    Position getPositionInView() const;
+    /// @}
 
     /// @name functions for edit start and end positions of shapes
     /// @{
@@ -144,10 +151,7 @@ public:
     void deleteGeometryPoint(const Position& pos, bool allowUndo = true);
 
     /// @brief update edge geometry after junction move
-    void updateJunctionPosition(GNEJunction* junction, const Position& origPos, bool updateGrid);
-
-    /// @brief Returns the street's geometry
-    Boundary getBoundary() const;
+    void updateJunctionPosition(GNEJunction* junction, const Position& origPos);
 
     /// @name inherited from GUIGlObject
     /// @{
@@ -167,6 +171,9 @@ public:
      */
     Boundary getCenteringBoundary() const;
 
+    /// @brief Returns the street name
+    const std::string getOptionalName() const;
+
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
      * @see GUIGlObject::drawGL
@@ -175,7 +182,7 @@ public:
     /// @}
 
     /// @brief returns the internal NBEdge
-    NBEdge* getNBEdge();
+    NBEdge* getNBEdge() const;
 
     /// @brief returns the source-junction
     GNEJunction* getGNEJunctionSource() const;
@@ -214,20 +221,11 @@ public:
      * @param[in] undoList The undoList on which to register changes
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
-    /// @}
 
-    /// @name Function related with Generic Parameters
-    /// @{
-
-    /// @brief return generic parameters in string format
-    std::string getGenericParametersStr() const;
-
-    /// @brief return generic parameters as vector of pairs format
-    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
-
-    /// @brief set generic parameters in string format
-    void setGenericParametersStr(const std::string& value);
-
+    /* @brief method for check if the value for certain attribute is set
+     * @param[in] key The attribute key
+     */
+    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
     /// @brief set responsibility for deleting internal strctures
@@ -237,7 +235,7 @@ public:
      * @param[in] geom The new geometry
      * @param[in] inner Whether geom is only the inner points
      */
-    void setGeometry(PositionVector geom, bool inner, bool updateGrid);
+    void setGeometry(PositionVector geom, bool inner);
 
     /// @brief remake connections
     void remakeGNEConnections();
@@ -246,13 +244,13 @@ public:
     void copyTemplate(GNEEdge* tpl, GNEUndoList* undolist);
 
     /// @brief returns GLIDs of all lanes
-    std::set<GUIGlID> getLaneGlIDs();
+    std::set<GUIGlID> getLaneGlIDs() const;
 
     /// @brief returns a reference to the lane vector
-    const std::vector<GNELane*>& getLanes();
+    const std::vector<GNELane*>& getLanes() const;
 
     /// @brief returns a reference to the GNEConnection vector
-    const std::vector<GNEConnection*>& getGNEConnections();
+    const std::vector<GNEConnection*>& getGNEConnections() const;
 
     /// @brief get GNEConnection if exist, and if not create it if create is enabled
     GNEConnection* retrieveGNEConnection(int fromLane, NBEdge* to, int toLane, bool createIfNoExist = true);
@@ -285,9 +283,6 @@ public:
     /// @brief get GNECrossings vinculated with this Edge
     std::vector<GNECrossing*> getGNECrossings();
 
-    /// @brief remove Edge of Additional Parent
-    void removeEdgeOfAdditionalParents(GNEUndoList* undoList);
-
     /// @brief make geometry smooth
     void smooth(GNEUndoList* undoList);
 
@@ -299,6 +294,23 @@ public:
 
     /// @brief return smoothed shape
     PositionVector smoothShape(const PositionVector& shape, bool forElevation);
+
+    /// @brief return the first lane that allow a vehicle of type vClass (or the first lane, if none was found)
+    GNELane* getLaneByVClass(const SUMOVehicleClass vClass) const;
+
+    /**@brief return the first lane that allow a vehicle of type vClass (or the first lane, if none was found)
+     * @note flag "found" will be changed depending if lane was found
+     */
+    GNELane* getLaneByVClass(const SUMOVehicleClass vClass, bool& found) const;
+
+    /// @brief draw partial route
+    void drawPartialRoute(const GUIVisualizationSettings& s, const GNEDemandElement* route, const GNEJunction* junction) const;
+
+    /// @brief draw partial trip and Flow
+    void drawPartialTripFromTo(const GUIVisualizationSettings& s, const GNEDemandElement* tripOrFromTo, const GNEJunction* junction) const;
+
+    /// @brief draw partial person plan
+    void drawPartialPersonPlan(const GUIVisualizationSettings& s, const GNEDemandElement* personPlan, const GNEJunction* junction) const;
 
 protected:
     /// @brief the underlying NBEdge
@@ -356,10 +368,19 @@ private:
     void removeEdgeFromCrossings(GNEJunction* junction, GNEUndoList* undoList);
 
     /// @brief change Shape StartPos
-    void setShapeStartPos(const Position& pos, bool updateGrid);
+    void setShapeStartPos(const Position& pos);
 
     /// @brief change Shape EndPos
-    void setShapeEndPos(const Position& pos, bool updateGrid);
+    void setShapeEndPos(const Position& pos);
+
+    /// @brief draw geometry points
+    void drawGeometryPoints(const GUIVisualizationSettings& s) const;
+
+    /// @brief draw edge name
+    void drawEdgeName(const GUIVisualizationSettings& s) const;
+
+    /// @brief draw Rerouter symbols
+    void drawRerouterSymbol(const GUIVisualizationSettings& s, GNEAdditional* rerouter) const;
 
     /// @brief invalidated copy constructor
     GNEEdge(const GNEEdge& s) = delete;
@@ -369,7 +390,6 @@ private:
 
     /// @brief constructor for dummy edge
     GNEEdge();
-
 };
 
 

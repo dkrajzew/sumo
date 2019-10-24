@@ -22,9 +22,6 @@
 
 #include <netedit/GNENet.h>
 #include <netedit/netelements/GNEJunction.h>
-#include <netedit/frames/GNEInspectorFrame.h>
-#include <netedit/GNEViewParent.h>
-#include <netedit/GNEViewNet.h>
 
 #include "GNEChange_Junction.h"
 
@@ -64,19 +61,15 @@ GNEChange_Junction::undo() {
         // show extra information for tests
         WRITE_DEBUG("Removing " + myJunction->getTagStr() + " '" + myJunction->getID() + "' from " + toString(SUMO_TAG_NET));
         // add junction to net
-        myNet->deleteSingleJunction(myJunction);
+        myNet->deleteSingleJunction(myJunction, false);
     } else {
         // show extra information for tests
         WRITE_DEBUG("Adding " + myJunction->getTagStr() + " '" + myJunction->getID() + "' into " + toString(SUMO_TAG_NET));
         // delete junction from net
         myNet->insertJunction(myJunction);
     }
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
-    }
     // enable save netElements
-    myNet->requiereSaveNet(true);
+    myNet->requireSaveNet(true);
 }
 
 
@@ -91,14 +84,10 @@ GNEChange_Junction::redo() {
         // show extra information for tests
         WRITE_DEBUG("Removing " + myJunction->getTagStr() + " '" + myJunction->getID() + "' from " + toString(SUMO_TAG_NET));
         // delete junction from net
-        myNet->deleteSingleJunction(myJunction);
-    }
-    // check if inspector frame has to be updated
-    if (myNet->getViewNet()->getViewParent()->getInspectorFrame()->shown()) {
-        myNet->getViewNet()->getViewParent()->getInspectorFrame()->getACHierarchy()->refreshACHierarchy();
+        myNet->deleteSingleJunction(myJunction, false);
     }
     // enable save netElements
-    myNet->requiereSaveNet(true);
+    myNet->requireSaveNet(true);
 }
 
 

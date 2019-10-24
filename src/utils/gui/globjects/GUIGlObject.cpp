@@ -47,6 +47,7 @@
 
 StringBijection<GUIGlObjectType>::Entry GUIGlObject::GUIGlObjectTypeNamesInitializer[] = {
     {"network",             GLO_NETWORK},
+    //
     {"netElement",          GLO_NETELEMENT},
     {"edge",                GLO_EDGE},
     {"lane",                GLO_LANE},
@@ -54,6 +55,7 @@ StringBijection<GUIGlObjectType>::Entry GUIGlObject::GUIGlObjectTypeNamesInitial
     {"crossing",            GLO_CROSSING},
     {"connection",          GLO_CONNECTION},
     {"tlLogic",             GLO_TLLOGIC},
+    //
     {"additional",          GLO_ADDITIONAL},
     {"busStop",             GLO_BUS_STOP},
     {"access",              GLO_ACCESS},
@@ -75,17 +77,33 @@ StringBijection<GUIGlObjectType>::Entry GUIGlObject::GUIGlObjectTypeNamesInitial
     {"calibrator",          GLO_CALIBRATOR},
     {"routeProbe",          GLO_ROUTEPROBE},
     {"vaporizer",           GLO_VAPORIZER},
+    //
     {"shape",               GLO_SHAPE},
     {"polygon",             GLO_POLYGON},
     {"poi",                 GLO_POI},
+    //
     {"routeElement",        GLO_ROUTEELEMENT},
-    {"vehicle",             GLO_VEHICLE},
-    {"person",              GLO_PERSON},
-    {"container",           GLO_CONTAINER},
-    {"route",               GLO_ROUTE},
     {"vType",               GLO_VTYPE},
-    {"flow",                GLO_FLOW},
+    //
+    {"route",               GLO_ROUTE},
+    {"embeddedRoute",       GLO_EMBEDDEDROUTE},
+    //
+    {"ride",                GLO_RIDE},
+    {"walk",                GLO_WALK},
+    {"personTrip",          GLO_PERSONTRIP},
+    //
+    {"stop",                GLO_STOP},
+    {"personStop",          GLO_PERSONSTOP},
+    //
+    {"vehicle",             GLO_VEHICLE},
     {"trip",                GLO_TRIP},
+    {"flow",                GLO_FLOW},
+    {"routeFlow",           GLO_ROUTEFLOW},
+    //
+    {"container",           GLO_CONTAINER},
+    //
+    {"person",              GLO_PERSON},
+    {"personFlow",          GLO_PERSONFLOW},
     {"undefined",           GLO_MAX}
 };
 
@@ -147,6 +165,10 @@ GUIGlObject::getMicrosimID() const {
     return myMicrosimID;
 }
 
+const std::string
+GUIGlObject::getOptionalName() const {
+    return "";
+}
 
 void
 GUIGlObject::setMicrosimID(const std::string& newID) {

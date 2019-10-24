@@ -22,10 +22,7 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
@@ -39,8 +36,9 @@ traci.polygon.add(
 try:
     traci.polygon.add(
         "invalidShape", ((1, 1), (float('nan'), 42), (1, 10), (10, 10)), (1, 2, 3, 4), True, "test")
-except traci.TraCIException:
-    pass
+except traci.TraCIException as e:
+    if traci.isLibsumo():
+        print(e, file=sys.stderr)
 
 print("polygons", traci.polygon.getIDList())
 print("polygon count", traci.polygon.getIDCount())

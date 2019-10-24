@@ -22,18 +22,13 @@ import sys
 
 SUMO_HOME = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
 sys.path.append(os.path.join(os.environ.get("SUMO_HOME", SUMO_HOME), "tools"))
-if len(sys.argv) > 1:
-    import libsumo as traci  # noqa
-else:
-    import traci  # noqa
+import traci  # noqa
 import sumolib  # noqa
 
 traci.start([sumolib.checkBinary('sumo'), "-c", "sumo.sumocfg"])
 for step in range(3):
     print("step", step)
     traci.simulationStep()
-if not traci.isLibsumo():
-    print("trafficlights deprecated", traci.trafficlights.getIDList())
 print("trafficlight", traci.trafficlight.getIDList())
 print("trafficlight count", traci.trafficlight.getIDCount())
 tlsID = "0"
@@ -52,7 +47,7 @@ def check():
 
 
 phases = []
-phases.append(traci.trafficlight.Phase(30, "rrrrGGggrrrrGGgg", 0, 0, -1, "setViaComplete"))
+phases.append(traci.trafficlight.Phase(30, "rrrrGGggrrrrGGgg", 0, 0, [1, 2, 3], "setViaComplete"))
 phases.append(traci.trafficlight.Phase(10, "rrrrGGggrrrrGGgg", 0, 0))
 phases.append(traci.trafficlight.Phase(40, "rrrrGGggrrrrGGgg", 0, 0))
 phases.append(traci.trafficlight.Phase(20, "rrrrGGggrrrrGGgg", 0, 0))
@@ -64,6 +59,7 @@ traci.trafficlight.setCompleteRedYellowGreenDefinition(tlsID, logic)
 traci.trafficlight.setPhase(tlsID, 4)
 traci.trafficlight.setPhaseName(tlsID, "setByTraCI")
 traci.trafficlight.setPhaseDuration(tlsID, 23)
+print("waitingPersons", traci.trafficlight.getServedPersonCount(tlsID, 2))
 check()
 defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(tlsID)
 print("numDefs=%s numPhases=%s" % (len(defs), list(map(lambda d: len(d.getPhases()), defs))))
@@ -76,7 +72,7 @@ for step in range(3, 6):
 traci.trafficlight.setLinkState(tlsID, 4, 'u')
 try:
     traci.trafficlight.setLinkState(tlsID, 16, 'u')
-except traci.exceptions.TraCIException as e:
+except traci.TraCIException as e:
     print("caught", e)
 check()
 traci.trafficlight.setRedYellowGreenState(tlsID, "gGyruOorrrrrrrrr")

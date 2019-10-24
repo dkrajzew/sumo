@@ -20,10 +20,8 @@
 // ===========================================================================
 #include <config.h>
 
-#include <iostream>
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/div/GUIDesigns.h>
-#include <utils/gui/images/GUIIconSubSys.h>
 #include <netedit/demandelements/GNEDemandElement.h>
 #include <netedit/GNEViewNet.h>
 #include <netedit/GNEUndoList.h>
@@ -51,7 +49,7 @@ FXIMPLEMENT_ABSTRACT(GNEDemandElementDialog, FXTopWindow, GNEDemandElementDialog
 // ===========================================================================
 
 GNEDemandElementDialog::GNEDemandElementDialog(GNEDemandElement* editedDemandElement, bool updatingElement, int width, int height) :
-    FXTopWindow(editedDemandElement->getViewNet(), ("Edit '" + editedDemandElement->getID() + "' data").c_str(), editedDemandElement->getIcon(), editedDemandElement->getIcon(), GUIDesignDialogBoxExplicit, 0, 0, width, height, 0, 0, 0, 0, 4, 4),
+    FXTopWindow(editedDemandElement->getViewNet(), ("Edit '" + editedDemandElement->getID() + "' data").c_str(), editedDemandElement->getIcon(), editedDemandElement->getIcon(), GUIDesignDialogBoxExplicit(width, height)),
     myEditedDemandElement(editedDemandElement),
     myUpdatingElement(updatingElement),
     myChangesDescription("change " + editedDemandElement->getTagStr() + " values"),

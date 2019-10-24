@@ -11,5 +11,9 @@
         <param key="device.toc.lcAbstinence" value="0.4"/>
         <param key="device.toc.initialAwareness" value="0.25"/>
         <param key="device.toc.mrmDecel" value="1.2"/>
+        <param key="device.toc.dynamicToCThreshold" value="10"/>
+        <param key="device.toc.dynamicMRMProbability" value="0.3"/>
+        <param key="device.toc.mrmKeepRight" value="true"/>
+        <param key="device.toc.maxPreparationAccel" value="1.0"/>
     </vehicle>
 </routes>

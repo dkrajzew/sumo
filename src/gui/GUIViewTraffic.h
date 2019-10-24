@@ -85,7 +85,8 @@ public:
     bool setColorScheme(const std::string& name);
 
     /// @brief recalibrate color scheme according to the current value range
-    void buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType);
+    void buildColorRainbow(const GUIVisualizationSettings& s, GUIColorScheme& scheme, int active, GUIGlObjectType objectType,
+                           bool hide = false, double hideThreshold = 0);
 
     /// @brief return list of loaded edgeData attributes
     std::vector<std::string> getEdgeDataAttrs() const;
@@ -93,8 +94,12 @@ public:
     /// @brief return list of available edge parameters
     std::vector<std::string> getEdgeLaneParamKeys(bool edgeKeys) const;
 
+    /// @brief return list of available vehicle parameters
+    std::vector<std::string> getVehicleParamKeys(bool vTypeKeys) const; 
+
     /// @brief handle mouse click in gaming mode
     void onGamingClick(Position pos);
+    void onGamingRightClick(Position pos);
 
     /// @brief get the current simulation time
     SUMOTime getCurrentTimeStep() const;
@@ -103,6 +108,9 @@ public:
     long onCmdCloseLane(FXObject*, FXSelector, void*);
     long onCmdCloseEdge(FXObject*, FXSelector, void*);
     long onCmdAddRerouter(FXObject*, FXSelector, void*);
+
+    /// @brief highlight edges according to reachability
+    long onCmdShowReachability(FXObject*, FXSelector, void*);
 
     long onDoubleClicked(FXObject*, FXSelector, void*);
 
@@ -128,6 +136,9 @@ protected:
 
 private:
     GUIGlID myTrackedID;
+
+    /// @brief whether game mode was set to 'tls'
+    bool myTLSGame;
 
 #ifdef HAVE_FFMPEG
     GUIVideoEncoder* myCurrentVideo;

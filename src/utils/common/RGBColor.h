@@ -23,7 +23,6 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#include <config.h>
 
 #include <iostream>
 #include <random>
@@ -93,6 +92,14 @@ public:
      */
     void set(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
+    /** @brief Sets a new alpha value
+     * @param[in] alpha The new value to use
+     */
+    inline void setAlpha(unsigned char alpha) {
+        myAlpha = alpha;
+    }
+
+
     /** @brief Returns a new color with altered brightness
      * @param[in] change The absolute change applied to all channels (within bounds)
      * @param[in] change The number of colors to change
@@ -150,12 +157,11 @@ public:
      */
     static RGBColor interpolate(const RGBColor& minColor, const RGBColor& maxColor, double weight);
 
-    /** @brief Converts the given hsv-triplet to rgb
+    /** @brief Converts the given hsv-triplet to rgb, inspired by http://alvyray.com/Papers/CG/hsv2rgb.htm
      * @param[in] h Hue (0-360)
      * @param[in] s Saturation (0-1)
      * @param[in] v Value (0-1)
      * @return The color as RGB
-     * @author Alvy Ray Smith (http://www.alvyray.com/default.htm)
      */
     static RGBColor fromHSV(double h, double s, double v);
 

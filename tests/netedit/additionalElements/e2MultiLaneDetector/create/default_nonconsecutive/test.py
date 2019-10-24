@@ -32,13 +32,13 @@ netedit.rebuildNetwork()
 netedit.additionalMode()
 
 # select E2
-netedit.changeAdditional("e2MultilaneDetector")
+netedit.changeElement("e2MultilaneDetector")
 
 # try to create E2 with default parameters but with non consecutive lanes
-netedit.leftClick(referencePosition, 440, 240)
-netedit.leftClick(referencePosition, 440, 210)
-netedit.leftClick(referencePosition, 190, 210)
-netedit.leftClick(referencePosition, 190, 240)
+netedit.leftClick(referencePosition, 440, 255)
+netedit.leftClick(referencePosition, 440, 225)
+netedit.leftClick(referencePosition, 190, 225)
+netedit.leftClick(referencePosition, 190, 255)
 netedit.typeEnter()
 
 # Check undo redo
@@ -46,10 +46,10 @@ netedit.undo(referencePosition, 1)
 netedit.redo(referencePosition, 1)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

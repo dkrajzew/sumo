@@ -202,7 +202,8 @@ public:
      */
     MSLane(const std::string& id, double maxSpeed, double length, MSEdge* const edge,
            int numericalID, const PositionVector& shape, double width,
-           SVCPermissions permissions, int index, bool isRampAccel);
+           SVCPermissions permissions, int index, bool isRampAccel,
+           const std::string& type);
 
 
     /// @brief Destructor
@@ -488,6 +489,11 @@ public:
         return myIsRampAccel;
     }
 
+    /// @brief return the type of this lane
+    const std::string& getLaneType() const {
+        return myLaneType;
+    }
+
     /* @brief fit the given lane position to a visibly suitable geometry position
      * (lane length might differ from geometry length) */
     inline double interpolateLanePosToGeometryPos(double lanePos) const {
@@ -500,7 +506,7 @@ public:
         return myShape.positionAtOffset(interpolateLanePosToGeometryPos(offset), lateralOffset);
     }
 
-    /* @brief fit the given geomtry position to a valid lane position
+    /* @brief fit the given geometry position to a valid lane position
      * (lane length might differ from geometry length) */
     inline double interpolateGeometryPosToLanePos(double geometryPos) const {
         return geometryPos / myLengthGeometryFactor;
@@ -510,7 +516,7 @@ public:
      * @param[in] The vehicle to return the adapted speed limit for
      * @return This lane's resulting max. speed
      */
-    inline double getVehicleMaxSpeed(const SUMOVehicle* const veh) const {
+    inline double getVehicleMaxSpeed(const SUMOTrafficObject* const veh) const {
         if (myRestrictions != 0) {
             std::map<SUMOVehicleClass, double>::const_iterator r = myRestrictions->find(veh->getVClass());
             if (r != myRestrictions->end()) {
@@ -786,7 +792,7 @@ public:
     /** @brief Returns the lane with the given offset parallel to this one or 0 if it does not exist
      * @param[in] offset The offset of the result lane
      */
-    MSLane* getParallelLane(int offset) const;
+    MSLane* getParallelLane(int offset, bool includeOpposite = true) const;
 
 
     /** @brief Sets the permissions to the given value. If a transientID is given, the permissions are recored as temporary
@@ -935,6 +941,11 @@ public:
      * The result is cached in myLogicalPredecessorLane
      */
     MSLane* getLogicalPredecessorLane() const;
+
+    /** @brief get normal lane leading to this internal lane, for normal lanes,
+     * the lane itself is returned
+     */
+    const MSLane* getNormalPredecessorLane() const;
 
     /** @brief return the (first) predecessor lane from the given edge
      */
@@ -1119,6 +1130,12 @@ public:
         return false;
     }
 
+    /// @brief retrieve bidirectional lane or nullptr
+    MSLane* getBidiLane() const;
+
+    /// @brief whether this lane must check for junction collisions
+    bool mustCheckJunctionCollisions() const;
+
 #ifdef HAVE_FOX
     FXWorkerThread::Task* getPlanMoveTask(const SUMOTime time) {
         mySimulationTask.init(&MSLane::planMovements, time);
@@ -1130,13 +1147,13 @@ public:
         return &mySimulationTask;
     }
 
-    void changeLanes(const SUMOTime time);
-
     FXWorkerThread::Task* getLaneChangeTask(const SUMOTime time) {
         mySimulationTask.init(&MSLane::changeLanes, time);
         return &mySimulationTask;
     }
 #endif
+
+    void changeLanes(const SUMOTime time);
 
     /// @name State saving/loading
     /// @{
@@ -1374,6 +1391,9 @@ protected:
     /// @brief whether this lane is an acceleration lane
     const bool myIsRampAccel;
 
+    /// @brief the type of this lane
+    const std::string myLaneType;
+
     /// @brief the combined width of all lanes with lower index on myEdge
     double myRightSideOnEdge;
     /// @brief the index of the rightmost sublane of this lane on myEdge
@@ -1554,7 +1574,7 @@ private:
             }
         }
     private:
-        Operation myOperation;
+        Operation myOperation = nullptr;
         MSLane& myLane;
         SUMOTime myTime;
     private:

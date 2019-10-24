@@ -11,7 +11,7 @@ AM_INIT_AUTOMAKE([foreign dist-zip tar-ustar])
 
 AC_LANG([C++])
 
-# avoiding warnings on ubuntu 16.04, there seem to be two variants of the ARFLAGS, one for automake, one for libttol
+# avoiding warnings on ubuntu 16.04, there seem to be two variants of the ARFLAGS, one for automake, one for libtool
 ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 AR_FLAGS=cr
@@ -72,6 +72,7 @@ AM_PROG_LIBTOOL
 
 AC_DEFINE([POSITION_EPS], [0.1], [defines the epsilon to use on position comparison])
 AC_DEFINE([NUMERICAL_EPS], [0.001], [defines the epsilon to use on general floating point comparison])
+AC_DEFINE([FOX_CONSTRUCTOR(classname)], [classname() {}], [Constructor needed by Fox classes])
 
 AM_CONDITIONAL([WITH_VERSION_H], test -d .git)
 if test -d .git || test x$PACKAGE_VERSION == xgit -a -f src/version.h; then
@@ -208,7 +209,7 @@ else
 fi
 fi
 if test x"$with_proj_includes" != x && test x"$PROJ_LDFLAGS" != x; then
-   AC_DEFINE([HAVE_PROJ], [1], [defined if PROJ is available])
+   AC_DEFINE([PROJ_API_FILE], ["proj_api.h"], [defined if PROJ is available])
    ac_enabled="$ac_enabled PROJ"
 else
    ac_disabled="$ac_disabled PROJ"
@@ -532,3 +533,5 @@ AC_MSG_RESULT([Optional features summary])
 AC_MSG_RESULT([-------------------------])
 AC_MSG_RESULT([Enabled:$ac_enabled])
 AC_MSG_RESULT([Disabled:$ac_disabled])
+AC_MSG_WARN([Please note that using the autotools process (configure && make) is considered deprecated and does not support the libsumo build.])
+AC_MSG_WARN([You should strongly consider using cmake.])

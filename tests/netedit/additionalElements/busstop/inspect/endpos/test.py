@@ -29,10 +29,10 @@ neteditProcess, referencePosition = netedit.setupAndStart(neteditTestRoot, ['--g
 netedit.additionalMode()
 
 # select busStop
-netedit.changeAdditional("busStop")
+netedit.changeElement("busStop")
 
 # change reference to center
-netedit.modifyAdditionalDefaultValue(6, "reference center")
+netedit.changeDefaultValue(8, "reference center")
 
 # create busStop in mode "reference center"
 netedit.leftClick(referencePosition, 250, 170)
@@ -44,26 +44,26 @@ netedit.inspectMode()
 netedit.leftClick(referencePosition, 250, 190)
 
 # Change parameter endpos with a valid value (empty)
-netedit.modifyAttribute(4, "", True)
+netedit.modifyAttribute(3, "", True)
 
 # Change parameter endpos with a valid value (> lanelenght)
-netedit.modifyAttribute(4, "5000", True)
+netedit.modifyAttribute(3, "5000", True)
 
 # Change parameter endpos with a non valid value (< startPos)
-netedit.modifyAttribute(4, "2", True)
+netedit.modifyAttribute(3, "2", True)
 
 # Change parameter endpos with a valid value
-netedit.modifyAttribute(4, "30", True)
+netedit.modifyAttribute(3, "30", True)
 
 # Check undos and redos
 netedit.undo(referencePosition, 4)
 netedit.redo(referencePosition, 4)
 
 # save additionals
-netedit.saveAdditionals()
+netedit.saveAdditionals(referencePosition)
 
 # save network
-netedit.saveNetwork()
+netedit.saveNetwork(referencePosition)
 
 # quit netedit
 netedit.quit(neteditProcess)

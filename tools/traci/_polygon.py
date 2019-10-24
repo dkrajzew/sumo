@@ -134,11 +134,38 @@ class PolygonDomain(Domain):
         self._connection._string += struct.pack("!Bd", tc.TYPE_DOUBLE, lineWidth)
         self._connection._sendExact()
 
+    def addDynamics(self, polygonID, trackedObjectID="", timeSpan=(), alphaSpan=(), looped=False, rotate=True):
+        """ addDynamics(string, string, list(float), list(float), bool) -> void
+            polygonID - ID of the polygon, upon which the specified dynamics shall act
+            trackedObjectID - ID of a SUMO traffic object, which shall be tracked by the polygon
+            timeSpan - list of time points for timing the animation keyframes (must start with element zero)
+                       If it has length zero, no animation is taken into account.
+            alphaSpan - list of alpha values to be attained at keyframes intermediate values are
+                        obtained by linear interpolation. Must have length equal to timeSpan, or zero
+                        if no alpha animation is desired.
+            looped - Whether the animation should restart when the last keyframe is reached. In that case
+                     the animation jumps to the first keyframe as soon as the last is reached.
+                     If looped==false, the controlled polygon is removed as soon as the timeSpan elapses.
+            rotate - Whether, the polygon should be rotated with the tracked object (only applies when such is given)
+                     The center of rotation is the object's position.
+        """
+        msg_length = 1 + 4 \
+            + 1 + 4 + len(trackedObjectID) \
+            + 1 + 4 + len(timeSpan)*8 \
+            + 1 + 4 + len(alphaSpan)*8 \
+            + 1 + 1 \
+            + 1 + 1
+        self._connection._beginMessage(tc.CMD_SET_POLYGON_VARIABLE, tc.VAR_ADD_DYNAMICS, polygonID, msg_length)
+        self._connection._string += struct.pack("!Bi", tc.TYPE_COMPOUND, 5)
+        self._connection._packString(trackedObjectID)
+        self._connection._packDoubleList(timeSpan)
+        self._connection._packDoubleList(alphaSpan)
+        self._connection._string += struct.pack("!BB", tc.TYPE_UBYTE, looped)
+        self._connection._string += struct.pack("!BB", tc.TYPE_UBYTE, rotate)
+        self._connection._sendExact()
+
     def remove(self, polygonID, layer=0):
         self._connection._beginMessage(
             tc.CMD_SET_POLYGON_VARIABLE, tc.REMOVE, polygonID, 1 + 4)
         self._connection._string += struct.pack("!Bi", tc.TYPE_INTEGER, layer)
         self._connection._sendExact()
-
-
-PolygonDomain()
