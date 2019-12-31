@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Thu, 02.11.2006
-/// @version $Id$
 ///
 // A reader for a SUMO network's projection description
 /****************************************************************************/
@@ -60,8 +59,7 @@ PCNetProjectionLoader::load(const std::string& file, double scale) {
     PCNetProjectionLoader handler(scale);
     handler.setFileName(file);
     SUMOSAXReader* parser = XMLSubSys::getSAXReader(handler);
-    const long before = SysUtils::getCurrentMillis();
-    PROGRESS_BEGIN_MESSAGE("Parsing network projection from '" + file + "'");
+    const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing network projection from '" + file + "'");
     if (!parser->parseFirst(file)) {
         delete parser;
         throw ProcessError("Can not read XML-file '" + handler.getFileName() + "'.");
@@ -75,7 +73,6 @@ PCNetProjectionLoader::load(const std::string& file, double scale) {
     }
     delete parser;
 }
-
 
 
 // ---------------------------------------------------------------------------

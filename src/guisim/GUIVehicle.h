@@ -13,7 +13,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // A MSVehicle extended by some values for usage within the gui
 /****************************************************************************/
@@ -86,7 +85,7 @@ public:
     /** @brief Draws the route
      * @param[in] r The route to draw
      */
-    void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future) const;
+    void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future, const RGBColor& col) const;
 
     void drawAction_drawVehicleBlinker(double length) const;
     void drawAction_drawVehicleBrakeLight(double length, bool onlyOne = false) const;
@@ -174,7 +173,7 @@ private:
      * @param[in] current The lane of which the predecessor should be returned
      * @param[in,out] routeIndex The index of the current or previous non-internal edge in the route
      */
-    MSLane* getPreviousLane(MSLane* current, int& routeIndex) const;
+    MSLane* getPreviousLane(MSLane* current, int& furtherIndex) const;
 
     /// @brief retrieve information about the current stop state
     std::string getStopInfo() const;

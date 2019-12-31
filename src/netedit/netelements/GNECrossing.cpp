@@ -10,7 +10,6 @@
 /// @file    GNECrossing.cpp
 /// @author  Jakob Erdmann
 /// @date    June 2011
-/// @version $Id$
 ///
 // A class for visualizing Inner Lanes (used when editing traffic lights)
 /****************************************************************************/
@@ -56,18 +55,29 @@ GNECrossing::generateChildID(SumoXMLTag /*childTag*/) {
 }
 
 
+const PositionVector&
+GNECrossing::getCrossingShape() const {
+    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    if (crossing) {
+        return (crossing->customShape.size() > 0) ? crossing->customShape : crossing->shape;
+    } else {
+        throw ProcessError("Crossing doesn't exist");
+    }
+}
+
+
 void
 GNECrossing::updateGeometry() {
-    // first clear geometry
-    myGeometry.clearGeometry();
     // rebuild crossing and walking areas form node parent
     auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
     // obtain shape
-    myGeometry.shape = crossing->customShape.size() > 0 ?  crossing->customShape : crossing->shape;
+    myCrossingGeometry.updateGeometryShape(crossing->customShape.size() > 0 ?  crossing->customShape : crossing->shape);
+    /*
     // only rebuild shape if junction's shape isn't in Buuble mode
     if (myParentJunction->getNBNode()->getShape().size() > 0) {
-        myGeometry.calculateShapeRotationsAndLengths();
+        myCrossingGeometry.calculateShapeRotationsAndLengths();
     }
+    */
 }
 
 
@@ -100,8 +110,8 @@ void
 GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
     // only draw if option drawCrossingsAndWalkingareas is enabled and size of shape is greather than 0 and zoom is close enough
     if (s.drawCrossingsAndWalkingareas &&
-            (myGeometry.shapeRotations.size() > 0) &&
-            (myGeometry.shapeLengths.size() > 0) &&
+            (myCrossingGeometry.getShapeRotations().size() > 0) &&
+            (myCrossingGeometry.getShapeLengths().size() > 0) &&
             (s.scale > 3.0)) {
         auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
         if (myNet->getViewNet()->getEditModes().networkEditMode != GNE_NMODE_TLS) {
@@ -131,15 +141,15 @@ GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
             glPushMatrix();
             // draw on top of of the white area between the rails
             glTranslated(0, 0, 0.1);
-            for (int i = 0; i < (int)myGeometry.shape.size() - 1; ++i) {
+            for (int i = 0; i < (int)myCrossingGeometry.getShape().size() - 1; ++i) {
                 // push three draw matrix
                 glPushMatrix();
                 // translate and rotate
-                glTranslated(myGeometry.shape[i].x(), myGeometry.shape[i].y(), 0.0);
-                glRotated(myGeometry.shapeRotations[i], 0, 0, 1);
+                glTranslated(myCrossingGeometry.getShape()[i].x(), myCrossingGeometry.getShape()[i].y(), 0.0);
+                glRotated(myCrossingGeometry.getShapeRotations()[i], 0, 0, 1);
                 // draw crossing depending if isn't being drawn for selecting
-                if (!s.drawForSelecting) {
-                    for (double t = 0; t < myGeometry.shapeLengths[i]; t += spacing) {
+                if (!s.drawForRectangleSelection) {
+                    for (double t = 0; t < myCrossingGeometry.getShapeLengths()[i]; t += spacing) {
                         glBegin(GL_QUADS);
                         glVertex2d(-halfWidth, -t);
                         glVertex2d(-halfWidth, -t - length);
@@ -151,8 +161,8 @@ GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
                     // only draw a single rectangle if it's being drawn only for selecting
                     glBegin(GL_QUADS);
                     glVertex2d(-halfWidth, 0);
-                    glVertex2d(-halfWidth, -myGeometry.shapeLengths.back());
-                    glVertex2d(halfWidth, -myGeometry.shapeLengths.back());
+                    glVertex2d(-halfWidth, -myCrossingGeometry.getShapeLengths().back());
+                    glVertex2d(halfWidth, -myCrossingGeometry.getShapeLengths().back());
                     glVertex2d(halfWidth, 0);
                     glEnd();
                 }
@@ -169,12 +179,12 @@ GNECrossing::drawGL(const GUIVisualizationSettings& s) const {
             glPopMatrix();
         }
         // link indices must be drawn in all edit modes if isn't being drawn for selecting
-        if (s.drawLinkTLIndex.show && !s.drawForSelecting) {
+        if (s.drawLinkTLIndex.show && !s.drawForRectangleSelection) {
             drawTLSLinkNo(s);
         }
         // check if dotted contour has to be drawn
         if (myNet->getViewNet()->getDottedAC() == this) {
-            GLHelper::drawShapeDottedContourAroundShape(s, getType(), myGeometry.shape, crossing->width * 0.5);
+            GLHelper::drawShapeDottedContourAroundShape(s, getType(), myCrossingGeometry.getShape(), crossing->width * 0.5);
         }
     }
 }
@@ -206,13 +216,15 @@ GNECrossing::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     buildShowParamsPopupEntry(ret);
     // build position copy entry
     buildPositionCopyEntry(ret, false);
-    // create menu commands
-    FXMenuCommand* mcCustomShape = new FXMenuCommand(ret, "Set custom crossing shape", nullptr, &parent, MID_GNE_CROSSING_EDIT_SHAPE);
-    // check if menu commands has to be disabled
-    NetworkEditMode editMode = myNet->getViewNet()->getEditModes().networkEditMode;
-    const bool wrongMode = (editMode == GNE_NMODE_CONNECT || editMode == GNE_NMODE_TLS || editMode == GNE_NMODE_CREATE_EDGE);
-    if (wrongMode) {
-        mcCustomShape->disable();
+    // check if we're in supermode network
+    if (myNet->getViewNet()->getEditModes().currentSupermode == GNE_SUPERMODE_NETWORK) {
+        // create menu commands
+        FXMenuCommand* mcCustomShape = new FXMenuCommand(ret, "Set custom crossing shape", nullptr, &parent, MID_GNE_CROSSING_EDIT_SHAPE);
+        // check if menu commands has to be disabled
+        NetworkEditMode editMode = myNet->getViewNet()->getEditModes().networkEditMode;
+        if ((editMode == GNE_NMODE_CONNECT) || (editMode == GNE_NMODE_TLS) || (editMode == GNE_NMODE_CREATE_EDGE)) {
+            mcCustomShape->disable();
+        }
     }
     return ret;
 }
@@ -220,7 +232,21 @@ GNECrossing::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
 
 Boundary
 GNECrossing::getCenteringBoundary() const {
-    throw ProcessError("Crossings doesn't have a boundary");
+    Boundary b;
+    auto crossing = myParentJunction->getNBNode()->getCrossing(myCrossingEdges);
+    if (crossing) {
+        if (crossing->customShape.size() > 0) {
+            b = crossing->customShape.getBoxBoundary();
+        } else if (crossing->shape.size() > 0) {
+            b = crossing->shape.getBoxBoundary();
+        } else {
+            return myParentJunction->getCenteringBoundary();
+        }
+        b.grow(10);
+        return b;
+    }
+    // in other case return boundary of parent junction
+    return myParentJunction->getCenteringBoundary();
 }
 
 
@@ -281,7 +307,7 @@ GNECrossing::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList
 }
 
 
-bool 
+bool
 GNECrossing::isAttributeEnabled(SumoXMLAttr key) const {
     switch (key) {
         case SUMO_ATTR_ID:

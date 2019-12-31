@@ -16,7 +16,6 @@
 /// @author  Jakob Erdmann
 /// @author  Leonhard Luecken
 /// @date    Mon Feb 03 2014 14:13 CET
-/// @version $Id$
 ///
 // An areal detector covering to a sequence of consecutive lanes
 /****************************************************************************/
@@ -37,6 +36,7 @@
 #include <microsim/output/MSDetectorFileOutput.h>
 #include <utils/common/UtilExceptions.h>
 #include <cassert>
+
 
 // ===========================================================================
 // class declarations
@@ -509,7 +509,7 @@ public:
     /** @brief Returns an estimate of the number of vehicles currently on the detector */
     int getEstimatedCurrentVehicleNumber(double speedThreshold) const;
 
-    /** @brief Returns an estimate of the lenght of the queue of vehicles currently stopped on the detector */
+    /** @brief Returns an estimate of the length of the queue of vehicles currently stopped on the detector */
     double getEstimateQueueLength() const;
     /// @}
 

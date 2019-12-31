@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Mon, 25.07.2005
-/// @version $Id$
 ///
 // Reroutes vehicles passing an edge (gui-version)
 /****************************************************************************/
@@ -124,11 +123,21 @@ public:
     GUIManipulator* openManipulator(GUIMainWindow& app,
                                     GUISUMOAbstractView& parent);
 
+    /// @brief shit route probabilities
+    void shiftProbs();
+
 public:
+
+    enum RerouterEdgeType {
+        REROUTER_TRIGGER_EDGE,
+        REROUTER_CLOSED_EDGE,
+        REROUTER_SWITCH_EDGE
+    };
+
     class GUITriggeredRerouterEdge : public GUIGlObject {
 
     public:
-        GUITriggeredRerouterEdge(GUIEdge* edge, GUITriggeredRerouter* parent, bool closed);
+        GUITriggeredRerouterEdge(GUIEdge* edge, GUITriggeredRerouter* parent, RerouterEdgeType edgeType, int distIndex = -1);
 
         virtual ~GUITriggeredRerouterEdge();
 
@@ -170,6 +179,16 @@ public:
          * @see GUIGlObject::drawGL
          */
         void drawGL(const GUIVisualizationSettings& s) const;
+
+        void onLeftBtnPress(void* data);
+
+        RerouterEdgeType getRerouterEdgeType() const {
+            return myEdgeType;
+        }
+
+        const MSEdge* getEdge() const {
+            return myEdge;
+        }
         //@}
 
     private:
@@ -187,7 +206,7 @@ public:
         MSEdge* myEdge;
 
         /// whether this edge instance visualizes a closed edge
-        const bool myAmClosedEdge;
+        const RerouterEdgeType myEdgeType;
 
         /// The positions in full-geometry mode
         PosCont myFGPositions;
@@ -197,6 +216,9 @@ public:
 
         /// The boundary of this rerouter
         Boundary myBoundary;
+
+        /// @brief the index for this in edge in routeProbs
+        int myDistIndex;
     };
 
 public:
@@ -226,6 +248,7 @@ public:
             MID_PRE_DEF,
             MID_OPTION,
             MID_CLOSE,
+            MID_SHIFT_PROBS,
             ID_LAST
         };
         /// Constructor
@@ -241,6 +264,7 @@ public:
         long onCmdUserDef(FXObject*, FXSelector, void*);
         long onUpdUserDef(FXObject*, FXSelector, void*);
         long onCmdChangeOption(FXObject*, FXSelector, void*);
+        long onCmdShiftProbs(FXObject*, FXSelector, void*);
 
     private:
         GUIMainWindow* myParent;
@@ -269,6 +293,7 @@ private:
 
     std::vector<GUITriggeredRerouterEdge*> myEdgeVisualizations;
 
+    int myShiftProbDistIndex;
 };
 
 

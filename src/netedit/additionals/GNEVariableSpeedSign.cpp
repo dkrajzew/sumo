@@ -10,7 +10,6 @@
 /// @file    GNEVariableSpeedSign.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Nov 2015
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -38,7 +37,7 @@
 
 GNEVariableSpeedSign::GNEVariableSpeedSign(const std::string& id, GNEViewNet* viewNet, const Position& pos, const std::vector<GNELane*>& lanes, const std::string& name, bool blockMovement) :
     GNEAdditional(id, viewNet, GLO_VSS, SUMO_TAG_VSS, name, blockMovement, {}, {}, {}, {}, {}, {}, lanes, {}, {}, {}),
-    myPosition(pos) {
+myPosition(pos) {
 }
 
 
@@ -79,6 +78,12 @@ GNEVariableSpeedSign::getCenteringBoundary() const {
         b.grow(5);
         return b;
     }
+}
+
+
+void
+GNEVariableSpeedSign::splitEdgeGeometry(const double /*splitPosition*/, const GNENetElement* /*originalElement*/, const GNENetElement* /*newElement*/, GNEUndoList* /*undoList*/) {
+    // geometry of this element cannot be splitted
 }
 
 
@@ -133,7 +138,7 @@ GNEVariableSpeedSign::drawGL(const GUIVisualizationSettings& s) const {
         // scale
         glScaled(exaggeration, exaggeration, 1);
         // Draw icon depending of variable speed sign is or if isn't being drawn for selecting
-        if (!s.drawForSelecting && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
+        if (!s.drawForRectangleSelection && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
             glColor3d(1, 1, 1);
             glRotated(180, 0, 0, 1);
             if (drawUsingSelectColor()) {
@@ -153,7 +158,7 @@ GNEVariableSpeedSign::drawGL(const GUIVisualizationSettings& s) const {
         // Draw child connections
         drawChildConnections(s, getType());
         // Draw name if isn't being drawn for selecting
-        if (!s.drawForSelecting) {
+        if (!s.drawForRectangleSelection) {
             drawName(getPositionInView(), s.scale, s.addName);
         }
         // check if dotted contour has to be drawn
@@ -176,7 +181,7 @@ GNEVariableSpeedSign::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_LANES:
-            return parseIDs(getLaneChildren());
+            return parseIDs(getChildLanes());
         case SUMO_ATTR_POSITION:
             return toString(myPosition);
         case SUMO_ATTR_NAME:
@@ -193,7 +198,7 @@ GNEVariableSpeedSign::getAttribute(SumoXMLAttr key) const {
 }
 
 
-double 
+double
 GNEVariableSpeedSign::getAttributeDouble(SumoXMLAttr key) const {
     throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
 }
@@ -209,7 +214,7 @@ GNEVariableSpeedSign::setAttribute(SumoXMLAttr key, const std::string& value, GN
             // change ID of Rerouter Interval
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             // Change Ids of all Variable Speed Sign
-            for (auto i : getAdditionalChildren()) {
+            for (auto i : getChildAdditionals()) {
                 i->setAttribute(SUMO_ATTR_ID, generateChildID(SUMO_TAG_STEP), undoList);
             }
             break;
@@ -255,7 +260,7 @@ GNEVariableSpeedSign::isValid(SumoXMLAttr key, const std::string& value) {
 }
 
 
-bool 
+bool
 GNEVariableSpeedSign::isAttributeEnabled(SumoXMLAttr /* key */) const {
     return true;
 }
@@ -283,7 +288,7 @@ GNEVariableSpeedSign::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_LANES:
-            changeLaneChildren(this, value);
+            changeChildLanes(this, value);
             break;
         case SUMO_ATTR_POSITION:
             myViewNet->getNet()->removeGLObjectFromGrid(this);

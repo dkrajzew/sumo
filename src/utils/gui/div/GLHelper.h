@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // Some methods which help to draw certain geometrical objects in openGL
 /****************************************************************************/
@@ -337,7 +336,7 @@ public:
     static void drawCrossTies(const PositionVector& geom,
                               const std::vector<double>& rots,
                               const std::vector<double>& lengths,
-                              double length, double spacing, double halfWidth, bool drawForSelecting);
+                              double length, double spacing, double halfWidth, bool drawForRectangleSelection);
 
     /// @brief draw vertex numbers for the given shape (in a random color)
     static void debugVertices(const PositionVector& shape, double size, double layer = 256);

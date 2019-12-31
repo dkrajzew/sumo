@@ -13,7 +13,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // A MSVehicle extended by some values for usage within the gui
 /****************************************************************************/
@@ -100,7 +99,7 @@ public:
     /** @brief Draws the route
      * @param[in] r The route to draw
      */
-    void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future) const;
+    void drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r, bool future, const RGBColor& col) const;
 
     /// @brief retrieve information about the current stop state
     std::string getStopInfo() const;

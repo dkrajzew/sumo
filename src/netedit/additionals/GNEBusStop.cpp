@@ -10,7 +10,6 @@
 /// @file    GNEBusStop.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Nov 2015
-/// @version $Id$
 ///
 // A lane area vehicles can halt at (GNE version)
 /****************************************************************************/
@@ -39,8 +38,8 @@
 // method definitions
 // ===========================================================================
 
-GNEBusStop::GNEBusStop(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const double startPos, const double endPos, const int parametersSet, 
-    const std::string& name, const std::vector<std::string>& lines, int personCapacity, bool friendlyPosition, bool blockMovement) :
+GNEBusStop::GNEBusStop(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const double startPos, const double endPos, const int parametersSet,
+                       const std::string& name, const std::vector<std::string>& lines, int personCapacity, bool friendlyPosition, bool blockMovement) :
     GNEStoppingPlace(id, viewNet, GLO_BUS_STOP, SUMO_TAG_BUS_STOP, lane, startPos, endPos, parametersSet, name, friendlyPosition, blockMovement),
     myLines(lines),
     myPersonCapacity(personCapacity) {
@@ -56,10 +55,10 @@ GNEBusStop::updateGeometry() {
     double offsetSign = OptionsCont::getOptions().getBool("lefthand") ? -1 : 1;
 
     // Update common geometry of stopping place
-    setStoppingPlaceGeometry(getLaneParents().front()->getParentEdge().getNBEdge()->getLaneWidth(getLaneParents().front()->getIndex()) / 2);
+    setStoppingPlaceGeometry(getParentLanes().front()->getParentEdge()->getNBEdge()->getLaneWidth(getParentLanes().front()->getIndex()) / 2);
 
     // Obtain a copy of the shape
-    PositionVector tmpShape = myGeometry.shape;
+    PositionVector tmpShape = myAdditionalGeometry.getShape();
 
     // Move shape to side
     tmpShape.move2side(1.5 * offsetSign);
@@ -68,21 +67,36 @@ GNEBusStop::updateGeometry() {
     mySignPos = tmpShape.getLineCenter();
 
     // Set block icon position
-    myBlockIcon.position = myGeometry.shape.getLineCenter();
+    myBlockIcon.position = myAdditionalGeometry.getShape().getLineCenter();
 
     // Set block icon rotation, and using their rotation for sign
-    myBlockIcon.setRotation(getLaneParents().front());
+    myBlockIcon.setRotation(getParentLanes().front());
 
-    // update demand element children (GNEStops)
-    for (const auto& i : getDemandElementChildren()) {
-        i->updateGeometry();
+    // obtain parent edge
+    const GNEEdge* edge = getParentLanes().front()->getParentEdge();
+
+    // update child demand elements geometry
+    for (const auto& i : getChildDemandElements()) {
+        // special case for person trips
+        if (i->getTagProperty().isPersonTrip()) {
+            // update previous and next person plan
+            GNEDemandElement* previousDemandElement = i->getParentDemandElements().front()->getPreviousChildDemandElement(i);
+            if (previousDemandElement) {
+                previousDemandElement->updatePartialGeometry(edge);
+            }
+            GNEDemandElement* nextDemandElement = i->getParentDemandElements().front()->getNextChildDemandElement(i);
+            if (nextDemandElement) {
+                nextDemandElement->updatePartialGeometry(edge);
+            }
+        }
+        i->updatePartialGeometry(edge);
     }
 }
 
 
 Boundary
 GNEBusStop::getCenteringBoundary() const {
-    return myGeometry.shape.getBoxBoundary().grow(10);
+    return myAdditionalGeometry.getShape().getBoxBoundary().grow(10);
 }
 
 
@@ -107,9 +121,9 @@ GNEBusStop::drawGL(const GUIVisualizationSettings& s) const {
             GLHelper::setColor(s.colorSettings.busStop);
         }
         // Draw the area using shape, shapeRotations, shapeLengths and value of exaggeration
-        GLHelper::drawBoxLines(myGeometry.shape, myGeometry.shapeRotations, myGeometry.shapeLengths, exaggeration);
+        GNEGeometry::drawGeometry(myViewNet, myAdditionalGeometry, exaggeration);
         // Check if the distance is enought to draw details and if is being drawn for selecting
-        if (s.drawForSelecting) {
+        if (s.drawForRectangleSelection) {
             // only draw circle depending of distance between sign and mouse cursor
             if (myViewNet->getPositionInformation().distanceSquaredTo2D(mySignPos) <= (myCircleWidthSquared + 2)) {
                 // Add a draw matrix for details
@@ -127,13 +141,14 @@ GNEBusStop::drawGL(const GUIVisualizationSettings& s) const {
             }
         } else if (s.drawDetail(s.detailSettings.stoppingPlaceDetails, exaggeration)) {
             // draw lines between BusStops and Acces
-            for (auto i : getAdditionalChildren()) {
-                GLHelper::drawBoxLine(i->getShape()[0], RAD2DEG(mySignPos.angleTo2D(i->getShape()[0])) - 90, mySignPos.distanceTo2D(i->getShape()[0]), .05);
+            for (auto i : getChildAdditionals()) {
+                GLHelper::drawBoxLine(i->getAdditionalGeometry().getPosition(),
+                                      RAD2DEG(mySignPos.angleTo2D(i->getAdditionalGeometry().getPosition())) - 90, mySignPos.distanceTo2D(i->getAdditionalGeometry().getPosition()), .05);
             }
             // Add a draw matrix for details
             glPushMatrix();
             // draw lines depending of detailSettings
-            if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration)) {
+            if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration) && !s.drawForPositionSelection) {
                 // Iterate over every line
                 for (int i = 0; i < (int)myLines.size(); ++i) {
                     // push a new matrix for every line
@@ -174,7 +189,7 @@ GNEBusStop::drawGL(const GUIVisualizationSettings& s) const {
             // draw another circle in the same position, but a little bit more small
             GLHelper::drawFilledCircle(myCircleInWidth, s.getCircleResolution());
             // draw H depending of detailSettings
-            if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration)) {
+            if (s.drawDetail(s.detailSettings.stoppingPlaceText, exaggeration) && !s.drawForPositionSelection) {
                 if (drawUsingSelectColor()) {
                     GLHelper::drawText("H", Position(), .1, myCircleInText, s.colorSettings.selectedAdditionalColor, myBlockIcon.rotation);
                 } else {
@@ -190,17 +205,17 @@ GNEBusStop::drawGL(const GUIVisualizationSettings& s) const {
         glPopMatrix();
         // Draw name if isn't being drawn for selecting
         drawName(getPositionInView(), s.scale, s.addName);
-        if (s.addFullName.show && (myAdditionalName != "") && !s.drawForSelecting) {
+        if (s.addFullName.show && (myAdditionalName != "") && !s.drawForRectangleSelection && !s.drawForPositionSelection) {
             GLHelper::drawText(myAdditionalName, mySignPos, GLO_MAX - getType(), s.addFullName.scaledSize(s.scale), s.addFullName.color, myBlockIcon.rotation);
         }
         // check if dotted contour has to be drawn
         if (myViewNet->getDottedAC() == this) {
-            GLHelper::drawShapeDottedContourAroundShape(s, getType(), myGeometry.shape, exaggeration);
+            GLHelper::drawShapeDottedContourAroundShape(s, getType(), myAdditionalGeometry.getShape(), exaggeration);
         }
         // Pop name
         glPopName();
-        // draw demand element children
-        for (const auto& i : getDemandElementChildren()) {
+        // draw child demand elements
+        for (const auto& i : getChildDemandElements()) {
             if (!i->getTagProperty().isPlacedInRTree()) {
                 i->drawGL(s);
             }
@@ -215,7 +230,7 @@ GNEBusStop::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_LANE:
-            return getLaneParents().front()->getID();
+            return getParentLanes().front()->getID();
         case SUMO_ATTR_STARTPOS:
             if (myParametersSet & STOPPINGPLACE_STARTPOS_SET) {
                 return toString(myStartPosition);
@@ -258,7 +273,7 @@ GNEBusStop::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList*
             // change ID of BusStop
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             // Change Ids of all Acces children
-            for (auto i : getAdditionalChildren()) {
+            for (auto i : getChildAdditionals()) {
                 i->setAttribute(SUMO_ATTR_ID, generateChildID(SUMO_TAG_ACCESS), undoList);
             }
             break;
@@ -296,7 +311,7 @@ GNEBusStop::isValid(SumoXMLAttr key, const std::string& value) {
             if (value.empty()) {
                 return true;
             } else if (canParse<double>(value)) {
-                return SUMORouteHandler::isStopPosValid(parse<double>(value), myEndPosition, getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, myFriendlyPosition);
+                return SUMORouteHandler::isStopPosValid(parse<double>(value), myEndPosition, getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength(), POSITION_EPS, myFriendlyPosition);
             } else {
                 return false;
             }
@@ -304,7 +319,7 @@ GNEBusStop::isValid(SumoXMLAttr key, const std::string& value) {
             if (value.empty()) {
                 return true;
             } else if (canParse<double>(value)) {
-                return SUMORouteHandler::isStopPosValid(myStartPosition, parse<double>(value), getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength(), POSITION_EPS, myFriendlyPosition);
+                return SUMORouteHandler::isStopPosValid(myStartPosition, parse<double>(value), getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength(), POSITION_EPS, myFriendlyPosition);
             } else {
                 return false;
             }
@@ -327,12 +342,6 @@ GNEBusStop::isValid(SumoXMLAttr key, const std::string& value) {
     }
 }
 
-
-bool 
-GNEBusStop::isAttributeEnabled(SumoXMLAttr /* key */) const {
-    return true;
-}
-
 // ===========================================================================
 // private
 // ===========================================================================
@@ -344,7 +353,7 @@ GNEBusStop::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_LANE:
-            changeLaneParents(this, value);
+            replaceParentLanes(this, value);
             break;
         case SUMO_ATTR_STARTPOS:
             if (!value.empty()) {

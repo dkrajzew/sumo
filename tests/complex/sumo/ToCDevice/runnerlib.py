@@ -14,7 +14,6 @@
 # @author  Jakob Erdmann
 # @author  Leonhard Luecken
 # @date    2009-03-26
-# @version $Id$
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -37,7 +36,7 @@ def requestToC(vehID, timeTillMRM):
     traci.vehicle.setParameter(vehID, "device.toc.requestToC", str(timeTillMRM))
 
 
-def printToCParams(vehID, only_dynamic=False, extra=False):
+def printToCParams(vehID, only_dynamic=False, extra=False, add=None):
     currentAwareness = traci.vehicle.getParameter(vehID, "device.toc.currentAwareness")
     state = traci.vehicle.getParameter(vehID, "device.toc.state")
     speed = traci.vehicle.getSpeed(vehID)
@@ -51,6 +50,8 @@ def printToCParams(vehID, only_dynamic=False, extra=False):
         if extra:
             params += ["lcAbstinence", "dynamicToCThreshold", "dynamicMRMProbability",
                        "mrmKeepRight", "maxPreparationAccel"]
+        if add is not None:
+            params += add
         for p in params:
             print("  %s = %s" % (p, traci.vehicle.getParameter(vehID, "device.toc." + p)))
         print("Dynamic parameters:")

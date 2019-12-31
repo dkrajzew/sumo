@@ -14,7 +14,6 @@
 /// @author  Walter Bamberger
 /// @author  Gregor Laemmel
 /// @date    Mon, 14.04.2008
-/// @version $Id$
 ///
 // Importer for networks stored in OpenStreetMap format
 /****************************************************************************/
@@ -212,8 +211,7 @@ NIImporter_OpenStreetMap::load(const OptionsCont& oc, NBNetBuilder& nb) {
         Edge* e = myEdge.second;
         assert(e->myCurrentIsRoad);
         if (e->myCurrentNodes.size() < 2) {
-            WRITE_WARNING("Discarding way '" + toString(e->id) + "' because it has only " +
-                          toString(e->myCurrentNodes.size()) + " node(s)");
+            WRITE_WARNINGF("Discarding way '%' because it has only % node(s)", e->id, e->myCurrentNodes.size());
             continue;
         }
         extendRailwayDistances(e, nb.getTypeCont());
@@ -327,7 +325,7 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
     if (from == to) {
         assert(passed.size() >= 2);
         if (passed.size() == 2) {
-            WRITE_WARNING("Discarding edge '" + id + "' which connects two identical nodes without geometry.");
+            WRITE_WARNINGF("Discarding edge '%' which connects two identical nodes without geometry.", id);
             return index;
         }
         // in the special case of a looped way split again using passed
@@ -397,6 +395,9 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
     SVCPermissions forwardPermissions = permissions;
     SVCPermissions backwardPermissions = permissions;
     const std::string streetName = isRailway(forwardPermissions) && e->ref != "" ? e->ref : e->streetName;
+    if (streetName == e->ref) {
+        e->unsetParameter("ref"); // avoid superfluous param for railways
+    }
     double forwardWidth = tc.getWidth(type);
     double backwardWidth = tc.getWidth(type);
     const bool addSidewalk = (tc.getSidewalkWidth(type) != NBEdge::UNSPECIFIED_WIDTH);
@@ -416,7 +417,7 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
     }
     if (!e->myIsOneWay.empty() && e->myIsOneWay != "false" && e->myIsOneWay != "no" && e->myIsOneWay != "true"
             && e->myIsOneWay != "yes" && e->myIsOneWay != "-1" && e->myIsOneWay != "1" && e->myIsOneWay != "reverse") {
-        WRITE_WARNING("New value for oneway found: " + e->myIsOneWay);
+        WRITE_WARNINGF("New value for oneway found: %", e->myIsOneWay);
     }
     // if we had been able to extract the number of lanes, override the highway type default
     if (e->myNoLanes > 0) {
@@ -439,15 +440,15 @@ NIImporter_OpenStreetMap::insertEdge(Edge* e, int index, NBNode* from, NBNode* t
             numLanesBackward = MAX2(1, numLanesBackward);
         }
     } else if (e->myNoLanes == 0) {
-        WRITE_WARNING("Skipping edge '" + id + "' because it has zero lanes.");
+        WRITE_WARNINGF("Skipping edge '%' because it has zero lanes.", id);
         ok = false;
     }
     // if we had been able to extract the maximum speed, override the type's default
     if (e->myMaxSpeed != MAXSPEED_UNGIVEN) {
-        speed = (double)(e->myMaxSpeed / 3.6);
+        speed = e->myMaxSpeed / 3.6;
     }
     if (speed <= 0) {
-        WRITE_WARNING("Skipping edge '" + id + "' because it has speed " + toString(speed));
+        WRITE_WARNINGF("Skipping edge '%' because it has speed %.", id, speed);
         ok = false;
     }
     // deal with cycleways that run in the opposite direction of a one-way street
@@ -983,6 +984,7 @@ NIImporter_OpenStreetMap::EdgesHandler::myStartElement(int element,
             myCurrentEdge->streetName = value;
         } else if (key == "ref") {
             myCurrentEdge->ref = value;
+            myCurrentEdge->setParameter("ref", value);
         } else if (key == "layer") {
             if (myAllAttributes) {
                 myCurrentEdge->setParameter(key, value);
@@ -1279,8 +1281,7 @@ NIImporter_OpenStreetMap::RelationHandler::myEndElement(int element) {
                         assert(myPlatformShapes.find(myPlatform.ref) != myPlatformShapes.end()); //already tested earlier
                         Edge* edge = (*myPlatformShapes.find(myPlatform.ref)).second;
                         if (edge->myCurrentNodes[0] == *(edge->myCurrentNodes.end() - 1)) {
-                            WRITE_WARNING("Platform '" + toString(myPlatform.ref) + "' in  relation: '" + toString(myCurrentRelation)
-                                          + "'  is given as polygon, which currently is not supported.");
+                            WRITE_WARNINGF("Platform '%' in relation: '%' is given as polygon, which currently is not supported.", myPlatform.ref, myCurrentRelation);
                             continue;
 
                         }
@@ -1339,7 +1340,7 @@ NIImporter_OpenStreetMap::RelationHandler::myEndElement(int element) {
 //                    resetValues();
 //                    return;
                     if (!ptLine->getStops().empty()) {
-                        WRITE_WARNING("Done reading first coherent chunk of pt stops. Further stops in relation " + toString(myCurrentRelation) + " are ignored");
+                        WRITE_WARNINGF("Done reading first coherent chunk of pt stops. Further stops in relation % are ignored", myCurrentRelation);
                         break;
                     }
                     continue;
@@ -1368,7 +1369,7 @@ NIImporter_OpenStreetMap::RelationHandler::myEndElement(int element) {
                 }
             }
             if (ptLine->getStops().empty()) {
-                WRITE_WARNING("PT line in relation " + toString(myCurrentRelation) + " with no stops ignored. Probably OSM file is incomplete.");
+                WRITE_WARNINGF("PT line in relation % with no stops ignored. Probably OSM file is incomplete.", myCurrentRelation);
                 resetValues();
                 return;
             }
@@ -1681,14 +1682,11 @@ NIImporter_OpenStreetMap::usableType(const std::string& type, const std::string&
                 types.push_back(t);
             }
         } else if (tok.size() > 1) {
-            WRITE_WARNING(
-                "Discarding unknown compound '" + t + "' in type '" + type + "' (first occurence for edge '"
-                + id
-                + "').");
+            WRITE_WARNINGF("Discarding unknown compound '%' in type '%' (first occurence for edge '%').", t, type, id);
         }
     }
     if (types.empty()) {
-        WRITE_WARNING("Discarding unusable type '" + type + "' (first occurence for edge '" + id + "').");
+        WRITE_WARNINGF("Discarding unusable type '%' (first occurence for edge '%').", type, id);
         myUnusableTypes.insert(type);
         return "";
     }

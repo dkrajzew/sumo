@@ -10,7 +10,6 @@
 /// @file    MenuAdmin.java
 /// @author  Maximiliano Bottazzi
 /// @date    2016
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -305,7 +304,7 @@ public class MenuAdmin {
 
         helpMenuItem.addEventHandler(EventType.ROOT, (Event event) -> {
             try {
-                Desktop.getDesktop().browse(new URI("https://sumo.dlr.de/wiki/Tools/LISASUMO"));
+                Desktop.getDesktop().browse(new URI("https://sumo.dlr.de/docs/Tools/LiSuM.html"));
             } catch (IOException | URISyntaxException ex) {
                 ex.printStackTrace(System.out);
             }

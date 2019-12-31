@@ -11,7 +11,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Oct 2012
-/// @version $Id$
 ///
 // A 2D- or 3D-Shape
 /****************************************************************************/
@@ -148,7 +147,7 @@ public:
     /** @brief Sets a new angle in navigational degrees
      * @param[in] layer The new angle to use
      */
-    inline void setShapeNaviDegree(const double angle) {
+    virtual void setShapeNaviDegree(const double angle) {
         myNaviDegreeAngle = angle;
     }
 

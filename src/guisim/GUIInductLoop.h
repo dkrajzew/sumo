@@ -13,7 +13,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Aug 2003
-/// @version $Id$
 ///
 // The gui-version of the MSInductLoop, together with the according
 /****************************************************************************/
@@ -183,9 +182,6 @@ public:
         void drawGL(const GUIVisualizationSettings& s) const;
         //@}
 
-
-        /// @brief Returns the detector itself
-        GUIInductLoop& getLoop();
 
         /// @brief set (outline) color for extra visualiaztion
         void setSpecialColor(const RGBColor* color) {

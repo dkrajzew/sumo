@@ -10,7 +10,6 @@
 /// @file    GNEParkingAreaReroute.h
 /// @author  Jakob Erdmann
 /// @date    May 2018
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -72,6 +71,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name inherited from GUIGlObject

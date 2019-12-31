@@ -12,7 +12,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    late summer 2003
-/// @version $Id$
 ///
 // Some static variables for faster access
 /****************************************************************************/
@@ -54,6 +53,8 @@ double MSGlobals::gMesoTLSPenalty;
 SUMOTime MSGlobals::gMesoMinorPenalty;
 MELoop* MSGlobals::gMesoNet;
 
+bool MSGlobals::gOverheadWireSolver;
+
 bool MSGlobals::gSemiImplicitEulerUpdate;
 
 SUMOTime MSGlobals::gWaitingTimeMemory;
@@ -67,11 +68,17 @@ bool MSGlobals::gUnitTests(false);
 bool MSGlobals::gComputeLC;
 
 int MSGlobals::gNumSimThreads;
+int MSGlobals::gNumThreads;
 
 double MSGlobals::gEmergencyDecelWarningThreshold(1);
 
 double MSGlobals::gMinorPenalty(0);
 
 bool MSGlobals::gModelParkingManoeuver;
+
+bool MSGlobals::gSublane(false);
+
+double MSGlobals::gStopTolerance;
+
 /****************************************************************************/
 

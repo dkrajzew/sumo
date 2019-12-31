@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Andreas Gaubatz
 /// @date    Mon, 08.03.2004
-/// @version $Id$
 ///
 // Message and object IDs used by the FOX-version of the gui
 /****************************************************************************/
@@ -351,6 +350,8 @@ enum {
     MID_DELAY_TOOGLE,
     /// @brief scale traffic
     MID_DEMAND_SCALE,
+    /// @brief scale vehicle speed
+    MID_SPEEDFACTOR,
     /// @}
 
     /// @name Common view IDs

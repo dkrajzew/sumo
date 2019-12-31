@@ -10,7 +10,6 @@
 /// @file    METriggeredCalibrator.cpp
 /// @author  Daniel Krajzewicz
 /// @date    Tue, May 2005
-/// @version $Id$
 ///
 // Calibrates the flow on a segment to a specified one
 /****************************************************************************/
@@ -181,7 +180,7 @@ METriggeredCalibrator::execute(SUMOTime currentTime) {
                 // build the vehicle
                 const SUMOTime depart = mySegment->getNextInsertionTime(currentTime);
                 SUMOVehicleParameter* newPars = new SUMOVehicleParameter(*pars);
-                newPars->id = getID() + "." + toString(depart) + "." + toString(myInserted);
+                newPars->id = getNewVehicleID();
                 newPars->depart = depart;
                 newPars->routeid = route->getID();
                 MEVehicle* vehicle;
@@ -232,7 +231,10 @@ METriggeredCalibrator::execute(SUMOTime currentTime) {
     if (myCurrentStateInterval->end <= currentTime + myFrequency) {
         intervalEnd();
     }
-    assert(!invalidJam());
+    //assert(!invalidJam());
+    if (invalidJam()) {
+        WRITE_WARNING("DEBUG: Could not clear jam at calibrator '" + getID() + "' at time " + time2string(currentTime));
+    }
     return myFrequency;
 }
 

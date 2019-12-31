@@ -10,7 +10,6 @@
 /// @file    GNEVehicleTypeDialog.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
-/// @version $Id$
 ///
 // Dialog for edit vehicleTypes
 /****************************************************************************/
@@ -280,11 +279,8 @@ public:
         /// @brief VTypeAttributeRow for MaxSpeedLat
         VTypeAttributeRow* myMaxSpeedLat;
 
-        /// @brief VTypeAttributeRow for ActionStepLenght
-        VTypeAttributeRow* myActionStepLenght;
-
-        /// @brief VTypeAttributeRow for HasDriveState
-        VTypeAttributeRow* myHasDriveState;
+        /// @brief VTypeAttributeRow for ActionStepLength
+        VTypeAttributeRow* myActionStepLength;
 
         /// @brief VTypeAttributeRow for Probability
         VTypeAttributeRow* myProbability;
@@ -416,7 +412,7 @@ public:
         /// @}
 
     protected:
-		FOX_CONSTRUCTOR(CarFollowingModelParameters)
+        FOX_CONSTRUCTOR(CarFollowingModelParameters)
 
         /// @brief class used for represent rows with Car Following Model parameters
         class CarFollowingModelRow : public FXHorizontalFrame {

@@ -10,7 +10,6 @@
 # @file    test.py
 # @author  Pablo Alvarez Lopez
 # @date    2016-11-25
-# @version $Id$
 
 # import common functions for netedit tests
 import os
@@ -57,7 +56,7 @@ netedit.modifyBoolAttribute(7, True)
 netedit.moveMode()
 
 # try to move Acces
-netedit.moveElement(referencePosition, -147, 163, 100, 163)
+netedit.moveElement(referencePosition, -160, 165, 100, 165)
 
 # go to inspect mode
 netedit.inspectMode()
@@ -72,7 +71,7 @@ netedit.modifyBoolAttribute(7, True)
 netedit.moveMode()
 
 # move Acces
-netedit.moveElement(referencePosition, -147, 163, 100, 163)
+netedit.moveElement(referencePosition, -160, 165, 100, 165)
 
 # Check undo redo
 netedit.undo(referencePosition, 5)

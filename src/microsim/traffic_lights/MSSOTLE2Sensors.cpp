@@ -12,7 +12,6 @@
 /// @author  Alessio Bonfietti
 /// @author  Federico Caselli
 /// @date    2010-02-25
-/// @version $Id$
 ///
 // The class for SOTL sensors of "E2" type
 /****************************************************************************/
@@ -174,7 +173,7 @@ void MSSOTLE2Sensors::buildCountSensorForOutLane(MSLane* lane, NLDetectorBuilder
         sensorPos = (lane->getLength() - sensorLength)
                     - (SENSOR_START <= lane->getLength() ? SENSOR_START : 0);
 
-        //Check and trim if the lane is not long enough for the specified sensor lenght
+        //Check and trim if the lane is not long enough for the specified sensor length
         lensorLength =
             sensorLength <= (lane->getLength() - sensorPos) ?
             sensorLength : (lane->getLength() - sensorPos);
@@ -256,7 +255,7 @@ void MSSOTLE2Sensors::buildSensorForLane(MSLane* lane, NLDetectorBuilder& nb, do
 
         //Check and set zero if the lane is not long enough for the specified sensor start
         sensorPos = SENSOR_START <= lane->getLength() ? SENSOR_START : 0;
-        //Check and trim if the lane is not long enough for the specified sensor lenght
+        //Check and trim if the lane is not long enough for the specified sensor length
         lensorLength = sensorLength <= (lane->getLength() - sensorPos) ? sensorLength : (lane->getLength() - sensorPos);
         //TODO check this lengths
 //        DBG(
@@ -341,7 +340,7 @@ void MSSOTLE2Sensors::buildSensorForOutLane(MSLane* lane,
         sensorPos = (lane->getLength() - sensorLength)
                     - (SENSOR_START <= lane->getLength() ? SENSOR_START : 0);
 
-        //Check and trim if the lane is not long enough for the specified sensor lenght
+        //Check and trim if the lane is not long enough for the specified sensor length
         lensorLength =
             sensorLength <= (lane->getLength() - sensorPos) ?
             sensorLength : (lane->getLength() - sensorPos);
@@ -377,7 +376,7 @@ int MSSOTLE2Sensors::countVehicles(MSLane* lane) {
 }
 
 /*
- * Estimate queue lenght according to the distance of the last vehicles
+ * Estimate queue length according to the distance of the last vehicles
  */
 
 double MSSOTLE2Sensors::getEstimateQueueLength(std::string laneId) {
@@ -403,7 +402,7 @@ double MSSOTLE2Sensors::getEstimateQueueLength(std::string laneId) {
 }
 
 /*
- * Estimate queue lenght according to the distance of the last vehicles that exceed a threshold
+ * Estimate queue length according to the distance of the last vehicles that exceed a threshold
  */
 
 int MSSOTLE2Sensors::estimateVehicles(std::string laneId) {

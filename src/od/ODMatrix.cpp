@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Yun-Pang Floetteroed
 /// @date    05 Apr. 2006
-/// @version $Id$
 ///
 // An O/D (origin/destination) matrix
 /****************************************************************************/
@@ -41,6 +40,7 @@
 #include <utils/importio/LineReader.h>
 #include <utils/xml/SUMOSAXHandler.h>
 #include <utils/xml/XMLSubSys.h>
+#include <router/RORoute.h>
 #include "ODAmitranHandler.h"
 #include "ODMatrix.h"
 
@@ -49,12 +49,15 @@
 // method definitions
 // ===========================================================================
 ODMatrix::ODMatrix(const ODDistrictCont& dc)
-    : myDistricts(dc), myNumLoaded(0), myNumWritten(0), myNumDiscarded(0) {}
+    : myDistricts(dc), myNumLoaded(0), myNumWritten(0), myNumDiscarded(0), myBegin(-1), myEnd(-1) {}
 
 
 ODMatrix::~ODMatrix() {
-    for (std::vector<ODCell*>::iterator i = myContainer.begin(); i != myContainer.end(); ++i) {
-        delete *i;
+    for (ODCell* const cell: myContainer) {
+        for (RORoute* const r :cell->pathsVector) {
+            delete r;
+        }
+        delete cell;
     }
     myContainer.clear();
 }
@@ -411,12 +414,12 @@ ODMatrix::readTime(LineReader& lr) {
     std::string line = getNextNonCommentLine(lr);
     try {
         StringTokenizer st(line, StringTokenizer::WHITECHARS);
-        SUMOTime begin = parseSingleTime(st.next());
-        SUMOTime end = parseSingleTime(st.next());
-        if (begin >= end) {
-            throw ProcessError("Begin time is larger than end time.");
+        myBegin = parseSingleTime(st.next());
+        myEnd = parseSingleTime(st.next());
+        if (myBegin >= myEnd) {
+            throw ProcessError("Matrix begin time " + time2string(myBegin) + " is larger than end time " + time2string(myEnd) + ".");
         }
-        return std::make_pair(begin, end);
+        return std::make_pair(myBegin, myEnd);
     } catch (OutOfBoundsException&) {
         throw ProcessError("Broken period definition '" + line + "'.");
     } catch (NumberFormatException&) {

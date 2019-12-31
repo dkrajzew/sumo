@@ -13,7 +13,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Mar, 2003
-/// @version $Id$
 ///
 // Main for NETGENERATE
 /****************************************************************************/
@@ -38,6 +37,8 @@
 #include <netbuild/NBNetBuilder.h>
 #include <netbuild/NBFrame.h>
 #include <netwrite/NWFrame.h>
+#include <netimport/NITypeLoader.h>
+#include <netimport/NIXMLTypesHandler.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/options/OptionsIO.h>
 #include <utils/options/Option.h>
@@ -70,6 +71,7 @@ fillOptions() {
     oc.addOptionSubTopic("Grid Network");
     oc.addOptionSubTopic("Spider Network");
     oc.addOptionSubTopic("Random Network");
+    oc.addOptionSubTopic("Input");
     oc.addOptionSubTopic("Output");
     oc.addOptionSubTopic("Processing");
     oc.addOptionSubTopic("Building Defaults");
@@ -222,6 +224,10 @@ main(int argc, char** argv) {
         RandHelper::initRandGlobal();
         NBNetBuilder nb;
         nb.applyOptions(oc);
+        if (oc.isSet("type-files")) {
+            NIXMLTypesHandler* handler = new NIXMLTypesHandler(nb.getTypeCont());
+            NITypeLoader::load(handler, oc.getStringVector("type-files"), "types");
+        }
         // build the netgen-network description
         NGNet* net = buildNetwork(nb);
         // ... and we have to do this...

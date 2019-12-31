@@ -12,7 +12,6 @@
 /// @author  Mario Krumnow
 /// @author  Michael Behrisch
 /// @date    30.05.2012
-/// @version $Id$
 ///
 // C++ TraCI client API implementation
 /****************************************************************************/
@@ -536,6 +535,7 @@ public:
         double getDistance2D(double x1, double y1, double x2, double y2, bool isGeo = false, bool isDriving = false);
         double getDistanceRoad(const std::string& edgeID1, double pos1, const std::string& edgeID2, double pos2, bool isDriving = false);
         libsumo::TraCIStage findRoute(const std::string& fromEdge, const std::string& toEdge, const std::string& vType = "", double pos = -1., int routingMode = 0) const;
+        void writeMessage(const std::string msg);
 
     private:
         /// @brief invalidated copy constructor
@@ -851,6 +851,12 @@ public:
 
         /* @brief Restricts returned vehicles to the given types */
         void addSubscriptionFilterVType(const std::vector<std::string>& vTypes) const;
+
+        /* @brief Restricts returned vehicles to the given FOV-angle */
+        void addSubscriptionFilterFieldOfVision(double angle) const;
+
+        /* @brief Restricts returned vehicles to the given lateral distance */
+        void addSubscriptionFilterLateralDistance(double lateralDist, double downstreamDist = -1, double upstreamDist = -1) const;
 
         /// @}
 

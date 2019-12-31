@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Tue, May 2005
-/// @version $Id$
 ///
 // Calibrates the flow on an edge by removing an inserting vehicles
 /****************************************************************************/
@@ -247,6 +246,9 @@ protected:
      * return true if removals took place */
     bool removePending();
 
+    /// @brief determine id of new vehicle from calibrator state
+    std::string getNewVehicleID();
+
 protected:
     /// @brief the edge on which this calibrator lies
     const MSEdge* const myEdge;
@@ -300,6 +302,9 @@ protected:
 
     /// @brief whether the calibrator was active when last checking
     bool myAmActive;
+
+    /// @brief whether the calibrator has registered an invalid jam in the last execution step
+    bool myHaveInvalidJam;
 
     /* @brief objects which need to live longer than the MSCalibrator
      * instance which created them */

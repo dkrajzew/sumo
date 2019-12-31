@@ -10,7 +10,6 @@
 /// @file    GNETAZ.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Oct 2018
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -45,6 +44,9 @@ public:
     /// @brief GNETAZ Destructor
     ~GNETAZ();
 
+    /// @brief get TAZ shape
+    const PositionVector& getTAZShape() const;
+
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
@@ -65,6 +67,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name Functions related with shape of element
@@ -157,11 +162,14 @@ public:
     /// @}
 
     /// @brief update TAZ after add or remove a Source/sink, or change their weight
-    void updateAdditionalParent();
+    void updateParentAdditional();
 
 protected:
     /// @brief TAZ Color
     RGBColor myColor;
+
+    /// @brief TAZ shape
+    PositionVector myTAZShape;
 
     /// @brief flag for block shape
     bool myBlockShape;

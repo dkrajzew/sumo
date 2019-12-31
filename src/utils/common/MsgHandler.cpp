@@ -11,7 +11,6 @@
 /// @author  Daniel Krajzewicz
 /// @author  Michael Behrisch
 /// @date    Tue, 17 Jun 2003
-/// @version $Id$
 ///
 // Retrieves messages about the process and gives them further to output
 /****************************************************************************/
@@ -27,9 +26,6 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
-#ifdef HAVE_FOX
-#include <fx.h>
-#endif
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/common/UtilExceptions.h>
@@ -71,7 +67,11 @@ MsgHandler::getMessageInstance() {
 MsgHandler*
 MsgHandler::getWarningInstance() {
     if (myWarningInstance == nullptr) {
-        myWarningInstance = new MsgHandler(MT_WARNING);
+        if (myFactory == nullptr) {
+            myWarningInstance = new MsgHandler(MT_WARNING);
+        } else {
+            myWarningInstance = myFactory(MT_WARNING);
+        }
     }
     return myWarningInstance;
 }
@@ -159,6 +159,14 @@ MsgHandler::endProcessMsg(std::string msg) {
 void
 MsgHandler::clear() {
     myWasInformed = false;
+    if (myAggregationThreshold >= 0) {
+        for (const auto& i : myAggregationCount) {
+            if (i.second > myAggregationThreshold) {
+                inform(toString(i.second) + " total messages of type: " + i.first);
+            }
+        }
+    }
+    myAggregationCount.clear();
 }
 
 
@@ -210,6 +218,7 @@ MsgHandler::initOutputOptions() {
     OutputDevice::getDevice("stdout");
     OutputDevice::getDevice("stderr");
     OptionsCont& oc = OptionsCont::getOptions();
+    getWarningInstance()->setAggregationThreshold(oc.getInt("aggregate-warnings"));
     if (oc.getBool("no-warnings")) {
         getWarningInstance()->removeRetriever(&OutputDevice::getDevice("stderr"));
     }
@@ -253,7 +262,7 @@ MsgHandler::cleanupOnEnd() {
 
 
 MsgHandler::MsgHandler(MsgType type) :
-    myType(type), myWasInformed(false) {
+    myType(type), myWasInformed(false), myAggregationThreshold(-1) {
     if (type == MT_MESSAGE) {
         addRetriever(&OutputDevice::getDevice("stdout"));
     } else {

@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // A list of positions
 /****************************************************************************/
@@ -253,10 +252,10 @@ public:
     /// @brief get subpart of a position vector using index and a cout
     PositionVector getSubpartByIndex(int beginIndex, int count) const;
 
-    /// @brief short as polygon CV by angle
+    /// @brief sort as polygon CW by angle
     void sortAsPolyCWByAngle();
 
-    /// @brief shory by increasing X-Y Psitions
+    /// @brief sort by increasing X-Y Positions
     void sortByIncreasingXY();
 
     /// @brief extrapolate position vector
@@ -277,11 +276,15 @@ public:
     /// @brief move position vector to side using a custom offset for each geometry point
     void move2side(std::vector<double> amount, double maxExtension = 100);
 
-    /// @brief get angle  in certain position of position vector
+    /// @brief get angle in certain position of position vector
     double angleAt2D(int pos) const;
 
-    /// @brief inserts p between the two closest positions and returns the insertion index
-    int insertAtClosest(const Position& p);
+    /**@brief inserts p between the two closest positions
+     * @param p position to be inserted
+     * @param interpolateZ flag to enable/disable interpolation of Z Value between the two closest positions
+     * @return the insertion index
+     */
+    int insertAtClosest(const Position& p, bool interpolateZ);
 
     /// @brief removes the point closest to p and return the removal index
     int removeClosest(const Position& p);
@@ -350,6 +353,12 @@ public:
 
     /// @brief closest 2D-distance to point p (or -1 if perpendicular is true and the point is beyond this vector)
     double distance2D(const Position& p, bool perpendicular = false) const;
+
+    /// @brief insert in front a Position
+    void push_front(const Position& p);
+
+    /// @brief pop first Position
+    void pop_front();
 
     /// @brief insert in back a non double position
     void push_back_noDoublePos(const Position& p);

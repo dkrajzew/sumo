@@ -12,7 +12,6 @@
 /// @author  Daniel Krajzewicz
 /// @author  Michael Behrisch
 /// @date    Mar, 2003
-/// @version $Id$
 ///
 // A netgen-representation of an edge
 /****************************************************************************/
@@ -99,7 +98,7 @@ public:
      * @param[in] nb The netbuilder to retrieve the referenced nodes from
      * @return The built edge
      */
-    NBEdge* buildNBEdge(NBNetBuilder& nb) const;
+    NBEdge* buildNBEdge(NBNetBuilder& nb, const std::string& type) const;
 
 
 private:

@@ -10,7 +10,6 @@
 /// @file    NBPTStop.cpp
 /// @author  Gregor Laemmel
 /// @date    Tue, 20 Mar 2017
-/// @version $Id$
 ///
 // The representation of a single pt stop
 /****************************************************************************/
@@ -211,7 +210,8 @@ NBPTStop::findLaneAndComputeBusStopExtent(const NBEdgeCont& ec) {
             myLaneId = edge->getLaneID(laneNr);
             const PositionVector& shape = edge->getLaneShape(laneNr);
             double offset = shape.nearest_offset_to_point2D(getPosition(), false);
-            computeExtent(offset, shape.length());
+            offset = offset * edge->getLoadedLength() / edge->getLength();
+            computeExtent(offset, edge->getLoadedLength());
             return true;
         }
     }

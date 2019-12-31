@@ -11,7 +11,6 @@
 /// @author  Daniel Krajzewicz
 /// @author  Jakob Erdmann
 /// @date    02. March 2012
-/// @version $Id$
 ///
 // Algorithms for network computation
 /****************************************************************************/
@@ -113,7 +112,7 @@ NBTurningDirectionsComputer::computeTurnDirectionsForNode(NBNode* node, bool war
         if (seen.find((*j).from) != seen.end() || seen.find((*j).to) != seen.end()) {
             // do not regard already set edges
             if ((*j).angle > 360 && warn) {
-                WRITE_WARNING("Ambiguity in turnarounds computation at junction '" + node->getID() + "'.");
+                WRITE_WARNINGF("Ambiguity in turnarounds computation at junction '%'.", node->getID());
                 //std::cout << "  already seen: " << toString(seen) << "\n";
                 warn = false;
             }
@@ -174,7 +173,7 @@ NBNodeTypeComputer::computeNodeTypes(NBNodeCont& nc, NBTrafficLightLogicCont& tl
         }
         // check whether the node was set to be unregulated by the user
         if (oc.getBool("keep-nodes-unregulated") || oc.isInStringVector("keep-nodes-unregulated.explicit", n->getID())
-            || (oc.getBool("keep-nodes-unregulated.district-nodes") && (n->isNearDistrict() || n->isDistrict()))) {
+                || (oc.getBool("keep-nodes-unregulated.district-nodes") && (n->isNearDistrict() || n->isDistrict()))) {
             n->myType = NODETYPE_NOJUNCTION;
             continue;
         }
@@ -262,7 +261,7 @@ NBNodeTypeComputer::validateRailCrossings(NBNodeCont& nc, NBTrafficLightLogicCon
                 n->myType = NODETYPE_PRIORITY;
             } else if (numNonRailwayNonPed > 2) {
                 // does not look like a rail crossing (roads in conflict). maybe a traffic light?
-                WRITE_WARNING("Converting invalid rail_crossing to traffic_light at junction '" + n->getID() + "'");
+                WRITE_WARNINGF("Converting invalid rail_crossing to traffic_light at junction '%'.", n->getID());
                 TrafficLightType type = SUMOXMLDefinitions::TrafficLightTypes.get(OptionsCont::getOptions().getString("tls.default-type"));
                 NBTrafficLightDefinition* tlDef = new NBOwnTLDef(n->getID(), n, 0, type);
                 n->myType = NODETYPE_TRAFFIC_LIGHT;
@@ -271,7 +270,7 @@ NBNodeTypeComputer::validateRailCrossings(NBNodeCont& nc, NBTrafficLightLogicCon
                     n->removeTrafficLight(tlDef);
                     n->myType = NODETYPE_PRIORITY;
                     delete tlDef;
-                    WRITE_WARNING("Could not allocate tls '" + n->getID() + "'.");
+                    WRITE_WARNINGF("Could not allocate tls '%'.", n->getID());
                 }
             }
         }

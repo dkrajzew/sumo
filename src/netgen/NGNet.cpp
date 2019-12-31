@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    Mar, 2003
-/// @version $Id$
 ///
 // The class storing the generated network
 /****************************************************************************/
@@ -242,8 +241,9 @@ NGNet::toNB() const {
         nodes.push_back(node);
         myNetBuilder.getNodeCont().insert(node);
     }
+    const std::string type = OptionsCont::getOptions().getString("default.type");
     for (NGEdgeList::const_iterator i2 = myEdgeList.begin(); i2 != myEdgeList.end(); i2++) {
-        NBEdge* edge = (*i2)->buildNBEdge(myNetBuilder);
+        NBEdge* edge = (*i2)->buildNBEdge(myNetBuilder, type);
         myNetBuilder.getEdgeCont().insert(edge);
     }
     // now, let's append the reverse directions...

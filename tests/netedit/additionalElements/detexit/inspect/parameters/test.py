@@ -10,7 +10,6 @@
 # @file    test.py
 # @author  Pablo Alvarez Lopez
 # @date    2016-11-25
-# @version $Id$
 
 # import common functions for netedit tests
 import os
@@ -42,18 +41,18 @@ netedit.changeElement("detExit")
 
 # Create Entry detector E3
 netedit.leftClick(referencePosition, 250, 100)
-netedit.leftClick(referencePosition, 180, 200)
+netedit.leftClick(referencePosition, 180, 240)
 
 # select Exit detector and create it
 netedit.changeElement("detEntry")
 netedit.leftClick(referencePosition, 250, 100)
-netedit.leftClick(referencePosition, 400, 200)
+netedit.leftClick(referencePosition, 400, 240)
 
 # go to inspect mode
 netedit.inspectMode()
 
 # inspect Entry
-netedit.leftClick(referencePosition, 200, 200)
+netedit.leftClick(referencePosition, 200, 240)
 
 # check parameters
 netedit.checkParameters(referencePosition, 4, True)

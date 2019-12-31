@@ -12,7 +12,6 @@
 /// @author  Laura Bieker
 /// @author  Michael Behrisch
 /// @date    March 2012
-/// @version $Id$
 ///
 // Wraps multiple CHRouters for different vehicle types
 /****************************************************************************/
@@ -54,25 +53,21 @@
  * The template parameters are:
  * @param E The edge class to use (MSEdge/ROEdge)
  * @param V The vehicle class to use (MSVehicle/ROVehicle)
- * @param PF The prohibition function to use (prohibited_withPermissions/noProhibitions)
  *
  * The router is edge-based. It must know the number of edges for internal reasons
  *  and whether a missing connection between two given edges (unbuild route) shall
  *  be reported as an error or as a warning.
  *
  */
-template<class E, class V, class BASE>
-class CHRouterWrapper: public BASE {
+template<class E, class V>
+class CHRouterWrapper: public SUMOAbstractRouter<E, V> {
 
 public:
-    /// Type of the function that is used to retrieve the edge effort.
-    typedef double(* Operation)(const E* const, const V* const, double);
-
     /** @brief Constructor
      */
-    CHRouterWrapper(const std::vector<E*>& edges, const bool ignoreErrors, typename BASE::Operation operation,
+    CHRouterWrapper(const std::vector<E*>& edges, const bool ignoreErrors, typename SUMOAbstractRouter<E, V>::Operation operation,
                     const SUMOTime begin, const SUMOTime end, const SUMOTime weightPeriod, const int numThreads) :
-        BASE("CHRouterWrapper", ignoreErrors, operation),
+        SUMOAbstractRouter<E, V>("CHRouterWrapper", ignoreErrors, operation, nullptr, false, false),
         myEdges(edges),
         myIgnoreErrors(ignoreErrors),
         myBegin(begin),
@@ -83,19 +78,15 @@ public:
 
     ~CHRouterWrapper() {
         for (typename RouterMap::iterator i = myRouters.begin(); i != myRouters.end(); ++i) {
-            for (typename std::vector<CHRouterType*>::iterator j = i->second.begin(); j != i->second.end(); ++j) {
-                delete *j;
-            }
+            delete i->second;
         }
     }
 
 
     virtual SUMOAbstractRouter<E, V>* clone() {
-        CHRouterWrapper<E, V, BASE>* clone = new CHRouterWrapper<E, V, BASE>(myEdges, myIgnoreErrors, this->myOperation, myBegin, myEnd, myWeightPeriod, myMaxNumInstances);
-        for (typename RouterMap::iterator i = myRouters.begin(); i != myRouters.end(); ++i) {
-            for (typename std::vector<CHRouterType*>::iterator j = i->second.begin(); j != i->second.end(); ++j) {
-                clone->myRouters[i->first].push_back(static_cast<CHRouterType*>((*j)->clone()));
-            }
+        CHRouterWrapper<E, V>* clone = new CHRouterWrapper<E, V>(myEdges, myIgnoreErrors, this->myOperation, myBegin, myEnd, myWeightPeriod, myMaxNumInstances);
+        for (const auto& item : myRouters) {
+            clone->myRouters[item.first] = static_cast<CHRouterType*>(item.second->clone());
         }
         return clone;
     }
@@ -104,73 +95,21 @@ public:
     bool compute(const E* from, const E* to, const V* const vehicle,
                  SUMOTime msTime, std::vector<const E*>& into, bool silent = false) {
         const std::pair<const SUMOVehicleClass, const double> svc = std::make_pair(vehicle->getVClass(), vehicle->getMaxSpeed());
-        int index = 0;
-        int numIntervals = 1;
-#ifdef HAVE_FOX
-        if (myMaxNumInstances >= 2 && myEnd < std::numeric_limits<int>::max()) {
-            index = (int)((msTime - myBegin) / myWeightPeriod);
-            numIntervals = (int)((myEnd - myBegin) / myWeightPeriod);
-            if (numIntervals > 0) {
-                while ((int)myThreadPool.size() < myMaxNumInstances) {
-                    new FXWorkerThread(myThreadPool);
-                }
-            } else {
-                // this covers the cases of negative (unset) end time and unset weight period (no weight file)
-                numIntervals = 1;
-            }
-        }
-#endif
         if (myRouters.count(svc) == 0) {
             // create new router for the given permissions and maximum speed
             // XXX a new router may also be needed if vehicles differ in speed factor
-            for (int i = 0; i < numIntervals; i++) {
-                myRouters[svc].push_back(new CHRouterType(
-                                             myEdges, myIgnoreErrors, &E::getTravelTimeStatic, svc.first, myWeightPeriod, false));
-#ifdef HAVE_FOX
-                if (myThreadPool.size() > 0) {
-                    myThreadPool.add(new ComputeHierarchyTask(myRouters[svc].back(), vehicle, myBegin + i * myWeightPeriod));
-                }
-#endif
-            }
-#ifdef HAVE_FOX
-            if (myThreadPool.size() > 0) {
-                myThreadPool.waitAll();
-            }
-#endif
+            myRouters[svc] = new CHRouterType(
+                myEdges, myIgnoreErrors, &E::getTravelTimeStatic, svc.first, myWeightPeriod, false, false);
         }
-        return myRouters[svc][index]->compute(from, to, vehicle, msTime, into, silent);
+        return myRouters[svc]->compute(from, to, vehicle, msTime, into, silent);
     }
 
 
 private:
-    typedef CHRouter<E, V, SUMOAbstractRouter<E, V> > CHRouterType;
-
-#ifdef HAVE_FOX
-private:
-    class ComputeHierarchyTask : public FXWorkerThread::Task {
-    public:
-        ComputeHierarchyTask(CHRouterType* router, const V* const vehicle, const SUMOTime msTime)
-            : myRouter(router), myVehicle(vehicle), myStartTime(msTime) {}
-        void run(FXWorkerThread* /* context */) {
-            myRouter->buildContractionHierarchy(myStartTime, myVehicle);
-        }
-    private:
-        CHRouterType* myRouter;
-        const V* const myVehicle;
-        const SUMOTime myStartTime;
-    private:
-        /// @brief Invalidated assignment operator.
-        ComputeHierarchyTask& operator=(const ComputeHierarchyTask&);
-    };
-
+    typedef CHRouter<E, V> CHRouterType;
 
 private:
-    /// @brief for multi threaded routing
-    FXWorkerThread::Pool myThreadPool;
-#endif
-
-private:
-    typedef std::map<std::pair<const SUMOVehicleClass, const double>, std::vector<CHRouterType*> > RouterMap;
+    typedef std::map<std::pair<const SUMOVehicleClass, const double>, CHRouterType*> RouterMap;
 
     RouterMap myRouters;
 

@@ -10,7 +10,6 @@
 /// @file    Simulation.h
 /// @author  Robert Hilbrich
 /// @date    15.09.2017
-/// @version $Id$
 ///
 // C++ TraCI client API implementation
 /****************************************************************************/
@@ -123,6 +122,7 @@ public:
 
     static void clearPending(const std::string& routeID = "");
     static void saveState(const std::string& fileName);
+    static void writeMessage(const std::string& msg);
 
     static void subscribe(const std::vector<int>& varIDs = std::vector<int>(), double begin = INVALID_DOUBLE_VALUE, double end = INVALID_DOUBLE_VALUE);
     static const TraCIResults getSubscriptionResults();

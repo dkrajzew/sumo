@@ -11,7 +11,6 @@
 /// @author  Jakob Erdmann
 /// @author  Pablo Alvarez Lopez
 /// @date    Feb 2011
-/// @version $Id$
 ///
 // A view on the network being edited (adapted from GUIViewTraffic)
 /****************************************************************************/
@@ -247,6 +246,12 @@ GNEViewNet::buildViewToolBars(GUIGlChildWindow& cw) {
                  GUIIconSubSys::getIcon(ICON_LOCATEVEHICLE), &cw, MID_LOCATEVEHICLE,
                  ICON_ABOVE_TEXT | FRAME_THICK | FRAME_RAISED);
 
+    // for person
+    new FXButton(cw.getLocatorPopup(),
+                 "\tLocate Person\tLocate a person within the network.",
+                 GUIIconSubSys::getIcon(ICON_LOCATEPERSON), &cw, MID_LOCATEPERSON,
+                 ICON_ABOVE_TEXT | FRAME_THICK | FRAME_RAISED);
+
     // for routes
     new FXButton(cw.getLocatorPopup(),
                  "\tLocate Route\tLocate a route within the network.",
@@ -304,8 +309,8 @@ GNEViewNet::getAttributeCarriersInBoundary(const Boundary& boundary, bool forceS
     std::set<std::pair<std::string, GNEAttributeCarrier*> > result;
     // firstm make OpenGL context current prior to performing OpenGL commands
     if (makeCurrent()) {
-        // obtain GUIGLIds of all objects in the given boundary
-        std::vector<GUIGlID> ids = getObjectsInBoundary(boundary);
+        // obtain GUIGLIds of all objects in the given boundary (disabling drawForRectangleSelection)
+        std::vector<GUIGlID> ids = getObjectsInBoundary(boundary, false);
         //  finish make OpenGL context current
         makeNonCurrent();
         // iterate over GUIGlIDs
@@ -315,7 +320,7 @@ GNEViewNet::getAttributeCarriersInBoundary(const Boundary& boundary, bool forceS
                 GNEAttributeCarrier* retrievedAC = myNet->retrieveAttributeCarrier(i);
                 // in the case of a Lane, we need to change the retrieved lane to their the parent if myNetworkViewOptions.mySelectEdges is enabled
                 if ((retrievedAC->getTagProperty().getTag() == SUMO_TAG_LANE) && (myNetworkViewOptions.selectEdges() || forceSelectEdges)) {
-                    retrievedAC = &dynamic_cast<GNELane*>(retrievedAC)->getParentEdge();
+                    retrievedAC = dynamic_cast<GNELane*>(retrievedAC)->getParentEdge();
                 }
                 // make sure that AttributeCarrier can be selected
                 GUIGlObject* glObject = dynamic_cast<GUIGlObject*>(retrievedAC);
@@ -397,7 +402,7 @@ GNEViewNet::openObjectDialog() {
 }
 
 
-void 
+void
 GNEViewNet::saveVisualizationSettings() const {
     // first check if we have to save gui settings in a file (only used for testing purposes)
     OptionsCont& oc = OptionsCont::getOptions();
@@ -431,7 +436,7 @@ GNEViewNet::getEditModes() const {
 }
 
 
-const GNEViewNetHelper::TestingMode& 
+const GNEViewNetHelper::TestingMode&
 GNEViewNet::getTestingMode() const {
     return myTestingMode;
 }
@@ -569,11 +574,23 @@ GNEViewNet::getEdgeLaneParamKeys(bool edgeKeys) const {
             for (const auto& item : e->getParametersMap()) {
                 keys.insert(item.first);
             }
+            for (const auto con : e->getConnections()) {
+                for (const auto& item : con.getParametersMap()) {
+                    keys.insert(item.first);
+                }
+            }
         } else {
             for (const auto lane : e->getLanes()) {
+                int i = 0;
                 for (const auto& item : lane.getParametersMap()) {
                     keys.insert(item.first);
                 }
+                for (const auto con : e->getConnectionsFromLane(i)) {
+                    for (const auto& item : con.getParametersMap()) {
+                        keys.insert(item.first);
+                    }
+                }
+                i++;
             }
         }
     }
@@ -585,8 +602,14 @@ GNEViewNet::getEdgeLaneParamKeys(bool edgeKeys) const {
 int
 GNEViewNet::doPaintGL(int mode, const Boundary& bound) {
     // init view settings
-    if (!myVisualizationSettings->drawForSelecting && myVisualizationSettings->forceDrawForSelecting) {
-        myVisualizationSettings->drawForSelecting = true;
+    if (!myVisualizationSettings->drawForPositionSelection && myVisualizationSettings->forceDrawForPositionSelection) {
+        myVisualizationSettings->drawForPositionSelection = true;
+        myVisualizationSettings->drawForRectangleSelection = true;
+    } else {
+        myVisualizationSettings->drawForRectangleSelection = false;
+    }
+    if (!myVisualizationSettings->drawForRectangleSelection && myVisualizationSettings->forceDrawForRectangleSelection) {
+        myVisualizationSettings->drawForRectangleSelection = true;
     }
     // set lefthand and laneIcons
     myVisualizationSettings->lefthand = OptionsCont::getOptions().getBool("lefthand");
@@ -607,7 +630,7 @@ GNEViewNet::doPaintGL(int mode, const Boundary& bound) {
     // compute lane width
     double lw = m2p(SUMO_const_laneWidth);
     // draw decals (if not in grabbing mode)
-    if (!myUseToolTips && !myVisualizationSettings->drawForSelecting) {
+    if (!myUseToolTips && !myVisualizationSettings->drawForRectangleSelection) {
         drawDecals();
         // depending of the visualizationSettings, enable or disable check box show grid
         if (myVisualizationSettings->showGrid) {
@@ -619,7 +642,7 @@ GNEViewNet::doPaintGL(int mode, const Boundary& bound) {
         myNetworkViewOptions.menuCheckShowConnections->setCheck(myVisualizationSettings->showLane2Lane);
     }
     // draw temporal elements
-    if (!myVisualizationSettings->drawForSelecting) {
+    if (!myVisualizationSettings->drawForRectangleSelection) {
         drawTemporalDrawShape();
         drawLaneCandidates();
         // draw testing elements
@@ -683,6 +706,10 @@ GNEViewNet::onLeftBtnPress(FXObject*, FXSelector, void* eventData) {
     if (makeCurrent()) {
         // fill objects under cursor
         myObjectsUnderCursor.updateObjectUnderCursor(getGUIGlObjectsUnderCursor(), myEditShapes.editedShapePoly);
+        // if grid is enabled, fill objects under gripped cursor
+        if (myVisualizationSettings->showGrid) {
+            myObjectsUnderGrippedCursor.updateObjectUnderCursor(getGUIGlObjectsUnderGrippedCursor(), myEditShapes.editedShapePoly);
+        }
         // process left button press function depending of supermode
         if (myEditModes.currentSupermode == GNE_SUPERMODE_NETWORK) {
             processLeftButtonPressNetwork(eventData);
@@ -1088,7 +1115,7 @@ GNEViewNet::getEdgeAtPopupPosition() {
                     edge = (GNEEdge*)pointed;
                     break;
                 case GLO_LANE:
-                    edge = &(((GNELane*)pointed)->getParentEdge());
+                    edge = (((GNELane*)pointed)->getParentEdge());
                     break;
                 default:
                     break;
@@ -1536,7 +1563,7 @@ GNEViewNet::onCmdTransformPOI(FXObject*, FXSelector, void*) {
         // check what type of POI will be transformed
         if (POI->getTagProperty().getTag() == SUMO_TAG_POI) {
             // obtain lanes around POI boundary
-            std::vector<GUIGlID> GLIDs = getObjectsInBoundary(POI->getCenteringBoundary());
+            std::vector<GUIGlID> GLIDs = getObjectsInBoundary(POI->getCenteringBoundary(), false);
             std::vector<GNELane*> lanes;
             for (auto i : GLIDs) {
                 GNELane* lane = dynamic_cast<GNELane*>(GUIGlObjectStorage::gIDStorage.getObjectBlocking(i));
@@ -1549,11 +1576,11 @@ GNEViewNet::onCmdTransformPOI(FXObject*, FXSelector, void*) {
             } else {
                 // obtain nearest lane to POI
                 GNELane* nearestLane = lanes.front();
-                double minorPosOverLane = nearestLane->getGeometry().shape.nearest_offset_to_point2D(POI->getPositionInView());
-                double minorLateralOffset = nearestLane->getGeometry().shape.positionAtOffset(minorPosOverLane).distanceTo(POI->getPositionInView());
+                double minorPosOverLane = nearestLane->getLaneShape().nearest_offset_to_point2D(POI->getPositionInView());
+                double minorLateralOffset = nearestLane->getLaneShape().positionAtOffset(minorPosOverLane).distanceTo(POI->getPositionInView());
                 for (auto i : lanes) {
-                    double posOverLane = i->getGeometry().shape.nearest_offset_to_point2D(POI->getPositionInView());
-                    double lateralOffset = i->getGeometry().shape.positionAtOffset(posOverLane).distanceTo(POI->getPositionInView());
+                    double posOverLane = i->getLaneShape().nearest_offset_to_point2D(POI->getPositionInView());
+                    double lateralOffset = i->getLaneShape().positionAtOffset(posOverLane).distanceTo(POI->getPositionInView());
                     if (lateralOffset < minorLateralOffset) {
                         minorPosOverLane = posOverLane;
                         minorLateralOffset = lateralOffset;
@@ -1707,7 +1734,7 @@ GNEViewNet::restrictLane(SUMOVehicleClass vclass) {
         std::map<GNEEdge*, GNELane*> mapOfEdgesAndLanes;
         // Iterate over selected lanes
         for (auto i : lanes) {
-            mapOfEdgesAndLanes[myNet->retrieveEdge(i->getParentEdge().getID())] = i;
+            mapOfEdgesAndLanes[myNet->retrieveEdge(i->getParentEdge()->getID())] = i;
         }
         // Throw warning dialog if there hare multiple lanes selected in the same edge
         if (mapOfEdgesAndLanes.size() != lanes.size()) {
@@ -1789,7 +1816,7 @@ GNEViewNet::addRestrictedLane(SUMOVehicleClass vclass) {
         // iterate over selected lanes
         for (auto it : lanes) {
             // Insert pointer to edge into set of edges (To avoid duplicates)
-            setOfEdges.insert(myNet->retrieveEdge(it->getParentEdge().getID()));
+            setOfEdges.insert(myNet->retrieveEdge(it->getParentEdge()->getID()));
         }
         // If we handeln a set of edges
         if (setOfEdges.size() > 0) {
@@ -1830,9 +1857,9 @@ GNEViewNet::addRestrictedLane(SUMOVehicleClass vclass) {
             // begin undo operation
             myUndoList->p_begin("Add restrictions for " + toString(vclass));
             // iterate over set of edges
-            for (auto it : setOfEdges) {
+            for (const auto& edge : setOfEdges) {
                 // add restricted lane (guess target)
-                myNet->addRestrictedLane(vclass, *it, -1, myUndoList);
+                myNet->addRestrictedLane(vclass, edge, -1, myUndoList);
             }
             // end undo operation
             myUndoList->p_end();
@@ -1843,7 +1870,7 @@ GNEViewNet::addRestrictedLane(SUMOVehicleClass vclass) {
             if (vclass == SVC_PEDESTRIAN) {
                 // always add pedestrian lanes on the right
                 myNet->addRestrictedLane(vclass, lane->getParentEdge(), 0, myUndoList);
-            } else if (lane->getParentEdge().getLanes().size() == 1) {
+            } else if (lane->getParentEdge()->getLanes().size() == 1) {
                 // guess insertion position if there is only 1 lane
                 myNet->addRestrictedLane(vclass, lane->getParentEdge(), -1, myUndoList);
             } else {
@@ -1874,7 +1901,7 @@ GNEViewNet::removeRestrictedLane(SUMOVehicleClass vclass) {
         // iterate over selected lanes
         for (auto it : lanes) {
             // Insert pointer to edge into set of edges (To avoid duplicates)
-            setOfEdges.insert(myNet->retrieveEdge(it->getParentEdge().getID()));
+            setOfEdges.insert(myNet->retrieveEdge(it->getParentEdge()->getID()));
         }
         // If we handeln a set of edges
         if (setOfEdges.size() > 0) {
@@ -1915,9 +1942,9 @@ GNEViewNet::removeRestrictedLane(SUMOVehicleClass vclass) {
             // begin undo operation
             myUndoList->p_begin("Remove restrictions for " + toString(vclass));
             // iterate over set of edges
-            for (std::set<GNEEdge*>::iterator it = setOfEdges.begin(); it != setOfEdges.end(); it++) {
+            for (const auto& edge : setOfEdges) {
                 // add Sidewalk
-                myNet->removeRestrictedLane(vclass, *(*it), myUndoList);
+                myNet->removeRestrictedLane(vclass, edge, myUndoList);
             }
             // end undo operation
             myUndoList->p_end();
@@ -2124,7 +2151,7 @@ GNEViewNet::onCmdEditConnectionShape(FXObject*, FXSelector, void*) {
     // Obtain connection under mouse
     GNEConnection* connection = getConnectionAtPopupPosition();
     if (connection) {
-        myEditShapes.startEditCustomShape(connection, connection->getGeometry().shape, false);
+        myEditShapes.startEditCustomShape(connection, connection->getConnectionShape(), false);
     }
     // destroy pop-up and update view Net
     destroyPopup();
@@ -2354,9 +2381,9 @@ GNEViewNet::onCmdToogleLockPerson(FXObject*, FXSelector sel, void*) {
                 // change menuCheckLockPerson text
                 myDemandViewOptions.menuCheckLockPerson->setText(("unlock " + personOrPersonPlan->getID()).c_str());
             } else {
-                myDemandViewOptions.lockPerson(personOrPersonPlan->getDemandElementParents().front());
+                myDemandViewOptions.lockPerson(personOrPersonPlan->getParentDemandElements().front());
                 // change menuCheckLockPerson text
-                myDemandViewOptions.menuCheckLockPerson->setText(("unlock " + personOrPersonPlan->getDemandElementParents().front()->getID()).c_str());
+                myDemandViewOptions.menuCheckLockPerson->setText(("unlock " + personOrPersonPlan->getParentDemandElements().front()->getID()).c_str());
             }
         }
     } else {
@@ -2916,7 +2943,7 @@ GNEViewNet::mergeJunctions(GNEJunction* moved, const Position& oldPos) {
         Boundary selection;
         selection.add(newPos);
         selection.grow(0.1);
-        const std::vector<GUIGlID> ids = getObjectsInBoundary(selection);
+        const std::vector<GUIGlID> ids = getObjectsInBoundary(selection, false);
         GUIGlObject* object = nullptr;
         for (auto it_ids : ids) {
             if (it_ids == 0) {
@@ -2995,7 +3022,7 @@ GNEViewNet::drawLaneCandidates() const {
             // Push draw matrix
             glPushMatrix();
             // obtain first clicked point
-            const Position& firstLanePoint = myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().front().first->getGeometry().shape.positionAtOffset(
+            const Position& firstLanePoint = myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().front().first->getLaneShape().positionAtOffset(
                                                  myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().front().second);
             // must draw on top of other connections
             glTranslated(firstLanePoint.x(), firstLanePoint.y(), GLO_JUNCTION + 0.3);
@@ -3012,7 +3039,7 @@ GNEViewNet::drawLaneCandidates() const {
             for (int i = 0; i < (int)myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().size() - 1; i++) {
                 // declare position vector for shape
                 PositionVector shape;
-                // declare vectors for shape rotation and lenghts
+                // declare vectors for shape rotation and lengths
                 std::vector<double> shapeRotations, shapeLengths;
                 // obtain GNELanes
                 GNELane* from = myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().at(i).first;
@@ -3022,7 +3049,7 @@ GNEViewNet::drawLaneCandidates() const {
                 // must draw on top of other connections
                 glTranslated(0, 0, GLO_JUNCTION + 0.2);
                 // obtain connection shape
-                shape = from->getParentEdge().getNBEdge()->getConnection(from->getIndex(), to->getParentEdge().getNBEdge(), to->getIndex()).shape;
+                shape = from->getParentEdge()->getNBEdge()->getConnection(from->getIndex(), to->getParentEdge()->getNBEdge(), to->getIndex()).shape;
                 // set special color
                 GLHelper::setColor(myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLaneColor());
                 // Obtain lengths and shape rotations
@@ -3031,10 +3058,8 @@ GNEViewNet::drawLaneCandidates() const {
                     shapeRotations.reserve(segments);
                     shapeLengths.reserve(segments);
                     for (int j = 0; j < segments; j++) {
-                        const Position& f = shape[j];
-                        const Position& s = shape[j + 1];
-                        shapeLengths.push_back(f.distanceTo2D(s));
-                        shapeRotations.push_back((double) atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
+                        shapeLengths.push_back(GNEGeometry::calculateLength(shape[j], shape[j + 1]));
+                        shapeRotations.push_back(GNEGeometry::calculateRotation(shape[j], shape[j + 1]));
                     }
                 }
                 // draw a list of lines
@@ -3045,7 +3070,7 @@ GNEViewNet::drawLaneCandidates() const {
             // draw last point
             glPushMatrix();
             // obtain last clicked point
-            const Position& lastLanePoint = myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().back().first->getGeometry().shape.positionAtOffset(
+            const Position& lastLanePoint = myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().back().first->getLaneShape().positionAtOffset(
                                                 myViewParent->getAdditionalFrame()->getConsecutiveLaneSelector()->getSelectedLanes().back().second);
             // must draw on top of other connections
             glTranslated(lastLanePoint.x(), lastLanePoint.y(), GLO_JUNCTION + 0.3);
@@ -3165,9 +3190,10 @@ GNEViewNet::processLeftButtonPressNetwork(void* eventData) {
             // make sure that Control key isn't pressed
             if (!myKeyPressed.controlKeyPressed()) {
                 // process left click in create edge frame Frame
-                myViewParent->getCreateEdgeFrame()->processClick(getPositionInformation(), myObjectsUnderCursor,
-                        myNetworkViewOptions.menuCheckAutoOppositeEdge->getCheck() == TRUE,
-                        myNetworkViewOptions.menuCheckChainEdges->getCheck() == TRUE);
+                myViewParent->getCreateEdgeFrame()->processClick(getPositionInformation(),
+                        myObjectsUnderCursor, myObjectsUnderGrippedCursor,
+                        (myNetworkViewOptions.menuCheckAutoOppositeEdge->getCheck() == TRUE),
+                        (myNetworkViewOptions.menuCheckChainEdges->getCheck() == TRUE));
             }
             // process click
             processClick(eventData);
@@ -3449,7 +3475,7 @@ GNEViewNet::processLeftButtonPressDemand(void* eventData) {
             // check if we clicked over a lane and Control key isn't pressed
             if (myObjectsUnderCursor.getLaneFront() && !myKeyPressed.controlKeyPressed()) {
                 // Handle edge click
-                myViewParent->getRouteFrame()->handleEdgeClick(&myObjectsUnderCursor.getLaneFront()->getParentEdge());
+                myViewParent->getRouteFrame()->handleEdgeClick(myObjectsUnderCursor.getLaneFront()->getParentEdge());
             }
             // process click
             processClick(eventData);

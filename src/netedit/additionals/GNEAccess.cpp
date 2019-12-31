@@ -10,7 +10,6 @@
 /// @file    GNEAccess.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2018
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -36,11 +35,11 @@
 // member method definitions
 // ===========================================================================
 
-GNEAccess::GNEAccess(GNEAdditional* busStop, GNELane* lane, GNEViewNet* viewNet, const std::string& pos, const std::string& length, bool friendlyPos, bool blockMovement) :
+GNEAccess::GNEAccess(GNEAdditional* busStop, GNELane* lane, GNEViewNet* viewNet, double pos, const std::string& length, bool friendlyPos, bool blockMovement) :
     GNEAdditional(busStop, viewNet, GLO_ACCESS, SUMO_TAG_ACCESS, "", blockMovement, {}, {lane}, {}, {busStop}, {}, {}, {}, {}, {}, {}),
-    myPositionOverLane(pos),
-    myLength(length),
-    myFriendlyPosition(friendlyPos) {
+              myPositionOverLane(pos),
+              myLength(length),
+myFriendlyPosition(friendlyPos) {
 }
 
 
@@ -55,7 +54,7 @@ GNEAccess::moveGeometry(const Position& offset) {
     newPosition.add(offset);
     // filtern position using snap to active grid
     newPosition = myViewNet->snapToActiveGrid(newPosition);
-    myPositionOverLane = toString(getLaneParents().front()->getGeometry().shape.nearest_offset_to_point2D(newPosition, false));
+    myPositionOverLane = getParentLanes().front()->getLaneShape().nearest_offset_to_point2D(newPosition, false);
     // Update geometry
     updateGeometry();
 }
@@ -66,7 +65,7 @@ GNEAccess::commitGeometryMoving(GNEUndoList* undoList) {
     if (!myBlockMovement) {
         // commit new position allowing undo/redo
         undoList->p_begin("position of " + getTagStr());
-        undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), SUMO_ATTR_POSITION, myPositionOverLane, true, myMove.firstOriginalLanePosition));
+        undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), SUMO_ATTR_POSITION, toString(myPositionOverLane), true, myMove.firstOriginalLanePosition));
         undoList->p_end();
     }
 }
@@ -74,52 +73,39 @@ GNEAccess::commitGeometryMoving(GNEUndoList* undoList) {
 
 void
 GNEAccess::updateGeometry() {
-    // Clear all containers
-    myGeometry.clearGeometry();
-
-    // Get shape of lane parent
-    myGeometry.shape = getLaneParents().front()->getGeometry().shape;
-
     // set start position
     double fixedPositionOverLane;
-    if (!canParse<double>(myPositionOverLane)) {
-        fixedPositionOverLane = getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength();
-    } else if (parse<double>(myPositionOverLane) < 0) {
+    if (myPositionOverLane == -1) {
+        fixedPositionOverLane = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
+    } else if (myPositionOverLane < 0) {
         fixedPositionOverLane = 0;
-    } else if (parse<double>(myPositionOverLane) > getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength()) {
-        fixedPositionOverLane = getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength();
+    } else if (myPositionOverLane > getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength()) {
+        fixedPositionOverLane = getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength();
     } else {
-        fixedPositionOverLane = parse<double>(myPositionOverLane);
+        fixedPositionOverLane = myPositionOverLane;
     }
-    // obtain position
-    myGeometry.shape[0] = getLaneParents().front()->getGeometry().shape.positionAtOffset(fixedPositionOverLane * getLaneParents().front()->getLengthGeometryFactor());
-
-    // Save rotation (angle) of the vector constructed by points f and s
-    myGeometry.shapeRotations.push_back(getLaneParents().front()->getGeometry().shape.rotationDegreeAtOffset(fixedPositionOverLane) * -1);
-
+    // update geometry
+    myAdditionalGeometry.updateGeometryPosition(getParentLanes().front(), fixedPositionOverLane * getParentLanes().front()->getLengthGeometryFactor());
     // Set block icon position
-    myBlockIcon.position = myGeometry.shape.getLineCenter();
-
+    myBlockIcon.position = myAdditionalGeometry.getShape().getLineCenter();
     // Set offset of the block icon
     myBlockIcon.offset = Position(-1, 0);
-
     // Set block icon rotation, and using their rotation for logo
-    myBlockIcon.setRotation(getLaneParents().front());
+    myBlockIcon.setRotation(getParentLanes().front());
 }
 
 
 Position
 GNEAccess::getPositionInView() const {
-    if (!canParse<double>(myPositionOverLane)) {
-        return getLaneParents().front()->getGeometry().shape.front();
+    if (myPositionOverLane == -1) {
+        return getParentLanes().front()->getLaneShape().front();
     } else {
-        double posOverLane = parse<double>(myPositionOverLane);
-        if (posOverLane < 0) {
-            return getLaneParents().front()->getGeometry().shape.front();
-        } else if (posOverLane > getLaneParents().front()->getGeometry().shape.length()) {
-            return getLaneParents().front()->getGeometry().shape.back();
+        if (myPositionOverLane < 0) {
+            return getParentLanes().front()->getLaneShape().front();
+        } else if (myPositionOverLane > getParentLanes().front()->getLaneShape().length()) {
+            return getParentLanes().front()->getLaneShape().back();
         } else {
-            return getLaneParents().front()->getGeometry().shape.positionAtOffset(posOverLane);
+            return getParentLanes().front()->getLaneShape().positionAtOffset(myPositionOverLane);
         }
     }
 }
@@ -127,7 +113,18 @@ GNEAccess::getPositionInView() const {
 
 Boundary
 GNEAccess::getCenteringBoundary() const {
-    return myGeometry.shape.getBoxBoundary().grow(10);
+    return myAdditionalGeometry.getShape().getBoxBoundary().grow(10);
+}
+
+
+void
+GNEAccess::splitEdgeGeometry(const double splitPosition, const GNENetElement* /*originalElement*/, const GNENetElement* newElement, GNEUndoList* undoList) {
+    if (splitPosition < myPositionOverLane) {
+        // change lane
+        setAttribute(SUMO_ATTR_LANE, newElement->getID(), undoList);
+        // now adjust start position
+        setAttribute(SUMO_ATTR_POSITION, toString(myPositionOverLane - splitPosition), undoList);
+    }
 }
 
 
@@ -137,8 +134,8 @@ GNEAccess::isAccessPositionFixed() const {
     if (myFriendlyPosition) {
         return true;
     } else {
-        if (canParse<double>(myPositionOverLane)) {
-            return (parse<double>(myPositionOverLane) >= 0) && ((parse<double>(myPositionOverLane)) <= getLaneParents().front()->getParentEdge().getNBEdge()->getFinalLength());
+        if (myPositionOverLane != -1) {
+            return (myPositionOverLane >= 0) && (myPositionOverLane <= getParentLanes().front()->getParentEdge()->getNBEdge()->getFinalLength());
         } else {
             return false;
         }
@@ -146,15 +143,15 @@ GNEAccess::isAccessPositionFixed() const {
 }
 
 
-GNEEdge&
+GNEEdge*
 GNEAccess::getEdge() const {
-    return getLaneParents().front()->getParentEdge();
+    return getParentLanes().front()->getParentEdge();
 }
 
 
 std::string
 GNEAccess::getParentName() const {
-    return getAdditionalParents().at(0)->getID();
+    return getParentAdditionals().at(0)->getID();
 }
 
 
@@ -174,9 +171,9 @@ GNEAccess::drawGL(const GUIVisualizationSettings& s) const {
         } else {
             GLHelper::setColor(s.colorSettings.busStop);
         }
-        glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), GLO_ACCESS);
+        glTranslated(myAdditionalGeometry.getPosition().x(), myAdditionalGeometry.getPosition().y(), GLO_ACCESS);
         // draw circle
-        if (s.drawForSelecting) {
+        if (s.drawForRectangleSelection) {
             GLHelper::drawFilledCircle((double) 0.5 * exaggeration, 8);
         } else {
             std::vector<Position> vertices = GLHelper::drawFilledCircleReturnVertices((double) 0.5 * exaggeration, 16);
@@ -199,7 +196,7 @@ GNEAccess::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_LANE:
-            return getLaneParents().front()->getID();
+            return getParentLanes().front()->getID();
         case SUMO_ATTR_POSITION:
             return toString(myPositionOverLane);
         case SUMO_ATTR_LENGTH:
@@ -209,7 +206,7 @@ GNEAccess::getAttribute(SumoXMLAttr key) const {
         case GNE_ATTR_BLOCK_MOVEMENT:
             return toString(myBlockMovement);
         case GNE_ATTR_PARENT:
-            return getAdditionalParents().at(0)->getID();
+            return getParentAdditionals().at(0)->getID();
         case GNE_ATTR_SELECTED:
             return toString(isAttributeCarrierSelected());
         case GNE_ATTR_PARAMETERS:
@@ -220,7 +217,7 @@ GNEAccess::getAttribute(SumoXMLAttr key) const {
 }
 
 
-double 
+double
 GNEAccess::getAttributeDouble(SumoXMLAttr key) const {
     throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
 }
@@ -256,8 +253,8 @@ GNEAccess::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_LANE: {
             GNELane* lane = myViewNet->getNet()->retrieveLane(value, false);
             if (lane != nullptr) {
-                if (getLaneParents().front()->getParentEdge().getID() != lane->getParentEdge().getID()) {
-                    return GNEAdditionalHandler::accessCanBeCreated(getAdditionalParents().at(0), lane->getParentEdge());
+                if (getParentLanes().front()->getParentEdge()->getID() != lane->getParentEdge()->getID()) {
+                    return GNEAdditionalHandler::accessCanBeCreated(getParentAdditionals().at(0), lane->getParentEdge());
                 } else {
                     return true;
                 }
@@ -291,7 +288,7 @@ GNEAccess::isValid(SumoXMLAttr key, const std::string& value) {
 }
 
 
-bool 
+bool
 GNEAccess::isAttributeEnabled(SumoXMLAttr /* key */) const {
     return true;
 }
@@ -305,7 +302,7 @@ GNEAccess::getPopUpID() const {
 
 std::string
 GNEAccess::getHierarchyName() const {
-    return getTagStr() + ": " + getLaneParents().front()->getParentEdge().getID();
+    return getTagStr() + ": " + getParentLanes().front()->getParentEdge()->getID();
 }
 
 // ===========================================================================
@@ -319,10 +316,10 @@ GNEAccess::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_LANE:
-            changeLaneParents(this, value);
+            replaceParentLanes(this, value);
             break;
         case SUMO_ATTR_POSITION:
-            myPositionOverLane = value;
+            myPositionOverLane = parse<double>(value);
             break;
         case SUMO_ATTR_LENGTH:
             myLength = value;

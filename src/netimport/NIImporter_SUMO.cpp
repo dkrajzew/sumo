@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Leonhard Luecken
 /// @date    Mon, 14.04.2008
-/// @version $Id$
 ///
 // Importer for networks stored in SUMO format
 /****************************************************************************/
@@ -201,7 +200,7 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
                 }
                 nbe->addLane2LaneConnection(
                     fromLaneIndex, toEdge, c.toLaneIdx, NBEdge::L2L_VALIDATED,
-                    true, c.mayDefinitelyPass, c.keepClear, c.contPos, c.visibility, c.speed, c.customShape, uncontrolled);
+                    true, c.mayDefinitelyPass, c.keepClear, c.contPos, c.visibility, c.speed, c.customShape, uncontrolled, c.permissions);
                 if (c.getParametersMap().size() > 0) {
                     nbe->getConnectionRef(fromLaneIndex, toEdge, c.toLaneIdx).updateParameters(c.getParametersMap());
                 }
@@ -213,7 +212,7 @@ NIImporter_SUMO::_loadNetwork(OptionsCont& oc) {
                         for (it = programs.begin(); it != programs.end(); it++) {
                             NBLoadedSUMOTLDef* tlDef = dynamic_cast<NBLoadedSUMOTLDef*>(it->second);
                             if (tlDef) {
-                                tlDef->addConnection(nbe, toEdge, fromLaneIndex, c.toLaneIdx, c.tlLinkIndex, false);
+                                tlDef->addConnection(nbe, toEdge, fromLaneIndex, c.toLaneIdx, c.tlLinkIndex, c.tlLinkIndex2, false);
                             } else {
                                 throw ProcessError("Corrupt traffic light definition '" + c.tlID + "' (program '" + it->first + "')");
                             }
@@ -755,12 +754,20 @@ NIImporter_SUMO::addConnection(const SUMOSAXAttributes& attrs) {
     conn.keepClear = attrs.getOpt<bool>(SUMO_ATTR_KEEP_CLEAR, nullptr, ok, true);
     conn.contPos = attrs.getOpt<double>(SUMO_ATTR_CONTPOS, nullptr, ok, NBEdge::UNSPECIFIED_CONTPOS);
     conn.visibility = attrs.getOpt<double>(SUMO_ATTR_VISIBILITY_DISTANCE, nullptr, ok, NBEdge::UNSPECIFIED_VISIBILITY_DISTANCE);
+    std::string allow = attrs.getOpt<std::string>(SUMO_ATTR_ALLOW, nullptr, ok, "", false);
+    std::string disallow = attrs.getOpt<std::string>(SUMO_ATTR_DISALLOW, nullptr, ok, "", false);
+    if (allow == "" && disallow == "") {
+        conn.permissions = SVC_UNSPECIFIED;
+    } else {
+        conn.permissions = parseVehicleClasses(allow, disallow, myNetworkVersion);
+    }
     conn.speed = attrs.getOpt<double>(SUMO_ATTR_SPEED, nullptr, ok, NBEdge::UNSPECIFIED_SPEED);
     conn.customShape = attrs.getOpt<PositionVector>(SUMO_ATTR_SHAPE, nullptr, ok, PositionVector::EMPTY);
     NBNetBuilder::transformCoordinates(conn.customShape, false, myLocation);
     conn.uncontrolled = attrs.getOpt<bool>(SUMO_ATTR_UNCONTROLLED, nullptr, ok, NBEdge::UNSPECIFIED_CONNECTION_UNCONTROLLED, false);
     if (conn.tlID != "") {
         conn.tlLinkIndex = attrs.get<int>(SUMO_ATTR_TLLINKINDEX, nullptr, ok);
+        conn.tlLinkIndex2 = attrs.getOpt<int>(SUMO_ATTR_TLLINKINDEX2, nullptr, ok, -1);
     } else {
         conn.tlLinkIndex = NBConnection::InvalidTlIndex;
     }

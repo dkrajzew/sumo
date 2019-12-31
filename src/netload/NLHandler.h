@@ -13,7 +13,6 @@
 /// @author  Clemens Honomichl
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // The XML-Handler for network loading
 /****************************************************************************/
@@ -216,12 +215,6 @@ private:
 
     /// adds a lane to the previously opened edge
     void addLane(const SUMOSAXAttributes& attrs);
-
-    /// adds a polygon
-    void addPOI(const SUMOSAXAttributes& attrs);
-
-    /// adds a polygon
-    void addPoly(const SUMOSAXAttributes& attrs);
 
     ///  adds a request item to the current junction logic
     void addRequest(const SUMOSAXAttributes& attrs);

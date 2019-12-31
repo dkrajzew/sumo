@@ -10,7 +10,6 @@
 /// @file    GNEParkingArea.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Feb 2018
-/// @version $Id$
 ///
 // A class for visualizing ParkingArea geometry (adapted from GUILaneWrapper)
 /****************************************************************************/
@@ -49,8 +48,8 @@ public:
      * @param[in] angle ParkingArea's angle
      * @param[in] block movement enable or disable additional movement
      */
-    GNEParkingArea(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const double startPos, const double endPos, const int parametersSet, 
-                   const std::string& name, bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length, 
+    GNEParkingArea(const std::string& id, GNELane* lane, GNEViewNet* viewNet, const double startPos, const double endPos, const int parametersSet,
+                   const std::string& name, bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length,
                    double angle, bool blockMovement);
 
     /// @brief Destructor
@@ -63,6 +62,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -96,10 +98,6 @@ public:
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
 
-    /* @brief method for check if the value for certain attribute is set
-     * @param[in] key The attribute key
-     */
-    bool isAttributeEnabled(SumoXMLAttr key) const;
     /// @}
 
 protected:
@@ -112,7 +110,7 @@ protected:
     /// @brief width of Parking Area
     double myWidth;
 
-    /// @brief Lenght of Parking Area (by default (endPos - startPos) / roadsideCapacity
+    /// @brief Length of Parking Area (by default (endPos - startPos) / roadsideCapacity
     std::string myLength;
 
     /// @brief Angle of Parking Area

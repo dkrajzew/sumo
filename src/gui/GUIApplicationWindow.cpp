@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Andreas Gaubatz
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // The main window of the SUMO-gui.
 /****************************************************************************/
@@ -44,7 +43,7 @@
 #include <microsim/MSVehicleControl.h>
 #include <microsim/MSEdgeControl.h>
 #include <microsim/MSInsertionControl.h>
-#include <microsim/MSTransportableControl.h>
+#include <microsim/transportables/MSTransportableControl.h>
 
 #include "GUISUMOViewParent.h"
 #include "GUILoadThread.h"
@@ -160,6 +159,8 @@ FXDEFMAP(GUIApplicationWindow) GUIApplicationWindowMap[] = {
     FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_I_EDITVIEWPORT,                     GUIApplicationWindow::onUpdNeedsSimulation),
     FXMAPFUNC(SEL_UPDATE,   MID_NETEDIT,                                        GUIApplicationWindow::onUpdNeedsSimulation),
     FXMAPFUNC(SEL_UPDATE,   MID_DEMAND_SCALE,                                   GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_G_GAMINGMODE_TOOGLEGRID,            GUIApplicationWindow::onUpdNeedsSimulation),
+    FXMAPFUNC(SEL_UPDATE,   MID_HOTKEY_CTRL_F_FULSCREENMODE,                    GUIApplicationWindow::onUpdNeedsSimulation),
     FXMAPFUNC(SEL_UPDATE,   MID_TRACI_STATUS,                                   GUIApplicationWindow::onUpdTraCIStatus),
     FXMAPFUNC(SEL_COMMAND,  MID_HOTKEY_F1_ONLINEDOCUMENTATION,                  GUIApplicationWindow::onCmdHelp),
 
@@ -456,12 +457,12 @@ GUIApplicationWindow::fillMenuBar() {
                       "Edit Visualisation\tF9\tOpens a dialog for editing visualization settings.",
                       nullptr, this, MID_HOTKEY_F9_EDIT_VIEWSCHEME);
     new FXMenuCommand(myEditMenu,
-                      "Edit Viewport\tCtrl+I\tOpens a dialog for editing viewing are, zoom and rotation.",
+                      "Edit Viewport\tCtrl+I\tOpens a dialog for editing viewing area, zoom and rotation.",
                       nullptr, this, MID_HOTKEY_CTRL_I_EDITVIEWPORT);
     new FXMenuSeparator(myEditMenu);
     new FXMenuCommand(myEditMenu,
                       "Open in Netedit\tCtrl+T\tOpens the netedit application with the current network.",
-                      nullptr, this, MID_NETEDIT);
+                      GUIIconSubSys::getIcon(ICON_NETEDIT_MINI), this, MID_NETEDIT);
 
     // build settings menu
     mySettingsMenu = new FXMenuPane(this);
@@ -575,8 +576,8 @@ GUIApplicationWindow::fillMenuBar() {
     // build help menu
     myHelpMenu = new FXMenuPane(this);
     new FXMenuTitle(myMenuBar, "&Help", nullptr, myHelpMenu);
-    new FXMenuCommand(myHelpMenu, "&Online Documentation\tF1\tOpen Online documentation", nullptr, this, MID_HOTKEY_F1_ONLINEDOCUMENTATION);
-    new FXMenuCommand(myHelpMenu, "&About\tF2\tAbout sumo-gui", GUIIconSubSys::getIcon(ICON_SUMO_MINI), this, MID_HOTKEY_F2_ABOUT);
+    new FXMenuCommand(myHelpMenu, "&Online Documentation\tF1\tOpen Online documentation.", nullptr, this, MID_HOTKEY_F1_ONLINEDOCUMENTATION);
+    new FXMenuCommand(myHelpMenu, "&About\tF2\tAbout sumo-gui.", GUIIconSubSys::getIcon(ICON_SUMO_MINI), this, MID_HOTKEY_F2_ABOUT);
 
     //new FXButton(myMenuBar, "\t\tShows TraCI status", GUIIconSubSys::getIcon(ICON_ADD), this, MID_TRACI_STATUS, 0, 0, 0, 14, 14, 0, 0, 0, 0);
 
@@ -796,7 +797,7 @@ GUIApplicationWindow::onCmdEditViewScheme(FXObject*, FXSelector, void*) {
 
 long
 GUIApplicationWindow::onCmdHelp(FXObject*, FXSelector, void*) {
-    FXLinkLabel::fxexecute("https://sumo.dlr.de/wiki/SUMO-GUI");
+    FXLinkLabel::fxexecute("https://sumo.dlr.de/docs/SUMO-GUI.html");
     return 1;
 }
 
@@ -821,7 +822,7 @@ GUIApplicationWindow::onCmdNetedit(FXObject*, FXSelector, void*) {
             netedit = "\"" + newPath + "\"";
         }
     }
-    std::string cmd = netedit + " --registry-viewport -s "  + OptionsCont::getOptions().getString("net-file");
+    std::string cmd = netedit + " --registry-viewport -s " + "\"" + OptionsCont::getOptions().getString("net-file") + "\"";
     // start in background
 #ifndef WIN32
     cmd = cmd + " &";
@@ -935,13 +936,15 @@ GUIApplicationWindow::onCmdOpenEdgeData(FXObject*, FXSelector, void*) {
 
 long
 GUIApplicationWindow::onCmdReload(FXObject*, FXSelector, void*) {
-    storeWindowSizeAndPos();
-    getApp()->beginWaitCursor();
-    myAmLoading = true;
-    closeAllWindows();
-    myLoadThread->start();
-    setStatusBarText("Reloading.");
-    update();
+    if (!myAmLoading) {
+        storeWindowSizeAndPos();
+        getApp()->beginWaitCursor();
+        myAmLoading = true;
+        closeAllWindows();
+        myLoadThread->start();
+        setStatusBarText("Reloading.");
+        update();
+    }
     return 1;
 }
 
@@ -972,7 +975,7 @@ GUIApplicationWindow::onCmdSaveConfig(FXObject*, FXSelector, void*) {
         return 1;
     }
     std::string file = MFXUtils::assureExtension(opendialog.getFilename(),
-                    opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')')).text();
+                       opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')')).text();
     std::ofstream out(file);
     if (out.good()) {
         OptionsCont::getOptions().writeConfiguration(out, true, false, false);
@@ -1088,7 +1091,7 @@ GUIApplicationWindow::onCmdSaveState(FXObject*, FXSelector, void*) {
     }
 
     const std::string file = MFXUtils::assureExtension(opendialog.getFilename(),
-                    opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')')).text();
+                             opendialog.getPatternText(opendialog.getCurrentPattern()).after('.').before(')')).text();
     MSStateHandler::saveState(file, MSNet::getInstance()->getCurrentTimeStep());
     setStatusBarText("Simulation saved to " + file);
     return 1;
@@ -1213,6 +1216,9 @@ GUIApplicationWindow::onCmdAppSettings(FXObject*, FXSelector, void*) {
 
 long
 GUIApplicationWindow::onCmdGaming(FXObject*, FXSelector, void*) {
+    if (myGLWindows.empty()) {
+        return 1;
+    }
     myAmGaming = !myAmGaming;
     myGLWindows[0]->getView()->getVisualisationSettings()->gaming = myAmGaming;
     if (myAmGaming) {
@@ -1264,6 +1270,9 @@ GUIApplicationWindow::onCmdGaming(FXObject*, FXSelector, void*) {
 
 long
 GUIApplicationWindow::onCmdFullScreen(FXObject*, FXSelector, void*) {
+    if (myGLWindows.empty()) {
+        return 1;
+    }
     myAmFullScreen = !myAmFullScreen;
     if (myAmFullScreen) {
         getApp()->reg().writeIntEntry("SETTINGS", "x", getX());
@@ -1523,8 +1532,10 @@ GUIApplicationWindow::handleEvent_SimulationLoaded(GUIEvent* e) {
             for (std::vector<FXButton*>::const_iterator it = myStatButtons.begin(); it != myStatButtons.end(); ++it) {
                 (*it)->setText("-");
             }
-            // initialize scale from options
-            myDemandScaleSpinner->setValue(OptionsCont::getOptions().getFloat("scale"));
+            // initialize scale from options unless already set in the UI
+            if (myDemandScaleSpinner->getValue() == 1 || !OptionsCont::getOptions().isDefault("scale")) {
+                myDemandScaleSpinner->setValue(OptionsCont::getOptions().getFloat("scale"));
+            }
         }
     }
     getApp()->endWaitCursor();
@@ -1690,14 +1701,16 @@ GUIApplicationWindow::checkGamingEventsDRT() {
 
 void
 GUIApplicationWindow::loadConfigOrNet(const std::string& file, bool isNet) {
-    storeWindowSizeAndPos();
-    getApp()->beginWaitCursor();
-    myAmLoading = true;
-    closeAllWindows();
-    gSchemeStorage.saveViewport(0, 0, -1, 0); // recenter view
-    myLoadThread->loadConfigOrNet(file, isNet);
-    setStatusBarText("Loading '" + file + "'.");
-    update();
+    if (!myAmLoading) {
+        storeWindowSizeAndPos();
+        getApp()->beginWaitCursor();
+        myAmLoading = true;
+        closeAllWindows();
+        gSchemeStorage.saveViewport(0, 0, -1, 0); // recenter view
+        myLoadThread->loadConfigOrNet(file, isNet);
+        setStatusBarText("Loading '" + file + "'.");
+        update();
+    }
 }
 
 
@@ -1764,7 +1777,9 @@ GUIApplicationWindow::closeAllWindows() {
     while (!myGLWindows.empty()) {
         delete myGLWindows.front();
     }
-    for (FXMainWindow* const window : myTrackerWindows) {
+    // make a copy because deleting modifyes the vector;
+    std::vector<FXMainWindow*> trackerWindows = myTrackerWindows;;
+    for (FXMainWindow* const window : trackerWindows) {
         delete window;
     }
     myTrackerWindows.clear();

@@ -10,7 +10,6 @@
 /// @file    GNERide.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2019
-/// @version $Id$
 ///
 // A class for visualizing rides in Netedit
 /****************************************************************************/
@@ -22,10 +21,8 @@
 // included modules
 // ===========================================================================
 
-
-#include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
-
 #include "GNEDemandElement.h"
+#include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 
 // ===========================================================================
 // class declarations
@@ -41,23 +38,23 @@ class GNEVehicle;
 class GNERide : public GNEDemandElement, public Parameterised {
 
 public:
-    /**@brief parameter constructor
+    /**@brief parameter constructor for rideEdges
      * @param[in] viewNet view in which this Ride is placed
      * @param[in] personParent person parent
      * @param[in] edges list of consecutive edges of this ride
      * @param[in] arrivalPosition arrival position on the destination edge
-     * @param[in] lines valid line or vehicle ids or ANY
      */
-    GNERide(GNEViewNet* viewNet, GNEDemandElement* personParent, const std::vector<GNEEdge*>& edges, double arrivalPosition, const std::vector<std::string>& lines);
+    GNERide(GNEViewNet* viewNet, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
+            const std::vector<GNEEdge*>& via, double arrivalPosition, const std::vector<std::string>& lines);
 
-    /**@brief parameter constructor
+    /**@brief parameter constructor for rideBusStop
      * @param[in] viewNet view in which this Ride is placed
      * @param[in] personParent person parent
      * @param[in] edges list of consecutive edges of this ride
      * @param[in] busStop destination busStop
-     * @param[in] lines valid line or vehicle ids or ANY
      */
-    GNERide(GNEViewNet* viewNet, GNEDemandElement* personParent, const std::vector<GNEEdge*>& edges, GNEAdditional* busStop, const std::vector<std::string>& lines);
+    GNERide(GNEViewNet* viewNet, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEAdditional* busStop,
+            const std::vector<GNEEdge*>& via, const std::vector<std::string>& lines);
 
     /// @brief destructor
     ~GNERide();
@@ -90,9 +87,6 @@ public:
     /// @brief get color
     const RGBColor& getColor() const;
 
-    /// @brief compute demand element
-    void compute();
-
     /// @}
 
     /// @name Functions related with geometry of element
@@ -115,6 +109,15 @@ public:
 
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
+    /// @brief partial update pre-computed geometry information
+    void updatePartialGeometry(const GNEEdge* edge);
+
+    /// @brief compute path
+    void computePath();
+
+    /// @brief invalidate path
+    void invalidatePath();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -141,6 +144,9 @@ public:
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -214,11 +220,11 @@ protected:
     /// @brief variable for move rides
     DemandElementMove myRideMove;
 
-    /// @brief valid line or vehicle ids or ANY
-    std::vector<std::string> myLines;
-
     /// @brief arrival position
     double myArrivalPosition;
+
+    /// @brief valid line or vehicle ids or ANY
+    std::vector<std::string> myLines;
 
 private:
     /// @brief method for setting the attribute and nothing else

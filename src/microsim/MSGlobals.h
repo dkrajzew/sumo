@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    late summer 2003
-/// @version $Id$
 ///
 // Some static variables for faster access
 /****************************************************************************/
@@ -111,6 +110,9 @@ public:
     /// default value for the interval between two action points for MSVehicle (defaults to DELTA_T)
     static SUMOTime gActionStepLength;
 
+    // whether Kirchhoff's laws are used for solving overhead wire circuit
+    static bool gOverheadWireSolver;
+
     /// encoding of the string-option default.emergencydecel
     static double gDefaultEmergencyDecel;
 
@@ -123,6 +125,9 @@ public:
     /// how many threads to use for simulation
     static int gNumSimThreads;
 
+    /// how many threads to use
+    static int gNumThreads;
+
     /// treshold for warning about strong deceleration
     static double gEmergencyDecelWarningThreshold;
 
@@ -131,6 +136,12 @@ public:
 
     /// whether parking simulation includes manoeuver time and any associated lane blocking
     static bool gModelParkingManoeuver;
+
+    /// whether sublane simulation is enabled (sublane model or continuous lanechanging)
+    static bool gSublane;
+
+    /// @brief The tolerance to apply when matching waiting persons and vehicles
+    static double gStopTolerance;
 };
 
 

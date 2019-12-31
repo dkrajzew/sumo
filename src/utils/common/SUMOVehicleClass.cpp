@@ -14,7 +14,6 @@
 /// @author  Walter Bamberger
 /// @author  Laura Bieker-Walz
 /// @date    2006-01-24
-/// @version $Id$
 ///
 // Definitions of SUMO vehicle classes and helper functions
 /****************************************************************************/
@@ -142,9 +141,9 @@ static std::string vehicleClassNameAll = "all";
 // additional constants
 // ===========================================================================
 
-const int SUMOVehicleClass_MAX = SVC_CUSTOM2;
+const SUMOVehicleClass SUMOVehicleClass_MAX = SVC_CUSTOM2;
 
-const SVCPermissions SVCAll = 2 * SUMOVehicleClass_MAX - 1; // all relevant bits set to 1
+const SVCPermissions SVCAll = 2 * (int)SUMOVehicleClass_MAX - 1; // all relevant bits set to 1
 
 const SVCPermissions SVC_UNSPECIFIED = -1;
 
@@ -153,6 +152,8 @@ const std::string DEFAULT_VTYPE_ID("DEFAULT_VEHTYPE");
 const std::string DEFAULT_PEDTYPE_ID("DEFAULT_PEDTYPE");
 
 const std::string DEFAULT_BIKETYPE_ID("DEFAULT_BIKETYPE");
+
+const std::string DEFAULT_CONTAINERTYPE_ID("DEFAULT_CONTAINERTYPE");
 
 const double DEFAULT_VEH_PROB(1.);
 

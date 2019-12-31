@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Oct/Nov 2003
-/// @version $Id$
 ///
 // A wrapper for tl-logics to allow their visualisation and interaction
 /****************************************************************************/
@@ -111,6 +110,15 @@ public:
     MSTrafficLightLogic& getTLLogic() const {
         return myTLLogic;
     }
+
+    MSTrafficLightLogic* getActiveTLLogic() const;
+
+    int getCurrentPhase() const;
+    std::string getCurrentPhaseName() const;
+    int getCurrentDuration() const;
+    int getCurrentMinDur() const;
+    int getCurrentMaxDur() const;
+    int getRunningDuration() const;
 
 public:
     /**

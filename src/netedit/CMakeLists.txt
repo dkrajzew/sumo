@@ -23,10 +23,12 @@ set(netedit_SRCS
    GNEUndoList.cpp
    GNEAttributeCarrier.h
    GNEAttributeCarrier.cpp
-   GNEHierarchicalElementParents.h
-   GNEHierarchicalElementParents.cpp
-   GNEHierarchicalElementChildren.h
-   GNEHierarchicalElementChildren.cpp
+   GNEGeometry.h
+   GNEGeometry.cpp
+   GNEHierarchicalParentElements.h
+   GNEHierarchicalParentElements.cpp
+   GNEHierarchicalChildElements.h
+   GNEHierarchicalChildElements.cpp
    GNEReferenceCounter.h
    GNEEvent_NetworkLoaded.h
 )

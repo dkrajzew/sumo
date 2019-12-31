@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    07.05.2009
-/// @version $Id$
 ///
 // APIs for getting/setting GUI values via TraCI
 /****************************************************************************/
@@ -90,13 +89,13 @@ TraCIServerAPI_GUI::processGet(TraCIServer& server, tcpip::Storage& inputStorage
                 tempMsg.writeDouble(b.ymin());
                 tempMsg.writeDouble(b.xmax());
                 tempMsg.writeDouble(b.ymax());
-                break;
             }
+            break;
             case libsumo::VAR_HAS_VIEW: {
                 tempMsg.writeUnsignedByte(libsumo::TYPE_INTEGER);
                 tempMsg.writeInt(v != nullptr ? 1 : 0);
-                break;
             }
+            break;
             case libsumo::VAR_TRACK_VEHICLE: {
                 GUIVehicle* gv = 0;
                 std::string id;
@@ -114,8 +113,8 @@ TraCIServerAPI_GUI::processGet(TraCIServer& server, tcpip::Storage& inputStorage
                 if (gid != GUIGlObject::INVALID_ID) {
                     GUIGlObjectStorage::gIDStorage.unblockObject(gid);
                 }
-                break;
             }
+            break;
             default:
                 break;
         }
@@ -185,8 +184,8 @@ TraCIServerAPI_GUI::processSet(TraCIServer& server, tcpip::Storage& inputStorage
                 return server.writeErrorStatusCmd(libsumo::CMD_SET_GUI_VARIABLE, "The boundary must be specified by a bounding box.", outputStorage);
             }
             v->centerTo(Boundary(p[0].x(), p[0].y(), p[1].x(), p[1].y()));
-            break;
         }
+        break;
         case libsumo::VAR_SCREENSHOT: {
             if (inputStorage.readUnsignedByte() != libsumo::TYPE_COMPOUND) {
                 return server.writeErrorStatusCmd(libsumo::CMD_SET_GUI_VARIABLE, "Screenshot requires a compound object.", outputStorage);
@@ -227,6 +226,7 @@ TraCIServerAPI_GUI::processSet(TraCIServer& server, tcpip::Storage& inputStorage
                 }
             }
         }
+        break;
         default:
             break;
     }

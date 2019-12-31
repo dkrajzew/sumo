@@ -13,7 +13,6 @@
 /// @author  Christoph Sommer
 /// @author  Michael Behrisch
 /// @date    Thu, 02.11.2006
-/// @version $Id$
 ///
 // A reader for polygons and pois stored in XML-format
 /****************************************************************************/
@@ -64,8 +63,7 @@ PCLoaderXML::loadIfSet(OptionsCont& oc, PCPolyContainer& toFill,
         if (!FileHelpers::isReadable(*file)) {
             throw ProcessError("Could not open xml-file '" + *file + "'.");
         }
-        const long before = SysUtils::getCurrentMillis();
-        PROGRESS_BEGIN_MESSAGE("Parsing XML from '" + *file + "'");
+        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing XML from '" + *file + "'");
         if (!XMLSubSys::runParser(handler, *file)) {
             throw ProcessError();
         }

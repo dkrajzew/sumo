@@ -10,7 +10,6 @@
 # @file    neteditTestFunctions.py
 # @author  Pablo Alvarez Lopez
 # @date    2016-11-25
-# @version $Id$
 
 # Import libraries
 from __future__ import print_function
@@ -27,7 +26,7 @@ import pyperclip
 # define delay before every operation
 DELAY_KEY = 0.2
 DELAY_KEY_TAB = 0.01
-DELAY_MOUSE = 0.1
+DELAY_MOUSE = 0.5
 DELAY_QUESTION = 3
 DELAY_RELOAD = 5
 DELAY_REFERENCE = 30
@@ -283,6 +282,10 @@ def Popen(extraParameters, debugInformation):
     # set output for routes
     neteditCall += ['--demandelements-output',
                     os.path.join(_TEXTTEST_SANDBOX, "routes.xml")]
+
+    # set output for gui
+    neteditCall += ['--gui-testing.setting-output',
+                    os.path.join(_TEXTTEST_SANDBOX, "guisettingsoutput.xml")]
 
     # add extra parameters
     neteditCall += extraParameters

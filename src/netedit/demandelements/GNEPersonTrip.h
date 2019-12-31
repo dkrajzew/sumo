@@ -10,9 +10,8 @@
 /// @file    GNEPersonTrip.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2019
-/// @version $Id$
 ///
-// A class for visualizing personTrips in Netedit
+// A class for visualizing person trips in Netedit
 /****************************************************************************/
 #ifndef GNEPersonTrip_h
 #define GNEPersonTrip_h
@@ -22,9 +21,8 @@
 // included modules
 // ===========================================================================
 
-#include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
-
 #include "GNEDemandElement.h"
+#include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 
 // ===========================================================================
 // class declarations
@@ -40,27 +38,28 @@ class GNEVehicle;
 class GNEPersonTrip : public GNEDemandElement, public Parameterised {
 
 public:
-    /**@brief parameter constructor
+    /**@brief parameter constructor for person tripEdges
      * @param[in] viewNet view in which this PersonTrip is placed
      * @param[in] personParent person parent
-     * @param[in] edges list of consecutive edges of this personTrip
+     * @param[in] edges list of consecutive edges of this person trip
      * @param[in] arrivalPosition arrival position on the destination edge
      * @param[in] types list of possible vehicle types to take
      * @param[in] modes list of possible traffic modes
      */
-    GNEPersonTrip(GNEViewNet* viewNet, GNEDemandElement* personParent, const std::vector<GNEEdge*>& edges, const std::vector<std::string>& types,
-                  const std::vector<std::string>& modes, double arrivalPosition);
+    GNEPersonTrip(GNEViewNet* viewNet, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEEdge* toEdge,
+                  const std::vector<GNEEdge*>& via, double arrivalPosition, const std::vector<std::string>& types,
+                  const std::vector<std::string>& modes);
 
-    /**@brief parameter constructor
+    /**@brief parameter constructor for person tripBusStop
      * @param[in] viewNet view in which this PersonTrip is placed
      * @param[in] personParent person parent
-     * @param[in] edges list of consecutive edges of this personTrip
+     * @param[in] edges list of consecutive edges of this person trip
      * @param[in] busStop destination busStop
      * @param[in] types list of possible vehicle types to take
      * @param[in] modes list of possible traffic modes
      */
-    GNEPersonTrip(GNEViewNet* viewNet, GNEDemandElement* personParent, const std::vector<GNEEdge*>& edges, GNEAdditional* busStop,
-                  const std::vector<std::string>& types, const std::vector<std::string>& modes);
+    GNEPersonTrip(GNEViewNet* viewNet, GNEDemandElement* personParent, GNEEdge* fromEdge, GNEAdditional* busStop,
+                  const std::vector<GNEEdge*>& via, const std::vector<std::string>& types, const std::vector<std::string>& modes);
 
     /// @brief destructor
     ~GNEPersonTrip();
@@ -93,9 +92,6 @@ public:
     /// @brief get color
     const RGBColor& getColor() const;
 
-    /// @brief compute demand element
-    void compute();
-
     /// @}
 
     /// @name Functions related with geometry of element
@@ -118,6 +114,15 @@ public:
 
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
+    /// @brief partial update pre-computed geometry information
+    void updatePartialGeometry(const GNEEdge* edge);
+
+    /// @brief compute path
+    void computePath();
+
+    /// @brief invalidate path
+    void invalidatePath();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -144,6 +149,9 @@ public:
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -217,14 +225,14 @@ protected:
     /// @brief variable for move person trips
     DemandElementMove myPersonTripMove;
 
+    /// @brief arrival position
+    double myArrivalPosition;
+
     /// @brief valid line or vehicle types
     std::vector<std::string> myVTypes;
 
     /// @brief valid line or modes
     std::vector<std::string> myModes;
-
-    /// @brief arrival position
-    double myArrivalPosition;
 
 private:
     /// @brief method for setting the attribute and nothing else

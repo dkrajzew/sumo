@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Leonhard Luecken
 /// @date    11.06.2013
-/// @version $Id$
 ///
 // An SSM-device logs encounters / conflicts of the carrying vehicle with other surrounding vehicles.
 // XXX: Preliminary implementation. Use with care. Especially rerouting vehicles could be problematic.
@@ -118,7 +117,7 @@ public:
         ENCOUNTER_TYPE_COLLISION = 111 //!< ENCOUNTER_TYPE_COLLISION
     };
 
-    static std::string toString(EncounterType type) {
+    static std::string encounterToString(EncounterType type) {
         switch (type) {
             case (ENCOUNTER_TYPE_NOCONFLICT_AHEAD):
                 return ("NOCONFLICT_AHEAD");
@@ -386,6 +385,12 @@ public:
      */
     void updateAndWriteOutput();
 
+    /// @brief try to retrieve the given parameter from this device. Throw exception for unsupported key
+    std::string getParameter(const std::string& key) const;
+
+    /// @brief try to set the given parameter for this device. Throw exception for unsupported key
+    void setParameter(const std::string& key, const std::string& value);
+
 private:
     void update();
     void writeOutConflict(Encounter* e);
@@ -480,7 +485,7 @@ public:
      * @exception IOError not yet implemented
      * @see MSDevice::generateOutput
      */
-    void generateOutput() const;
+    void generateOutput(OutputDevice* tripinfoOut) const;
 
 
 

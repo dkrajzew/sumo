@@ -10,7 +10,6 @@
 /// @file    GNEVehicleType.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2018
-/// @version $Id$
 ///
 // Definition of Vehicle Types in NETEDIT
 /****************************************************************************/
@@ -68,9 +67,6 @@ public:
     /// @brief get color
     const RGBColor& getColor() const;
 
-    /// @brief compute demand element
-    void compute();
-
     /// @}
 
     /// @name Functions related with geometry of element
@@ -94,6 +90,15 @@ public:
     /// @brief update pre-computed geometry information
     void updateGeometry();
 
+    /// @brief partial update pre-computed geometry information
+    void updatePartialGeometry(const GNEEdge* edge);
+
+    /// @brief compute path
+    void computePath();
+
+    /// @brief invalidate path
+    void invalidatePath();
+
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
     /// @}
@@ -109,6 +114,9 @@ public:
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)

@@ -10,7 +10,6 @@
 /// @file    GNENet.h
 /// @author  Jakob Erdmann
 /// @date    Feb 2011
-/// @version $Id$
 ///
 // The lop level container for GNE-network-components such as GNEEdge and
 // GNEJunction.  Contains an internal instances of NBNetBuilder GNE components
@@ -306,14 +305,14 @@ public:
      * @param[in] edge The edge in which insert restricted lane
      * @param[in] undoList The undolist in which to mark changes
      */
-    bool addRestrictedLane(SUMOVehicleClass vclass, GNEEdge& edge, int index, GNEUndoList* undoList);
+    bool addRestrictedLane(SUMOVehicleClass vclass, GNEEdge* edge, int index, GNEUndoList* undoList);
 
     /**@brief remove restricted lane
      * @param[in] vclass vehicle class to restrict
      * @param[in] edge the edge in which remove sidewalk
      * @param[in] undoList The undolist in which to mark changes
      */
-    bool removeRestrictedLane(SUMOVehicleClass vclass, GNEEdge& edge, GNEUndoList* undoList);
+    bool removeRestrictedLane(SUMOVehicleClass vclass, GNEEdge* edge, GNEUndoList* undoList);
 
     /**@brief split edge at position by inserting a new junction
      * @param[in] edge The edge to be split
@@ -356,21 +355,21 @@ public:
      * @param[in] failHard Whether attempts to retrieve a nonexisting junction should result in an exception
      * @throws UnknownElement
      */
-    GNEJunction* retrieveJunction(const std::string& id, bool failHard = true);
+    GNEJunction* retrieveJunction(const std::string& id, bool failHard = true) const;
 
     /**@brief get edge by id
      * @param[in] id The id of the desired edge
      * @param[in] failHard Whether attempts to retrieve a nonexisting edge should result in an exception
      * @throws UnknownElement
      */
-    GNEEdge* retrieveEdge(const std::string& id, bool failHard = true);
+    GNEEdge* retrieveEdge(const std::string& id, bool failHard = true) const;
 
     /**@brief get edge by from and to GNEJunction
      * @param[in] id The id of the desired edge
      * @param[in] failHard Whether attempts to retrieve a nonexisting edge should result in an exception
      * @throws UnknownElement
      */
-    GNEEdge* retrieveEdge(GNEJunction* from, GNEJunction* to, bool failHard = true);
+    GNEEdge* retrieveEdge(GNEJunction* from, GNEJunction* to, bool failHard = true) const;
 
     /**@brief get Polygon by id
     * @param[in] id The id of the desired polygon

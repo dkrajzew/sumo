@@ -10,7 +10,6 @@
 /// @file    GNEVehicle.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
-/// @version $Id$
 ///
 // Representation of vehicles in NETEDIT
 /****************************************************************************/
@@ -158,10 +157,10 @@ public:
     GNEVehicle(GNEViewNet* viewNet, GNEDemandElement* vehicleType, const SUMOVehicleParameter& vehicleParameters);
 
     /// @brief default constructor for trips and Flows
-    GNEVehicle(SumoXMLTag tag, GNEViewNet* viewNet, const std::string& vehicleID, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge);
+    GNEVehicle(SumoXMLTag tag, GNEViewNet* viewNet, const std::string& vehicleID, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge, const std::vector<GNEEdge*>& via);
 
     /// @brief parameter constructor for trips and Flows
-    GNEVehicle(GNEViewNet* viewNet, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge, const SUMOVehicleParameter& vehicleParameters);
+    GNEVehicle(GNEViewNet* viewNet, GNEDemandElement* vehicleType, GNEEdge* fromEdge, GNEEdge* toEdge, const std::vector<GNEEdge*>& via, const SUMOVehicleParameter& vehicleParameters);
 
     /// @brief destructor
     ~GNEVehicle();
@@ -200,9 +199,6 @@ public:
     /// @brief get color
     const RGBColor& getColor() const;
 
-    /// @brief compute demand element
-    void compute();
-
     /// @}
 
     /// @name Functions related with geometry of element
@@ -225,6 +221,15 @@ public:
 
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
+    /// @brief partial update pre-computed geometry information
+    void updatePartialGeometry(const GNEEdge* edge);
+
+    /// @brief compute path
+    void computePath();
+
+    /// @brief invalidate path
+    void invalidatePath();
 
     /// @brief Returns position of demand element in view
     Position getPositionInView() const;
@@ -250,6 +255,9 @@ public:
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -320,43 +328,8 @@ public:
     /// @}
 
 protected:
-    /// @brief struct used for calculating routes
-    struct ConnectionGeometry {
-
-        /// @brief parameter constructor with NBEdge::Connection
-        ConnectionGeometry(const NBEdge::Connection* _con, const GNELane* _laneFrom, const GNELane* _laneTo);
-
-        /// @brief parameter constructor without NBEdge::Connection
-        ConnectionGeometry(const GNELane* _laneFrom, const GNELane* _laneTo);
-
-        /// @brief calculate connection shape (note: Only calculated if 'con' isn't nullptr)
-        void calculateConnectionShape();
-
-        /// @brief calculated connection shape
-        PositionVector connectionShape;
-
-        /// @brief Pointer to NBEdge::Connection
-        const NBEdge::Connection* con;
-
-        /// @brief lane from
-        const GNELane* laneFrom;
-
-        /// @brief lane to
-        const GNELane* laneTo;
-
-    private:
-        /// @brief default constructor (by default unused)
-        ConnectionGeometry();
-    };
-
     /// @brief sets the color according to the currente settings
     void setColor(const GUIVisualizationSettings& s) const;
-
-    /// @brief from edge (used by flows and trips)
-    GNEEdge* myFromEdge;
-
-    /// @brief to edge (used by flows and trips)
-    GNEEdge* myToEdge;
 
 private:
     /// @brief method for setting the attribute and nothing else
@@ -364,9 +337,6 @@ private:
 
     /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
     void setEnabledAttribute(const int enabledAttributes);
-
-    /// @brief compute demand element without updating references
-    void computeWithoutReferences();
 
     /// @brief Invalidated copy constructor.
     GNEVehicle(const GNEVehicle&) = delete;

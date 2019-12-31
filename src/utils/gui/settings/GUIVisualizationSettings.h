@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // Stores the information about how to visualize structures
 /****************************************************************************/
@@ -159,6 +158,9 @@ struct GUIVisualizationColorSettings {
     /// @brief person plan selection color (Rides, Walks, personStops...)
     RGBColor selectedPersonPlanColor;
 
+    /// @brief color for highlighthing deadends
+    static const RGBColor SUMO_color_DEADEND_SHOW;
+
     /// @brief color for child connections between parents and child elements
     static const RGBColor childConnections;
 
@@ -254,7 +256,7 @@ struct GUIVisualizationWidthSettings {
     /// @brief width of dotted contours (note: must be float)
     static const double dottedContour;
 
-    /// @brief lenght of dotted contour segments
+    /// @brief length of dotted contour segments
     static const double dottedContourSegmentLength;
 
     /// @brief width for routes
@@ -514,6 +516,9 @@ public:
     /// @brief Information whether the communication range shall be drawn
     bool showBTRange;
 
+    /// @brief Information whether the route index should be shown
+    bool showRouteIndex;
+
     // Setting bundles for controling the size of the drawn vehicles
     GUIVisualizationSizeSettings vehicleSize;
 
@@ -638,11 +643,17 @@ public:
     /// @brief the current selection scaling in NETEDIT (temporary)
     double selectionScale;
 
-    /// @brief whether drawing is performed for the purpose of selecting objects
-    bool drawForSelecting;
+    /// @brief whether drawing is performed for the purpose of selecting objects with a single click
+    bool drawForPositionSelection;
 
-    /// @brief flag to force draw to selecting (see drawForSelecting)
-    bool forceDrawForSelecting;
+    /// @brief whether drawing is performed for the purpose of selecting objects using a rectangle
+    bool drawForRectangleSelection;
+
+    /// @brief flag to force draw for position selection (see drawForPositionSelection)
+    bool forceDrawForPositionSelection;
+
+    /// @brief flag to force draw for rectangle selection (see drawForRectangleSelection)
+    bool forceDrawForRectangleSelection;
 
     /**@brief whether drawing is performed in left-hand networks
      * @note used to avoid calls to OptionsCont::getOptions() in every drawgl(...) function, and

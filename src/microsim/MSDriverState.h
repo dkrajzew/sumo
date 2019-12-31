@@ -10,7 +10,6 @@
 /// @file    MSDriverState.h
 /// @author  Michael Behrisch
 /// @date    Tue, 21 Apr 2015
-/// @version $Id$
 ///
 // A class representing a vehicle driver's current mental state
 /****************************************************************************/
@@ -46,6 +45,8 @@ public:
 
     /// @brief evolve for a time step of length dt.
     void step(double dt);
+    /// @brief static version of the step()
+    static double step(double state, double dt, double timeScale, double noiseIntensity);
 
     /// @brief set the process' timescale to a new value
     void setTimeScale(double timeScale) {

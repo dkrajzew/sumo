@@ -10,7 +10,6 @@
 /// @file    GNESelectorFrame.cpp
 /// @author  Jakob Erdmann
 /// @date    Mar 2011
-/// @version $Id$
 ///
 // The Widget for modifying selections of network-elements
 /****************************************************************************/
@@ -934,7 +933,12 @@ GNESelectorFrame::MatchAttribute::onCmdSelMBTag(FXObject*, FXSelector, void*) {
         }
         // @ToDo: Here can be placed a button to set the default value
         myMatchAttrComboBox->setNumVisible(myMatchAttrComboBox->getNumItems());
-        onCmdSelMBAttribute(nullptr, 0, nullptr);
+        // check if we have to update attribute
+        if (tagValue.hasAttribute(myCurrentAttribute)) {
+            myMatchAttrComboBox->setText(toString(myCurrentAttribute).c_str());
+        } else {
+            onCmdSelMBAttribute(nullptr, 0, nullptr);
+        }
     } else {
         // change color to red and disable items
         myMatchTagComboBox->setTextColor(FXRGB(255, 0, 0));

@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Tue, 20 Nov 2001
-/// @version $Id$
 ///
 // Perfoms network import
 /****************************************************************************/
@@ -34,7 +33,6 @@
 // class declarations
 // ===========================================================================
 class OptionsCont;
-class SUMOSAXHandler;
 class NBNetBuilder;
 class Position;
 class PositionVector;
@@ -64,6 +62,7 @@ public:
     /** loads data from the files specified in the given option container */
     void load(OptionsCont& oc);
 
+
 private:
     /** loads data from sumo-files */
     //void loadSUMO(OptionsCont &oc);
@@ -71,9 +70,6 @@ private:
     /** loads data from XML-files */
     void loadXML(OptionsCont& oc);
 
-    /** loads data from the list of xml-files of certain type */
-    void loadXMLType(SUMOSAXHandler* handler, const std::vector<std::string>& files,
-                     const std::string& type, const bool stringParse = false);
 
 private:
     /// @brief The network builder to fill with loaded data

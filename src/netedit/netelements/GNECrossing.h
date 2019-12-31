@@ -10,7 +10,6 @@
 /// @file    GNECrossing.h
 /// @author  Jakob Erdmann
 /// @date    June 2011
-/// @version $Id$
 ///
 // A class for visualizing Inner Lanes (used when editing traffic lights)
 /****************************************************************************/
@@ -59,6 +58,9 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
+    /// @brief get Crossing shape
+    const PositionVector& getCrossingShape() const;
+
     /// @brief update pre-computed geometry information
     void updateGeometry();
 
@@ -140,6 +142,9 @@ protected:
 
     /// @brief Crossing Edges (It works as ID because a junction can only ONE Crossing with the same edges)
     std::vector<NBEdge*> myCrossingEdges;
+
+    /// @brief crossing geometry
+    GNEGeometry::Geometry myCrossingGeometry;
 
 private:
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)

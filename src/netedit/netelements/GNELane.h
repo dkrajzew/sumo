@@ -10,7 +10,6 @@
 /// @file    GNELane.h
 /// @author  Jakob Erdmann
 /// @date    Feb 2011
-/// @version $Id$
 ///
 // A class for visualizing Lane geometry (adapted from GUILaneWrapper)
 /****************************************************************************/
@@ -48,13 +47,12 @@ class GNELane : public GNENetElement, public FXDelegator {
     FXDECLARE(GNELane)
 
 public:
-
     /**@brief Constructor
      * @param[in] idStorage The storage of gl-ids to get the one for this lane representation from
      * @param[in] the edge this lane belongs to
      * @param[in] the index of this lane
      */
-    GNELane(GNEEdge& edge, const int index);
+    GNELane(GNEEdge* edge, const int index);
 
     /// @brief Destructor
     ~GNELane();
@@ -64,6 +62,15 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
+    /// @brief get elements shape
+    const PositionVector& getLaneShape() const;
+
+    /// @brief get rotations of the single shape parts
+    const std::vector<double>& getShapeRotations() const;
+
+    /// @brief get lengths of the single shape parts
+    const std::vector<double>& getShapeLengths() const;
+
     /// @brief update pre-computed geometry information
     void updateGeometry();
 
@@ -72,10 +79,7 @@ public:
     /// @}
 
     /// @brief Returns underlying parent edge
-    GNEEdge& getParentEdge();
-
-    /// @brief Returns underlying parent edge (const)
-    GNEEdge& getParentEdge() const;
+    GNEEdge* getParentEdge() const;
 
     /// @brief returns a vector with the incoming GNEConnections of this lane
     std::vector<GNEConnection*> getGNEIncomingConnections();
@@ -133,7 +137,7 @@ public:
     /// @brief returns the index of the lane
     int getIndex() const;
 
-    /// @nrief returns the current speed of lane
+    /// @brief returns the current speed of lane
     double getSpeed() const;
 
     /* @brief method for setting the index of the lane
@@ -151,6 +155,9 @@ public:
 
     /// @brief check if this lane is restricted
     bool isRestricted(SUMOVehicleClass vclass) const;
+
+    /// @brief get Lane2laneConnection struct
+    const GNEGeometry::Lane2laneConnection& getLane2laneConnections() const;
 
     /// @name inherited from GNEAttributeCarrier
     /// @{
@@ -192,19 +199,21 @@ public:
     /// @brief whether to draw this lane as a railway
     bool drawAsRailway(const GUIVisualizationSettings& s) const;
 
+    /// @brief draw partial E2 detector plan
+    void drawPartialE2DetectorPlan(const GUIVisualizationSettings& s, const GNEAdditional* E2Detector, const GNEJunction* junction) const;
 
 protected:
     /// @brief FOX needs this
     GNELane();
 
     /// @brief The Edge that to which this lane belongs
-    GNEEdge& myParentEdge;
-
-    /// @brief boundary used during moving of elements
-    Boundary myMovingGeometryBoundary;
+    GNEEdge* myParentEdge;
 
     /// @brief The index of this lane
     int myIndex;
+
+    /// @brief lane geometry
+    GNEGeometry::Geometry myLaneGeometry;
 
     /// @name computed only once (for performance) in updateGeometry()
     /// @{
@@ -217,13 +226,16 @@ protected:
     /// @}
 
     /// @brief optional special color
-    const RGBColor* mySpecialColor;
+    const RGBColor* mySpecialColor = nullptr;
 
     /// @brief optional value that corresponds to which the special color corresponds
-    double mySpecialColorValue;
+    double mySpecialColorValue = -1;
 
     /// @brief The color of the shape parts (cached)
     mutable std::vector<RGBColor> myShapeColors;
+
+    /// @brief lane2lane connections
+    GNEGeometry::Lane2laneConnection myLane2laneConnections;
 
 private:
     /// @brief set attribute after validation

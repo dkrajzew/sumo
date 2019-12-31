@@ -14,7 +14,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    2004-11-23
-/// @version $Id$
 ///
 // An unextended detector measuring at a fixed position on a fixed lane.
 /****************************************************************************/
@@ -160,7 +159,7 @@ public:
      *
      * @return The speed [m/s] of the vehicle if one is on the detector, -1 otherwise
      */
-    double getCurrentSpeed() const;
+    double getSpeed(const int offset) const;
 
 
     /** @brief Returns the length of the vehicle on the detector
@@ -170,7 +169,7 @@ public:
      *
      * @return The length [m] of the vehicle if one is on the detector, -1 otherwise
      */
-    double getCurrentLength() const;
+    double getVehicleLength(const int offset) const;
 
 
     /** @brief Returns the current occupancy
@@ -182,7 +181,7 @@ public:
      * @return This detector's current occupancy
      * @todo recheck (especially if more than one vehicle has passed)
      */
-    double getCurrentOccupancy() const;
+    double getOccupancy() const;
 
 
     /** @brief Returns the number of vehicles that have passed the detector
@@ -194,7 +193,7 @@ public:
      * @return The number of vehicles that have passed the detector
      * @todo recheck (especially if more than one vehicle has passed)
      */
-    int getCurrentPassedNumber() const;
+    double getPassedNumber(const int offset) const;
 
 
     /** @brief Returns the ids of vehicles that have passed the detector
@@ -202,14 +201,17 @@ public:
      * @return The ids of vehicles that have passed the detector
      * @todo recheck (especially if more than one vehicle has passed)
      */
-    std::vector<std::string> getCurrentVehicleIDs() const;
+    std::vector<std::string> getVehicleIDs(const int offset) const;
 
 
     /** @brief Returns the time since the last vehicle left the detector
      *
-     * @return Timesteps from last leaving (detection) of the detector
+     * @return seconds from last leaving (detection) of the detector
      */
     double getTimeSinceLastDetection() const;
+
+    ///@brief return last time a vehicle was on the detector
+    SUMOTime getLastDetectionTime() const;
     //@}
 
 
@@ -341,12 +343,8 @@ protected:
     /// @brief Leave-time of the last vehicle detected [s]
     double myLastLeaveTime;
 
-    /// @brief Occupancy by the last vehicle detected.
-    double myLastOccupancy;
-
     /// @brief The number of entered vehicles
     int myEnteredVehicleNumber;
-
 
     /// @brief Type of myVehicleDataCont.
     typedef std::deque< VehicleData > VehicleDataCont;
@@ -357,13 +355,8 @@ protected:
     /// @brief Data of vehicles that have completely passed the detector in the last time interval
     VehicleDataCont myLastVehicleDataCont;
 
-
-    /// @brief Type of myVehiclesOnDet
-
-    typedef std::map< SUMOTrafficObject*, double > VehicleMap;
-
     /// @brief Data for vehicles that have entered the detector (vehicle -> enter time)
-    VehicleMap myVehiclesOnDet;
+    std::map<SUMOTrafficObject*, double> myVehiclesOnDet;
 
 private:
     /// @brief Invalidated copy constructor.

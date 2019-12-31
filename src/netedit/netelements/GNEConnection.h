@@ -10,7 +10,6 @@
 /// @file    GNEConnection.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2016
-/// @version $Id$
 ///
 // A class for represent connections between Lanes
 /****************************************************************************/
@@ -23,6 +22,7 @@
 // ===========================================================================
 
 #include "GNENetElement.h"
+
 #include <netbuild/NBEdge.h>
 
 // ===========================================================================
@@ -52,6 +52,9 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
+    /// @brief get connection shape
+    const PositionVector& getConnectionShape() const;
+
     /// @brief update pre-computed geometry information
     void updateGeometry();
 
@@ -89,9 +92,6 @@ public:
 
     /// @brief get LinkState
     LinkState getLinkState() const;
-
-    /// @brief get Position vector calculated in updateGeometry()
-    const PositionVector& getShape() const;
 
     /// @brief check that connection's Geometry has to be updated
     void markConnectionGeometryDeprecated();
@@ -172,6 +172,9 @@ protected:
     /// @brief optional special color
     const RGBColor* mySpecialColor;
 
+    /// @brief connection geometry
+    GNEGeometry::Geometry myConnectionGeometry;
+
     /// @brief flag to indicate that connection's shape has to be updated
     bool myShapeDeprecated;
 
@@ -181,6 +184,9 @@ protected:
 private:
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);
+
+    /// @brief manage change of tlLinkindices
+    void changeTLIndex(SumoXMLAttr key, int tlIndex, int tlIndex2, GNEUndoList* undoList);
 
     /// @brief Invalidated copy constructor.
     GNEConnection(const GNEConnection&) = delete;

@@ -11,7 +11,6 @@
 /// @author  Jakob Erdmann
 /// @author  Melanie Weber
 /// @date    29. March 2018
-/// @version $Id$
 ///
 // Algorithms for railways
 /****************************************************************************/
@@ -79,6 +78,12 @@ public:
             return 0.;
         }
         bool isInternal() const {
+            return false;
+        }
+        inline bool prohibits(const NBVehicle* const /*veh*/) const {
+            return false;
+        }
+        inline bool restricts(const NBVehicle* const /*veh*/) const {
             return false;
         }
 

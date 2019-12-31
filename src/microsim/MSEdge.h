@@ -14,7 +14,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Mon, 12 Mar 2001
-/// @version $Id$
 ///
 // A road/street connecting two junctions
 /****************************************************************************/
@@ -31,6 +30,9 @@
 #include <map>
 #include <string>
 #include <iostream>
+#ifdef HAVE_FOX
+#include <fx.h>
+#endif
 #include <utils/common/Named.h>
 #include <utils/common/Parameterised.h>
 #include <utils/common/SUMOTime.h>
@@ -54,7 +56,6 @@ class MSLaneChanger;
 class MSPerson;
 class MSJunction;
 class MSEdge;
-class MSContainer;
 class MSTransportable;
 
 
@@ -76,7 +77,7 @@ typedef std::vector<std::pair<const MSEdge*, const MSEdge*> > MSConstEdgePairVec
 class MSEdge : public Named, public Parameterised {
 private:
     /** @brief "Map" from vehicle class to allowed lanes */
-    typedef std::vector<std::pair<SVCPermissions, const std::vector<MSLane*>* > > AllowedLanesCont;
+    typedef std::vector<std::pair<SVCPermissions, std::shared_ptr<const std::vector<MSLane*> > > > AllowedLanesCont;
 
     /** @brief Succeeding edges (keys) and allowed lanes to reach these edges (values). */
     typedef std::map<const MSEdge*, AllowedLanesCont> AllowedLanesByTarget;
@@ -543,6 +544,11 @@ public:
         return (myCombinedPermissions & svc) != svc;
     }
 
+    /// @brief Returns whether the vehicle (class) is not allowed on the edge
+    inline bool restricts(const SUMOVehicle* const /* vehicle */) const {
+        return false;
+    }
+
     inline SVCPermissions getPermissions() const {
         return myCombinedPermissions;
     }
@@ -679,6 +685,18 @@ public:
     /// @brief release exclusive access to the mesoscopic state
     virtual void unlock() const {};
 
+    /// @brief Adds a vehicle to the list of waiting vehicles
+    void addWaiting(SUMOVehicle* vehicle) const;
+
+    /// @brief Removes a vehicle from the list of waiting vehicles
+    void removeWaiting(const SUMOVehicle* vehicle) const;
+
+    /* @brief returns a vehicle that is waiting for a for a person or a container at this edge at the given position
+     * @param[in] transportable The person or container that wants to ride
+     * @param[in] position The vehicle shall be positioned in the interval [position - t, position + t], where t is some tolerance
+     */
+    SUMOVehicle* getWaitingVehicle(MSTransportable* transportable, const double position) const;
+
     /** @brief Inserts edge into the static dictionary
         Returns true if the key id isn't already in the dictionary. Otherwise
         returns false. */
@@ -766,7 +784,7 @@ protected:
     const int myNumericalID;
 
     /// @brief Container for the edge's lane; should be sorted: (right-hand-traffic) the more left the lane, the higher the container-index
-    const std::vector<MSLane*>* myLanes;
+    std::shared_ptr<const std::vector<MSLane*> > myLanes;
 
     /// @brief This member will do the lane-change
     MSLaneChanger* myLaneChanger;
@@ -884,20 +902,31 @@ protected:
     /// @brief The bounding rectangle of end nodes incoming or outgoing edges for taz connectors or of my own start and end node for normal edges
     Boundary myBoundary;
 
+    /// @brief List of waiting vehicles
+    mutable std::vector<SUMOVehicle*> myWaiting;
+
+#ifdef HAVE_FOX
+    /// @brief Mutex for accessing waiting vehicles
+    mutable FXMutex myWaitingMutex;
+
+    /// @brief Mutex for accessing successor edges
+    mutable FXMutex mySuccessorMutex;
+#endif
+
 private:
 
-    /// @brief the oppositing superposble edge
+    /// @brief the oppositing superposable edge
     const MSEdge* myBidiEdge;
 
     /// @brief Invalidated copy constructor.
     MSEdge(const MSEdge&);
 
     /// @brief assignment operator.
-    MSEdge& operator=(const MSEdge&);
+    MSEdge& operator=(const MSEdge&) = delete;
 
     bool isSuperposable(const MSEdge* other);
 
-    void addToAllowed(const SVCPermissions permissions, const std::vector<MSLane*>* allowedLanes, AllowedLanesCont& laneCont) const;
+    void addToAllowed(const SVCPermissions permissions, std::shared_ptr<const std::vector<MSLane*> > allowedLanes, AllowedLanesCont& laneCont) const;
 };
 
 

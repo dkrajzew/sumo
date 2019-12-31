@@ -11,7 +11,6 @@
 /// @author  Jakob Erdmann
 /// @author  Pablo Alvarez Lopez
 /// @date    Feb 2019
-/// @version $Id$
 ///
 // A file used to reduce the size of GNEViewNet.h grouping structs and classes
 /****************************************************************************/
@@ -115,7 +114,7 @@ GNEViewNetHelper::ObjectsUnderCursor::updateObjectUnderCursor(const std::vector<
                         case GLO_EDGE: {
                             // fisrt obtain Edge
                             GNEEdge* edge = dynamic_cast<GNEEdge*>(myAttributeCarriers.back());
-                            // check if edge parent is already inserted in myEdges (for example, due clicking over Geometry Points)
+                            // check if parent edge is already inserted in myEdges (for example, due clicking over Geometry Points)
                             if (std::find(myEdges.begin(), myEdges.end(), edge) == myEdges.end()) {
                                 myEdges.push_back(edge);
                             }
@@ -123,9 +122,9 @@ GNEViewNetHelper::ObjectsUnderCursor::updateObjectUnderCursor(const std::vector<
                         }
                         case GLO_LANE: {
                             myLanes.push_back(dynamic_cast<GNELane*>(myAttributeCarriers.back()));
-                            // check if edge's lane parent is already inserted in myEdges (for example, due clicking over Geometry Points)
-                            if (std::find(myEdges.begin(), myEdges.end(), &myLanes.back()->getParentEdge()) == myEdges.end()) {
-                                myEdges.push_back(&myLanes.back()->getParentEdge());
+                            // check if edge's parent lane is already inserted in myEdges (for example, due clicking over Geometry Points)
+                            if (std::find(myEdges.begin(), myEdges.end(), myLanes.back()->getParentEdge()) == myEdges.end()) {
+                                myEdges.push_back(myLanes.back()->getParentEdge());
                             }
                             break;
                         }
@@ -182,16 +181,6 @@ GNEViewNetHelper::ObjectsUnderCursor::swapLane2Edge() {
     }
     // write information for debug
     WRITE_DEBUG("ObjectsUnderCursor: swapped Lanes to edges")
-}
-
-
-void
-GNEViewNetHelper::ObjectsUnderCursor::setCreatedJunction(GNEJunction* junction) {
-    if (myJunctions.size() > 0) {
-        myJunctions.front() = junction;
-    } else {
-        myJunctions.push_back(junction);
-    }
 }
 
 
@@ -634,10 +623,18 @@ GNEViewNetHelper::MoveSingleElementValues::calculatePolyValues() {
             } else {
                 // obtain index of vertex to move and moving reference
                 myViewNet->myMoveSingleElementValues.movingIndexShape = myPolyToMove->getVertexIndex(myViewNet->myMoveSingleElementValues.originalPositionInView, false, false);
+                // check if a new Vertex must be created
                 if (myViewNet->myMoveSingleElementValues.movingIndexShape == -1) {
-                    // create new geometry point
-                    myViewNet->myMoveSingleElementValues.movingIndexShape = myPolyToMove->getVertexIndex(myViewNet->myMoveSingleElementValues.originalPositionInView, true, true);
+                    if (myPolyToMove->getShape().distance2D(myViewNet->myMoveSingleElementValues.originalPositionInView) <= 0.8) {
+                        // create new geometry point
+                        myViewNet->myMoveSingleElementValues.movingIndexShape = myPolyToMove->getVertexIndex(myViewNet->myMoveSingleElementValues.originalPositionInView, true, true);
+                    } else {
+                        // nothing to move, then return false
+                        return false;
+                    }
                 }
+                // set Z value
+                myViewNet->myMoveSingleElementValues.originalPositionInView.setz(myPolyToMove->getShape()[myViewNet->myMoveSingleElementValues.movingIndexShape].z());
                 // poly values sucesfully calculated, then return true
                 return true;
             }
@@ -726,7 +723,7 @@ GNEViewNetHelper::MoveSingleElementValues::calculateTAZValues() {
     // set TAZ to move
     myTAZToMove = myViewNet->myObjectsUnderCursor.getTAZFront();
     // save original shape (needed for commit change)
-    myViewNet->myMoveSingleElementValues.originalShapeBeforeMoving = myTAZToMove->getShape();
+    myViewNet->myMoveSingleElementValues.originalShapeBeforeMoving = myTAZToMove->getTAZShape();
     // save clicked position as moving original position
     myViewNet->myMoveSingleElementValues.originalPositionInView = myViewNet->getPositionInformation();
     // obtain index of vertex to move if shape isn't blocked
@@ -1269,7 +1266,7 @@ GNEViewNetHelper::TestingMode::drawTestingElements(GUIMainWindow* mainWindow) {
 }
 
 
-bool 
+bool
 GNEViewNetHelper::TestingMode::isTestingEnabled() const {
     return myTestingEnabled;
 }
@@ -1422,8 +1419,6 @@ GNEViewNetHelper::EditModes::setDemandEditMode(DemandEditMode mode, bool force) 
         myViewNet->myNet->computeNetwork(myViewNet->myViewParent->getGNEAppWindows());
         // update DijkstraRouter of RouteCalculatorInstance
         GNEDemandElement::getRouteCalculatorInstance()->updateDijkstraRouter();
-        // compute demand elements (currently disabled)
-        // myViewNet->getNet()->computeDemandElements(myViewNet->myViewParent->getGNEAppWindows());
         // update network mode specific controls
         myViewNet->updateDemandModeSpecificControls();
     }
@@ -1755,13 +1750,13 @@ GNEViewNetHelper::DemandViewOptions::showNonInspectedDemandElements(const GNEDem
                 return true;
             } else {
                 // if demandElement is a route, check if dottedAC is one of their children (Vehicle or Stop)
-                for (const auto& i : demandElement->getDemandElementChildren()) {
+                for (const auto& i : demandElement->getChildDemandElements()) {
                     if (i == myViewNet->getDottedAC()) {
                         return true;
                     }
                 }
                 // if demandElement is a vehicle, check if dottedAC is one of his route Parent
-                for (const auto& i : demandElement->getDemandElementParents()) {
+                for (const auto& i : demandElement->getParentDemandElements()) {
                     if (i == myViewNet->getDottedAC()) {
                         return true;
                     }

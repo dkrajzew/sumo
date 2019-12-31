@@ -14,7 +14,6 @@
 /// @author  Christoph Sommer
 /// @author  Jakob Erdmann
 /// @date    Tue, 04 Dec 2007
-/// @version $Id$
 ///
 // A device that performs vehicle rerouting based on current edge speeds
 /****************************************************************************/
@@ -115,6 +114,9 @@ MSDevice_Routing::checkOptions(OptionsCont& oc) {
         ok = false;
     }
 #endif
+    if (oc.getInt("threads") > 1 && oc.getInt("device.rerouting.threads") > 1 && oc.getInt("threads") != oc.getInt("device.rerouting.threads")) {
+        WRITE_WARNING("Adapting number of routing threads to number of simulation threads.");
+    }
     return ok;
 }
 
@@ -235,7 +237,7 @@ MSDevice_Routing::reroute(const SUMOTime currentTime, const bool onInit) {
         return;
     }
     myLastRouting = currentTime;
-    MSRoutingEngine::reroute(myHolder, currentTime, onInit);
+    MSRoutingEngine::reroute(myHolder, currentTime, "device.rerouting", onInit);
 }
 
 

@@ -14,7 +14,6 @@
 /// @author  Michael Behrisch
 /// @author  Melanie Knocke
 /// @date    Wed, 19.11.2008
-/// @version $Id$
 ///
 // A reader of pois and polygons stored in OSM-format
 /****************************************************************************/
@@ -107,8 +106,7 @@ PCLoaderOSM::loadIfSet(OptionsCont& oc, PCPolyContainer& toFill,
             WRITE_ERROR("Could not open osm-file '" + *file + "'.");
             return;
         }
-        const long before = SysUtils::getCurrentMillis();
-        PROGRESS_BEGIN_MESSAGE("Parsing nodes from osm-file '" + *file + "'");
+        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing nodes from osm-file '" + *file + "'");
         if (!XMLSubSys::runParser(nodesHandler, *file)) {
             for (std::map<long long int, PCOSMNode*>::const_iterator i = nodes.begin(); i != nodes.end(); ++i) {
                 delete (*i).second;
@@ -123,8 +121,7 @@ PCLoaderOSM::loadIfSet(OptionsCont& oc, PCPolyContainer& toFill,
     RelationsHandler relationsHandler(additionalWays, relations, withAttributes, *m);
     for (std::vector<std::string>::const_iterator file = files.begin(); file != files.end(); ++file) {
         // edges
-        const long before = SysUtils::getCurrentMillis();
-        PROGRESS_BEGIN_MESSAGE("Parsing relations from osm-file '" + *file + "'");
+        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing relations from osm-file '" + *file + "'");
         XMLSubSys::runParser(relationsHandler, *file);
         PROGRESS_TIME_MESSAGE(before);
     }
@@ -134,8 +131,7 @@ PCLoaderOSM::loadIfSet(OptionsCont& oc, PCPolyContainer& toFill,
     EdgesHandler edgesHandler(nodes, edges, additionalWays, withAttributes, *m);
     for (std::vector<std::string>::const_iterator file = files.begin(); file != files.end(); ++file) {
         // edges
-        const long before = SysUtils::getCurrentMillis();
-        PROGRESS_BEGIN_MESSAGE("Parsing edges from osm-file '" + *file + "'");
+        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Parsing edges from osm-file '" + *file + "'");
         XMLSubSys::runParser(edgesHandler, *file);
         PROGRESS_TIME_MESSAGE(before);
     }

@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Leonhard Luecken
 /// @date    Mon, 9 Jul 2001
-/// @version $Id$
 ///
 // Interface for building edges
 /****************************************************************************/
@@ -37,7 +36,6 @@
 #include <utils/common/UtilExceptions.h>
 #include "NLBuilder.h"
 #include "NLEdgeControlBuilder.h"
-#include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 
 

@@ -15,7 +15,6 @@
 /// @author  Melanie Knocke
 /// @author  Yun-Pang Floetteroed
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // A basic edge for routing applications
 /****************************************************************************/
@@ -112,12 +111,12 @@ ROEdge::addSuccessor(ROEdge* s, ROEdge* via, std::string) {
     if (find(myFollowingEdges.begin(), myFollowingEdges.end(), s) == myFollowingEdges.end()) {
         myFollowingEdges.push_back(s);
         myFollowingViaEdges.push_back(std::make_pair(s, via));
-        if (isTazConnector()) {//s->getFromJunction() != nullptr) {
+        if (isTazConnector() && s->getFromJunction() != nullptr) {
             myBoundary.add(s->getFromJunction()->getPosition());
         }
         if (!isInternal()) {
             s->myApproachingEdges.push_back(this);
-            if (s->isTazConnector()) {//getToJunction() != nullptr) {
+            if (s->isTazConnector() && getToJunction() != nullptr) {
                 s->myBoundary.add(getToJunction()->getPosition());
             }
             if (via != nullptr) {
@@ -373,7 +372,7 @@ ROEdge::getSuccessors(SUMOVehicleClass vClass) const {
     for (const ROLane* const lane : myLanes) {
         if ((lane->getPermissions() & vClass) != 0) {
             for (const auto& next : lane->getOutgoingViaLanes()) {
-                if ((next.first->getPermissions() & vClass) != 0) {
+                if ((next.first->getPermissions() & vClass) != 0 && (next.second == nullptr || (next.second->getPermissions() & vClass) != 0)) {
                     followers.insert(&next.first->getEdge());
                 }
             }
@@ -409,7 +408,7 @@ ROEdge::getViaSuccessors(SUMOVehicleClass vClass) const {
     for (const ROLane* const lane : myLanes) {
         if ((lane->getPermissions() & vClass) != 0) {
             for (const auto& next : lane->getOutgoingViaLanes()) {
-                if ((next.first->getPermissions() & vClass) != 0) {
+                if ((next.first->getPermissions() & vClass) != 0 && (next.second == nullptr || (next.second->getPermissions() & vClass) != 0)) {
                     followers.insert(std::make_pair(&next.first->getEdge(), next.second));
                 }
             }

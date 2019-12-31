@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    Tue Dec 02 2003 22:17 CET
-/// @version $Id$
 ///
 // A detector of vehicles passing an area between entry/exit points
 /****************************************************************************/
@@ -34,6 +33,9 @@
 #include <utils/common/Named.h>
 #include <microsim/output/MSCrossSection.h>
 #include <utils/common/UtilExceptions.h>
+#ifdef HAVE_FOX
+#include <fx.h>
+#endif
 
 
 // ===========================================================================
@@ -400,6 +402,10 @@ protected:
     /// @brief Container for vehicles that have left the area
     std::vector<E3Values> myLeftContainer;
 
+#ifdef HAVE_FOX
+    /// @brief the mutex for access to the containers
+    FXMutex myContainerMutex;
+#endif
 
     /// @name Storages for current values
     /// @{

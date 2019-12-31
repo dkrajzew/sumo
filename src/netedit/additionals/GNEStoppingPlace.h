@@ -10,7 +10,6 @@
 /// @file    GNEStoppingPlace.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Dec 2015
-/// @version $Id$
 ///
 // A abstract class to define common parameters of lane area in which vehicles can halt (GNE version)
 /****************************************************************************/
@@ -54,7 +53,7 @@ public:
      * @param[in] block movement enable or disable additional movement
      */
     GNEStoppingPlace(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GNELane* lane, double startPos, double endPos,
-                    int parametersSet, const std::string& name, bool friendlyPosition, bool blockMovement);
+                     int parametersSet, const std::string& name, bool friendlyPosition, bool blockMovement);
 
     /// @brief Destructor
     ~GNEStoppingPlace();
@@ -97,6 +96,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     virtual Boundary getCenteringBoundary() const = 0;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name inherited from GNEAdditional
@@ -143,7 +145,7 @@ public:
     /* @brief method for check if the value for certain attribute is set
      * @param[in] key The attribute key
      */
-    virtual bool isAttributeEnabled(SumoXMLAttr key) const = 0;
+    bool isAttributeEnabled(SumoXMLAttr key) const;
 
     /// @brief get PopPup ID (Used in AC Hierarchy)
     std::string getPopUpID() const;
@@ -156,7 +158,7 @@ protected:
     /// @brief The relative start position this stopping place is located at (optional, if empty takes 0)
     double myStartPosition;
 
-    /// @brief The  position this stopping place is located at (optional, if empty takes the lane lenght)
+    /// @brief The  position this stopping place is located at (optional, if empty takes the lane length)
     double myEndPosition;
 
     /// @brief Variable used for set/unset start/endPositions

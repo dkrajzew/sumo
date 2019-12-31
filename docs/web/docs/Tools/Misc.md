@@ -150,6 +150,15 @@ python <SUMO_HOME>/tools/generateStationEdges.py rail.net.xml stops.xml
  netconvert -s rail.net.xml -e stops.access.edg.xml -n stops.access.nod.xml --ptstop-files stops.xml -o railForPersons.net.xml --ptstop-output stopsWithAccess.xml
 ```
 
+# generateContinuousRerouters.py
+
+This script generates rerouter definitions for a continously running simulation. Rerouters are placed ahead of each intersection with routes leading up to the next intersection and configurable turning ratios. Vehicles that enter the simulation will circulate continuously (unless hitting a dead-end).
+
+Example use
+```
+python <SUMO_HOME>/tools/generateContinuousRerouters.py -n net.net.xml -o rerouter.add.xml
+```
+
 # averageRuns.py
 
 This script runs a given sumo configuration multiple times with
@@ -159,4 +168,19 @@ Example use
 
 ```
 python <SUMO_HOME>/tools/averageRuns.py example.sumocfg -n 100
+```
+
+# tileGet.py
+
+This script retrieves background images from ESRI ArcGIS tile servers and other imaging APIs
+such as Google Maps and MapQuest. The simplest usage is to call it with a SUMO
+network file only. It will generate a settings file containing the coordinates which
+can be loaded with sumo-gui or netedit. The most useful options are -t for the
+(maximum) number of tiles to retrieve and -u to give the URL of the tile server.
+
+Example use (retrieving data from the public ArcGIS online instance)
+
+```
+python <SUMO_HOME>/tools/tileGet.py -n test.net.xml -t 10
+sumo-gui -n test.net.xml -g settings.xml
 ```

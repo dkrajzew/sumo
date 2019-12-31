@@ -10,7 +10,6 @@
 /// @file    GNEAdditional.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2016
-/// @version $Id$
 ///
 // A abstract class for representation of additional elements
 /****************************************************************************/
@@ -23,8 +22,9 @@
 
 #include <config.h>
 
-#include <netedit/GNEHierarchicalElementParents.h>
-#include <netedit/GNEHierarchicalElementChildren.h>
+#include <netedit/GNEHierarchicalParentElements.h>
+#include <netedit/GNEHierarchicalChildElements.h>
+#include <netedit/GNEGeometry.h>
 #include <utils/common/Parameterised.h>
 #include <utils/geom/PositionVector.h>
 #include <utils/gui/globjects/GUIGlObject.h>
@@ -34,6 +34,7 @@
 // ===========================================================================
 
 class GNEViewNet;
+class GNENetElement;
 class GUIGLObjectPopupMenu;
 
 // ===========================================================================
@@ -44,48 +45,9 @@ class GUIGLObjectPopupMenu;
  * @class GNEAdditional
  * @brief An Element which don't belongs to GNENet but has influency in the simulation
  */
-class GNEAdditional : public GUIGlObject, public GNEAttributeCarrier, public Parameterised, public GNEHierarchicalElementParents, public GNEHierarchicalElementChildren  {
+class GNEAdditional : public GUIGlObject, public GNEAttributeCarrier, public Parameterised, public GNEHierarchicalParentElements, public GNEHierarchicalChildElements  {
 
 public:
-    /// @brief struct for pack all variables related with geometry of elemement
-    struct AdditionalGeometry {
-        /// @brief constructor
-        AdditionalGeometry();
-
-        /// @brief reset geometry
-        void clearGeometry();
-
-        /// @brief calculate multi shape unified
-        void calculateMultiShapeUnified();
-
-        /// @brief calculate shape rotations and lenghts
-        void calculateShapeRotationsAndLengths();
-
-        /// @brief calculate multi shape rotations and lenghts
-        void calculateMultiShapeRotationsAndLengths();
-
-        /// @brief The shape of the additional element
-        PositionVector shape;
-
-        /// @brief The multi-shape of the additional element (used by certain additionals)
-        std::vector<PositionVector> multiShape;
-
-        /// @brief The rotations of the single shape parts
-        std::vector<double> shapeRotations;
-
-        /// @brief The lengths of the single shape parts
-        std::vector<double> shapeLengths;
-
-        /// @brief The rotations of the multi-shape parts
-        std::vector<std::vector<double> > multiShapeRotations;
-
-        /// @brief The lengths of the multi-shape shape parts
-        std::vector<std::vector<double> > multiShapeLengths;
-
-        /// @brief multi shape unified
-        PositionVector multiShapeUnified;
-    };
-
     /**@brief Constructor
      * @param[in] id Gl-id of the additional element (Must be unique)
      * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
@@ -93,58 +55,58 @@ public:
      * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
      * @param[in] name Additional name
      * @param[in] block movement enable or disable additional movement
-     * @param[in] edgeParents vector of edge parents
-     * @param[in] laneParents vector of lane parents
-     * @param[in] shapeParents vector of shape parents
-     * @param[in] additionalParents vector of additional parents
-     * @param[in] demandElementChildren vector of demandElement parents
-     * @param[in] edgeChildren vector of edge children
-     * @param[in] laneChildren vector of lane children
-     * @param[in] shapeChildren vector of shape children
-     * @param[in] additionalChildren vector of additional children
-     * @param[in] demandElementChildren vector of demandElement children
+     * @param[in] parentEdges vector of parent edges
+     * @param[in] parentLanes vector of parent lanes
+     * @param[in] parentShapes vector of parent shapes
+     * @param[in] parentAdditionals vector of parent additionals
+     * @param[in] childDemandElements vector of demandElement parents
+     * @param[in] childEdges vector of child edges
+     * @param[in] childLanes vector of child lanes
+     * @param[in] childShapes vector of child shapes
+     * @param[in] childAdditionals vector of child additional
+     * @param[in] childDemandElements vector of demandElement children
      */
     GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement,
-                  const std::vector<GNEEdge*>& edgeParents,
-                  const std::vector<GNELane*>& laneParents,
-                  const std::vector<GNEShape*>& shapeParents,
-                  const std::vector<GNEAdditional*>& additionalParents,
-                  const std::vector<GNEDemandElement*>& demandElementParents,
-                  const std::vector<GNEEdge*>& edgeChildren,
-                  const std::vector<GNELane*>& laneChildren,
-                  const std::vector<GNEShape*>& shapeChildren,
-                  const std::vector<GNEAdditional*>& additionalChildren,
-                  const std::vector<GNEDemandElement*>& demandElementChildren);
+                  const std::vector<GNEEdge*>& parentEdges,
+                  const std::vector<GNELane*>& parentLanes,
+                  const std::vector<GNEShape*>& parentShapes,
+                  const std::vector<GNEAdditional*>& parentAdditionals,
+                  const std::vector<GNEDemandElement*>& parentDemandElements,
+                  const std::vector<GNEEdge*>& childEdges,
+                  const std::vector<GNELane*>& childLanes,
+                  const std::vector<GNEShape*>& childShapes,
+                  const std::vector<GNEAdditional*>& childAdditionals,
+                  const std::vector<GNEDemandElement*>& childDemandElements);
 
     /**@brief Constructor used by Additionals that have two additionals as parent
-     * @param[in] additionalParent pointer to additional parent pointer (used to generate an ID)
+     * @param[in] additionalParent pointer to parent additional pointer (used to generate an ID)
      * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
      * @param[in] type GUIGlObjectType of additional
      * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
      * @param[in] name Additional name
      * @param[in] block movement enable or disable additional movement
-     * @param[in] edgeParents vector of edge parents
-     * @param[in] laneParents vector of lane parents
-     * @param[in] shapeParents vector of shape parents
-     * @param[in] additionalParents vector of additional parents
-     * @param[in] demandElementChildren vector of demandElement parents
-     * @param[in] edgeChildren vector of edge children
-     * @param[in] laneChildren vector of lane children
-     * @param[in] shapeChildren vector of shape children
-     * @param[in] additionalChildren vector of additional children
-     * @param[in] demandElementChildren vector of demandElement children
+     * @param[in] parentEdges vector of parent edges
+     * @param[in] parentLanes vector of parent lanes
+     * @param[in] parentShapes vector of parent shapes
+     * @param[in] parentAdditionals vector of parent additionals
+     * @param[in] childDemandElements vector of demandElement parents
+     * @param[in] childEdges vector of child edges
+     * @param[in] childLanes vector of child lanes
+     * @param[in] childShapes vector of child shapes
+     * @param[in] childAdditionals vector of child additional
+     * @param[in] childDemandElements vector of demandElement children
     */
     GNEAdditional(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement,
-                  const std::vector<GNEEdge*>& edgeParents,
-                  const std::vector<GNELane*>& laneParents,
-                  const std::vector<GNEShape*>& shapeParents,
-                  const std::vector<GNEAdditional*>& additionalParents,
-                  const std::vector<GNEDemandElement*>& demandElementParents,
-                  const std::vector<GNEEdge*>& edgeChildren,
-                  const std::vector<GNELane*>& laneChildren,
-                  const std::vector<GNEShape*>& shapeChildren,
-                  const std::vector<GNEAdditional*>& additionalChildren,
-                  const std::vector<GNEDemandElement*>& demandElementChildren);
+                  const std::vector<GNEEdge*>& parentEdges,
+                  const std::vector<GNELane*>& parentLanes,
+                  const std::vector<GNEShape*>& parentShapes,
+                  const std::vector<GNEAdditional*>& parentAdditionals,
+                  const std::vector<GNEDemandElement*>& parentDemandElements,
+                  const std::vector<GNEEdge*>& childEdges,
+                  const std::vector<GNELane*>& childLanes,
+                  const std::vector<GNEShape*>& childShapes,
+                  const std::vector<GNEAdditional*>& childAdditionals,
+                  const std::vector<GNEDemandElement*>& childDemandElements);
 
     /// @brief Destructor
     ~GNEAdditional();
@@ -152,8 +114,11 @@ public:
     /// @brief gererate a new ID for an element child
     std::string generateChildID(SumoXMLTag childTag);
 
-    /// @brief obtain AdditionalGeometry
-    const AdditionalGeometry& getAdditionalGeometry() const;
+    /// @brief obtain additional geometry
+    const GNEGeometry::Geometry& getAdditionalGeometry() const;
+
+    /// @brief obtain additional segment geometry
+    const GNEGeometry::SegmentGeometry& getAdditionalSegmentGeometry() const;
 
     /// @brief set special color
     void setSpecialColor(const RGBColor* color);
@@ -207,13 +172,13 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     virtual Boundary getCenteringBoundary() const = 0;
+
+    /// @brief split geometry
+    virtual void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList) = 0;
     /// @}
 
     /// @brief Returns a pointer to GNEViewNet in which additional element is located
     GNEViewNet* getViewNet() const;
-
-    /// @brief Returns additional element's shape
-    PositionVector getShape() const;
 
     /// @brief Check if additional item is currently blocked (i.e. cannot be moved with mouse)
     bool isAdditionalBlocked() const;
@@ -240,9 +205,7 @@ public:
     GUIParameterTableWindow* getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView& parent);
 
     /// @brief Returns the additional name
-    const std::string getOptionalName() const {
-        return myAdditionalName;
-    }
+    const std::string& getOptionalAdditionalName() const;
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -332,6 +295,11 @@ protected:
 
         /// @brief value for saving second original position over lane before moving
         std::string secondOriginalPosition;
+
+    private:
+        /// @brief Invalidated assignment operator
+        AdditionalMove& operator=(const AdditionalMove& other) = delete;
+
     };
 
     /// @brief struct for pack all variables and functions related with Block Icon
@@ -356,15 +324,21 @@ protected:
         double rotation;
 
     private:
-        /// @brief pointer to additional parent
+        /// @brief pointer to parent additional
         GNEAdditional* myAdditional;
+
+        /// @brief Invalidated assignment operator
+        BlockIcon& operator=(const BlockIcon& other) = delete;
     };
 
     /// @brief The GNEViewNet this additional element belongs
     GNEViewNet* myViewNet;
 
     /// @brief geometry to be precomputed in updateGeometry(...)
-    AdditionalGeometry myGeometry;
+    GNEGeometry::Geometry myAdditionalGeometry;
+
+    /// @brief segment geometry to be precomputed in updateGeometry(...) (used by E2Multilane)
+    GNEGeometry::SegmentGeometry mySegmentGeometry;
 
     /// @brief variable AdditionalMove
     AdditionalMove myMove;
@@ -407,7 +381,7 @@ private:
     /**@brief check restriction with the number of children
      * @throw ProcessError if itis called without be reimplemented in child class
      */
-    virtual bool checkAdditionalChildRestriction() const;
+    virtual bool checkChildAdditionalRestriction() const;
 
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
     virtual void setAttribute(SumoXMLAttr key, const std::string& value) = 0;

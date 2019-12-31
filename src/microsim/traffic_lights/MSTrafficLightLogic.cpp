@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // The parent class for traffic light logics
 /****************************************************************************/
@@ -66,13 +65,11 @@ MSTrafficLightLogic::SwitchCommand::execute(SUMOTime t) {
     if (!myAmValid) {
         return 0;
     }
-    //
-    const bool isActive = myTLControl.isActive(myTLLogic);
     int step1 = myTLLogic->getCurrentPhaseIndex();
     SUMOTime next = myTLLogic->trySwitch();
     int step2 = myTLLogic->getCurrentPhaseIndex();
     if (step1 != step2) {
-        if (isActive) {
+        if (myTLLogic->isActive()) {
             // execute any action connected to this tls
             const MSTLLogicControl::TLSLogicVariants& vars = myTLControl.get(myTLLogic->getID());
             // set link priorities
@@ -105,7 +102,8 @@ MSTrafficLightLogic::MSTrafficLightLogic(MSTLLogicControl& tlcontrol, const std:
     myProgramID(programID),
     myLogicType(logicType),
     myCurrentDurationIncrement(-1),
-    myDefaultCycleTime(0) {
+    myDefaultCycleTime(0),
+    myAmActive(true) {
     mySwitchCommand = new SwitchCommand(tlcontrol, this, delay);
     MSNet::getInstance()->getBeginOfTimestepEvents()->addEvent(mySwitchCommand, delay);
 }
@@ -373,5 +371,16 @@ MSTrafficLightLogic::isSelected() const {
     return MSNet::getInstance()->isSelected(this);
 }
 
+
+void
+MSTrafficLightLogic::activateProgram() {
+    myAmActive = true;
+}
+
+
+void
+MSTrafficLightLogic::deactivateProgram() {
+    myAmActive = false;
+}
 /****************************************************************************/
 

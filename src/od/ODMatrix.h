@@ -12,7 +12,6 @@
 /// @author  Michael Behrisch
 /// @author  Yun-Pang Floetteroed
 /// @date    05. Apr. 2006
-/// @version $Id$
 ///
 // An O/D (origin/destination) matrix
 /****************************************************************************/
@@ -44,6 +43,7 @@
 // ===========================================================================
 // class declarations
 // ===========================================================================
+class OptionsCont;
 class OutputDevice;
 class SUMOSAXHandler;
 
@@ -249,6 +249,14 @@ public:
 
     void sortByBeginTime();
 
+    SUMOTime getBegin() const {
+        return myBegin;
+    }
+
+    SUMOTime getEnd() const {
+        return myEnd;
+    }
+
 protected:
     /**
      * @struct ODVehicle
@@ -363,6 +371,8 @@ private:
     /// @brief Number of discarded vehicles
     double myNumDiscarded;
 
+    /// @brief parsed time bounds
+    SUMOTime myBegin, myEnd;
 
     /**
      * @class cell_by_begin_comparator
@@ -432,7 +442,7 @@ private:
     ODMatrix(const ODMatrix& s);
 
     /** @brief invalid assignment operator */
-    ODMatrix& operator=(const ODMatrix& s);
+    ODMatrix& operator=(const ODMatrix& s) = delete;
 
 };
 

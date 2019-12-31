@@ -14,7 +14,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    2003-05-21
-/// @version $Id$
 ///
 // Something on a lane to be noticed about vehicle movement
 /****************************************************************************/
@@ -31,6 +30,9 @@
 #include <map>
 #include <utils/common/SUMOTime.h>
 #include <utils/common/StdDefs.h>
+#ifdef HAVE_FOX
+#include <fx.h>
+#endif
 
 
 // ===========================================================================
@@ -238,6 +240,11 @@ protected:
     MSLane* const myLane;
     /// @brief a description of this moveReminder
     std::string myDescription;
+
+#ifdef HAVE_FOX
+    /// @brief the mutex for notifications
+    FXMutex myNotificationMutex;
+#endif
 
 private:
     std::map<SUMOTrafficObject*, std::pair<SUMOTime, double> > myLastVehicleUpdateValues;

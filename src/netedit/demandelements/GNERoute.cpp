@@ -10,7 +10,6 @@
 /// @file    GNERoute.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
-/// @version $Id$
 ///
 // A class for visualizing routes in Netedit
 /****************************************************************************/
@@ -30,6 +29,7 @@
 #include <netedit/frames/GNESelectorFrame.h>
 #include <netedit/netelements/GNEEdge.h>
 #include <netedit/netelements/GNELane.h>
+#include <netedit/netelements/GNEJunction.h>
 #include <utils/common/StringTokenizer.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
 #include <utils/gui/windows/GUIAppEnum.h>
@@ -64,8 +64,8 @@ GNERoute::GNERoutePopupMenu::onCmdApplyDistance(FXObject*, FXSelector, void*) {
     GNEViewNet* viewNet = static_cast<GNEViewNet*>(myParent);
     GNEUndoList* undoList =  route->myViewNet->getUndoList();
     undoList->p_begin("apply distance along route");
-    double dist = (route->getEdgeParents().size() > 0) ? route->getEdgeParents().front()->getNBEdge()->getDistance() : 0;
-    for (GNEEdge* edge : route->getEdgeParents()) {
+    double dist = (route->getParentEdges().size() > 0) ? route->getParentEdges().front()->getNBEdge()->getDistance() : 0;
+    for (GNEEdge* edge : route->getParentEdges()) {
         undoList->p_add(new GNEChange_Attribute(edge, viewNet->getNet(), SUMO_ATTR_DISTANCE, toString(dist), true, edge->getAttribute(SUMO_ATTR_DISTANCE)));
         dist += edge->getNBEdge()->getFinalLength();
     }
@@ -79,7 +79,7 @@ GNERoute::GNERoutePopupMenu::onCmdApplyDistance(FXObject*, FXSelector, void*) {
 
 GNERoute::GNERoute(GNEViewNet* viewNet) :
     GNEDemandElement(viewNet->getNet()->generateDemandElementID("", SUMO_TAG_ROUTE), viewNet, GLO_ROUTE, SUMO_TAG_ROUTE,
-                     {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
+        {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
     Parameterised(),
     myColor(RGBColor::YELLOW),
     myVClass(SVC_PASSENGER) {
@@ -88,7 +88,7 @@ GNERoute::GNERoute(GNEViewNet* viewNet) :
 
 GNERoute::GNERoute(GNEViewNet* viewNet, const GNERouteHandler::RouteParameter& routeParameters) :
     GNEDemandElement(routeParameters.routeID, viewNet, GLO_ROUTE, SUMO_TAG_ROUTE,
-                     routeParameters.edges, {}, {}, {}, {}, {}, {}, {}, {}, {}),
+        routeParameters.edges, {}, {}, {}, {}, {}, {}, {}, {}, {}),
     Parameterised(routeParameters.parameters),
     myColor(routeParameters.color),
     myVClass(routeParameters.vClass) {
@@ -97,7 +97,7 @@ GNERoute::GNERoute(GNEViewNet* viewNet, const GNERouteHandler::RouteParameter& r
 
 GNERoute::GNERoute(GNEViewNet* viewNet, GNEDemandElement* vehicleParent, const GNERouteHandler::RouteParameter& routeParameters) :
     GNEDemandElement(viewNet->getNet()->generateDemandElementID("", SUMO_TAG_EMBEDDEDROUTE), viewNet, GLO_EMBEDDEDROUTE, SUMO_TAG_EMBEDDEDROUTE,
-                     routeParameters.edges, {}, {}, {}, {vehicleParent}, {}, {}, {}, {}, {}),
+        routeParameters.edges, {}, {}, {}, {vehicleParent}, {}, {}, {}, {}, {}),
     Parameterised(routeParameters.parameters),
     myColor(routeParameters.color),
     myVClass(routeParameters.vClass) {
@@ -106,7 +106,7 @@ GNERoute::GNERoute(GNEViewNet* viewNet, GNEDemandElement* vehicleParent, const G
 
 GNERoute::GNERoute(GNEDemandElement* route) :
     GNEDemandElement(route->getViewNet()->getNet()->generateDemandElementID("", SUMO_TAG_ROUTE), route->getViewNet(), GLO_ROUTE, SUMO_TAG_ROUTE,
-                     route->getEdgeParents(), {}, {}, {}, {}, {}, {}, {}, {}, {}),
+        route->getParentEdges(), {}, {}, {}, {}, {}, {}, {}, {}, {}),
     Parameterised(),
     myColor(route->getColor()),
     myVClass(route->getVClass()) {
@@ -146,15 +146,15 @@ GNERoute::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
 void
 GNERoute::writeDemandElement(OutputDevice& device) const {
     device.openTag(SUMO_TAG_ROUTE);
-    device.writeAttr(SUMO_ATTR_EDGES, parseIDs(getEdgeParents()));
+    device.writeAttr(SUMO_ATTR_EDGES, parseIDs(getParentEdges()));
     device.writeAttr(SUMO_ATTR_COLOR, toString(myColor));
     // write extra attributes depending if is an embedded route
     if (myTagProperty.getTag() == SUMO_TAG_ROUTE) {
         device.writeAttr(SUMO_ATTR_ID, getDemandElementID());
         // write stops associated to this route
-        for (const auto& i : getDemandElementChildren()) {
-            if (i->getTagProperty().isStop()) {
-                i->writeDemandElement(device);
+        for (const auto& stop : getChildDemandElements()) {
+            if (stop->getTagProperty().isStop()) {
+                stop->writeDemandElement(device);
             }
         }
     }
@@ -167,37 +167,22 @@ GNERoute::writeDemandElement(OutputDevice& device) const {
 
 bool
 GNERoute::isDemandElementValid() const {
-    if (getEdgeParents().size() == 0) {
-        return false;
-    } else if (getEdgeParents().size() == 1) {
+    if ((getParentEdges().size() == 2) && (getParentEdges().at(0) == getParentEdges().at(1))) {
+        // from and to are the same edges, then return true
         return true;
+    } else if (getParentEdges().size() > 0) {
+        // check that exist a connection between every edge
+        return isRouteValid(getParentEdges()).empty();
     } else {
-        // check if exist at least a connection between every edge
-        for (int i = 1; i < (int)getEdgeParents().size(); i++) {
-            if (getRouteCalculatorInstance()->areEdgesConsecutives(myVClass, getEdgeParents().at((int)i - 1), getEdgeParents().at(i)) == false) {
-                return false;
-            }
-        }
-        // there is connections bewteen all edges, then return true
-        return true;
+        return false;
     }
 }
 
 
 std::string
 GNERoute::getDemandElementProblem() const {
-    if (getEdgeParents().size() == 0) {
-        return ("A route need at least one edge");
-    } else {
-        // check if exist at least a connection between every edge
-        for (int i = 1; i < (int)getEdgeParents().size(); i++) {
-            if (getRouteCalculatorInstance()->areEdgesConsecutives(myVClass, getEdgeParents().at((int)i - 1), getEdgeParents().at(i)) == false) {
-                return ("Edge '" + getEdgeParents().at((int)i - 1)->getID() + "' and edge '" + getEdgeParents().at(i)->getID() + "' aren't consecutives");
-            }
-        }
-        // there is connections bewteen all edges, then all ok
-        return "";
-    }
+    // return string with the problem obtained from isRouteValid
+    return isRouteValid(getParentEdges());
 }
 
 
@@ -209,13 +194,13 @@ GNERoute::fixDemandElementProblem() {
 
 GNEEdge*
 GNERoute::getFromEdge() const {
-    return getEdgeParents().front();
+    return getParentEdges().front();
 }
 
 
 GNEEdge*
 GNERoute::getToEdge() const {
-    return getEdgeParents().back();
+    return getParentEdges().back();
 }
 
 
@@ -228,12 +213,6 @@ GNERoute::getVClass() const {
 const RGBColor&
 GNERoute::getColor() const {
     return myColor;
-}
-
-
-void
-GNERoute::compute() {
-    // Nothing to compute
 }
 
 
@@ -263,86 +242,40 @@ GNERoute::commitGeometryMoving(GNEUndoList*) {
 
 void
 GNERoute::updateGeometry() {
-    // first check if geometry is deprecated
-    if (myDemandElementSegmentGeometry.geometryDeprecated) {
-        // first clear geometry
-        myDemandElementSegmentGeometry.clearDemandElementSegmentGeometry();
-        // declare vector for saving a reference to lane geometry and connection shapes
-        std::vector<std::pair<GNEEdge*, GNENetElement::NetElementGeometry> > laneGeometries;
-        std::vector<PositionVector> connectionShapes;
-        // obtain all lane shapes
-        for (const auto& i : getEdgeParents()) {
-            laneGeometries.push_back(std::make_pair(i, i->getLaneByVClass(myVClass)->getGeometry()));
-        }
-        // resize connectionShapes
-        connectionShapes.resize(laneGeometries.size());
-        // iterate over edge parents
-        for (int i = 0; i < ((int)getEdgeParents().size() - 1); i++) {
-            // obtain NBEdges from both edges
-            NBEdge* nbFrom = getEdgeParents().at(i)->getNBEdge();
-            NBEdge* nbTo = getEdgeParents().at(i + 1)->getNBEdge();
-            // declare a flags
-            bool connectionFound = false;
-            // iterate over all connections of NBFrom
-            for (NBEdge::Connection c : nbFrom->getConnectionsFromLane(-1, nbTo, -1)) {
-                //check if given VClass is allowed for from and to lanes
-                if (!connectionFound && ((nbFrom->getPermissions(c.fromLane) & nbTo->getPermissions(c.toLane) & myVClass) == myVClass)) {
-                    // save shape
-                    if (c.customShape.size() != 0) {
-                        connectionShapes.at(i) = c.customShape;
-                    } else if (nbFrom->getToNode()->getShape().area() > 4) {
-                        if (c.shape.size() != 0) {
-                            connectionShapes.at(i) = c.shape;
-                            // only append via shape if it exists
-                            if (c.haveVia) {
-                                connectionShapes.at(i).append(c.viaShape);
-                            }
-                        } else {
-                            // manually calculate smooth shape
-                            PositionVector laneShapeFrom = nbFrom->getLanes().at(c.fromLane).shape;
-                            PositionVector laneShapeTo = c.toEdge->getLanes().at(c.toLane).shape;
-                            // Calculate shape so something can be drawn immidiately
-                            connectionShapes.at(i) = nbFrom->getToNode()->computeSmoothShape(
-                                                         laneShapeFrom,
-                                                         laneShapeTo,
-                                                         5, nbFrom->getTurnDestination() == c.toEdge,
-                                                         (double) 5. * (double) nbFrom->getNumLanes(),
-                                                         (double) 5. * (double) c.toEdge->getNumLanes());
-                        }
-                    }
-                    // change flag
-                    connectionFound = true;
-                }
-            }
-        }
-        // fill shapeSegments
-        for (int i = 0; i < (int)laneGeometries.size(); i++) {
-            // set lane shapes
-            for (int j = 0; j < (int)laneGeometries.at(i).second.shape.size(); j++) {
-                // save position and rotations (to avoid useless calculations)
-                if (j < (int)laneGeometries.at(i).second.shape.size() - 1) {
-                    myDemandElementSegmentGeometry.insertEdgeLengthRotSegment(this, laneGeometries.at(i).first,
-                            laneGeometries.at(i).second.shape[j], laneGeometries.at(i).second.shapeLengths[j],
-                            laneGeometries.at(i).second.shapeRotations[j], true, true);
-                } else {
-                    myDemandElementSegmentGeometry.insertEdgeSegment(this, laneGeometries.at(i).first,
-                            laneGeometries.at(i).second.shape[j], true, true);
-                }
-            }
-            // set connection shapes
-            for (const auto& connectionShapePos : connectionShapes.at(i)) {
-                myDemandElementSegmentGeometry.insertJunctionSegment(this, laneGeometries.at(i).first->getGNEJunctionDestiny(), connectionShapePos, true, true);
-            }
-        }
-        // calculate entire shape, rotations and lengths
-        myDemandElementSegmentGeometry.calculatePartialShapeRotationsAndLengths();
-        // update demand element childrens
-        for (const auto& i : getDemandElementChildren()) {
+    // calculate geometry path
+    GNEGeometry::calculateEdgeGeometricPath(this, myDemandElementSegmentGeometry, getParentEdges(),
+                                            getVClass(), getFirstAllowedVehicleLane(), getLastAllowedVehicleLane());
+    // update child demand elementss
+    for (const auto& i : getChildDemandElements()) {
+        if (!i->getTagProperty().isPersonStop() && !i->getTagProperty().isStop()) {
             i->updateGeometry();
         }
-        // set geometry as non-deprecated
-        myDemandElementSegmentGeometry.geometryDeprecated = false;
     }
+}
+
+
+void
+GNERoute::updatePartialGeometry(const GNEEdge* edge) {
+    // calculate geometry path
+    GNEGeometry::updateGeometricPath(myDemandElementSegmentGeometry, edge);
+    // update child demand elementss
+    for (const auto& i : getChildDemandElements()) {
+        if (!i->getTagProperty().isPersonStop() && !i->getTagProperty().isStop()) {
+            i->updatePartialGeometry(edge);
+        }
+    }
+}
+
+
+void
+GNERoute::computePath() {
+    // nothing to compute
+}
+
+
+void
+GNERoute::invalidatePath() {
+    // nothing to invalidate
 }
 
 
@@ -361,8 +294,8 @@ GNERoute::getParentName() const {
 Boundary
 GNERoute::getCenteringBoundary() const {
     Boundary routeBoundary;
-    // return the combination of all edge parents's boundaries
-    for (const auto& i : getEdgeParents()) {
+    // return the combination of all parent edges's boundaries
+    for (const auto& i : getParentEdges()) {
         routeBoundary.add(i->getCenteringBoundary());
     }
     // check if is valid
@@ -370,6 +303,21 @@ GNERoute::getCenteringBoundary() const {
         return routeBoundary;
     } else {
         return Boundary(-0.1, -0.1, 0.1, 0.1);
+    }
+}
+
+
+void
+GNERoute::splitEdgeGeometry(const double /*splitPosition*/, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList) {
+    // check that both net elementes are edges
+    if ((originalElement->getTagProperty().getTag() == SUMO_TAG_EDGE) &&
+            (originalElement->getTagProperty().getTag() == SUMO_TAG_EDGE)) {
+        // obtain new list of route edges
+        std::string newRouteEdges = getNewListOfParents(originalElement, newElement);
+        // update route edges
+        if (newRouteEdges.size() > 0) {
+            setAttribute(SUMO_ATTR_EDGES, newRouteEdges, undoList);
+        }
     }
 }
 
@@ -417,7 +365,7 @@ GNERoute::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getDemandElementID();
         case SUMO_ATTR_EDGES:
-            return parseIDs(getEdgeParents());
+            return parseIDs(getParentEdges());
         case SUMO_ATTR_COLOR:
             return toString(myColor);
         case GNE_ATTR_SELECTED:
@@ -463,7 +411,7 @@ GNERoute::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_EDGES:
             if (canParse<std::vector<GNEEdge*> >(myViewNet->getNet(), value, false)) {
                 // all edges exist, then check if compounds a valid route
-                return GNEDemandElement::isRouteValid(parse<std::vector<GNEEdge*> >(myViewNet->getNet(), value), false);
+                return isRouteValid(parse<std::vector<GNEEdge*> >(myViewNet->getNet(), value)).empty();
             } else {
                 return false;
             }
@@ -508,6 +456,38 @@ GNERoute::getHierarchyName() const {
     return getTagStr() + ": " + getAttribute(SUMO_ATTR_ID) ;
 }
 
+
+std::string
+GNERoute::isRouteValid(const std::vector<GNEEdge*>& edges) {
+    if (edges.size() == 0) {
+        // routes cannot be empty
+        return ("list of route edges cannot be empty");
+    } else if (edges.size() == 1) {
+        // routes with a single edge are valid, then return an empty string
+        return ("");
+    } else {
+        // iterate over edges to check that compounds a chain
+        auto it = edges.begin();
+        while (it != edges.end() - 1) {
+            const GNEEdge* currentEdge = *it;
+            const GNEEdge* nextEdge = *(it + 1);
+            // same consecutive edges aren't allowed
+            if (currentEdge->getID() == nextEdge->getID()) {
+                return ("consecutive duplicated edges (" + currentEdge->getID() + ") aren't allowed in a route");
+            }
+            // obtain outgoing edges of currentEdge
+            const std::vector<GNEEdge*>& outgoingEdges = currentEdge->getGNEJunctionDestiny()->getGNEOutgoingEdges();
+            // check if nextEdge is in outgoingEdges
+            if (std::find(outgoingEdges.begin(), outgoingEdges.end(), nextEdge) == outgoingEdges.end()) {
+                return ("Edges '" + currentEdge->getID() + "' and '" + nextEdge->getID() + "' aren't consecutives");
+            }
+            it++;
+        }
+        // all edges consecutives, then return an empty string
+        return ("");
+    }
+}
+
 // ===========================================================================
 // private
 // ===========================================================================
@@ -519,9 +499,9 @@ GNERoute::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeDemandElementID(value);
             break;
         case SUMO_ATTR_EDGES:
-            changeEdgeParents(this, value, true);
-            // change flag for geometry deprecating
-            myDemandElementSegmentGeometry.geometryDeprecated = true;
+            replaceParentEdges(this, value);
+            // compute route
+            updateGeometry();
             break;
         case SUMO_ATTR_COLOR:
             myColor = parse<RGBColor>(value);

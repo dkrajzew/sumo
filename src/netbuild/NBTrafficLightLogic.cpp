@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // A SUMO-compliant built logic for a traffic light
 /****************************************************************************/
@@ -144,7 +143,7 @@ NBTrafficLightLogic::getDuration() const {
 void
 NBTrafficLightLogic::closeBuilding(bool checkVarDurations) {
     for (int i = 0; i < (int)myPhases.size() - 1;) {
-        if (myPhases[i].state != myPhases[i + 1].state) {
+        if (myPhases[i].state != myPhases[i + 1].state || myPhases[i].next.size() > 0) {
             ++i;
             continue;
         }

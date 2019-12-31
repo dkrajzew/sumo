@@ -10,7 +10,6 @@
 /// @file    FXWorkerThread.h
 /// @author  Michael Behrisch
 /// @date    2014-07-13
-/// @version $Id$
 ///
 // A thread class together with a pool and a task for parallelized computation
 /****************************************************************************/
@@ -255,6 +254,9 @@ public:
             myPoolMutex.unlock();
         }
 
+        const std::vector<FXWorkerThread*>& getWorkers() {
+            return myWorkers;
+        }
     private:
         /// @brief the current worker threads
         std::vector<FXWorkerThread*> myWorkers;

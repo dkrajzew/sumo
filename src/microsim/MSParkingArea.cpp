@@ -11,7 +11,6 @@
 /// @author  Mirco Sturari
 /// @author  Jakob Erdmann
 /// @date    Tue, 19.01.2016
-/// @version $Id$
 ///
 // A area where vehicles can park next to the road
 /****************************************************************************/
@@ -23,13 +22,15 @@
 #include <config.h>
 
 #include <cassert>
+#include <utils/common/WrappingCommand.h>
 #include <utils/vehicle/SUMOVehicle.h>
 #include <utils/geom/Position.h>
 #include <utils/geom/GeomHelper.h>
+#include <microsim/MSEventControl.h>
 #include <microsim/MSNet.h>
 #include <microsim/MSVehicleType.h>
 #include "MSLane.h"
-#include "MSTransportable.h"
+#include <microsim/transportables/MSTransportable.h>
 #include "MSParkingArea.h"
 #include "MSGlobals.h"
 
@@ -58,7 +59,9 @@ MSParkingArea::MSParkingArea(const std::string& id,
     myReservationTime(-1),
     myReservations(0),
     myReservationMaxLength(0),
-    myNumAlternatives(0) {
+    myNumAlternatives(0),
+    myLastStepOccupancy(0),
+    myUpdateEvent(nullptr) {
     // initialize unspecified defaults
     if (myWidth == 0) {
         myWidth = SUMO_const_laneWidth;
@@ -107,29 +110,30 @@ MSParkingArea::addLotEntry(double x, double y, double z,
     //    enter the space and re-enter at the end of the parking area.)
     if (MSGlobals::gModelParkingManoeuver) {
         const double offset = this->getLane().getShape().nearest_offset_to_point2D(lsd.myPosition);
-        if (offset <  getBeginLanePosition())
+        if (offset <  getBeginLanePosition()) {
             lsd.myEndPos =  getBeginLanePosition() + POSITION_EPS;
-        else
-        {
-            if (this->getLane().getLength() > offset)
+        } else {
+            if (this->getLane().getLength() > offset) {
                 lsd.myEndPos = offset;
-            else
+            } else {
                 lsd.myEndPos = this->getLane().getLength() - POSITION_EPS;
+            }
         }
         // Work out the angle of the lot relative to the lane  (+90 parallels the way the bay is drawn )
         int relativeAngle = static_cast<int>(lsd.myRotation + 90. - RAD2DEG(this->getLane().getShape().rotationAtOffset(lsd.myEndPos)));
-        if (relativeAngle < 0) relativeAngle += 360;
-      
+        if (relativeAngle < 0) {
+            relativeAngle += 360;
+        }
+
         // use this to set the manoeuver angle - real life manoeuver will always be < 180 degrees - hence the modulus
         //   if p2.y is -ve the lot is on LHS of lane relative to lane direction
         Position p2 = this->getLane().getShape().transformToVectorCoordinates(lsd.myPosition);
-        if (p2.y() < (0. + POSITION_EPS)) 
+        if (p2.y() < (0. + POSITION_EPS)) {
             lsd.myManoeuverAngle = abs(relativeAngle) % 180;
-        else  // lot is on RHS of lane
+        } else { // lot is on RHS of lane
             lsd.myManoeuverAngle = abs(abs(relativeAngle) % 180 - 180) % 180;
-    }
-    else
-    {
+        }
+    } else {
         lsd.myEndPos = myEndPos;
         lsd.myManoeuverAngle = int(angle); // unused unless gModelParkingManoeuver is true
     }
@@ -198,6 +202,10 @@ void
 MSParkingArea::enter(SUMOVehicle* what, double beg, double end) {
     assert(myLastFreePos >= 0);
     assert(myLastFreeLot < (int)mySpaceOccupancies.size());
+    if (myUpdateEvent == nullptr) {
+        myUpdateEvent = new WrappingCommand<MSParkingArea>(this, &MSParkingArea::updateOccupancy);
+        MSNet::getInstance()->getEndOfTimestepEvents()->addEvent(myUpdateEvent);
+    }
     mySpaceOccupancies[myLastFreeLot].vehicle = what;
     myEndPositions[what] = std::pair<double, double>(beg, end);
     computeLastFreePos();
@@ -207,6 +215,10 @@ MSParkingArea::enter(SUMOVehicle* what, double beg, double end) {
 void
 MSParkingArea::leaveFrom(SUMOVehicle* what) {
     assert(myEndPositions.find(what) != myEndPositions.end());
+    if (myUpdateEvent == nullptr) {
+        myUpdateEvent = new WrappingCommand<MSParkingArea>(this, &MSParkingArea::updateOccupancy);
+        MSNet::getInstance()->getEndOfTimestepEvents()->addEvent(myUpdateEvent);
+    }
     for (auto& lsd : mySpaceOccupancies) {
         if (lsd.vehicle == what) {
             lsd.vehicle = nullptr;
@@ -215,6 +227,14 @@ MSParkingArea::leaveFrom(SUMOVehicle* what) {
     }
     myEndPositions.erase(myEndPositions.find(what));
     computeLastFreePos();
+}
+
+
+SUMOTime
+MSParkingArea::updateOccupancy(SUMOTime /* currentTime */) {
+    myLastStepOccupancy = getOccupancy();
+    myUpdateEvent = nullptr;
+    return 0;
 }
 
 

@@ -10,7 +10,6 @@
 /// @file    GNEViewNet.h
 /// @author  Jakob Erdmann
 /// @date    Feb 2011
-/// @version $Id$
 ///
 // A view on the network being edited (adapted from GUIViewTraffic)
 /****************************************************************************/
@@ -98,7 +97,7 @@ public:
 
     /// @brief get edit modes
     const GNEViewNetHelper::EditModes& getEditModes() const;
-    
+
     /// @brief get testing mode
     const GNEViewNetHelper::TestingMode& getTestingMode() const;
 
@@ -378,6 +377,9 @@ private:
 
     /// @brief variable use to save all pointers to objects under cursor after a click
     GNEViewNetHelper::ObjectsUnderCursor myObjectsUnderCursor;
+
+    /// @brief variable use to save all pointers to objects under cursor after a click with grid enabled
+    GNEViewNetHelper::ObjectsUnderCursor myObjectsUnderGrippedCursor;
     /// @}
 
     /// @name structs related with checkable buttons

@@ -13,7 +13,6 @@
 /// @author  Enrico Gueli
 /// @author  Mario Krumnow
 /// @date    2011
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -38,7 +37,7 @@ import de.uniluebeck.itm.tcpip.Storage;
  * {@link #writeTo(DataOutputStream)} method.
  *
  * @author Enrico Gueli &lt;enrico.gueli@polito.it&gt;
- * @see <a href="https://sumo.dlr.de/wiki/TraCI/Protocol#Messages">TraCI/Protocol#Messages</a>
+ * @see <a href="https://sumo.dlr.de/docs/TraCI/Protocol.html#messages">TraCI/Protocol#Messages</a>
  */
 public class RequestMessage {
 

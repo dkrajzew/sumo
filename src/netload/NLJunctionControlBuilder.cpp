@@ -13,7 +13,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Mon, 9 Jul 2001
-/// @version $Id$
 ///
 // Builder of microsim-junctions and tls
 /****************************************************************************/
@@ -29,16 +28,21 @@
 #include <vector>
 #include <list>
 #include <algorithm>
+#include <utils/xml/SUMOXMLDefinitions.h>
+#include <utils/common/UtilExceptions.h>
+#include <utils/common/ToString.h>
+#include <microsim/MSGlobals.h>
+#include <microsim/MSNet.h>
 #include <microsim/MSJunctionLogic.h>
 #include <microsim/MSNoLogicJunction.h>
 #include <microsim/MSRightOfWayJunction.h>
 #include <microsim/MSInternalJunction.h>
 #include <microsim/MSJunctionControl.h>
+#include <microsim/MSEventControl.h>
 #include <microsim/traffic_lights/MSTrafficLightLogic.h>
 #include <microsim/traffic_lights/MSSimpleTrafficLightLogic.h>
 #include <microsim/traffic_lights/MSRailSignal.h>
 #include <microsim/traffic_lights/MSRailCrossing.h>
-#include <microsim/MSEventControl.h>
 #include <microsim/traffic_lights/MSSOTLPolicyBasedTrafficLightLogic.h>
 #include <microsim/traffic_lights/MSSOTLPlatoonPolicy.h>
 #include <microsim/traffic_lights/MSSOTLRequestPolicy.h>
@@ -48,15 +52,8 @@
 #include <microsim/traffic_lights/MSDeterministicHiLevelTrafficLightLogic.h>
 #include <microsim/traffic_lights/MSSOTLWaveTrafficLightLogic.h>
 #include <microsim/traffic_lights/MSDelayBasedTrafficLightLogic.h>
-#include <microsim/MSEventControl.h>
-#include <microsim/MSGlobals.h>
-#include <microsim/MSNet.h>
 #include <microsim/traffic_lights/MSOffTrafficLightLogic.h>
 #include <microsim/traffic_lights/MSTLLogicControl.h>
-#include <utils/xml/SUMOXMLDefinitions.h>
-#include <utils/common/UtilExceptions.h>
-#include <utils/common/ToString.h>
-#include <netbuild/NBNode.h>
 #include "NLBuilder.h"
 #include "NLJunctionControlBuilder.h"
 
@@ -302,12 +299,12 @@ NLJunctionControlBuilder::closeTrafficLightLogic(const std::string& basePath) {
             break;
         case TLTYPE_RAIL_SIGNAL:
             tlLogic = new MSRailSignal(getTLLogicControlToUse(),
-                                       myActiveKey, myActiveProgram,
+                                       myActiveKey, myActiveProgram, myNet.getCurrentTimeStep(),
                                        myAdditionalParameter);
             break;
         case TLTYPE_RAIL_CROSSING:
             tlLogic = new MSRailCrossing(getTLLogicControlToUse(),
-                                         myActiveKey, myActiveProgram,
+                                         myActiveKey, myActiveProgram, myNet.getCurrentTimeStep(),
                                          myAdditionalParameter);
             break;
         case TLTYPE_OFF:

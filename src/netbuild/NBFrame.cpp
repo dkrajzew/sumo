@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    09.05.2011
-/// @version $Id$
 ///
 // Sets and checks options for netbuild
 /****************************************************************************/
@@ -65,6 +64,9 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.addSynonyme("default.priority", "priority", true);
     oc.addDescription("default.priority", "Building Defaults", "The default priority of an edge");
 
+    oc.doRegister("default.type", new Option_String());
+    oc.addDescription("default.type", "Building Defaults", "The default edge type");
+
     oc.doRegister("default.sidewalk-width", new Option_Float((double) 2.0));
     oc.addDescription("default.sidewalk-width", "Building Defaults", "The default width of added sidewalks");
 
@@ -95,6 +97,12 @@ NBFrame::fillOptions(bool forNetgen) {
 
     oc.doRegister("numerical-ids", new Option_Bool(false));
     oc.addDescription("numerical-ids", "Processing", "Remaps alphanumerical IDs of nodes and edges to ensure that all IDs are integers");
+
+    oc.doRegister("numerical-ids.node-start", new Option_Integer(std::numeric_limits<int>::max()));
+    oc.addDescription("numerical-ids.node-start", "Processing", "Remaps IDs of nodes to integers starting at INT");
+
+    oc.doRegister("numerical-ids.edge-start", new Option_Integer(std::numeric_limits<int>::max()));
+    oc.addDescription("numerical-ids.edge-start", "Processing", "Remaps IDs of edges to integers starting at INT");
 
     /// @todo not working for netgen
     oc.doRegister("reserved-ids", new Option_FileName());
@@ -191,6 +199,9 @@ NBFrame::fillOptions(bool forNetgen) {
         oc.doRegister("railway.topology.all-bidi", new Option_Bool(false));
         oc.addDescription("railway.topology.all-bidi", "Railway", "Make all rails usable in both direction");
 
+        oc.doRegister("railway.topology.all-bidi.input-file", new Option_FileName());
+        oc.addDescription("railway.topology.all-bidi.input-file", "Railway", "Make all rails edge ids from FILE usable in both direction");
+
         oc.doRegister("railway.access-distance", new Option_Float(150.f));
         oc.addDescription("railway.access-distance", "Railway", "The search radius for finding suitable road accesses for rail stops");
         oc.addSynonyme("railway.access-distance", "osm.stop-output.footway-access-distance", true);
@@ -221,6 +232,9 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.doRegister("offset.y", new Option_Float(0));
     oc.addSynonyme("offset.y", "y-offset-to-apply", true);
     oc.addDescription("offset.y", "Processing", "Adds FLOAT to net y-positions");
+
+    oc.doRegister("offset.z", new Option_Float(0));
+    oc.addDescription("offset.z", "Processing", "Adds FLOAT to net z-positions");
 
     oc.doRegister("flip-y-axis", new Option_Bool(false));
     oc.addSynonyme("flip-y-axis", "flip-y");
@@ -404,6 +418,10 @@ NBFrame::fillOptions(bool forNetgen) {
     oc.doRegister("tls.uncontrolled-within", new Option_Bool(false));
     oc.addDescription("tls.uncontrolled-within", "TLS Building",
                       "Do not control edges that lie fully within a joined traffic light. This may cause collisions but allows old traffic light plans to be used");
+
+    oc.doRegister("tls.ignore-internal-junction-jam", new Option_Bool(false));
+    oc.addDescription("tls.ignore-internal-junction-jam", "TLS Building",
+                      "Do not build mutually conflicting response matrix, potentially ignoring vehicles that are stuck at an internal junction when their phase has ended");
 
     if (!forNetgen) {
         oc.doRegister("tls.guess-signals", new Option_Bool(false));
@@ -629,6 +647,9 @@ NBFrame::checkOptions() {
     }
     if (oc.isDefault("railway.topology.repair") && oc.getBool("railway.topology.repair.connect-straight")) {
         oc.set("railway.topology.repair", "true");
+    }
+    if (oc.isDefault("railway.topology.all-bidi") && !oc.isDefault("railway.topology.all-bidi.input-file")) {
+        oc.set("railway.topology.all-bidi", "true");
     }
     return ok;
 }

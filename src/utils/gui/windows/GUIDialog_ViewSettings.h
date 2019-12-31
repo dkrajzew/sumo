@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Wed, 21. Dec 2005
-/// @version $Id$
 ///
 // The dialog to change the view (gui) settings.
 /****************************************************************************/
@@ -308,7 +307,7 @@ private:
     std::vector<FXRealSpinner*> myVehicleThresholds;
     std::vector<FXButton*> myVehicleButtons;
     FXCheckButton* myVehicleColorInterpolation;
-    FXCheckButton* myShowBlinker, *myShowMinGap, *myShowBrakeGap, *myShowBTRange; /* *myShowLaneChangePreference,*/
+    FXCheckButton* myShowBlinker, *myShowMinGap, *myShowBrakeGap, *myShowBTRange, *myShowRouteIndex; /* *myShowLaneChangePreference,*/
     FXComboBox* myVehicleParamKey;
     FXComboBox* myVehicleTextParamKey;
 
@@ -356,7 +355,8 @@ private:
     FXCheckButton* myDither;
     FXCheckButton* myFPS;
     FXCheckButton* myDrawBoundaries;
-    FXCheckButton* myForceDrawForSelecting;
+    FXCheckButton* myForceDrawForPositionSelection;
+    FXCheckButton* myForceDrawForRectangleSelection;
     FXCheckButton* myShowSizeLegend;
     FXCheckButton* myShowColorLegend;
 

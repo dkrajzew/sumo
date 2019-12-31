@@ -10,7 +10,6 @@
 /// @file    GNERouteProbe.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    May 2016
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -38,11 +37,13 @@
 // ===========================================================================
 
 GNERouteProbe::GNERouteProbe(const std::string& id, GNEViewNet* viewNet, GNEEdge* edge, const std::string& frequency, const std::string& name, const std::string& filename, SUMOTime begin) :
-    GNEAdditional(id, viewNet, GLO_ROUTEPROBE, SUMO_TAG_ROUTEPROBE, name, false, {edge}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
-    myFrequency(frequency),
-    myFilename(filename),
-    myBegin(begin),
-    myRelativePositionY(0) {
+    GNEAdditional(id, viewNet, GLO_ROUTEPROBE, SUMO_TAG_ROUTEPROBE, name, false, {
+    edge
+}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
+myFrequency(frequency),
+myFilename(filename),
+myBegin(begin),
+myRelativePositionY(0) {
 }
 
 
@@ -52,24 +53,20 @@ GNERouteProbe::~GNERouteProbe() {
 
 void
 GNERouteProbe::updateGeometry() {
-    // Clear all containers
-    myGeometry.clearGeometry();
-
     // obtain relative position of routeProbe in edge
-    myRelativePositionY = 2 * getEdgeParents().front()->getRouteProbeRelativePosition(this);
+    myRelativePositionY = 2 * getParentEdges().front()->getRouteProbeRelativePosition(this);
 
     // get lanes of edge
-    GNELane* firstLane = getEdgeParents().front()->getLanes().at(0);
+    GNELane* firstLane = getParentEdges().front()->getLanes().at(0);
 
-    // Get shape of lane parent
-    double offset = firstLane->getGeometry().shape.length() < 0.5 ? firstLane->getGeometry().shape.length() : 0.5;
-    myGeometry.shape.push_back(firstLane->getGeometry().shape.positionAtOffset(offset));
+    // Get shape of parent lane
+    const double offset = firstLane->getLaneShape().length() < 0.5 ? firstLane->getLaneShape().length() : 0.5;
 
-    // Save rotation (angle) of the vector constructed by points f and s
-    myGeometry.shapeRotations.push_back(firstLane->getGeometry().shape.rotationDegreeAtOffset(offset) * -1);
+    // update geometry
+    myAdditionalGeometry.updateGeometryPosition(firstLane, offset);
 
     // Set block icon position
-    myBlockIcon.position = myGeometry.shape.getLineCenter();
+    myBlockIcon.position = myAdditionalGeometry.getShape().getLineCenter();
 
     // Set offset of the block icon
     myBlockIcon.offset = Position(1.1, (-3.06) - myRelativePositionY);
@@ -81,11 +78,11 @@ GNERouteProbe::updateGeometry() {
 
 Position
 GNERouteProbe::getPositionInView() const {
-    if (getEdgeParents().front()->getLanes().front()->getGeometry().shape.length() < 0.5) {
-        return getEdgeParents().front()->getLanes().front()->getGeometry().shape.front();
+    if (getParentEdges().front()->getLanes().front()->getLaneShape().length() < 0.5) {
+        return getParentEdges().front()->getLanes().front()->getLaneShape().front();
     } else {
-        Position A = getEdgeParents().front()->getLanes().front()->getGeometry().shape.positionAtOffset(0.5);
-        Position B = getEdgeParents().front()->getLanes().back()->getGeometry().shape.positionAtOffset(0.5);
+        Position A = getParentEdges().front()->getLanes().front()->getLaneShape().positionAtOffset(0.5);
+        Position B = getParentEdges().front()->getLanes().back()->getLaneShape().positionAtOffset(0.5);
         // return Middle point
         return Position((A.x() + B.x()) / 2, (A.y() + B.y()) / 2);
     }
@@ -94,7 +91,13 @@ GNERouteProbe::getPositionInView() const {
 
 Boundary
 GNERouteProbe::getCenteringBoundary() const {
-    return myGeometry.shape.getBoxBoundary().grow(10);
+    return myAdditionalGeometry.getShape().getBoxBoundary().grow(10);
+}
+
+
+void
+GNERouteProbe::splitEdgeGeometry(const double /*splitPosition*/, const GNENetElement* /*originalElement*/, const GNENetElement* /*newElement*/, GNEUndoList* /*undoList*/) {
+    // geometry of this element cannot be splitted
 }
 
 
@@ -112,7 +115,7 @@ GNERouteProbe::commitGeometryMoving(GNEUndoList*) {
 
 std::string
 GNERouteProbe::getParentName() const {
-    return getEdgeParents().front()->getMicrosimID();
+    return getParentEdges().front()->getMicrosimID();
 }
 
 
@@ -124,7 +127,7 @@ GNERouteProbe::drawGL(const GUIVisualizationSettings& s) const {
     if (s.drawAdditionals(exaggeration)) {
         // get values
         const double width = (double) 2.0 * s.scale;
-        const int numberOfLanes = int(getEdgeParents().front()->getLanes().size());
+        const int numberOfLanes = int(getParentEdges().front()->getLanes().size());
         // start drawing
         glPushName(getGlID());
         glLineWidth(1.0);
@@ -137,8 +140,8 @@ GNERouteProbe::drawGL(const GUIVisualizationSettings& s) const {
         // draw shape
         glPushMatrix();
         glTranslated(0, 0, getType());
-        glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), 0);
-        glRotated(myGeometry.shapeRotations[0], 0, 0, 1);
+        glTranslated(myAdditionalGeometry.getPosition().x(), myAdditionalGeometry.getPosition().y(), 0);
+        glRotated(myAdditionalGeometry.getRotation(), 0, 0, 1);
         glScaled(exaggeration, exaggeration, 1);
         glTranslated(-1.6, -1.6, 0);
         glBegin(GL_QUADS);
@@ -153,7 +156,7 @@ GNERouteProbe::drawGL(const GUIVisualizationSettings& s) const {
         glVertex2d(0, -0.25 + .1);
         glEnd();
         // position indicator (White)
-        if ((width * exaggeration > 1) && !s.drawForSelecting) {
+        if ((width * exaggeration > 1) && !s.drawForRectangleSelection) {
             if (drawUsingSelectColor()) {
                 GLHelper::setColor(s.colorSettings.selectionColor);
             } else {
@@ -169,11 +172,11 @@ GNERouteProbe::drawGL(const GUIVisualizationSettings& s) const {
         glPopMatrix();
         // Add a draw matrix for drawing logo
         glPushMatrix();
-        glTranslated(myGeometry.shape[0].x(), myGeometry.shape[0].y(), getType());
-        glRotated(myGeometry.shapeRotations[0], 0, 0, 1);
+        glTranslated(myAdditionalGeometry.getPosition().x(), myAdditionalGeometry.getPosition().y(), getType());
+        glRotated(myAdditionalGeometry.getRotation(), 0, 0, 1);
         glTranslated((-2.56) - myRelativePositionY, (-1.6), 0);
         // Draw icon depending of Route Probe is selected and if isn't being drawn for selecting
-        if (!s.drawForSelecting && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
+        if (!s.drawForRectangleSelection && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
             glColor3d(1, 1, 1);
             glRotated(-90, 0, 0, 1);
             if (drawUsingSelectColor()) {
@@ -193,7 +196,7 @@ GNERouteProbe::drawGL(const GUIVisualizationSettings& s) const {
         drawName(getPositionInView(), s.scale, s.addName);
         // check if dotted contour has to be drawn
         if (myViewNet->getDottedAC() == this) {
-            GLHelper::drawShapeDottedContourRectangle(s, getType(), myGeometry.shape[0], 2, 2, myGeometry.shapeRotations[0], (-2.56) - myRelativePositionY, -1.6);
+            GLHelper::drawShapeDottedContourRectangle(s, getType(), myAdditionalGeometry.getPosition(), 2, 2, myAdditionalGeometry.getRotation(), (-2.56) - myRelativePositionY, -1.6);
         }
         // pop name
         glPopName();
@@ -207,7 +210,7 @@ GNERouteProbe::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_EDGE:
-            return getEdgeParents().front()->getID();
+            return getParentEdges().front()->getID();
         case SUMO_ATTR_NAME:
             return myAdditionalName;
         case SUMO_ATTR_FILE:
@@ -226,7 +229,7 @@ GNERouteProbe::getAttribute(SumoXMLAttr key) const {
 }
 
 
-double 
+double
 GNERouteProbe::getAttributeDouble(SumoXMLAttr key) const {
     switch (key) {
         case SUMO_ATTR_BEGIN:
@@ -259,7 +262,7 @@ GNERouteProbe::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoLi
 }
 
 
-bool 
+bool
 GNERouteProbe::isAttributeEnabled(SumoXMLAttr /* key */) const {
     return true;
 }
@@ -320,7 +323,7 @@ GNERouteProbe::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_EDGE:
-            changeEdgeParents(this, value);
+            replaceParentEdges(this, value);
             break;
         case SUMO_ATTR_NAME:
             myAdditionalName = value;

@@ -10,7 +10,6 @@
 /// @file    GNEInternalLane.cpp
 /// @author  Jakob Erdmann
 /// @date    June 2011
-/// @version $Id$
 ///
 // A class for visualizing Inner Lanes (used when editing traffic lights)
 /****************************************************************************/
@@ -26,6 +25,7 @@
 #include <utils/gui/globjects/GUIGLObjectPopupMenu.h>
 #include <utils/gui/div/GLHelper.h>
 #include <netedit/frames/GNETLSEditorFrame.h>
+#include <netedit/GNEViewNet.h>
 #include <utils/gui/globjects/GLIncludes.h>
 
 #include "GNEInternalLane.h"
@@ -68,23 +68,13 @@ const StringBijection<FXuint> GNEInternalLane::LinkStateNames(
 // ===========================================================================
 GNEInternalLane::GNEInternalLane(GNETLSEditorFrame* editor, const std::string& id, const PositionVector& shape, int tlIndex, LinkState state) :
     GUIGlObject(editor == nullptr ? GLO_JUNCTION : GLO_TLLOGIC, id),
-    myShape(shape),
     myState(state),
     myStateTarget(myState),
     myEditor(editor),
     myTlIndex(tlIndex),
     myPopup(nullptr) {
-    int segments = (int) myShape.size() - 1;
-    if (segments >= 0) {
-        myShapeRotations.reserve(segments);
-        myShapeLengths.reserve(segments);
-        for (int i = 0; i < segments; ++i) {
-            const Position& f = myShape[i];
-            const Position& s = myShape[i + 1];
-            myShapeLengths.push_back(f.distanceTo2D(s));
-            myShapeRotations.push_back((double) atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double) M_PI);
-        }
-    }
+    // calculate internal lane geometry
+    myInternalLaneGeometry.updateGeometryShape(shape);
 }
 
 
@@ -126,9 +116,9 @@ GNEInternalLane::drawGL(const GUIVisualizationSettings& s) const {
     // draw lane
     // check whether it is not too small
     if (s.scale < 1.) {
-        GLHelper::drawLine(myShape);
+        GLHelper::drawLine(myInternalLaneGeometry.getShape());
     } else {
-        GLHelper::drawBoxLines(myShape, myShapeRotations, myShapeLengths, 0.2);
+        GNEGeometry::drawGeometry(myEditor->getViewNet(), myInternalLaneGeometry, 0.2);
     }
     glPopName();
     glPopMatrix();
@@ -158,7 +148,7 @@ GUIGLObjectPopupMenu*
 GNEInternalLane::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     myPopup = new GUIGLObjectPopupMenu(app, parent, *this);
     buildPopupHeader(myPopup, app);
-    if (myEditor != nullptr) {
+    if ((myEditor != nullptr) && (myEditor->getViewNet()->getEditModes().currentSupermode == GNE_SUPERMODE_NETWORK)) {
         const std::vector<std::string> names = LinkStateNames.getStrings();
         for (std::vector<std::string>::const_iterator it = names.begin(); it != names.end(); it++) {
             FXuint state = LinkStateNames.get(*it);
@@ -184,7 +174,7 @@ GNEInternalLane::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView&) {
 
 Boundary
 GNEInternalLane::getCenteringBoundary() const {
-    Boundary b = myShape.getBoxBoundary();
+    Boundary b = myInternalLaneGeometry.getShape().getBoxBoundary();
     b.grow(10);
     return b;
 }

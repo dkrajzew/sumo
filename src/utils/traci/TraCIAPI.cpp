@@ -13,7 +13,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    30.05.2012
-/// @version $Id$
 ///
 // C++ TraCI client API implementation
 /****************************************************************************/
@@ -1859,6 +1858,15 @@ TraCIAPI::SimulationScope::findRoute(const std::string& fromEdge, const std::str
 }
 
 
+void
+TraCIAPI::SimulationScope::writeMessage(const std::string msg) {
+    tcpip::Storage content;
+    content.writeUnsignedByte(libsumo::TYPE_STRING);
+    content.writeString(msg);
+    myParent.createCommand(libsumo::CMD_SET_SIM_VARIABLE, libsumo::CMD_MESSAGE, "", &content);
+    myParent.processSet(libsumo::CMD_SET_SIM_VARIABLE);
+}
+
 // ---------------------------------------------------------------------------
 // TraCIAPI::TrafficLightScope-methods
 // ---------------------------------------------------------------------------
@@ -3265,6 +3273,22 @@ TraCIAPI::VehicleScope::addSubscriptionFilterVType(const std::vector<std::string
     addSubscriptionFilterStringList(libsumo::FILTER_TYPE_VTYPE, vTypes);
 }
 
+
+void
+TraCIAPI::VehicleScope::addSubscriptionFilterFieldOfVision(double angle) const {
+    addSubscriptionFilterFloat(libsumo::FILTER_TYPE_FIELD_OF_VISION, angle);
+}
+
+void
+TraCIAPI::VehicleScope::addSubscriptionFilterLateralDistance(double lateralDist, double downstreamDist, double upstreamDist) const {
+    addSubscriptionFilterFloat(libsumo::FILTER_TYPE_LATERAL_DIST, lateralDist);
+    if (downstreamDist >= 0) {
+        addSubscriptionFilterDownstreamDistance(downstreamDist);
+    }
+    if (upstreamDist >= 0) {
+        addSubscriptionFilterUpstreamDistance(upstreamDist);
+    }
+}
 
 void
 TraCIAPI::VehicleScope::addSubscriptionFilterEmpty(int filterType) const {

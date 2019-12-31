@@ -10,7 +10,6 @@
 /// @file    GNEDemandElement.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Dec 2018
-/// @version $Id$
 ///
 // A abstract class for demand elements
 /****************************************************************************/
@@ -23,8 +22,9 @@
 // ===========================================================================
 #include <config.h>
 
-#include <netedit/GNEHierarchicalElementParents.h>
-#include <netedit/GNEHierarchicalElementChildren.h>
+#include <netedit/GNEHierarchicalParentElements.h>
+#include <netedit/GNEHierarchicalChildElements.h>
+#include <netedit/GNEGeometry.h>
 #include <utils/common/Parameterised.h>
 #include <utils/geom/PositionVector.h>
 #include <utils/gui/globjects/GUIGlObject.h>
@@ -37,10 +37,11 @@
 // ===========================================================================
 
 class GNEViewNet;
-class GNEEdge;
-class GNELane;
 class GNEAdditional;
 class GNEDemandElement;
+class GNENetElement;
+class GNEEdge;
+class GNELane;
 class GNEJunction;
 
 // ===========================================================================
@@ -51,109 +52,9 @@ class GNEJunction;
  * @class GNEDemandElement
  * @brief An Element which don't belongs to GNENet but has influency in the simulation
  */
-class GNEDemandElement : public GUIGlObject, public GNEAttributeCarrier, public GNEHierarchicalElementParents, public GNEHierarchicalElementChildren {
+class GNEDemandElement : public GUIGlObject, public GNEAttributeCarrier, public GNEHierarchicalParentElements, public GNEHierarchicalChildElements {
 
 public:
-    /// @brief struct for pack all variables related with geometry of stop
-    struct DemandElementGeometry {
-
-        /// @brief constructor
-        DemandElementGeometry();
-
-        /// @brief reset geometry
-        void clearGeometry();
-
-        /// @brief calculate shape rotations and lengths
-        void calculateShapeRotationsAndLengths();
-
-        /// @brief The shape of the additional element
-        PositionVector shape;
-
-        /// @brief The rotations of the single shape parts
-        std::vector<double> shapeRotations;
-
-        /// @brief The lengths of the single shape parts
-        std::vector<double> shapeLengths;
-    };
-
-    /// @brief struct for pack all variables related with geometry of elemements divided in segments
-    struct DemandElementSegmentGeometry {
-
-        /// @brief struct used for represent segments of demand element geometry
-        struct Segment {
-            /// @brief parameter constructor for edges
-            Segment(const GNEDemandElement* _element, const GNEEdge* _edge, const Position _pos, const bool _visible, const bool _valid);
-
-            /// @brief parameter constructor for edges
-            Segment(const GNEDemandElement* _element, const GNEEdge* _edge, const Position _pos, double _length, double _rotation, const bool _visible, const bool _valid);
-
-            /// @brief parameter constructor for junctions
-            Segment(const GNEDemandElement* _element, const GNEJunction* _junction, const Position _pos, const bool _visible, const bool _valid);
-
-            /// @brief element
-            const GNEDemandElement* element;
-
-            /// @brief edge
-            const GNEEdge* edge;
-
-            /// @brief junction
-            const GNEJunction* junction;
-
-            /// @brief position
-            const Position pos;
-
-            /// @brief visible
-            const bool visible;
-
-            /// @brief invalid
-            const bool valid;
-
-            /// @brief length
-            double length;
-
-            /// @brief rotation
-            double rotation;
-
-        private:
-            /// @brief Invalidated assignment operator
-            Segment& operator=(const Segment& other) = delete;
-        };
-
-        /// @brief constructor
-        DemandElementSegmentGeometry();
-
-        /// @brief insert edge segment
-        void insertEdgeSegment(const GNEDemandElement* element, const GNEEdge* edge, const Position pos, const bool visible, const bool valid);
-
-        /// @brief insert edge segment with length and rotation (used to avoid unnecessary calculation in calculatePartialShapeRotationsAndLengths)
-        void insertEdgeLengthRotSegment(const GNEDemandElement* element, const GNEEdge* edge, const Position pos, double length, double rotation, const bool visible, const bool valid);
-
-        /// @brief insert junction segment
-        void insertJunctionSegment(const GNEDemandElement* element, const GNEJunction* junction, const Position pos, const bool visible, const bool valid);
-
-        /// @brief clear demand element geometry
-        void clearDemandElementSegmentGeometry();
-
-        /// @brief calculate partial shape, rotations and lengths
-        void calculatePartialShapeRotationsAndLengths();
-
-        /// @brief begin iterator
-        std::vector<Segment>::const_iterator begin() const;
-
-        /// @brief end iterator
-        std::vector<Segment>::const_iterator end() const;
-
-        /// @brief number of segments
-        int size() const;
-
-        /// @brief mark geometry as deprecated (used to avoid multiple updates)
-        bool geometryDeprecated;
-
-    private:
-        /// @brief vector of segments that constitutes the shape
-        std::vector<Segment> myShapeSegments;
-    };
-
     /// @brief struct for pack all variables related with Demand Element moving
     struct DemandElementMove {
         /// @brief boundary used during moving of elements (to avoid insertion in RTREE)
@@ -186,10 +87,10 @@ public:
         std::vector<GNEEdge*> calculateDijkstraRoute(SUMOVehicleClass vClass, const std::vector<GNEEdge*>& partialEdges) const;
 
         /// @brief calculate Dijkstra route between a list of partial edges (in string format)
-        std::vector<GNEEdge*> calculateDijkstraRoute(GNENet* net, SUMOVehicleClass vClass, const std::vector<std::string>& partialEdgesStr) const;
+        std::vector<GNEEdge*> calculateDijkstraRoute(const GNENet* net, const SUMOVehicleClass vClass, const std::vector<std::string>& partialEdgesStr) const;
 
-        /// @brief check if exist a route between the two given consecutives edges
-        bool areEdgesConsecutives(SUMOVehicleClass vClass, GNEEdge* from, GNEEdge* to) const;
+        /// @brief check if exist a route between the two given consecutives edges for the given VClass
+        bool consecutiveEdgesConnected(const SUMOVehicleClass vClass, const GNEEdge* from, const GNEEdge* to) const;
 
     private:
         /// @brief pointer to net
@@ -204,68 +105,65 @@ public:
      * @param[in] viewNet pointer to GNEViewNet of this demand element element belongs
      * @param[in] type GUIGlObjectType of demand element
      * @param[in] tag Type of xml tag that define the demand element element (SUMO_TAG_ROUTE, SUMO_TAG_VEHICLE, etc...)
-     * @param[in] edgeParents vector of edge parents
-     * @param[in] laneParents vector of lane parents
-     * @param[in] shapeParents vector of shape parents
-     * @param[in] additionalParents vector of additional parents
-     * @param[in] demandElementChildren vector of demandElement parents
-     * @param[in] edgeChildren vector of edge children
-     * @param[in] laneChildren vector of lane children
-     * @param[in] shapeChildren vector of shape children
-     * @param[in] additionalChildren vector of additional children
-     * @param[in] demandElementChildren vector of demandElement children
+     * @param[in] parentEdges vector of parent edges
+     * @param[in] parentLanes vector of parent lanes
+     * @param[in] parentShapes vector of parent shapes
+     * @param[in] parentAdditionals vector of parent additionals
+     * @param[in] childDemandElements vector of demandElement parents
+     * @param[in] childEdges vector of child edges
+     * @param[in] childLanes vector of child lanes
+     * @param[in] childShapes vector of child shapes
+     * @param[in] childAdditionals vector of child additional
+     * @param[in] childDemandElements vector of demandElement children
      */
     GNEDemandElement(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
-                     const std::vector<GNEEdge*>& edgeParents,
-                     const std::vector<GNELane*>& laneParents,
-                     const std::vector<GNEShape*>& shapeParents,
-                     const std::vector<GNEAdditional*>& additionalParents,
-                     const std::vector<GNEDemandElement*>& demandElementParents,
-                     const std::vector<GNEEdge*>& edgeChildren,
-                     const std::vector<GNELane*>& laneChildren,
-                     const std::vector<GNEShape*>& shapeChildren,
-                     const std::vector<GNEAdditional*>& additionalChildren,
-                     const std::vector<GNEDemandElement*>& demandElementChildren);
+                     const std::vector<GNEEdge*>& parentEdges,
+                     const std::vector<GNELane*>& parentLanes,
+                     const std::vector<GNEShape*>& parentShapes,
+                     const std::vector<GNEAdditional*>& parentAdditionals,
+                     const std::vector<GNEDemandElement*>& parentDemandElements,
+                     const std::vector<GNEEdge*>& childEdges,
+                     const std::vector<GNELane*>& childLanes,
+                     const std::vector<GNEShape*>& childShapes,
+                     const std::vector<GNEAdditional*>& childAdditionals,
+                     const std::vector<GNEDemandElement*>& childDemandElements);
 
     /**@brief Constructor
-     * @param[in] demandElementParent pointer to demand element parent pointer (used to generate an ID)
+     * @param[in] demandElementParent pointer to parent demand element pointer (used to generate an ID)
      * @param[in] viewNet pointer to GNEViewNet of this demand element element belongs
      * @param[in] type GUIGlObjectType of demand element
      * @param[in] tag Type of xml tag that define the demand element element (SUMO_TAG_ROUTE, SUMO_TAG_VEHICLE, etc...)
-     * @param[in] edgeParents vector of edge parents
-     * @param[in] laneParents vector of lane parents
-     * @param[in] shapeParents vector of shape parents
-     * @param[in] additionalParents vector of additional parents
-     * @param[in] demandElementChildren vector of demandElement parents
-     * @param[in] edgeChildren vector of edge children
-     * @param[in] laneChildren vector of lane children
-     * @param[in] shapeChildren vector of shape children
-     * @param[in] additionalChildren vector of additional children
-     * @param[in] demandElementChildren vector of demandElement children
+     * @param[in] parentEdges vector of parent edges
+     * @param[in] parentLanes vector of parent lanes
+     * @param[in] parentShapes vector of parent shapes
+     * @param[in] parentAdditionals vector of parent additionals
+     * @param[in] childDemandElements vector of demandElement parents
+     * @param[in] childEdges vector of child edges
+     * @param[in] childLanes vector of child lanes
+     * @param[in] childShapes vector of child shapes
+     * @param[in] childAdditionals vector of child additional
+     * @param[in] childDemandElements vector of demandElement children
      */
     GNEDemandElement(GNEDemandElement* demandElementParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
-                     const std::vector<GNEEdge*>& edgeParents,
-                     const std::vector<GNELane*>& laneParents,
-                     const std::vector<GNEShape*>& shapeParents,
-                     const std::vector<GNEAdditional*>& additionalParents,
-                     const std::vector<GNEDemandElement*>& demandElementParents,
-                     const std::vector<GNEEdge*>& edgeChildren,
-                     const std::vector<GNELane*>& laneChildren,
-                     const std::vector<GNEShape*>& shapeChildren,
-                     const std::vector<GNEAdditional*>& additionalChildren,
-                     const std::vector<GNEDemandElement*>& demandElementChildren);
+                     const std::vector<GNEEdge*>& parentEdges,
+                     const std::vector<GNELane*>& parentLanes,
+                     const std::vector<GNEShape*>& parentShapes,
+                     const std::vector<GNEAdditional*>& parentAdditionals,
+                     const std::vector<GNEDemandElement*>& parentDemandElements,
+                     const std::vector<GNEEdge*>& childEdges,
+                     const std::vector<GNELane*>& childLanes,
+                     const std::vector<GNEShape*>& childShapes,
+                     const std::vector<GNEAdditional*>& childAdditionals,
+                     const std::vector<GNEDemandElement*>& childDemandElements);
 
     /// @brief Destructor
     ~GNEDemandElement();
 
     /// @brief get demand element geometry
-    const DemandElementGeometry& getDemandElementGeometry() const;
+    const GNEGeometry::Geometry& getDemandElementGeometry() const;
 
     /// @brief get demand element segment geometry
-    const DemandElementSegmentGeometry& getDemandElementSegmentGeometry() const;
-
-    /// @brief mark demand element segment geometry as deprecated
-    void markSegmentGeometryDeprecated();
+    const GNEGeometry::SegmentGeometry& getDemandElementSegmentGeometry() const;
 
     /// @brief gererate a new ID for an element child
     std::string generateChildID(SumoXMLTag childTag);
@@ -283,10 +181,6 @@ public:
 
     /// @brief get color
     virtual const RGBColor& getColor() const = 0;
-
-    /// @brief compute demand element (used by flows, trips, personPlans<from-to>,...)
-    virtual void compute() = 0;
-
     /// @}
 
     /// @name members and functions relative to write demand elements into XML
@@ -339,8 +233,20 @@ public:
     /// @brief update pre-computed geometry information
     virtual void updateGeometry() = 0;
 
+    /// @brief partial update pre-computed geometry information
+    virtual void updatePartialGeometry(const GNEEdge* edge) = 0;
+
+    /// @brief compute path
+    virtual void computePath() = 0;
+
+    /// @brief invalidate path
+    virtual void invalidatePath() = 0;
+
     /// @brief Returns position of demand element in view
     virtual Position getPositionInView() const = 0;
+
+    /// @brief split geometry
+    virtual void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList) = 0;
     /// @}
 
     /// @brief Returns a pointer to GNEViewNet in which demand element element is located
@@ -459,21 +365,15 @@ public:
     virtual std::string getHierarchyName() const = 0;
     /// @}
 
-    /** @brief check if a route is valid
-     * @param[in] edges vector with the route's edges
-     * @param[in] report enable or disable writting warnings if route isn't valid
-     */
-    static bool isRouteValid(const std::vector<GNEEdge*>& edges, bool report);
-
 protected:
     /// @brief The GNEViewNet this demand element element belongs
     GNEViewNet* myViewNet;
 
     /// @brief demand element geometry
-    DemandElementGeometry myDemandElementGeometry;
+    GNEGeometry::Geometry myDemandElementGeometry;
 
     /// @brief demand element segment geometry
-    DemandElementSegmentGeometry myDemandElementSegmentGeometry;
+    GNEGeometry::SegmentGeometry myDemandElementSegmentGeometry;
 
     /// @name Functions relative to change values in setAttribute(...)
     /// @{
@@ -492,11 +392,23 @@ protected:
 
     /// @}
 
+    /// @brief calculate personPlan start and end positions over lanes
+    void calculatePersonPlanLaneStartEndPos(double& startPos, double& endPos) const;
+
+    /// @brief calculate personPlan start and end positions
+    void calculatePersonPlanPositionStartEndPos(Position& startPos, Position& endPos) const;
+
+    /// @brief get first allowed vehicle lane
+    GNELane* getFirstAllowedVehicleLane() const;
+
+    /// @brief get first allowed vehicle lane
+    GNELane* getLastAllowedVehicleLane() const;
+
 private:
     /**@brief check restriction with the number of children
      * @throw ProcessError if itis called without be reimplemented in child class
      */
-    virtual bool checkDemandElementChildRestriction() const;
+    virtual bool checkChildDemandElementRestriction() const;
 
     /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
     virtual void setAttribute(SumoXMLAttr key, const std::string& value) = 0;

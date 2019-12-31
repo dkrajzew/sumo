@@ -15,7 +15,6 @@
 /// @author  Laura Bieker
 /// @author  Leonhard Lücken
 /// @date    Mon, 27 Jul 2009
-/// @version $Id$
 ///
 // The car-following model abstraction
 /****************************************************************************/
@@ -983,7 +982,9 @@ void
 MSCFModel::applyHeadwayAndSpeedDifferencePerceptionErrors(const MSVehicle* const veh, double speed, double& gap, double& predSpeed, double predMaxDecel, const MSVehicle* const pred) const {
     UNUSED_PARAMETER(speed);
     UNUSED_PARAMETER(predMaxDecel);
-    assert(veh->hasDriverState());
+    if (!veh->hasDriverState()) {
+        return;
+    }
 
     // Obtain perceived gap and headway from the driver state
     const double perceivedGap = veh->getDriverState()->getPerceivedHeadway(gap, pred);
@@ -1016,7 +1017,12 @@ MSCFModel::applyHeadwayAndSpeedDifferencePerceptionErrors(const MSVehicle* const
 void
 MSCFModel::applyHeadwayPerceptionError(const MSVehicle* const veh, double speed, double& gap) const {
     UNUSED_PARAMETER(speed);
-    assert(veh->hasDriverState());
+    if (!veh->hasDriverState()) {
+        return;
+    }
+    // @todo: Provide objectID (e.g. pointer address for the relevant object at the given distance(gap))
+    //        This is for item related management of known object and perception updates when the distance
+    //        changes significantly. (Should not be too important for stationary objects though.)
 
     // Obtain perceived gap from driver state
     const double perceivedGap = veh->getDriverState()->getPerceivedHeadway(gap);

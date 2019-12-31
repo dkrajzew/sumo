@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Laura Bieker
 /// @date    Wed, 21. Dec 2005
-/// @version $Id$
 ///
 // The dialog to change the view (gui) settings.
 /****************************************************************************/
@@ -267,40 +266,37 @@ GUIDialog_ViewSettings::GUIDialog_ViewSettings(GUISUMOAbstractView* parent, GUIV
 
         new FXHorizontalSeparator(frame3, GUIDesignHorizontalSeparator);
 
+        FXMatrix* m35 = new FXMatrix(frame3, 2, GUIDesignMatrixViewSettings);
+        myVehicleNamePanel = new NamePanel(m35, this, "Show vehicle name", mySettings->vehicleName);
+        myVehicleValuePanel = new NamePanel(m35, this, "Show vehicle color value", mySettings->vehicleValue);
+        myVehicleTextPanel = new NamePanel(m35, this, "Show vehicle text param", mySettings->vehicleText);
+        myVehicleTextParamKey = new FXComboBox(myVehicleTextPanel->myMatrix0, 1, this, MID_SIMPLE_VIEW_COLORCHANGE, GUIDesignComboBoxStatic);
+        myVehicleTextParamKey->setEditable(true);
+
+        //new FXHorizontalSeparator(frame3, GUIDesignHorizontalSeparator);
+
         FXMatrix* m33 = new FXMatrix(frame3, 2, GUIDesignMatrixViewSettings);
         myShowBlinker = new FXCheckButton(m33, "Show blinker / brake lights", this, MID_SIMPLE_VIEW_COLORCHANGE);
         myShowBlinker->setCheck(mySettings->showBlinker);
-        new FXLabel(m33, " ", nullptr, GUIDesignViewSettingsLabel1);
         myShowMinGap = new FXCheckButton(m33, "Show minimum gap", this, MID_SIMPLE_VIEW_COLORCHANGE);
         myShowMinGap->setCheck(mySettings->drawMinGap);
-        new FXLabel(m33, " ", nullptr, GUIDesignViewSettingsLabel1);
         myShowBrakeGap = new FXCheckButton(m33, "Show brake gap", this, MID_SIMPLE_VIEW_COLORCHANGE);
         myShowBrakeGap->setCheck(mySettings->drawBrakeGap);
-        new FXLabel(m33, " ", nullptr, GUIDesignViewSettingsLabel1);
         myShowBTRange = new FXCheckButton(m33, "Show Bluetooth range", this, MID_SIMPLE_VIEW_COLORCHANGE);
         myShowBTRange->setCheck(mySettings->showBTRange);
+        myShowRouteIndex = new FXCheckButton(m33, "Show route index", this, MID_SIMPLE_VIEW_COLORCHANGE);
+        myShowRouteIndex->setCheck(mySettings->showRouteIndex);
         new FXLabel(m33, " ", nullptr, GUIDesignViewSettingsLabel1);
-        /*
-        myShowLaneChangePreference = new FXCheckButton(m33, "Show lane change preference", this, MID_SIMPLE_VIEW_COLORCHANGE);
-        myShowLaneChangePreference->setCheck(mySettings->drawLaneChangePreference);
-        new FXLabel(m33, " ", 0, GUIDesignViewSettingsLabel1);
-        */
-        myVehicleNamePanel = new NamePanel(m33, this, "Show vehicle name", mySettings->vehicleName);
-        myVehicleValuePanel = new NamePanel(m33, this, "Show vehicle color value", mySettings->vehicleValue);
-        myVehicleTextPanel = new NamePanel(m33, this, "Show vehicle text param", mySettings->vehicleText);
-        /*
-        FXCheckButton *tmpc = new FXCheckButton(m33, "Show braking lights", 0 ,0);
-        tmpc->disable();
-        tmpc = new FXCheckButton(m33, "Show needed headway", 0 ,0);
-        tmpc->disable();
-        */
+        //myShowLaneChangePreference = new FXCheckButton(m33, "Show lane change preference", this, MID_SIMPLE_VIEW_COLORCHANGE);
+        //myShowLaneChangePreference->setCheck(mySettings->drawLaneChangePreference);
+        //tmpc = new FXCheckButton(m33, "Show needed headway", 0 ,0);
+        //tmpc->disable();
 
-        myVehicleTextParamKey = new FXComboBox(myVehicleTextPanel->myMatrix0, 1, this, MID_SIMPLE_VIEW_COLORCHANGE, GUIDesignComboBoxStatic);
-        myVehicleTextParamKey->setEditable(true);
-        new FXHorizontalSeparator(frame3, GUIDesignHorizontalSeparator);
+        //new FXHorizontalSeparator(frame3, GUIDesignHorizontalSeparator);
 
         FXMatrix* m34 = new FXMatrix(frame3, 2, GUIDesignViewSettingsMatrix1);
         myVehicleSizePanel = new SizePanel(m34, this, mySettings->vehicleSize);
+
     }
     {
         // persons
@@ -473,7 +469,7 @@ GUIDialog_ViewSettings::GUIDialog_ViewSettings(GUISUMOAbstractView* parent, GUIV
         new FXHorizontalSeparator(frame9, GUIDesignHorizontalSeparator);
 
         FXMatrix* m91 = new FXMatrix(frame9, 2, GUIDesignMatrixViewSettings);
-        myPolyNamePanel = new NamePanel(m91, this, "Show polygon names", mySettings->polyName);
+        myPolyNamePanel = new NamePanel(m91, this, "Show polygon name", mySettings->polyName);
         myPolyTypePanel = new NamePanel(m91, this, "Show polygon types", mySettings->polyType);
         new FXHorizontalSeparator(frame9, GUIDesignHorizontalSeparator);
 
@@ -542,8 +538,11 @@ GUIDialog_ViewSettings::GUIDialog_ViewSettings(GUISUMOAbstractView* parent, GUIV
         myDrawBoundaries = new FXCheckButton(m84, "Draw boundaries", this, MID_SIMPLE_VIEW_COLORCHANGE);
         myDrawBoundaries->setCheck(mySettings->drawBoundaries);
         FXMatrix* m85 = new FXMatrix(frame8, 1, GUIDesignMatrixViewSettings);
-        myForceDrawForSelecting = new FXCheckButton(m85, "Force draw for selecting", this, MID_SIMPLE_VIEW_COLORCHANGE);
-        myForceDrawForSelecting->setCheck(mySettings->forceDrawForSelecting);
+        myForceDrawForPositionSelection = new FXCheckButton(m85, "Force draw for position selection", this, MID_SIMPLE_VIEW_COLORCHANGE);
+        myForceDrawForPositionSelection->setCheck(mySettings->forceDrawForPositionSelection);
+        FXMatrix* m86 = new FXMatrix(frame8, 1, GUIDesignMatrixViewSettings);
+        myForceDrawForRectangleSelection = new FXCheckButton(m86, "Force draw for rectangle selection", this, MID_SIMPLE_VIEW_COLORCHANGE);
+        myForceDrawForRectangleSelection->setCheck(mySettings->forceDrawForRectangleSelection);
     }
     FXHorizontalFrame* f2 = new FXHorizontalFrame(contentFrame, GUIDesignViewSettingsHorizontalFrame2);
     FXButton* initial = new FXButton(f2, "&OK", nullptr, this, MID_SETTINGS_OK, GUIDesignViewSettingsButton2);
@@ -680,6 +679,7 @@ GUIDialog_ViewSettings::onCmdNameChange(FXObject*, FXSelector, void* data) {
     myShowMinGap->setCheck(mySettings->drawMinGap);
     myShowBrakeGap->setCheck(mySettings->drawBrakeGap);
     myShowBTRange->setCheck(mySettings->showBTRange);
+    myShowRouteIndex->setCheck(mySettings->showRouteIndex);
     /*
     myShowLaneChangePreference->setCheck(mySettings->drawLaneChangePreference);
     */
@@ -725,7 +725,8 @@ GUIDialog_ViewSettings::onCmdNameChange(FXObject*, FXSelector, void* data) {
     myDither->setCheck(mySettings->dither);
     myFPS->setCheck(mySettings->fps);
     myDrawBoundaries->setCheck(mySettings->drawBoundaries);
-    myForceDrawForSelecting->setCheck(mySettings->forceDrawForSelecting);
+    myForceDrawForPositionSelection->setCheck(mySettings->forceDrawForPositionSelection);
+    myForceDrawForRectangleSelection->setCheck(mySettings->forceDrawForRectangleSelection);
     myShowSizeLegend->setCheck(mySettings->showSizeLegend);
     myShowColorLegend->setCheck(mySettings->showColorLegend);
 
@@ -922,6 +923,7 @@ GUIDialog_ViewSettings::onCmdColorChange(FXObject* sender, FXSelector, void* /*v
     tmpSettings.drawMinGap = (myShowMinGap->getCheck() != FALSE);
     tmpSettings.drawBrakeGap = (myShowBrakeGap->getCheck() != FALSE);
     tmpSettings.showBTRange = (myShowBTRange->getCheck() != FALSE);
+    tmpSettings.showRouteIndex = (myShowRouteIndex->getCheck() != FALSE);
     /*
     tmpSettings.drawLaneChangePreference = (myShowLaneChangePreference->getCheck() != FALSE);
     */
@@ -969,7 +971,8 @@ GUIDialog_ViewSettings::onCmdColorChange(FXObject* sender, FXSelector, void* /*v
     tmpSettings.dither = (myDither->getCheck() != FALSE);
     tmpSettings.fps = (myFPS->getCheck() != FALSE);
     tmpSettings.drawBoundaries = (myDrawBoundaries->getCheck() != FALSE);
-    tmpSettings.forceDrawForSelecting = (myForceDrawForSelecting->getCheck() != FALSE);
+    tmpSettings.forceDrawForPositionSelection = (myForceDrawForPositionSelection->getCheck() != FALSE);
+    tmpSettings.forceDrawForRectangleSelection = (myForceDrawForRectangleSelection->getCheck() != FALSE);
     tmpSettings.showSizeLegend = (myShowSizeLegend->getCheck() != FALSE);
     tmpSettings.showColorLegend = (myShowColorLegend->getCheck() != FALSE);
 
@@ -1571,6 +1574,7 @@ GUIDialog_ViewSettings::rebuildColorMatrices(bool doCreate) {
         myJunctionColorRainbow->enable();
     }
     std::string activeSchemeName = myLaneEdgeColorMode->getText().text();
+    myParamKey->clearItems();
     if (activeSchemeName == GUIVisualizationSettings::SCHEME_NAME_EDGE_PARAM_NUMERICAL) {
         myParamKey->appendItem(mySettings->edgeParam.c_str());
         for (const std::string& attr : myParent->getEdgeLaneParamKeys(true)) {

@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    06.05.2011
-/// @version $Id$
 ///
 // Sets and checks options for netgen
 /****************************************************************************/
@@ -39,6 +38,9 @@
 void
 NGFrame::fillOptions() {
     OptionsCont& oc = OptionsCont::getOptions();
+    oc.doRegister("type-files", 't', new Option_FileName());
+    oc.addDescription("type-files", "Input", "Read edge-type defs from FILE");
+
     oc.doRegister("alphanumerical-ids", new Option_Bool(true));
     oc.addDescription("alphanumerical-ids", "Output", "The Ids of generated nodes use an alphanumerical code for easier readability when possible");
 

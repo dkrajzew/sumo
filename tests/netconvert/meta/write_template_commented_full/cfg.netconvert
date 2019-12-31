@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Wed Oct 16 17:45:49 2019 by Eclipse SUMO netconvert Version v1_3_1+0470-4a6b08f445
+<!-- generated on Wed Dec 18 21:14:48 2019 by Eclipse SUMO netconvert Version v1_4_0+0197-8ad2565e4f
 -->
 
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
@@ -154,7 +154,7 @@
         <railway.topology.output value="" type="FILE"/>
 
         <!-- Write shapes that are embedded in the network input and that are not supported by polyconvert (OpenDRIVE) -->
-        <polygon-output value="" type="FILE"/>
+        <polygon-output value="" synonymes="taz-output" type="FILE"/>
 
         <!-- Builds parameterized curves whenever the angular change  between straight segments exceeds FLOAT degrees -->
         <opendrive-output.straight-threshold value="1e-08" type="FLOAT"/>
@@ -206,6 +206,12 @@
 
         <!-- Remaps alphanumerical IDs of nodes and edges to ensure that all IDs are integers -->
         <numerical-ids value="false" type="BOOL"/>
+
+        <!-- Remaps IDs of nodes to integers starting at INT -->
+        <numerical-ids.node-start value="2147483647" type="INT"/>
+
+        <!-- Remaps IDs of edges to integers starting at INT -->
+        <numerical-ids.edge-start value="2147483647" type="INT"/>
 
         <!-- Ensures that generated ids do not included any of the typed IDs from FILE (SUMO-GUI selection file format) -->
         <reserved-ids value="" type="FILE"/>
@@ -282,6 +288,9 @@
         <!-- Adds FLOAT to net y-positions -->
         <offset.y value="0" synonymes="y-offset-to-apply" type="FLOAT"/>
 
+        <!-- Adds FLOAT to net z-positions -->
+        <offset.z value="0" type="FLOAT"/>
+
         <!-- Flips the y-coordinate along zero -->
         <flip-y-axis value="false" synonymes="flip-y" type="BOOL"/>
 
@@ -323,6 +332,9 @@
 
         <!-- The default priority of an edge -->
         <default.priority value="-1" synonymes="P priority" type="INT"/>
+
+        <!-- The default edge type -->
+        <default.type value="" type="STR"/>
 
         <!-- The default width of added sidewalks -->
         <default.sidewalk-width value="2" type="FLOAT"/>
@@ -380,6 +392,9 @@
 
         <!-- Do not control edges that lie fully within a joined traffic light. This may cause collisions but allows old traffic light plans to be used -->
         <tls.uncontrolled-within value="false" type="BOOL"/>
+
+        <!-- Do not build mutually conflicting response matrix, potentially ignoring vehicles that are stuck at an internal junction when their phase has ended -->
+        <tls.ignore-internal-junction-jam value="false" type="BOOL"/>
 
         <!-- Interprets tls nodes surrounding an intersection as signal positions for a larger TLS. This is typical pattern for OSM-derived networks -->
         <tls.guess-signals value="false" type="BOOL"/>
@@ -657,6 +672,9 @@
         <!-- Make all rails usable in both direction -->
         <railway.topology.all-bidi value="false" type="BOOL"/>
 
+        <!-- Make all rails edge ids from FILE usable in both direction -->
+        <railway.topology.all-bidi.input-file value="" type="FILE"/>
+
         <!-- The search radius for finding suitable road accesses for rail stops -->
         <railway.access-distance value="150" synonymes="osm.stop-output.footway-access-distance" type="FLOAT"/>
 
@@ -772,7 +790,7 @@
         <visum.connectors-lane-number value="3" synonymes="visum.connector-laneno" type="INT"/>
 
         <!-- Excludes connectors -->
-        <visum.no-connectors value="false" type="BOOL"/>
+        <visum.no-connectors value="true" type="BOOL"/>
 
         <!-- Computes the number of lanes from the edges&apos; capacities -->
         <visum.recompute-lane-number value="false" synonymes="visum.recompute-laneno" type="BOOL"/>
@@ -824,6 +842,9 @@
 
         <!-- Disables output of warnings -->
         <no-warnings value="false" synonymes="W suppress-warnings" type="BOOL"/>
+
+        <!-- Aggregate warnings of the same type whenever more than INT occur -->
+        <aggregate-warnings value="-1" type="INT"/>
 
         <!-- Writes all messages to FILE (implies verbose) -->
         <log value="" synonymes="l log-file" type="FILE"/>

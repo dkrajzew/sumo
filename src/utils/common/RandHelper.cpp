@@ -11,7 +11,6 @@
 /// @author  Daniel Krajzewicz
 /// @author  Michael Behrisch
 /// @date    Tue, 29.05.2005
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -32,8 +31,11 @@
 // static member variables
 // ===========================================================================
 std::mt19937 RandHelper::myRandomNumberGenerator;
-int RandHelper::myCallCount(0);
+#ifdef DEBUG_RANDCALLS
+std::map<std::mt19937*, int> RandHelper::myCallCount;
+std::map<std::mt19937*, int> RandHelper::myRngId;
 int RandHelper::myDebugIndex(7);
+#endif
 
 
 // ===========================================================================
@@ -60,6 +62,9 @@ RandHelper::initRand(std::mt19937* which, const bool random, const int seed) {
     if (which == nullptr) {
         which = &myRandomNumberGenerator;
     }
+#ifdef DEBUG_RANDCALLS
+    myRngId[which] = myRngId.size();
+#endif
     if (random) {
         which->seed((unsigned long)time(nullptr));
     } else {

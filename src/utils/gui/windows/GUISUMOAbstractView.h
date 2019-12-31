@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Andreas Gaubatz
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // The base class for a view
 /****************************************************************************/
@@ -406,10 +405,13 @@ protected:
     GUIGlID getObjectUnderCursor();
 
     /// @brief returns the id of the objects under the cursor using GL_SELECT (including overlapped objects)
-    std::vector<GUIGlID> getObjectstUnderCursor();
+    std::vector<GUIGlID> getObjectsUnderCursor();
 
     /// @brief returns the GUIGlObject under the cursor using GL_SELECT (including overlapped objects)
     std::vector<GUIGlObject*> getGUIGlObjectsUnderCursor();
+
+    /// @brief returns the GUIGlObject under the gripped cursor using GL_SELECT (including overlapped objects)
+    std::vector<GUIGlObject*> getGUIGlObjectsUnderGrippedCursor();
 
     /// @brief returns the id of the object at position using GL_SELECT
     GUIGlID getObjectAtPosition(Position pos);
@@ -421,13 +423,13 @@ protected:
     std::vector<GUIGlObject*> getGUIGlObjectsAtPosition(Position pos, double radius);
 
     /// @brief returns the ids of all objects in the given boundary
-    std::vector<GUIGlID> getObjectsInBoundary(Boundary bound);
+    std::vector<GUIGlID> getObjectsInBoundary(Boundary bound, bool singlePosition);
 
     /// @brief invokes the tooltip for the given object
     void showToolTipFor(const GUIGlID id);
 
 protected:
-	FOX_CONSTRUCTOR(GUISUMOAbstractView)
+    FOX_CONSTRUCTOR(GUISUMOAbstractView)
 
     /// @brief check whether we can read image data or position with gdal
     FXImage* checkGDALImage(Decal& d);

@@ -10,7 +10,6 @@
 /// @file    GNEPerson.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    May 2019
-/// @version $Id$
 ///
 // Representation of persons in NETEDIT
 /****************************************************************************/
@@ -205,7 +204,7 @@ GNEPerson::writeDemandElement(OutputDevice& device) const {
     // obtain tag depending if tagProperty has a synonym
     SumoXMLTag synonymTag = myTagProperty.hasTagSynonym() ? myTagProperty.getTagSynonym() : myTagProperty.getTag();
     // attribute VType musn't be written if is DEFAULT_PEDTYPE_ID
-    if (getDemandElementParents().at(0)->getID() == DEFAULT_PEDTYPE_ID) {
+    if (getParentDemandElements().at(0)->getID() == DEFAULT_PEDTYPE_ID) {
         // unset VType parameter
         parametersSet &= ~VEHPARS_VTYPE_SET;
         // write person attributes (VType will not be written)
@@ -214,7 +213,7 @@ GNEPerson::writeDemandElement(OutputDevice& device) const {
         parametersSet |= VEHPARS_VTYPE_SET;
     } else {
         // write person attributes, including VType
-        write(device, OptionsCont::getOptions(), synonymTag, getDemandElementParents().at(0)->getID());
+        write(device, OptionsCont::getOptions(), synonymTag, getParentDemandElements().at(0)->getID());
     }
     // write specific flow attributes
     if (myTagProperty.getTag() == SUMO_TAG_PERSONFLOW) {
@@ -237,8 +236,8 @@ GNEPerson::writeDemandElement(OutputDevice& device) const {
     }
     // write parameters
     writeParams(device);
-    // write demand element children associated to this person (Rides, Walks...)
-    for (const auto& i : getDemandElementChildren()) {
+    // write child demand elements associated to this person (Rides, Walks...)
+    for (const auto& i : getChildDemandElements()) {
         i->writeDemandElement(device);
     }
     // close person tag
@@ -268,31 +267,25 @@ GNEPerson::fixDemandElementProblem() {
 
 GNEEdge*
 GNEPerson::getFromEdge() const {
-    return getDemandElementChildren().front()->getFromEdge();
+    return getChildDemandElements().front()->getFromEdge();
 }
 
 
 GNEEdge*
 GNEPerson::getToEdge() const {
-    return getDemandElementChildren().front()->getToEdge();
+    return getChildDemandElements().front()->getToEdge();
 }
 
 
 SUMOVehicleClass
 GNEPerson::getVClass() const {
-    return getDemandElementParents().front()->getVClass();
+    return getParentDemandElements().front()->getVClass();
 }
 
 
 const RGBColor&
 GNEPerson::getColor() const {
     return color;
-}
-
-
-void
-GNEPerson::compute() {
-    // Nothing to compute
 }
 
 
@@ -322,206 +315,50 @@ GNEPerson::commitGeometryMoving(GNEUndoList*) {
 
 void
 GNEPerson::updateGeometry() {
-    // first check if geometry is deprecated
-    if (myDemandElementSegmentGeometry.geometryDeprecated) {
-        // first clear geometry
-        myDemandElementSegmentGeometry.clearDemandElementSegmentGeometry();
-        // only calculate new shape if there is demand element childrens
-        if (getDemandElementChildren().size() > 0) {
-            std::vector<personPlanSegment> personPlanSegments;
-            // iterate over all demand element childrens
-            for (const auto& personPlan : getDemandElementChildren()) {
-                GNEAdditional* busStop = (personPlan->getAdditionalParents().size() > 0) ? personPlan->getAdditionalParents().front() : nullptr;
-                // special case for person stops
-                if (personPlan->getTagProperty().isPersonStop()) {
-                    // declare a segment
-                    personPlanSegment segment(personPlan);
-                    // set stop in segment
-                    segment.stops.push_back(personPlan);
-                    // set edge depending of stop type
-                    if (personPlan->getTagProperty().getTag() == SUMO_TAG_PERSONSTOP_LANE) {
-                        segment.edge = &personPlan->getLaneParents().front()->getParentEdge();
-                    } else {
-                        segment.edge = &personPlan->getAdditionalParents().front()->getLaneParents().front()->getParentEdge();
-                    }
-                    // add segment to personPlanSegments
-                    personPlanSegments.push_back(segment);
-                } else if (personPlan->getTagProperty().getTag() == SUMO_TAG_WALK_ROUTE) {
-                    // iterate over all demand element's route edges
-                    for (const auto& j : personPlan->getDemandElementParents().at(1)->getEdgeParents()) {
-                        // declare a segment
-                        personPlanSegment segment(personPlan);
-                        // set edge in segment
-                        segment.edge = j;
-                        // check if busStop can be set
-                        if (busStop && (&busStop->getLaneParents().front()->getParentEdge() == segment.edge)) {
-                            segment.busStops.push_back(busStop);
-                        }
-                        // check if arrivalPos has to be set
-                        if (personPlan->getTagProperty().hasAttribute(SUMO_ATTR_ARRIVALPOS) && (personPlan->getDemandElementParents().at(1)->getEdgeParents().back() == j)) {
-                            segment.arrivalPos = personPlan->getAttributeDouble(SUMO_ATTR_ARRIVALPOS);
-                        }
-                        // add segment to personPlanSegments
-                        personPlanSegments.push_back(segment);
-                    }
-                } else {
-                    // iterate over all demand element's edges
-                    for (const auto& j : personPlan->getEdgeParents()) {
-                        // declare a segment
-                        personPlanSegment segment(personPlan);
-                        // set edge in segment
-                        segment.edge = j;
-                        // check if busStop can be set
-                        if (busStop && (&busStop->getLaneParents().front()->getParentEdge() == segment.edge)) {
-                            segment.busStops.push_back(busStop);
-                        }
-                        // check if arrivalPos has to be set
-                        if (personPlan->getTagProperty().hasAttribute(SUMO_ATTR_ARRIVALPOS) && (personPlan->getEdgeParents().back() == j)) {
-                            segment.arrivalPos = personPlan->getAttributeDouble(SUMO_ATTR_ARRIVALPOS);
-                        }
-                        // add segment to personPlanSegments
-                        personPlanSegments.push_back(segment);
-                    }
-                }
-            }
-            // now filter personPlanSegments
-            auto it = personPlanSegments.begin();
-            // iterate over segment plan
-            while ((it != personPlanSegments.end()) && (it != (personPlanSegments.end() - 1))) {
-                // check if this element and next element shares the same edge
-                if (it->edge == (it + 1)->edge) {
-                    // copy all busStops from next segment to previous segment
-                    it->busStops.insert(it->busStops.end(), (it + 1)->busStops.begin(), (it + 1)->busStops.end());
-                    // copy all stops from next segment to previous segment
-                    it->stops.insert(it->stops.end(), (it + 1)->stops.begin(), (it + 1)->stops.end());
-                    // erase next segment (note: don't copy arrival position)
-                    personPlanSegments.erase(it + 1);
-                    // start again
-                    it = personPlanSegments.begin();
-                } else {
-                    it++;
-                }
-            }
-            // now set shape
-            for (auto personPlanSegmentsIT = personPlanSegments.begin(); personPlanSegmentsIT != personPlanSegments.end(); personPlanSegmentsIT++) {
-                // obtain first lane (special case for rides)
-                SUMOVehicleClass vClassOfPersonPlanSegmentsIT = personPlanSegmentsIT->personPlan->getTagProperty().isRide() ? SVC_PASSENGER : SVC_PEDESTRIAN;
-                GNELane* firstLane = personPlanSegmentsIT->edge->getLaneByVClass(vClassOfPersonPlanSegmentsIT);
-                // obtain next lane (special case for rides)
-                GNELane* nextLane = nullptr;
-                // check that next person plan segment isn't the last
-                if ((personPlanSegmentsIT + 1) != personPlanSegments.end()) {
-                    SUMOVehicleClass vClassOfNextPersonPlanSegmentsIT = (personPlanSegmentsIT + 1)->personPlan->getTagProperty().isRide() ? SVC_PASSENGER : SVC_PEDESTRIAN;
-                    nextLane = personPlanSegmentsIT->edge->getLaneByVClass(vClassOfNextPersonPlanSegmentsIT);
-                }
-                if (personPlanSegmentsIT->stops.size() > 0) {
-                    // iterate over all stops
-                    for (const auto& stop : personPlanSegmentsIT->stops) {
-                        // obtain stop shapes
-                        auto shapesStop = calculatePersonPlanConnectionStop(firstLane, stop, nextLane);
-                        // add first shape
-                        for (const auto& shapesStopPos : shapesStop.first) {
-                            // last segment must be invisible
-                            if (shapesStopPos == shapesStop.first.back()) {
-                                myDemandElementSegmentGeometry.insertEdgeSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge, shapesStopPos, false, true);
-                            } else {
-                                myDemandElementSegmentGeometry.insertEdgeSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge, shapesStopPos, true, true);
-                            }
-                        }
-                        // check that next person plan segment isn't the last
-                        if ((personPlanSegmentsIT + 1) != personPlanSegments.end()) {
-                            // add second shape
-                            for (const auto& shapesStopPos : shapesStop.second) {
-                                myDemandElementSegmentGeometry.insertEdgeSegment((personPlanSegmentsIT + 1)->personPlan, personPlanSegmentsIT->edge, shapesStopPos, true, true);
-                            }
-                        }
-                    }
-                } else if (personPlanSegmentsIT->busStops.size() > 0) {
-                    // iterate over all busStops
-                    for (const auto& busStop : personPlanSegmentsIT->busStops) {
-                        // obtain busStop shapes
-                        auto shapesBusStop = calculatePersonPlanConnectionBusStop(firstLane, busStop, nextLane);
-                        // add first shape
-                        for (const auto& shapeBusStopPos : shapesBusStop.first) {
-                            // last segment must be invisible
-                            if (shapeBusStopPos == shapesBusStop.first.back()) {
-                                myDemandElementSegmentGeometry.insertEdgeSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge, shapeBusStopPos, false, true);
-                            } else {
-                                myDemandElementSegmentGeometry.insertEdgeSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge, shapeBusStopPos, true, true);
-                            }
-                        }
-                        // check that next person plan segment isn't the last
-                        if ((personPlanSegmentsIT + 1) != personPlanSegments.end()) {
-                            // add second shape
-                            for (const auto& shapeBusStopPos : shapesBusStop.second) {
-                                myDemandElementSegmentGeometry.insertEdgeSegment((personPlanSegmentsIT + 1)->personPlan, personPlanSegmentsIT->edge, shapeBusStopPos, true, true);
-                            }
-                        }
-                    }
-                } else if (personPlanSegmentsIT->arrivalPos != -1) {
-                    // obtain busStop shapes
-                    auto shapeArrival = calculatePersonPlanConnectionArrivalPos(firstLane, personPlanSegmentsIT->arrivalPos, nextLane);
-                    // add first shape
-                    for (const auto& shapeArrivalPos : shapeArrival.first) {
-                        // special case for the last segment
-                        if ((shapeArrivalPos == shapeArrival.first.back()) && (shapeArrival.first.size() > 0) && (shapeArrival.second.size() > 0)) {
-                            myDemandElementSegmentGeometry.insertEdgeSegment((personPlanSegmentsIT + 1)->personPlan, personPlanSegmentsIT->edge, shapeArrivalPos, true, true);
-                        } else {
-                            myDemandElementSegmentGeometry.insertEdgeSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge, shapeArrivalPos, true, true);
-                        }
-                    }
-                    // add second shape
-                    for (const auto& shapeArrivalPos : shapeArrival.second) {
-                        myDemandElementSegmentGeometry.insertEdgeSegment((personPlanSegmentsIT + 1)->personPlan, personPlanSegmentsIT->edge, shapeArrivalPos, true, true);
-                    }
-                } else {
-                    // obtain lane (special case due rides)
-                    GNELane* lane = personPlanSegmentsIT->edge->getLaneByVClass(vClassOfPersonPlanSegmentsIT);
-                    // add lane shape over personPlan shape
-                    for (int i = 0; i < (int)lane->getGeometry().shape.size(); i++) {
-                        // insert segment
-                        if (i < (int)lane->getGeometry().shape.size() - 1) {
-                            myDemandElementSegmentGeometry.insertEdgeLengthRotSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge,
-                                    lane->getGeometry().shape[i],
-                                    lane->getGeometry().shapeLengths[i],
-                                    lane->getGeometry().shapeRotations[i],
-                                    true, true);
-                        } else {
-                            myDemandElementSegmentGeometry.insertEdgeSegment(personPlanSegmentsIT->personPlan, personPlanSegmentsIT->edge,
-                                    lane->getGeometry().shape[i], true, true);
-                        }
-                    }
-                }
-                // if this isn't the last person plan segment, calculate a smooth shape connection
-                if ((personPlanSegmentsIT + 1) != personPlanSegments.end()) {
-                    calculateSmoothPersonPlanConnection((personPlanSegmentsIT + 1)->personPlan, personPlanSegmentsIT->edge, (personPlanSegmentsIT + 1)->edge);
-                }
-            }
-            // calculate entire shape, rotations and lengths
-            myDemandElementSegmentGeometry.calculatePartialShapeRotationsAndLengths();
-        }
-        // mark demand element geometry as non-deprecated
-        myDemandElementSegmentGeometry.geometryDeprecated = false;
+    // only update geometry of childrens
+    for (const auto& i : getChildDemandElements()) {
+        i->updateGeometry();
     }
+}
+
+
+void
+GNEPerson::updatePartialGeometry(const GNEEdge* edge) {
+    // only update partial geometry of childrens
+    for (const auto& i : getChildDemandElements()) {
+        i->updatePartialGeometry(edge);
+    }
+}
+
+
+void
+GNEPerson::computePath() {
+    // nothing to compute
+}
+
+
+void
+GNEPerson::invalidatePath() {
+    // nothing to invalidate
 }
 
 
 Position
 GNEPerson::getPositionInView() const {
     // Position in view depend of first child element
-    if (getDemandElementChildren().size() > 0) {
-        if (getDemandElementChildren().at(0)->getTagProperty().isPersonStop()) {
-            return getDemandElementChildren().at(0)->getDemandElementGeometry().shape.getLineCenter();
+    if (getChildDemandElements().size() > 0) {
+        if (getChildDemandElements().at(0)->getTagProperty().isPersonStop()) {
+            return getChildDemandElements().at(0)->getDemandElementGeometry().getShape().getLineCenter();
         } else {
             // obtain lane (special case for rides)
-            SUMOVehicleClass vClassEdgeFrom = getDemandElementChildren().front()->getTagProperty().isRide() ? SVC_PASSENGER : SVC_PEDESTRIAN;
-            GNELane* lane = getDemandElementChildren().at(0)->getEdgeParents().at(0)->getLaneByVClass(vClassEdgeFrom);
+            SUMOVehicleClass vClassEdgeFrom = getChildDemandElements().front()->getTagProperty().isRide() ? SVC_PASSENGER : SVC_PEDESTRIAN;
+            GNELane* lane = getChildDemandElements().at(0)->getParentEdges().at(0)->getLaneByAllowedVClass(vClassEdgeFrom);
             // return position in view depending of lane
-            if (lane->getGeometry().shape.length() < 2.5) {
-                return lane->getGeometry().shape.front();
+            if (lane->getLaneShape().length() < 2.5) {
+                return lane->getLaneShape().front();
             } else {
-                Position A = lane->getGeometry().shape.positionAtOffset(2.5);
-                Position B = lane->getGeometry().shape.positionAtOffset(2.5);
+                Position A = lane->getLaneShape().positionAtOffset(2.5);
+                Position B = lane->getLaneShape().positionAtOffset(2.5);
                 // return Middle point
                 return Position((A.x() + B.x()) / 2, (A.y() + B.y()) / 2);
             }
@@ -548,8 +385,8 @@ GNEPerson::getParentName() const {
 Boundary
 GNEPerson::getCenteringBoundary() const {
     Boundary personBoundary;
-    if (getDemandElementChildren().size() > 0) {
-        personBoundary.add(getDemandElementChildren().at(1)->getEdgeParents().at(0)->getLanes().front()->getGeometry().shape.front());
+    if (getChildDemandElements().size() > 0) {
+        personBoundary.add(getChildDemandElements().front()->getCenteringBoundary());
     } else {
         personBoundary = Boundary(-0.1, -0.1, 0.1, 0.1);
     }
@@ -559,59 +396,79 @@ GNEPerson::getCenteringBoundary() const {
 
 
 void
+GNEPerson::splitEdgeGeometry(const double /*splitPosition*/, const GNENetElement* /*originalElement*/, const GNENetElement* /*newElement*/, GNEUndoList* /*undoList*/) {
+    // geometry of this element cannot be splitted
+}
+
+
+void
 GNEPerson::drawGL(const GUIVisualizationSettings& s) const {
-    // only drawn in super mode demand
-    if (myViewNet->getNetworkViewOptions().showDemandElements() && myViewNet->getDemandViewOptions().showNonInspectedDemandElements(this) && (getDemandElementChildren().size() > 0)) {
+    bool drawPerson = true;
+    // check if person can be drawn
+    if (!myViewNet->getNetworkViewOptions().showDemandElements()) {
+        drawPerson = false;
+    } else if (!myViewNet->getDemandViewOptions().showNonInspectedDemandElements(this)) {
+        drawPerson = false;
+    } else if (getChildDemandElements().empty()) {
+        drawPerson = false;
+    }
+    // continue if person can be drawn
+    if (drawPerson) {
         // obtain exaggeration (and add the special personExaggeration)
         const double exaggeration = s.personSize.getExaggeration(s, this, 80) + s.detailSettings.personExaggeration;
         // obtain width and length
-        const double length = getDemandElementParents().at(0)->getAttributeDouble(SUMO_ATTR_LENGTH);
-        const double width = getDemandElementParents().at(0)->getAttributeDouble(SUMO_ATTR_WIDTH);
-        const std::string file = getDemandElementParents().at(0)->getAttribute(SUMO_ATTR_IMGFILE);
-        // push GL ID
-        glPushName(getGlID());
-        // push draw matrix
-        glPushMatrix();
+        const double length = getParentDemandElements().at(0)->getAttributeDouble(SUMO_ATTR_LENGTH);
+        const double width = getParentDemandElements().at(0)->getAttributeDouble(SUMO_ATTR_WIDTH);
+        // obtain diameter around person (used to calculate distance bewteen cursor and person)
+        const double distanceSquared = pow(exaggeration * std::max(length, width), 2);
+        // obtain img file
+        const std::string file = getParentDemandElements().at(0)->getAttribute(SUMO_ATTR_IMGFILE);
         Position personPosition;
         // obtain position depending of first PersonPlan child
-        if (getDemandElementChildren().front()->getTagProperty().isPersonStop()) {
+        if (getChildDemandElements().front()->getTagProperty().isPersonStop()) {
             // obtain position of stop center
-            personPosition = getDemandElementChildren().front()->getPositionInView();
-        } else if (getDemandElementChildren().front()->getTagProperty().getTag() == SUMO_TAG_WALK_ROUTE) {
-            // obtain position of first route's edge
-            personPosition = getDemandElementChildren().front()->getDemandElementParents().at(1)->getEdgeParents().front()->getLanes().front()->getGeometry().shape.front();
+            personPosition = getChildDemandElements().front()->getPositionInView();
         } else {
             // obtain position of first edge
-            personPosition = getDemandElementChildren().front()->getEdgeParents().front()->getLanes().front()->getGeometry().shape.front();
+            personPosition = getChildDemandElements().front()->getDemandElementSegmentGeometry().getFirstPosition();
         }
-        glTranslated(personPosition.x(), personPosition.y(), getType());
-        glRotated(90, 0, 0, 1);
-        // set person color
-        setColor(s);
-        // set scale
-        glScaled(exaggeration, exaggeration, 1);
-        // draw person depending of detail level
-        if (s.drawDetail(s.detailSettings.personShapes, exaggeration)) {
-            GUIBasePersonHelper::drawAction_drawAsImage(0, length, width, file, SVS_PEDESTRIAN, exaggeration);
-        } else if (s.drawDetail(s.detailSettings.personCircles, exaggeration)) {
-            GUIBasePersonHelper::drawAction_drawAsCircle(length, width);
-        } else if (s.drawDetail(s.detailSettings.personTriangles, exaggeration)) {
-            GUIBasePersonHelper::drawAction_drawAsTriangle(0, length, width);
+        // check that position is valid and person can be drawn
+        if ((personPosition != Position::INVALID) &&
+                !(s.drawForPositionSelection && (personPosition.distanceSquaredTo(myViewNet->getPositionInformation()) > distanceSquared))) {
+            // push GL ID
+            glPushName(getGlID());
+            // push draw matrix
+            glPushMatrix();
+            // translate and rotate
+            glTranslated(personPosition.x(), personPosition.y(), getType());
+            glRotated(90, 0, 0, 1);
+            // set person color
+            setColor(s);
+            // set scale
+            glScaled(exaggeration, exaggeration, 1);
+            // draw person depending of detail level
+            if (s.drawDetail(s.detailSettings.personShapes, exaggeration)) {
+                GUIBasePersonHelper::drawAction_drawAsImage(0, length, width, file, SVS_PEDESTRIAN, exaggeration);
+            } else if (s.drawDetail(s.detailSettings.personCircles, exaggeration)) {
+                GUIBasePersonHelper::drawAction_drawAsCircle(length, width);
+            } else if (s.drawDetail(s.detailSettings.personTriangles, exaggeration)) {
+                GUIBasePersonHelper::drawAction_drawAsTriangle(0, length, width);
+            }
+            // pop matrix
+            glPopMatrix();
+            drawName(personPosition, s.scale, s.personName, s.angle);
+            if (s.personValue.show) {
+                Position personValuePosition = personPosition + Position(0, 0.6 * s.personName.scaledSize(s.scale));
+                const double value = getColorValue(s, s.personColorer.getActive());
+                GLHelper::drawTextSettings(s.personValue, toString(value), personValuePosition, s.scale, s.angle, GLO_MAX - getType());
+            }
+            // check if dotted contour has to be drawn
+            if (myViewNet->getDottedAC() == this) {
+                GLHelper::drawShapeDottedContourRectangle(s, getType(), personPosition, exaggeration, exaggeration);
+            }
+            // pop name
+            glPopName();
         }
-        // pop matrix
-        glPopMatrix();
-        drawName(personPosition, s.scale, s.personName, s.angle);
-        if (s.personValue.show) {
-            Position personValuePosition = personPosition + Position(0, 0.6 * s.personName.scaledSize(s.scale));
-            const double value = getColorValue(s, s.personColorer.getActive());
-            GLHelper::drawTextSettings(s.personValue, toString(value), personValuePosition, s.scale, s.angle, GLO_MAX - getType());
-        }
-        // check if dotted contour has to be drawn
-        if (myViewNet->getDottedAC() == this) {
-            GLHelper::drawShapeDottedContourRectangle(s, getType(), personPosition, exaggeration, exaggeration);
-        }
-        // pop name
-        glPopName();
     }
 }
 
@@ -655,7 +512,7 @@ GNEPerson::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getDemandElementID();
         case SUMO_ATTR_TYPE:
-            return getDemandElementParents().at(0)->getID();
+            return getParentDemandElements().at(0)->getID();
         case SUMO_ATTR_COLOR:
             if (wasSet(VEHPARS_COLOR_SET)) {
                 return toString(color);
@@ -696,8 +553,17 @@ GNEPerson::getAttribute(SumoXMLAttr key) const {
 
 
 double
-GNEPerson::getAttributeDouble(SumoXMLAttr /*key*/) const {
-    return 0;
+GNEPerson::getAttributeDouble(SumoXMLAttr key) const {
+    switch (key) {
+        case SUMO_ATTR_DEPARTPOS:
+            if (departPosProcedure == DEPART_POS_GIVEN) {
+                return departPos;
+            } else {
+                return 0;
+            }
+        default:
+            throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
+    }
 }
 
 
@@ -824,59 +690,8 @@ void
 GNEPerson::enableAttribute(SumoXMLAttr key, GNEUndoList* undoList) {
     // obtain a copy of parameter sets
     int newParametersSet = parametersSet;
-    // modify parametersSetCopy depending of attr
-    switch (key) {
-        case SUMO_ATTR_END: {
-            // give more priority to end
-            newParametersSet = VEHPARS_END_SET | VEHPARS_NUMBER_SET;
-            break;
-        }
-        case SUMO_ATTR_NUMBER:
-            newParametersSet ^= VEHPARS_END_SET;
-            newParametersSet |= VEHPARS_NUMBER_SET;
-            break;
-        case SUMO_ATTR_VEHSPERHOUR: {
-            // give more priority to end
-            if ((newParametersSet & VEHPARS_END_SET) && (newParametersSet & VEHPARS_NUMBER_SET)) {
-                newParametersSet = VEHPARS_END_SET;
-            } else if (newParametersSet & VEHPARS_END_SET) {
-                newParametersSet = VEHPARS_END_SET;
-            } else if (newParametersSet & VEHPARS_NUMBER_SET) {
-                newParametersSet = VEHPARS_NUMBER_SET;
-            }
-            // set VehsPerHour
-            newParametersSet |= VEHPARS_VPH_SET;
-            break;
-        }
-        case SUMO_ATTR_PERIOD: {
-            // give more priority to end
-            if ((newParametersSet & VEHPARS_END_SET) && (newParametersSet & VEHPARS_NUMBER_SET)) {
-                newParametersSet = VEHPARS_END_SET;
-            } else if (newParametersSet & VEHPARS_END_SET) {
-                newParametersSet = VEHPARS_END_SET;
-            } else if (newParametersSet & VEHPARS_NUMBER_SET) {
-                newParametersSet = VEHPARS_NUMBER_SET;
-            }
-            // set period
-            newParametersSet |= VEHPARS_PERIOD_SET;
-            break;
-        }
-        case SUMO_ATTR_PROB: {
-            // give more priority to end
-            if ((newParametersSet & VEHPARS_END_SET) && (newParametersSet & VEHPARS_NUMBER_SET)) {
-                newParametersSet = VEHPARS_END_SET;
-            } else if (newParametersSet & VEHPARS_END_SET) {
-                newParametersSet = VEHPARS_END_SET;
-            } else if (newParametersSet & VEHPARS_NUMBER_SET) {
-                newParametersSet = VEHPARS_NUMBER_SET;
-            }
-            // set probability
-            newParametersSet |= VEHPARS_PROB_SET;
-            break;
-        }
-        default:
-            break;
-    }
+    // modify newParametersSet
+    GNERouteHandler::setFlowParameters(key, newParametersSet);
     // add GNEChange_EnableAttribute
     undoList->add(new GNEChange_EnableAttribute(this, myViewNet->getNet(), parametersSet, newParametersSet), true);
 }
@@ -921,9 +736,9 @@ GNEPerson::getHierarchyName() const {
         if (myViewNet->getNet()->getViewNet()->getDottedAC() &&
                 myViewNet->getNet()->getViewNet()->getDottedAC()->getTagProperty().getTag() == SUMO_TAG_EDGE) {
             // check if edge correspond to a "from", "to" or "via" edge
-            if (getEdgeParents().front() == myViewNet->getNet()->getViewNet()->getDottedAC()) {
+            if (getParentEdges().front() == myViewNet->getNet()->getViewNet()->getDottedAC()) {
                 return getTagStr() + ": " + getAttribute(SUMO_ATTR_ID) + " (from)";
-            } else if (getEdgeParents().front() == myViewNet->getNet()->getViewNet()->getDottedAC()) {
+            } else if (getParentEdges().front() == myViewNet->getNet()->getViewNet()->getDottedAC()) {
                 return getTagStr() + ": " + getAttribute(SUMO_ATTR_ID) + " (to)";
             } else {
                 // iterate over via
@@ -1025,7 +840,7 @@ GNEPerson::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeDemandElementID(value);
             break;
         case SUMO_ATTR_TYPE:
-            changeDemandElementParent(this, value, 0);
+            replaceParentDemandElement(this, value, 0);
             // set manually vtypeID (needed for saving)
             vtypeid = value;
             break;
@@ -1052,6 +867,8 @@ GNEPerson::setAttribute(SumoXMLAttr key, const std::string& value) {
                 // unset parameter
                 parametersSet &= ~VEHPARS_DEPARTPOS_SET;
             }
+            // compute person
+            updateGeometry();
             break;
         // Specific of persons
         case SUMO_ATTR_DEPART: {
@@ -1102,117 +919,6 @@ GNEPerson::setAttribute(SumoXMLAttr key, const std::string& value) {
 void
 GNEPerson::setEnabledAttribute(const int enabledAttributes) {
     parametersSet = enabledAttributes;
-}
-
-
-void
-GNEPerson::calculateSmoothPersonPlanConnection(const GNEDemandElement* personPlanElement, const GNEEdge* edgeFrom, const GNEEdge* edgeTo) {
-    // obtain lane from (special case due rides)
-    SUMOVehicleClass vClassEdgeFrom = personPlanElement->getTagProperty().isRide() ? SVC_PASSENGER : SVC_PEDESTRIAN;
-    GNELane* laneFrom = edgeFrom->getLaneByVClass(vClassEdgeFrom);
-    // obtain lane to (special case due rides)
-    SUMOVehicleClass vClassEdgeTo = personPlanElement->getTagProperty().isRide() ? SVC_PASSENGER : SVC_PEDESTRIAN;
-    GNELane* laneTo = edgeTo->getLaneByVClass(vClassEdgeTo);
-    // calculate smooth shape
-    PositionVector smoothShape = edgeFrom->getNBEdge()->getToNode()->computeSmoothShape(
-                                     laneFrom->getGeometry().shape, laneTo->getGeometry().shape,
-                                     5, false,
-                                     (double) 5. * (double) edgeFrom->getNBEdge()->getNumLanes(),
-                                     (double) 5. * (double) edgeTo->getNBEdge()->getNumLanes());
-    // add smootshape in personPlan shape
-    for (const auto& i : smoothShape) {
-        myDemandElementSegmentGeometry.insertJunctionSegment(personPlanElement, edgeTo->getGNEJunctionSource(), i, true, true);
-    }
-}
-
-
-std::pair<PositionVector, PositionVector>
-GNEPerson::calculatePersonPlanConnectionBusStop(GNELane* previousLane, GNEAdditional* busStop, GNELane* nextLane) {
-    // declare a pair of PositionVectors to save result
-    std::pair<PositionVector, PositionVector> result;
-    if (previousLane) {
-        // obtain first position values of busStop shape
-        const Position& firstBusStopShapePosition = busStop->getAdditionalGeometry().shape.front();
-        double offsetFirstPosition = previousLane->getGeometry().shape.nearest_offset_to_point2D(firstBusStopShapePosition, false);
-        // split laneShape
-        auto splittedFirstLaneShape = previousLane->getGeometry().shape.splitAt(offsetFirstPosition, true);
-        // fill result position vector
-        for (const auto& i : splittedFirstLaneShape.first) {
-            result.first.push_back(i);
-        }
-        // finally add first BusStop shape position
-        result.first.push_back(firstBusStopShapePosition);
-    }
-    if (nextLane) {
-        // obtain second position of busStops
-        const Position& lastBusStopShapePosition = busStop->getAdditionalGeometry().shape.back();
-        double offsetLastPosition = nextLane->getGeometry().shape.nearest_offset_to_point2D(lastBusStopShapePosition, false);
-        // split laneShape
-        auto splittedLastLaneShape = nextLane->getGeometry().shape.splitAt(offsetLastPosition, true);
-        // first add last BusStop shape position
-        result.second.push_back(lastBusStopShapePosition);
-        // fill result position vector
-        for (const auto& i : splittedLastLaneShape.second) {
-            result.second.push_back(i);
-        }
-    }
-    return result;
-}
-
-
-std::pair<PositionVector, PositionVector>
-GNEPerson::calculatePersonPlanConnectionStop(GNELane* previousLane, GNEDemandElement* stop, GNELane* nextLane) {
-    // reuse calculatePersonPlanConnectionBusStop(...) if stop is placed over a busStop
-    if (stop->getTagProperty().getTag() == SUMO_TAG_PERSONSTOP_BUSSTOP) {
-        return calculatePersonPlanConnectionBusStop(previousLane, stop->getAdditionalParents().front(), nextLane);
-    } else {
-        // declare a pair of PositionVectors to save result
-        std::pair<PositionVector, PositionVector> result;
-        if (previousLane) {
-            // split laneShape in start position
-            auto splittedFirstLaneShape = previousLane->getGeometry().shape.splitAt(stop->getAttributeDouble(SUMO_ATTR_STARTPOS), true);
-            // fill result position vector
-            for (const auto& i : splittedFirstLaneShape.first) {
-                result.first.push_back(i);
-            }
-            // finally add first Stop shape position
-            result.first.push_back(stop->getDemandElementGeometry().shape.front());
-        }
-        if (nextLane) {
-            // split laneShape in end position
-            auto splittedLastLaneShape = nextLane->getGeometry().shape.splitAt(stop->getAttributeDouble(SUMO_ATTR_ENDPOS), true);
-            // first add last Stop shape position
-            result.second.push_back(stop->getDemandElementGeometry().shape.back());
-            // fill result position vector
-            for (const auto& i : splittedLastLaneShape.second) {
-                result.second.push_back(i);
-            }
-        }
-        return result;
-    }
-}
-
-
-std::pair<PositionVector, PositionVector>
-GNEPerson::calculatePersonPlanConnectionArrivalPos(GNELane* previousLane, double arrivalPosPersonPlan, GNELane* nextLane) {
-    // check if both lanes are similar)
-    if ((previousLane == nextLane) && (previousLane != nullptr)) {
-        // split laneShape in arrivalPos
-        return previousLane->getGeometry().shape.splitAt(arrivalPosPersonPlan, true);
-    } else {
-        // declare pair of position vectors
-        std::pair<PositionVector, PositionVector> solution;
-        // split previousLane in arrivalPos
-        if (previousLane) {
-            solution.first = previousLane->getGeometry().shape.splitAt(arrivalPosPersonPlan, true).first;
-        }
-        // split nextLane in arrivalPos
-        if (nextLane) {
-            solution.second = nextLane ->getGeometry().shape.splitAt(arrivalPosPersonPlan, true).second;
-        }
-        // return solution
-        return solution;
-    }
 }
 
 /****************************************************************************/

@@ -10,7 +10,6 @@
 /// @file    GNEAccess.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2018
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -49,7 +48,7 @@ public:
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
      */
-    GNEAccess(GNEAdditional* busStop, GNELane* lane, GNEViewNet* viewNet, const std::string& pos, const std::string& length, bool friendlyPos, bool blockMovement);
+    GNEAccess(GNEAdditional* busStop, GNELane* lane, GNEViewNet* viewNet, double pos, const std::string& length, bool friendlyPos, bool blockMovement);
 
     /// @brief Destructor
     ~GNEAccess();
@@ -58,7 +57,7 @@ public:
     bool isAccessPositionFixed() const;
 
     /// @brief get edge in which this Access is placed
-    GNEEdge& getEdge() const;
+    GNEEdge* getEdge() const;
 
     /// @name Functions related with geometry of element
     /// @{
@@ -80,6 +79,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -137,9 +139,9 @@ public:
 
 protected:
     /// @brief position over lane
-    std::string myPositionOverLane;
+    double myPositionOverLane;
 
-    /// @brief Acces lenght
+    /// @brief Acces length
     std::string myLength;
 
     /// @brief flag to check if friendly position is enabled

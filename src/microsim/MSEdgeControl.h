@@ -15,7 +15,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Mon, 09 Apr 2001
-/// @version $Id$
 ///
 // Stores edges and lanes, performs moving of vehicle
 /****************************************************************************/
@@ -37,6 +36,8 @@
 #include <queue>
 #include <utils/common/SUMOTime.h>
 #include <utils/common/Named.h>
+#include <utils/router/SUMOAbstractRouter.h>
+#include <utils/vehicle/SUMOVehicle.h>
 
 #include <utils/foxtools/FXSynchQue.h>
 #ifdef HAVE_FOX
@@ -183,6 +184,11 @@ public:
     /// @brief apply additional restrictions
     void setAdditionalRestrictions();
 
+#ifdef HAVE_FOX
+    FXWorkerThread::Pool& getThreadPool() {
+        return myThreadPool;
+    }
+#endif
 
 public:
     /**
@@ -204,6 +210,34 @@ public:
         /// @brief Information whether this lane belongs to a multi-lane edge
         bool haveNeighbors;
     };
+
+#ifdef HAVE_FOX
+    /**
+     * @class WorkerThread
+     * @brief the thread which provides the router instance as context
+     */
+    class WorkerThread : public FXWorkerThread {
+    public:
+        WorkerThread(FXWorkerThread::Pool& pool)
+            : FXWorkerThread(pool), myRouter(nullptr) {}
+        bool setRouter(SUMOAbstractRouter<MSEdge, SUMOVehicle>* router) {
+            if (myRouter == nullptr) {
+                myRouter = router;
+                return true;
+            }
+            return false;
+        }
+        SUMOAbstractRouter<MSEdge, SUMOVehicle>& getRouter() const {
+            return *myRouter;
+        }
+        virtual ~WorkerThread() {
+            stop();
+            delete myRouter;
+        }
+    private:
+        SUMOAbstractRouter<MSEdge, SUMOVehicle>* myRouter;
+    };
+#endif
 
 private:
     /// @brief Loaded edges
@@ -229,6 +263,8 @@ private:
 
     /// @brief Additional lanes for which collision checking must be performed
     std::set<MSLane*, ComparatorNumericalIdLess> myInactiveCheckCollisions;
+
+    double myMinLengthGeometryFactor;
 
 #ifdef HAVE_FOX
     FXWorkerThread::Pool myThreadPool;

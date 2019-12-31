@@ -10,7 +10,6 @@
 /// @file    GNECalibrator.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Nov 2015
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -97,6 +96,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -166,7 +168,13 @@ protected:
     /// @brief ID to current RouteProbe
     std::string myRouteProbe;
 
+    /// @brief extra calibrator geometries
+    std::vector<GNEGeometry::Geometry> myEdgeCalibratorGeometries;
+
 private:
+    /// @brief draw calibrator symbol
+    void drawCalibratorSymbol(const GUIVisualizationSettings& s, const double exaggeration, const Position& pos, const double rot) const;
+
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);
 

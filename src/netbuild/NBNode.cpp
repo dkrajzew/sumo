@@ -13,7 +13,6 @@
 /// @author  Sascha Krieg
 /// @author  Michael Behrisch
 /// @date    Tue, 20 Nov 2001
-/// @version $Id$
 ///
 // The representation of a single node
 /****************************************************************************/
@@ -134,7 +133,7 @@ NBNode::ApproachingDivider::execute(const int src, const int dest) {
     assert((int)myApproaching.size() > src);
     // get the origin edge
     NBEdge* incomingEdge = myApproaching[src];
-    if (incomingEdge->getStep() == NBEdge::LANES2LANES_DONE || incomingEdge->getStep() == NBEdge::LANES2LANES_USER) {
+    if (incomingEdge->getStep() == NBEdge::EdgeBuildingStep::LANES2LANES_DONE || incomingEdge->getStep() == NBEdge::EdgeBuildingStep::LANES2LANES_USER) {
         return;
     }
     if (myAvailableLanes.size() == 0) {
@@ -333,6 +332,9 @@ NBNode::reshiftPosition(double xoff, double yoff) {
     for (auto& wacs : myWalkingAreaCustomShapes) {
         wacs.shape.add(xoff, yoff, 0);
     }
+    for (auto& c : myCrossings) {
+        c->customShape.add(xoff, yoff, 0);
+    }
 }
 
 
@@ -427,7 +429,7 @@ NBNode::removeSelfLoops(NBDistrictCont& dc, NBEdgeCont& ec, NBTrafficLightLogicC
         // an edge with both its origin and destination being the current
         //  node should be removed
         NBEdge* dummy = *j;
-        WRITE_WARNING(" Removing self-looping edge '" + dummy->getID() + "'");
+        WRITE_WARNINGF(" Removing self-looping edge '%'", dummy->getID());
         // get the list of incoming edges connected to the self-loop
         EdgeVector incomingConnected = dummy->getIncomingEdges();
         // get the list of outgoing edges connected to the self-loop
@@ -712,7 +714,7 @@ NBNode::computeInternalLaneShape(NBEdge* fromE, const NBEdge::Connection& con, i
         }
         PositionVector tmp = NBEdge::startShapeAt(con.customShape, this, startBorder);
         if (tmp.size() < 2) {
-            WRITE_WARNING("Could not use custom shape for connection " + con.getDescription(fromE));
+            WRITE_WARNINGF("Could not use custom shape for connection %.", con.getDescription(fromE));
             useCustomShape = false;
         } else {
             if (tmp.length2D() > con.customShape.length2D() + POSITION_EPS) {
@@ -721,7 +723,7 @@ NBNode::computeInternalLaneShape(NBEdge* fromE, const NBEdge::Connection& con, i
             } else if (recordError != nullptr) {
                 const double offset = tmp[0].distanceTo2D(fromShape.back());
                 if (offset > fromE->getLaneWidth(con.fromLane) / 2) {
-                    WRITE_WARNING("Custom shape has distance " + toString(offset) + " to incoming lane for connection " + con.getDescription(fromE));
+                    WRITE_WARNINGF("Custom shape has distance % to incoming lane for connection %.", offset, con.getDescription(fromE));
                 }
             }
             PositionVector endBorder = con.toEdge->getNodeBorder(this);
@@ -730,7 +732,7 @@ NBNode::computeInternalLaneShape(NBEdge* fromE, const NBEdge::Connection& con, i
             }
             ret = NBEdge::startShapeAt(tmp.reverse(), this, endBorder).reverse();
             if (ret.size() < 2) {
-                WRITE_WARNING("Could not use custom shape for connection " + con.getDescription(fromE));
+                WRITE_WARNINGF("Could not use custom shape for connection %.", con.getDescription(fromE));
                 useCustomShape = false;
             } else if (ret.length2D() > tmp.length2D() + POSITION_EPS) {
                 // shape was lengthened at the end, make sure it attaches at the center of the lane
@@ -738,7 +740,7 @@ NBNode::computeInternalLaneShape(NBEdge* fromE, const NBEdge::Connection& con, i
             } else if (recordError != nullptr) {
                 const double offset = ret[-1].distanceTo2D(toShape.front());
                 if (offset > con.toEdge->getLaneWidth(con.toLane) / 2) {
-                    WRITE_WARNING("Custom shape has distance " + toString(offset) + " to outgoing lane for connection " + con.getDescription(fromE));
+                    WRITE_WARNINGF("Custom shape has distance % to outgoing lane for connection %.", offset, con.getDescription(fromE));
                 }
             }
         }
@@ -930,8 +932,8 @@ NBNode::computeLogic(const NBEdgeCont& ec) {
             } else {
                 myType = NODETYPE_NOJUNCTION;
             }
-            WRITE_WARNING("Junction '" + getID() + "' is too complicated (" + toString(numConnections)
-                          + " connections, max " + toString(SUMO_MAX_CONNECTIONS) + "); will be set to " + toString(myType));
+            WRITE_WARNINGF("Junction '%' is too complicated (% connections, max %); will be set to %.",
+                           getID(), numConnections, SUMO_MAX_CONNECTIONS, toString(myType));
         } else if (numConnections == 0) {
             delete myRequest;
             myRequest = nullptr;
@@ -1009,11 +1011,11 @@ NBNode::computeNodeShape(double mismatchThreshold) {
             if (mismatchThreshold >= 0
                     && !tmp.around(myPosition)
                     && tmp.distance2D(myPosition) > mismatchThreshold) {
-                WRITE_WARNING("Shape for junction '" + myID + "' has distance " + toString(tmp.distance2D(myPosition)) + " to its given position");
+                WRITE_WARNINGF("Shape for junction '%' has distance % to its given position.", myID, tmp.distance2D(myPosition));
             }
         }
     } catch (InvalidArgument&) {
-        WRITE_WARNING("For junction '" + getID() + "': could not compute shape.");
+        WRITE_WARNINGF("For junction '%': could not compute shape.", myID);
         // make sure our shape is not empty because our XML schema forbids empty attributes
         myPoly.clear();
         myPoly.push_back(myPosition);
@@ -1040,7 +1042,7 @@ NBNode::computeLanes2Lanes() {
 #endif
         const int inOffset = MAX2(0, in->getFirstNonPedestrianLaneIndex(FORWARD, true));
         const int outOffset = MAX2(0, out->getFirstNonPedestrianLaneIndex(FORWARD, true));
-        if (in->getStep() <= NBEdge::LANES2EDGES
+        if (in->getStep() <= NBEdge::EdgeBuildingStep::LANES2EDGES
                 && in->getNumLanes() - inOffset == out->getNumLanes() - outOffset - 1
                 && in != out
                 && in->isConnectedTo(out)) {
@@ -1062,8 +1064,8 @@ NBNode::computeLanes2Lanes() {
         int in1Offset = MAX2(0, in1->getFirstNonPedestrianLaneIndex(FORWARD, true));
         int in2Offset = MAX2(0, in2->getFirstNonPedestrianLaneIndex(FORWARD, true));
         if (in1->getNumLanes() + in2->getNumLanes() - in1Offset - in2Offset == out->getNumLanes() - outOffset
-                && (in1->getStep() <= NBEdge::LANES2EDGES)
-                && (in2->getStep() <= NBEdge::LANES2EDGES)
+                && (in1->getStep() <= NBEdge::EdgeBuildingStep::LANES2EDGES)
+                && (in2->getStep() <= NBEdge::EdgeBuildingStep::LANES2EDGES)
                 && in1 != out
                 && in2 != out
                 && in1->isConnectedTo(out)
@@ -1103,7 +1105,7 @@ NBNode::computeLanes2Lanes() {
         int out2Offset = MAX2(0, out2->getFirstNonPedestrianLaneIndex(FORWARD, true));
         const int deltaLaneSum = (out2->getNumLanes() + out1->getNumLanes() - out1Offset - out2Offset) - (in->getNumLanes() - inOffset);
         if ((deltaLaneSum == 0 || (deltaLaneSum == 1 && in->getPermissionVariants(inOffset, in->getNumLanes()).size() == 1))
-                && (in->getStep() <= NBEdge::LANES2EDGES)
+                && (in->getStep() <= NBEdge::EdgeBuildingStep::LANES2EDGES)
                 && in != out1
                 && in != out2
                 && in->isConnectedTo(out1)
@@ -1143,7 +1145,7 @@ NBNode::computeLanes2Lanes() {
 #endif
         const int inOffset = MAX2(0, in->getFirstNonPedestrianLaneIndex(FORWARD, true));
         const int outOffset = MAX2(0, out->getFirstNonPedestrianLaneIndex(FORWARD, true));
-        if (in->getStep() <= NBEdge::LANES2EDGES
+        if (in->getStep() <= NBEdge::EdgeBuildingStep::LANES2EDGES
                 && in->getNumLanes() - inOffset == out->getNumLanes() - outOffset + 1
                 && in != out
                 && in->isConnectedTo(out)) {
@@ -1171,7 +1173,7 @@ NBNode::computeLanes2Lanes() {
         int inOffset = MAX2(0, in->getFirstNonPedestrianLaneIndex(FORWARD, true));
         const int outOffset = MAX2(0, out->getFirstNonPedestrianLaneIndex(FORWARD, true));
         const int reduction = (in->getNumLanes() - inOffset) - (out->getNumLanes() - outOffset);
-        if (in->getStep() <= NBEdge::LANES2EDGES
+        if (in->getStep() <= NBEdge::EdgeBuildingStep::LANES2EDGES
                 && reduction >= 0
                 && in != out
                 && in->isConnectedTo(out)) {
@@ -1213,7 +1215,7 @@ NBNode::computeLanes2Lanes() {
 
         // ensure that all modes have a connection if possible
         for (NBEdge* incoming : myIncomingEdges) {
-            if (incoming->getConnectionLanes(currentOutgoing).size() > 0 && incoming->getStep() <= NBEdge::LANES2LANES_DONE) {
+            if (incoming->getConnectionLanes(currentOutgoing).size() > 0 && incoming->getStep() <= NBEdge::EdgeBuildingStep::LANES2LANES_DONE) {
                 // no connections are needed for pedestrians during this step
                 // no satisfaction is possible if the outgoing edge disallows
                 SVCPermissions unsatisfied = incoming->getPermissions() & currentOutgoing->getPermissions() & ~SVC_PEDESTRIAN;
@@ -1264,7 +1266,7 @@ NBNode::computeLanes2Lanes() {
             // and the bicycle mode might already be satisfied by other lanes
             // assume that left-turns and turn-arounds are better satisfied from lanes to the left
             LinkDirection dir = getDirection(incoming, currentOutgoing);
-            if (incoming->getStep() <= NBEdge::LANES2LANES_DONE
+            if (incoming->getStep() <= NBEdge::EdgeBuildingStep::LANES2LANES_DONE
                     && ((bikeLaneTarget >= 0 && dir != LINKDIR_TURN)
                         || dir == LINKDIR_RIGHT || dir == LINKDIR_PARTRIGHT || dir == LINKDIR_STRAIGHT)) {
                 bool builtConnection = false;
@@ -2417,7 +2419,8 @@ NBNode::buildCrossingsAndWalkingAreas() {
     for (auto crossing : myCrossings) {
         if (crossing->prevWalkingArea == "" || crossing->nextWalkingArea == "" || !crossing->valid) {
             if (crossing->valid) {
-                WRITE_WARNING("Discarding invalid crossing '" + crossing->id + "' at junction '" + getID() + "' with edges '" + toString(crossing->edges) + "' (no walkingarea found).");
+                WRITE_WARNINGF("Discarding invalid crossing '%' at junction '%' with edges [%] (no walkingarea found).",
+                               crossing->id, getID(), toString(crossing->edges));
             }
             for (WalkingArea& wa : myWalkingAreas) {
                 std::vector<std::string>::iterator it_nc = std::find(wa.nextCrossings.begin(), wa.nextCrossings.end(), crossing->id);
@@ -2562,7 +2565,7 @@ NBNode::buildCrossings() {
         if (edges.front()->getFirstNonPedestrianLaneIndex(begDir) < 0
                 || edges.back()->getFirstNonPedestrianLaneIndex(endDir) < 0) {
             // invalid crossing
-            WRITE_WARNING("Discarding invalid crossing '" + c->id + "' at junction '" + getID() + "' with edges '" + toString(c->edges) + "' (no vehicle lanes to cross).");
+            WRITE_WARNINGF("Discarding invalid crossing '%' at junction '%' with edges [%] (no vehicle lanes to cross).", c->id, getID(), toString(c->edges));
             c->valid = false;
         } else if (c->customShape.size() != 0) {
             c->shape = c->customShape;
@@ -2577,7 +2580,7 @@ NBNode::buildCrossings() {
             crossingEnd.shape.extrapolate(c->width / 2);
             // check if after all changes shape are NAN (in these case, discard)
             if (crossingBeg.shape.isNAN() || crossingEnd.shape.isNAN()) {
-                WRITE_WARNING("Discarding invalid crossing '" + c->id + "' at junction '" + getID() + "' with edges '" + toString(c->edges) + "' (Invalid shape).");
+                WRITE_WARNINGF("Discarding invalid crossing '%' at junction '%' with edges [%] (invalid shape).", c->id, getID(), toString(c->edges));
                 c->valid = false;
             } else {
                 c->shape.push_back(crossingBeg.shape[begDir == FORWARD ? 0 : -1]);
@@ -2720,10 +2723,8 @@ NBNode::buildWalkingAreas(int cornerDetail) {
                     && (normalizedLanes[end].second.permissions & SVC_PEDESTRIAN) == 0) {
                 // crossing ends
                 if (c->nextWalkingArea != "") {
-                    WRITE_WARNING("Invalid pedestrian topology at junction '" + getID()
-                                  + "'; crossing '" + c->id
-                                  + "' targets '" + c->nextWalkingArea
-                                  + "' and '" + wa.id + "'.");
+                    WRITE_WARNINGF("Invalid pedestrian topology at junction '%'; crossing '%' targets '%' and '%'.",
+                                   getID(), c->id, c->nextWalkingArea, wa.id);
                     c->valid = false;
                 }
                 c->nextWalkingArea = wa.id;
@@ -2744,10 +2745,8 @@ NBNode::buildWalkingAreas(int cornerDetail) {
                     && (normalizedLanes[prev].second.permissions & SVC_PEDESTRIAN) == 0) {
                 // crossing starts
                 if (c->prevWalkingArea != "") {
-                    WRITE_WARNING("Invalid pedestrian topology at junction '" + getID()
-                                  + "'; crossing '" + c->id
-                                  + "' is targeted by '" + c->prevWalkingArea
-                                  + "' and '" + wa.id + "'.");
+                    WRITE_WARNINGF("Invalid pedestrian topology at junction '%'; crossing '%' is targeted by '%' and '%'.",
+                                   getID(), c->id, c->prevWalkingArea, wa.id);
                     c->valid = false;
                 }
                 c->prevWalkingArea = wa.id;
@@ -2922,7 +2921,7 @@ NBNode::buildWalkingAreas(int cornerDetail) {
         }
         if (prev.nextWalkingArea == "") {
             if (next.prevWalkingArea != "" || &prev == &next) {
-                WRITE_WARNING("Invalid pedestrian topology: crossing '" + prev.id + "' across '" + toString(prev.edges) + "' has no target.");
+                WRITE_WARNINGF("Invalid pedestrian topology: crossing '%' across [%] has no target.", prev.id, toString(prev.edges));
                 prev.valid = false;
                 continue;
             }
@@ -3373,5 +3372,5 @@ NBNode::getEndPoints() const {
     return result;
 }
 
-/****************************************************************************/
 
+/****************************************************************************/

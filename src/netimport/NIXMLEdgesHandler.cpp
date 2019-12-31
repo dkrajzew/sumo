@@ -15,7 +15,6 @@
 /// @author  Laura Bieker
 /// @author  Leonhard Luecken
 /// @date    Tue, 20 Nov 2001
-/// @version $Id$
 ///
 // Importer for network edges stored in XML
 /****************************************************************************/
@@ -167,10 +166,10 @@ NIXMLEdgesHandler::addEdge(const SUMOSAXAttributes& attrs) {
     myCurrentEdge = myEdgeCont.retrieve(myCurrentID);
     // check deprecated (unused) attributes
     // use default values, first
-    myCurrentPriority = myTypeCont.getPriority("");
-    myCurrentLaneNo = myTypeCont.getNumLanes("");
+    myCurrentType = myOptions.getString("default.type");
+    myCurrentPriority = myTypeCont.getPriority(myCurrentType);
+    myCurrentLaneNo = myTypeCont.getNumLanes(myCurrentType);
     myCurrentEndOffset = NBEdge::UNSPECIFIED_OFFSET;
-    myCurrentType = "";
     if (myCurrentEdge != nullptr) {
         // update existing edge. only update lane-specific settings when explicitly requested
         myIsUpdate = true;
@@ -180,9 +179,9 @@ NIXMLEdgesHandler::addEdge(const SUMOSAXAttributes& attrs) {
         myCurrentType = myCurrentEdge->getTypeID();
     } else {
         // this is a completely new edge. get the type specific defaults
-        myCurrentSpeed = myTypeCont.getSpeed("");
-        myPermissions = myTypeCont.getPermissions("");
-        myCurrentWidth = myTypeCont.getWidth("");
+        myCurrentSpeed = myTypeCont.getSpeed(myCurrentType);
+        myPermissions = myTypeCont.getPermissions(myCurrentType);
+        myCurrentWidth = myTypeCont.getWidth(myCurrentType);
     }
     myShape = PositionVector();
     myLanesSpread = LANESPREAD_RIGHT;

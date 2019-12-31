@@ -10,7 +10,6 @@
 /// @file    GNEAdditional.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Dec 2015
-/// @version $Id$
 ///
 // A abstract class for representation of additional elements
 /****************************************************************************/
@@ -42,108 +41,22 @@
 // member method definitions
 // ===========================================================================
 
-// ---------------------------------------------------------------------------
-// GNEAdditional::AdditionalGeometry - methods
-// ---------------------------------------------------------------------------
-
-GNEAdditional::AdditionalGeometry::AdditionalGeometry() {}
-
-
-void
-GNEAdditional::AdditionalGeometry::clearGeometry() {
-    shape.clear();
-    multiShape.clear();
-    shapeRotations.clear();
-    shapeLengths.clear();
-    multiShapeRotations.clear();
-    multiShapeLengths.clear();
-    multiShapeUnified.clear();
-}
-
-
-void
-GNEAdditional::AdditionalGeometry::calculateMultiShapeUnified() {
-    // merge all multishape parts in a single shape
-    for (auto i : multiShape) {
-        multiShapeUnified.append(i);
-    }
-}
-
-
-void
-GNEAdditional::AdditionalGeometry::calculateShapeRotationsAndLengths() {
-    // Get number of parts of the shape
-    int numberOfSegments = (int)shape.size() - 1;
-    // If number of segments is more than 0
-    if (numberOfSegments >= 0) {
-        // Reserve memory (To improve efficiency)
-        shapeRotations.reserve(numberOfSegments);
-        shapeLengths.reserve(numberOfSegments);
-        // For every part of the shape
-        for (int i = 0; i < numberOfSegments; ++i) {
-            // Obtain first position
-            const Position& f = shape[i];
-            // Obtain next position
-            const Position& s = shape[i + 1];
-            // Save distance between position into myShapeLengths
-            shapeLengths.push_back(f.distanceTo(s));
-            // Save rotation (angle) of the vector constructed by points f and s
-            shapeRotations.push_back((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
-        }
-    }
-}
-
-
-void
-GNEAdditional::AdditionalGeometry::calculateMultiShapeRotationsAndLengths() {
-    // Get number of parts of the shape for every part shape
-    std::vector<int> numberOfSegments;
-    for (auto i : multiShape) {
-        // numseg cannot be 0
-        int numSeg = (int)i.size() - 1;
-        numberOfSegments.push_back((numSeg >= 0) ? numSeg : 0);
-        multiShapeRotations.push_back(std::vector<double>());
-        multiShapeLengths.push_back(std::vector<double>());
-    }
-    // If number of segments is more than 0
-    for (int i = 0; i < (int)multiShape.size(); i++) {
-        // Reserve size for every part
-        multiShapeRotations.back().reserve(numberOfSegments.at(i));
-        multiShapeLengths.back().reserve(numberOfSegments.at(i));
-        // iterate over each segment
-        for (int j = 0; j < numberOfSegments.at(i); j++) {
-            // Obtain first position
-            const Position& f = multiShape[i][j];
-            // Obtain next position
-            const Position& s = multiShape[i][j + 1];
-            // Save distance between position into myShapeLengths
-            multiShapeLengths.at(i).push_back(f.distanceTo(s));
-            // Save rotation (angle) of the vector constructed by points f and s
-            multiShapeRotations.at(i).push_back((double)atan2((s.x() - f.x()), (f.y() - s.y())) * (double) 180.0 / (double)M_PI);
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// GNEAdditional - methods
-// ---------------------------------------------------------------------------
-
 GNEAdditional::GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement,
-        const std::vector<GNEEdge*>& edgeParents,
-        const std::vector<GNELane*>& laneParents,
-        const std::vector<GNEShape*>& shapeParents,
-        const std::vector<GNEAdditional*>& additionalParents,
-        const std::vector<GNEDemandElement*>& demandElementParents,
-        const std::vector<GNEEdge*>& edgeChildren,
-        const std::vector<GNELane*>& laneChildren,
-        const std::vector<GNEShape*>& shapeChildren,
-        const std::vector<GNEAdditional*>& additionalChildren,
-        const std::vector<GNEDemandElement*>& demandElementChildren) :
+                             const std::vector<GNEEdge*>& parentEdges,
+                             const std::vector<GNELane*>& parentLanes,
+                             const std::vector<GNEShape*>& parentShapes,
+                             const std::vector<GNEAdditional*>& parentAdditionals,
+                             const std::vector<GNEDemandElement*>& parentDemandElements,
+                             const std::vector<GNEEdge*>& childEdges,
+                             const std::vector<GNELane*>& childLanes,
+                             const std::vector<GNEShape*>& childShapes,
+                             const std::vector<GNEAdditional*>& childAdditionals,
+                             const std::vector<GNEDemandElement*>& childDemandElements) :
     GUIGlObject(type, id),
     GNEAttributeCarrier(tag),
     Parameterised(),
-    GNEHierarchicalElementParents(this, edgeParents, laneParents, shapeParents, additionalParents, demandElementParents),
-    GNEHierarchicalElementChildren(this, edgeChildren, laneChildren, shapeChildren, additionalChildren, demandElementChildren),
+    GNEHierarchicalParentElements(this, parentEdges, parentLanes, parentShapes, parentAdditionals, parentDemandElements),
+    GNEHierarchicalChildElements(this, childEdges, childLanes, childShapes, childAdditionals, childDemandElements),
     myViewNet(viewNet),
     myAdditionalName(additionalName),
     myBlockMovement(blockMovement),
@@ -153,21 +66,21 @@ GNEAdditional::GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlOb
 
 
 GNEAdditional::GNEAdditional(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement,
-        const std::vector<GNEEdge*>& edgeParents,
-        const std::vector<GNELane*>& laneParents,
-        const std::vector<GNEShape*>& shapeParents,
-        const std::vector<GNEAdditional*>& additionalParents,
-        const std::vector<GNEDemandElement*>& demandElementParents,
-        const std::vector<GNEEdge*>& edgeChildren,
-        const std::vector<GNELane*>& laneChildren,
-        const std::vector<GNEShape*>& shapeChildren,
-        const std::vector<GNEAdditional*>& additionalChildren,
-        const std::vector<GNEDemandElement*>& demandElementChildren) :
+                             const std::vector<GNEEdge*>& parentEdges,
+                             const std::vector<GNELane*>& parentLanes,
+                             const std::vector<GNEShape*>& parentShapes,
+                             const std::vector<GNEAdditional*>& parentAdditionals,
+                             const std::vector<GNEDemandElement*>& parentDemandElements,
+                             const std::vector<GNEEdge*>& childEdges,
+                             const std::vector<GNELane*>& childLanes,
+                             const std::vector<GNEShape*>& childShapes,
+                             const std::vector<GNEAdditional*>& childAdditionals,
+                             const std::vector<GNEDemandElement*>& childDemandElements) :
     GUIGlObject(type, additionalParent->generateChildID(tag)),
     GNEAttributeCarrier(tag),
     Parameterised(),
-    GNEHierarchicalElementParents(this, edgeParents, laneParents, shapeParents, additionalParents, demandElementParents),
-    GNEHierarchicalElementChildren(this, edgeChildren, laneChildren, shapeChildren, additionalChildren, demandElementChildren),
+    GNEHierarchicalParentElements(this, parentEdges, parentLanes, parentShapes, parentAdditionals, parentDemandElements),
+    GNEHierarchicalChildElements(this, childEdges, childLanes, childShapes, childAdditionals, childDemandElements),
     myViewNet(viewNet),
     myAdditionalName(additionalName),
     myBlockMovement(blockMovement),
@@ -181,7 +94,7 @@ GNEAdditional::~GNEAdditional() {}
 
 std::string
 GNEAdditional::generateChildID(SumoXMLTag childTag) {
-    int counter = (int)getAdditionalChildren().size();
+    int counter = (int)getChildAdditionals().size();
     while (myViewNet->getNet()->retrieveAdditional(childTag, getID() + toString(childTag) + toString(counter), false) != nullptr) {
         counter++;
     }
@@ -189,9 +102,15 @@ GNEAdditional::generateChildID(SumoXMLTag childTag) {
 }
 
 
-const GNEAdditional::AdditionalGeometry&
+const GNEGeometry::Geometry&
 GNEAdditional::getAdditionalGeometry() const {
-    return myGeometry;
+    return myAdditionalGeometry;
+}
+
+
+const GNEGeometry::SegmentGeometry&
+GNEAdditional::getAdditionalSegmentGeometry() const {
+    return mySegmentGeometry;
 }
 
 
@@ -204,7 +123,7 @@ GNEAdditional::setSpecialColor(const RGBColor* color) {
 void
 GNEAdditional::writeAdditional(OutputDevice& device) const {
     // first check if minimum number of children is correct
-    if ((myTagProperty.hasMinimumNumberOfChildren() || myTagProperty.hasMinimumNumberOfChildren()) && !checkAdditionalChildRestriction()) {
+    if ((myTagProperty.hasMinimumNumberOfChildren() || myTagProperty.hasMinimumNumberOfChildren()) && !checkChildAdditionalRestriction()) {
         WRITE_WARNING(getTagStr() + " with ID='" + getID() + "' cannot be written");
     } else {
         // Open Tag or synonym Tag
@@ -217,8 +136,8 @@ GNEAdditional::writeAdditional(OutputDevice& device) const {
         for (auto i : myTagProperty) {
             // obtain attribute
             std::string attributeValue = getAttribute(i.getAttr());
-            //  first check if attribute is optional but not combinable
-            if (i.isWriteXMLOptional() && !i.isCombinable()) {
+            //  first check if attribute is optional but not vehicle classes
+            if (i.isOptional() && !i.isVClasses()) {
                 // Only write attributes with default value if is different from original
                 if (i.getDefaultValue() != attributeValue) {
                     // check if attribute must be written using a synonim
@@ -277,9 +196,9 @@ GNEAdditional::writeAdditional(OutputDevice& device) const {
             OutputDevice& deviceChildren = OutputDevice::getDevice(FileHelpers::getFilePath(OptionsCont::getOptions().getString("additional-files")) + getAttribute(SUMO_ATTR_FILE));
             deviceChildren.writeXMLHeader("rerouterValue", "additional_file.xsd");
             // save children in a different filename
-            for (auto i : getAdditionalChildren()) {
+            for (auto i : getChildAdditionals()) {
                 // avoid to write two times additionals that haben two parents (Only write as child of first parent)
-                if (i->getAdditionalParents().size() < 1) {
+                if (i->getParentAdditionals().size() < 1) {
                     i->writeAdditional(deviceChildren);
                 } else if (myTagProperty.getTag() == i->getTagProperty().getParentTag()) {
                     i->writeAdditional(deviceChildren);
@@ -287,9 +206,9 @@ GNEAdditional::writeAdditional(OutputDevice& device) const {
             }
             deviceChildren.close();
         } else {
-            for (auto i : getAdditionalChildren()) {
+            for (auto i : getChildAdditionals()) {
                 // avoid to write two times additionals that haben two parents (Only write as child of first parent)
-                if (i->getAdditionalParents().size() < 2) {
+                if (i->getParentAdditionals().size() < 2) {
                     i->writeAdditional(device);
                 } else if (myTagProperty.getTag() == i->getTagProperty().getParentTag()) {
                     i->writeAdditional(device);
@@ -356,7 +275,7 @@ GNEAdditional::startGeometryMoving() {
             myMove.movingGeometryBoundary = getCenteringBoundary();
         }
         // start geometry in all children
-        for (const auto& i : getDemandElementChildren()) {
+        for (const auto& i : getChildDemandElements()) {
             i->startGeometryMoving();
         }
     }
@@ -377,7 +296,7 @@ GNEAdditional::endGeometryMoving() {
             myViewNet->getNet()->addGLObjectIntoGrid(this);
         }
         // end geometry in all children
-        for (const auto& i : getDemandElementChildren()) {
+        for (const auto& i : getChildDemandElements()) {
             i->endGeometryMoving();
         }
     }
@@ -387,12 +306,6 @@ GNEAdditional::endGeometryMoving() {
 GNEViewNet*
 GNEAdditional::getViewNet() const {
     return myViewNet;
-}
-
-
-PositionVector
-GNEAdditional::getShape() const {
-    return myGeometry.shape;
 }
 
 
@@ -426,21 +339,21 @@ GNEAdditional::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     if (myTagProperty.hasAttribute(SUMO_ATTR_LANE)) {
         GNELane* lane = myViewNet->getNet()->retrieveLane(getAttribute(SUMO_ATTR_LANE));
         // Show menu command inner position
-        const double innerPos = myGeometry.shape.nearest_offset_to_point2D(parent.getPositionInformation());
-        new FXMenuCommand(ret, ("Cursor position inner additional: " + toString(innerPos)).c_str(), nullptr, nullptr, 0);
+        const double innerPos = myAdditionalGeometry.getShape().nearest_offset_to_point2D(parent.getPositionInformation());
+        new FXMenuCommand(ret, ("Cursor position over additional shape: " + toString(innerPos)).c_str(), nullptr, nullptr, 0);
         // If shape isn't empty, show menu command lane position
-        if (myGeometry.shape.size() > 0) {
-            const double lanePos = lane->getGeometry().shape.nearest_offset_to_point2D(myGeometry.shape[0]);
+        if (myAdditionalGeometry.getShape().size() > 0) {
+            const double lanePos = lane->getLaneShape().nearest_offset_to_point2D(myAdditionalGeometry.getShape().front());
             new FXMenuCommand(ret, ("Cursor position over " + toString(SUMO_TAG_LANE) + ": " + toString(innerPos + lanePos)).c_str(), nullptr, nullptr, 0);
         }
     } else if (myTagProperty.hasAttribute(SUMO_ATTR_EDGE)) {
         GNEEdge* edge = myViewNet->getNet()->retrieveEdge(getAttribute(SUMO_ATTR_EDGE));
         // Show menu command inner position
-        const double innerPos = myGeometry.shape.nearest_offset_to_point2D(parent.getPositionInformation());
-        new FXMenuCommand(ret, ("Cursor position inner additional: " + toString(innerPos)).c_str(), nullptr, nullptr, 0);
+        const double innerPos = myAdditionalGeometry.getShape().nearest_offset_to_point2D(parent.getPositionInformation());
+        new FXMenuCommand(ret, ("Cursor position over additional shape: " + toString(innerPos)).c_str(), nullptr, nullptr, 0);
         // If shape isn't empty, show menu command edge position
-        if (myGeometry.shape.size() > 0) {
-            const double edgePos = edge->getLanes().at(0)->getGeometry().shape.nearest_offset_to_point2D(myGeometry.shape[0]);
+        if (myAdditionalGeometry.getShape().size() > 0) {
+            const double edgePos = edge->getLanes().at(0)->getLaneShape().nearest_offset_to_point2D(myAdditionalGeometry.getShape().front());
             new FXMenuCommand(ret, ("Mouse position over " + toString(SUMO_TAG_EDGE) + ": " + toString(innerPos + edgePos)).c_str(), nullptr, nullptr, 0);
         }
     } else {
@@ -468,28 +381,12 @@ GNEAdditional::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView&) {
     return ret;
 }
 
-/*
-Boundary
-GNEAdditional::getCenteringBoundary() const {
-    // Return Boundary depending if myMovingGeometryBoundary is initialised (important for move geometry)
-    if (myMove.movingGeometryBoundary.isInitialised()) {
-        return myMove.movingGeometryBoundary;
-    } else if (myGeometry.shape.size() > 0) {
-        Boundary b = myGeometry.shape.getBoxBoundary();
-        b.grow(20);
-        return b;
-    } else if (myGeometry.multiShape.size() > 0) {
-        // obtain boundary of multishape fixed
-        Boundary b = myGeometry.multiShapeUnified.getBoxBoundary();
-        b.grow(20);
-        return b;
-    } else if (getAdditionalParents().size() > 0) {
-        return getAdditionalParents().at(0)->getCenteringBoundary();
-    } else {
-        return Boundary(-0.1, -0.1, 0.1, 0.1);
-    }
+
+const std::string&
+GNEAdditional::getOptionalAdditionalName() const {
+    return myAdditionalName;
 }
-*/
+
 // ---------------------------------------------------------------------------
 // GNEAdditional::BlockIcon - methods
 // ---------------------------------------------------------------------------
@@ -501,13 +398,13 @@ GNEAdditional::BlockIcon::BlockIcon(GNEAdditional* additional) :
 
 void
 GNEAdditional::BlockIcon::setRotation(GNELane* additionalLane) {
-    if (myAdditional->myGeometry.shape.size() > 0 && myAdditional->myGeometry.shape.length() != 0) {
+    if (myAdditional->myAdditionalGeometry.getShape().size() > 0 && myAdditional->myAdditionalGeometry.getShape().length() != 0) {
         // If length of the shape is distint to 0, Obtain rotation of center of shape
-        rotation = myAdditional->myGeometry.shape.rotationDegreeAtOffset((myAdditional->myGeometry.shape.length() / 2.)) - 90;
+        rotation = myAdditional->myAdditionalGeometry.getShape().rotationDegreeAtOffset((myAdditional->myAdditionalGeometry.getShape().length() / 2.)) - 90;
     } else if (additionalLane) {
         // If additional is over a lane, set rotation in the position over lane
-        double posOverLane = additionalLane->getGeometry().shape.nearest_offset_to_point2D(myAdditional->getPositionInView());
-        rotation = additionalLane->getGeometry().shape.rotationDegreeAtOffset(posOverLane) - 90;
+        double posOverLane = additionalLane->getLaneShape().nearest_offset_to_point2D(myAdditional->getPositionInView());
+        rotation = additionalLane->getLaneShape().rotationDegreeAtOffset(posOverLane) - 90;
     } else {
         // In other case, rotation is 0
         rotation = 0;
@@ -518,7 +415,7 @@ GNEAdditional::BlockIcon::setRotation(GNELane* additionalLane) {
 void
 GNEAdditional::BlockIcon::drawIcon(const GUIVisualizationSettings& s, const double exaggeration, const double size) const {
     // check if block icon can be draw
-    if (!s.drawForSelecting && s.drawDetail(s.detailSettings.lockIcon, exaggeration) && myAdditional->myViewNet->showLockIcon()) {
+    if (!s.drawForRectangleSelection && s.drawDetail(s.detailSettings.lockIcon, exaggeration) && myAdditional->myViewNet->showLockIcon()) {
         // Start pushing matrix
         glPushMatrix();
         // Traslate to middle of shape
@@ -583,7 +480,7 @@ GNEAdditional::getAdditionalID() const {
 
 bool
 GNEAdditional::isValidAdditionalID(const std::string& newID) const {
-    if (SUMOXMLDefinitions::isValidNetID(newID) && (myViewNet->getNet()->retrieveAdditional(myTagProperty.getTag(), newID, false) == nullptr)) {
+    if (SUMOXMLDefinitions::isValidAdditionalID(newID) && (myViewNet->getNet()->retrieveAdditional(myTagProperty.getTag(), newID, false) == nullptr)) {
         return true;
     } else {
         return false;
@@ -676,9 +573,9 @@ GNEAdditional::disableAttribute(SumoXMLAttr /*key*/, GNEUndoList* /*undoList*/) 
 
 
 bool
-GNEAdditional::checkAdditionalChildRestriction() const {
+GNEAdditional::checkChildAdditionalRestriction() const {
     // throw exception because this function mus be implemented in child (see GNEE3Detector)
-    throw ProcessError("Calling non-implemented function checkAdditionalChildRestriction during saving of " + getTagStr() + ". It muss be reimplemented in child class");
+    throw ProcessError("Calling non-implemented function checkChildAdditionalRestriction during saving of " + getTagStr() + ". It muss be reimplemented in child class");
 }
 
 

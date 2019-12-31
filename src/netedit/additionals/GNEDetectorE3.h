@@ -10,7 +10,6 @@
 /// @file    GNEDetectorE3.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Nov 2015
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -72,6 +71,9 @@ public:
 
     /// @brief Returns the boundary to which the view shall be centered in order to show the object
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -127,10 +129,10 @@ public:
     std::string getHierarchyName() const;
     /// @}
 
-    /// @name inherited from GNEHierarchicalElementChildren
+    /// @name inherited from GNEHierarchicalChildElements
     /// @{
     /// @brief update parent after add or remove a child
-    void updateAdditionalParent();
+    void updateParentAdditional();
     /// @}
 
 protected:
@@ -154,7 +156,7 @@ protected:
 
 private:
     /// @brief check restriction with the number of children
-    bool checkAdditionalChildRestriction() const;
+    bool checkChildAdditionalRestriction() const;
 
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);

@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Mon, 9 Jul 2001
-/// @version $Id$
 ///
 // The main interface for loading a microsim
 /****************************************************************************/
@@ -42,6 +41,9 @@
 #include <utils/vehicle/SUMORouteLoaderControl.h>
 #include <utils/vehicle/SUMORouteLoader.h>
 #include <utils/xml/XMLSubSys.h>
+#ifdef HAVE_FOX
+#include <utils/foxtools/MsgHandlerSynchronized.h>
+#endif
 #include <mesosim/MEVehicleControl.h>
 #include <microsim/MSVehicleControl.h>
 #include <microsim/MSVehicleTransfer.h>
@@ -53,6 +55,7 @@
 #include <microsim/MSFrame.h>
 #include <microsim/MSEdgeWeightsStorage.h>
 #include <microsim/MSStateHandler.h>
+#include <microsim/MSDriverState.h>
 #include <traci-server/TraCIServer.h>
 
 #include "NLHandler.h"
@@ -126,9 +129,6 @@ NLBuilder::build() {
     if (myOptions.getBool("no-internal-links") && myXMLHandler.haveSeenInternalEdge()) {
         WRITE_WARNING("Network contains internal links but option --no-internal-links is set. Vehicles will 'jump' across junctions and thus underestimate route lengths and travel times.");
     }
-    if (myOptions.getString("lanechange.duration") != "0" && myXMLHandler.haveSeenNeighs()) {
-        throw ProcessError("Network contains explicit neigh lanes which do not work together with option --lanechange.duration.");
-    }
     buildNet();
     // @note on loading order constraints:
     // - additional-files before route-files and state-files due to referencing
@@ -182,9 +182,8 @@ NLBuilder::build() {
     }
     // load the previous state if wished
     if (myOptions.isSet("load-state")) {
-        long before = SysUtils::getCurrentMillis();
         const std::string& f = myOptions.getString("load-state");
-        PROGRESS_BEGIN_MESSAGE("Loading state from '" + f + "'");
+        long before = PROGRESS_BEGIN_TIME_MESSAGE("Loading state from '" + f + "'");
         MSStateHandler h(f, string2time(myOptions.getString("load-state.offset")));
         XMLSubSys::runParser(h, f);
         if (myOptions.isDefault("begin")) {
@@ -230,6 +229,12 @@ NLBuilder::init() {
     if (!MSFrame::checkOptions()) {
         throw ProcessError();
     }
+#ifdef HAVE_FOX
+    if (oc.getInt("threads") > 1) {
+        // make the output aware of threading
+        MsgHandler::setFactory(&MsgHandlerSynchronized::create);
+    }
+#endif
     MsgHandler::initOutputOptions();
     initRandomness();
     MSFrame::setMSGlobals(oc);
@@ -267,6 +272,7 @@ NLBuilder::initRandomness() {
     RandHelper::initRandGlobal();
     RandHelper::initRandGlobal(MSRouteHandler::getParsingRNG());
     RandHelper::initRandGlobal(MSDevice::getEquipmentRNG());
+    RandHelper::initRandGlobal(OUProcess::getRNG());
     MSLane::initRNGs(OptionsCont::getOptions());
 }
 
@@ -330,8 +336,7 @@ NLBuilder::load(const std::string& mmlWhat, const bool isNet) {
     }
     std::vector<std::string> files = myOptions.getStringVector(mmlWhat);
     for (std::vector<std::string>::const_iterator fileIt = files.begin(); fileIt != files.end(); ++fileIt) {
-        PROGRESS_BEGIN_MESSAGE("Loading " + mmlWhat + " from '" + *fileIt + "'");
-        long before = SysUtils::getCurrentMillis();
+        const long before = PROGRESS_BEGIN_TIME_MESSAGE("Loading " + mmlWhat + " from '" + *fileIt + "'");
         if (!XMLSubSys::runParser(myXMLHandler, *fileIt, isNet)) {
             WRITE_MESSAGE("Loading of " + mmlWhat + " failed.");
             return false;

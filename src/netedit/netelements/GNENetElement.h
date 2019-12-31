@@ -10,7 +10,6 @@
 /// @file    GNENetElement.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2016
-/// @version $Id$
 ///
 // A abstract class for net elements
 /****************************************************************************/
@@ -23,10 +22,12 @@
 // ===========================================================================
 #include <config.h>
 
-#include <netedit/GNEHierarchicalElementParents.h>
-#include <netedit/GNEHierarchicalElementChildren.h>
+#include <netedit/GNEHierarchicalParentElements.h>
+#include <netedit/GNEHierarchicalChildElements.h>
+#include <netedit/GNEGeometry.h>
 #include <utils/gui/globjects/GUIGlObject.h>
 #include <utils/geom/PositionVector.h>
+
 
 // ===========================================================================
 // class declarations
@@ -39,30 +40,9 @@ class GNEDemandElement;
 // class definitions
 // ===========================================================================
 
-class GNENetElement : public GUIGlObject, public GNEAttributeCarrier, public GNEHierarchicalElementParents, public GNEHierarchicalElementChildren {
+class GNENetElement : public GUIGlObject, public GNEAttributeCarrier, public GNEHierarchicalParentElements, public GNEHierarchicalChildElements {
 
 public:
-    /// @brief struct for pack all variables related with geometry of elemement
-    struct NetElementGeometry {
-        /// @brief constructor
-        NetElementGeometry();
-
-        /// @brief reset geometry
-        void clearGeometry();
-
-        /// @brief calculate shape rotations and lengths
-        void calculateShapeRotationsAndLengths();
-
-        /// @brief The shape of the netElement element
-        PositionVector shape;
-
-        /// @brief The rotations of the single shape parts
-        std::vector<double> shapeRotations;
-
-        /// @brief The lengths of the single shape parts
-        std::vector<double> shapeLengths;
-    };
-
     /**@brief Constructor.
      * @param[in] net The net to inform about gui updates
      * @param[in] id of the element
@@ -79,9 +59,6 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
-    /// @brief get NetElementGeometry
-    const NetElementGeometry& getGeometry() const;
-
     /// @brief update pre-computed geometry information
     virtual void updateGeometry() = 0;
 
@@ -187,9 +164,6 @@ public:
 protected:
     /// @brief the net to inform about updates
     GNENet* myNet;
-
-    /// @brief netElement geometry
-    NetElementGeometry myGeometry;
 
     /// @brief boundary used during moving of elements
     Boundary myMovingGeometryBoundary;

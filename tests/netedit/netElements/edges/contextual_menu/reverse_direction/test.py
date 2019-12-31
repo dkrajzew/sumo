@@ -10,7 +10,6 @@
 # @file    test.py
 # @author  Pablo Alvarez Lopez
 # @date    2016-11-25
-# @version $Id$
 
 # import common functions for netedit tests
 import os
@@ -32,7 +31,7 @@ netedit.rebuildNetwork()
 netedit.inspectMode()
 
 # reverse edge in both directions
-netedit.contextualMenuOperation(referencePosition, 250, 145, 9, 6)
+netedit.contextualMenuOperation(referencePosition, 250, 150, 9, 6)
 
 # recompute
 netedit.rebuildNetwork()

@@ -10,7 +10,6 @@
 # @file    test.py
 # @author  Pablo Alvarez Lopez
 # @date    2016-11-25
-# @version $Id$
 
 # import common functions for netedit tests
 import os
@@ -35,7 +34,7 @@ netedit.changeElement("containerStop")
 netedit.changeDefaultValue(7, "reference center")
 
 # create containerStop in mode "reference center"
-netedit.leftClick(referencePosition, 250, 270)
+netedit.leftClick(referencePosition, 250, 255)
 
 # change to move mode
 netedit.moveMode()

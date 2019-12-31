@@ -10,7 +10,6 @@
 /// @file    GNEPerson.h
 /// @author  Pablo Alvarez Lopez
 /// @date    May 2019
-/// @version $Id$
 ///
 // Representation of persons in NETEDIT
 /****************************************************************************/
@@ -147,9 +146,6 @@ public:
     /// @brief get color
     const RGBColor& getColor() const;
 
-    /// @brief compute demand element
-    void compute();
-
     /// @}
 
     /// @name Functions related with geometry of element
@@ -172,6 +168,15 @@ public:
 
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
+    /// @brief partial update pre-computed geometry information
+    void updatePartialGeometry(const GNEEdge* edge);
+
+    /// @brief compute path
+    void computePath();
+
+    /// @brief invalidate path
+    void invalidatePath();
 
     /// @brief Returns position of demand element in view
     Position getPositionInView() const;
@@ -197,6 +202,9 @@ public:
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -304,18 +312,6 @@ private:
 
     /// @brief method for enabling the attribute and nothing else (used in GNEChange_EnableAttribute)
     void setEnabledAttribute(const int enabledAttributes);
-
-    /// @brief calculate smooth shape between personPlans
-    void calculateSmoothPersonPlanConnection(const GNEDemandElement* personPlanElement, const GNEEdge* edgeFrom, const GNEEdge* edgeTo);
-
-    /// @brief return two shapes used for calculate person plan conections between busStops
-    std::pair<PositionVector, PositionVector> calculatePersonPlanConnectionBusStop(GNELane* previousLane, GNEAdditional* busStop, GNELane* nextLane);
-
-    /// @brief return two shapes used for calculate person plan conections between stops
-    std::pair<PositionVector, PositionVector> calculatePersonPlanConnectionStop(GNELane* previousLane, GNEDemandElement* stop, GNELane* nextLane);
-
-    /// @brief return two shapes used for calculate person plan conections between arrival position
-    std::pair<PositionVector, PositionVector> calculatePersonPlanConnectionArrivalPos(GNELane* previousLane, double arrivalPosPersonPlan, GNELane* nextLane);
 
     /// @brief Invalidated copy constructor.
     GNEPerson(const GNEPerson&) = delete;

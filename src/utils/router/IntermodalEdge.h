@@ -12,7 +12,6 @@
 /// @author  Michael Behrisch
 /// @author  Robert Hilbrich
 /// @date    Mon, 03 March 2014
-/// @version $Id$
 ///
 // The Edge definition for the Intermodal Router
 /****************************************************************************/
@@ -101,6 +100,10 @@ public:
     }
 
     virtual bool prohibits(const IntermodalTrip<E, N, V>* const /* trip */) const {
+        return false;
+    }
+
+    virtual bool restricts(const IntermodalTrip<E, N, V>* const /* trip */) const {
         return false;
     }
 

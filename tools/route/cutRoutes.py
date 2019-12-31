@@ -12,7 +12,6 @@
 # @author  Michael Behrisch
 # @author  Leonhard Luecken
 # @date    2017-04-11
-# @version $Id$
 
 """
 Cut down routes from a large scenario to a sub-scenario optionally using exitTimes
@@ -252,7 +251,8 @@ def cut_routes(aEdges, orig_net, options, busStopEdges=None, finalEdgeMap=None):
                     else:
                         old_route = routeRef = standaloneRoutes[moving.route]
                 routeParts = _cutEdgeList(areaEdges, oldDepart, old_route.exitTimes,
-                                          old_route.edges.split(), orig_net, options, stats, options.disconnected_action)
+                                          old_route.edges.split(), orig_net, options,
+                                          stats, options.disconnected_action)
                 if routeParts and old_route.exitTimes is None and orig_net is None:
                     print("Could not reconstruct new departure time for %s '%s'. Using old departure time." %
                           (moving.name, moving.id))

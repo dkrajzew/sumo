@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Laura Bieker
 /// @date    Oct 2002
-/// @version $Id$
 ///
 // Base class for all objects that may be displayed within the openGL-gui
 /****************************************************************************/
@@ -161,6 +160,9 @@ public:
 
     /// @brief remove additional user-griggered visualisations
     virtual void removeActiveAddVisualisation(GUISUMOAbstractView* const /*parent*/, int /*which*/) {}
+
+    /// @brief notify object about left click
+    virtual void onLeftBtnPress(void* /*data*/) {}
 
 #ifdef HAVE_OSG
     /// @brief get OSG Node

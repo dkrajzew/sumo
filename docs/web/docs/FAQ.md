@@ -35,10 +35,8 @@ permalink: /FAQ/
   The main page for getting an overview over the various topics is the
   outline
   [SUMO_User_Documentation](SUMO_User_Documentation.md). If
-  you do not find the topic of interest listed there it is often
-  useful to use google for searching the wiki (it tends to be a lot
-  smarter than the wiki-internal search). Add **sumo** and **wiki** to
-  your search terms and it will generally find the relevant pages.
+  you do not find the topic of interest listed there use the site search.
+  Alterantively, use a general purpose search engine as this will also include the mailing list archives.
 
 ### How can I contribute to SUMO?
 
@@ -110,11 +108,10 @@ git push
 - More info may be found at
   <https://wiki.eclipse.org/Development_Resources/Contributing_via_Git>
 
-### How do I contribute to the wiki?
+### How do I contribute to the documentation?
 
-- Alternatively: Send an email stating your preferred user name to
-  sumo@dlr.de
-- wait for our mail telling you that you have edit-permissions
+The documentation is part of the code repository so the same rules as in the previous question apply. 
+If you just want to have a simple typo fixed you can always drop us a line at sumo@dlr.de or at sumo-dev@eclipse.org.
 
 ### How do I cite SUMO
 
@@ -126,7 +123,7 @@ git push
 
 ### How do I unsubscribe from the mailing list?
 
-Go to <https://lists.sourceforge.net/lists/listinfo/sumo-user>. At the
+Go to <https://www.eclipse.org/mailman/listinfo/sumo-user>. At the
 bottom of the page you will find a form that allows you to enter your
 email address to unsubscribe it from the list.
 
@@ -208,6 +205,10 @@ you may appear to be lazy).
 in a hurry and cannot get an answer, try to change your question
 according to the above suggestions.
 - Be polite
+- Good Example questions:
+  - How can I get data X out of SUMO?
+  - How can I influence aspect Y of a simulation?
+  - My simulation does Z though I do not expect it to. How do I fix that?
 
 ### I asked a question on the mailing list and did not get an answer within X days. Why?
 
@@ -423,7 +424,7 @@ and simply type `git pull`.
 ### What does the following error mean?
 
   Warning: No types defined, using defaults... Error: An exception
-  occurred\! Type:RuntimeException, <Message:The\> primary document
+  occurred\! Type:RuntimeException, Message:The primary document
   entity could not be opened. Id=<PATH\> Error: (At line/column 1/0).
   Error: Quitting (conversion failed).
   Answer: Simply that the file you try to use (<PATH\>) does not exist.
@@ -459,7 +460,7 @@ and simply type `git pull`.
   schema information. The schema files which are needed for checking
   are retrieved from the local sumo installation if [the environment variable **SUMO_HOME** is set](Basics/Basic_Computer_Skills.md#additional_environment_variables).
   Otherwise the files will be retrieved from
-  [sumo.dlr.de](http://www.sumo.dlr.de) which is slower. Validation
+  [sumo.dlr.de](https://sumo.dlr.de) which is slower. Validation
   can be disabled by using the option **--xml-validation never** or by deleting the schema
   information at the top of the XML input file(s).
 
@@ -987,7 +988,7 @@ mechanism
 
 Drivers of [DisplayLink](http://www.DisplayLink.com) devices are
 incompatibles with Fox Library. If SUMO or netEdit presents graphics
-problem like [this](http://sumo.dlr.de/wiki/File:DisplayLinkError.png)
+problem like [this](http://sumo.dlr.de/docs/images/DisplayLinkError.png)
 during the execution, DisplayLink drivers must be uninstalled.
 
 ## Upgrading

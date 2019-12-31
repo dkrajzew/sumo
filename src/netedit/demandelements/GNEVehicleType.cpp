@@ -10,7 +10,6 @@
 /// @file    GNEVehicleType.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
-/// @version $Id$
 ///
 // Definition of Vehicle Types in NETEDIT
 /****************************************************************************/
@@ -39,9 +38,9 @@
 
 GNEVehicleType::GNEVehicleType(GNEViewNet* viewNet, const std::string& vTypeID, const SUMOVehicleClass& defaultVClass, SumoXMLTag tag) :
     GNEDemandElement(vTypeID, viewNet, GLO_VTYPE, tag, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
-    SUMOVTypeParameter(vTypeID),
-    myDefaultVehicleType(true),
-    myDefaultVehicleTypeModified(false) {
+                 SUMOVTypeParameter(vTypeID),
+                 myDefaultVehicleType(true),
+myDefaultVehicleTypeModified(false) {
     // set default vehicle class
     vehicleClass = defaultVClass;
     parametersSet |= VTYPEPARS_VEHICLECLASS_SET;
@@ -52,9 +51,9 @@ GNEVehicleType::GNEVehicleType(GNEViewNet* viewNet, const std::string& vTypeID, 
 
 GNEVehicleType::GNEVehicleType(GNEViewNet* viewNet, const SUMOVTypeParameter& vTypeParameter, SumoXMLTag tag) :
     GNEDemandElement(vTypeParameter.id, viewNet, GLO_VTYPE, tag, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
-    SUMOVTypeParameter(vTypeParameter),
-    myDefaultVehicleType(false),
-    myDefaultVehicleTypeModified(false) {
+SUMOVTypeParameter(vTypeParameter),
+myDefaultVehicleType(false),
+myDefaultVehicleTypeModified(false) {
     // if we're creating a Person Type, set manually VClass
     if (tag == SUMO_TAG_PTYPE) {
         vehicleClass = SVC_PEDESTRIAN;
@@ -67,9 +66,9 @@ GNEVehicleType::GNEVehicleType(GNEViewNet* viewNet, const SUMOVTypeParameter& vT
 
 GNEVehicleType::GNEVehicleType(GNEViewNet* viewNet, const std::string& vTypeID, GNEVehicleType* vTypeOriginal) :
     GNEDemandElement(vTypeID, viewNet, GLO_VTYPE, vTypeOriginal->getTagProperty().getTag(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
-    SUMOVTypeParameter(*vTypeOriginal),
-    myDefaultVehicleType(false),
-    myDefaultVehicleTypeModified(false) {
+SUMOVTypeParameter(*vTypeOriginal),
+myDefaultVehicleType(false),
+myDefaultVehicleTypeModified(false) {
     // change manually the ID (to avoid to use the ID of vTypeOriginal)
     id = vTypeID;
     // init Rail Visualization Parameters
@@ -118,12 +117,6 @@ GNEVehicleType::getColor() const {
 
 
 void
-GNEVehicleType::compute() {
-    // Nothing to compute
-}
-
-
-void
 GNEVehicleType::startGeometryMoving() {
     // VTypes cannot be moved
 }
@@ -149,7 +142,31 @@ GNEVehicleType::commitGeometryMoving(GNEUndoList*) {
 
 void
 GNEVehicleType::updateGeometry() {
-    // Currently this additional doesn't own a Geometry
+    // update geometry of all childrens
+    for (const auto& i : getChildDemandElements()) {
+        i->updateGeometry();
+    }
+}
+
+
+void
+GNEVehicleType::updatePartialGeometry(const GNEEdge* edge) {
+    // update geometry of all childrens
+    for (const auto& i : getChildDemandElements()) {
+        i->updatePartialGeometry(edge);
+    }
+}
+
+
+void
+GNEVehicleType::computePath() {
+    // nothing to compute
+}
+
+
+void
+GNEVehicleType::invalidatePath() {
+    // nothing to invalidate
 }
 
 
@@ -169,6 +186,12 @@ Boundary
 GNEVehicleType::getCenteringBoundary() const {
     // Vehicle Types doesn't have boundaries
     return Boundary(-0.1, -0.1, 0.1, 0.1);
+}
+
+
+void
+GNEVehicleType::splitEdgeGeometry(const double /*splitPosition*/, const GNENetElement* /*originalElement*/, const GNENetElement* /*newElement*/, GNEUndoList* /*undoList*/) {
+    // geometry of this element cannot be splitted
 }
 
 
@@ -428,12 +451,6 @@ GNEVehicleType::getAttribute(SumoXMLAttr key) const {
             } else {
                 return myTagProperty.getDefaultValue(SUMO_ATTR_PROB);
             }
-        case SUMO_ATTR_HASDRIVERSTATE:
-            if (wasSet(VTYPEPARS_HASDRIVERSTATE_SET)) {
-                return toString(hasDriverState);
-            } else {
-                return myTagProperty.getDefaultValue(SUMO_ATTR_HASDRIVERSTATE);
-            }
         case SUMO_ATTR_CARRIAGE_LENGTH:
             if (wasSet(VTYPEPARS_CARRIAGE_LENGTH_SET)) {
                 return toString(carriageLength);
@@ -599,7 +616,6 @@ GNEVehicleType::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoL
         case SUMO_ATTR_MAXSPEED_LAT:
         case SUMO_ATTR_ACTIONSTEPLENGTH:
         case SUMO_ATTR_PROB:
-        case SUMO_ATTR_HASDRIVERSTATE:
         case SUMO_ATTR_OSGFILE:
         case SUMO_ATTR_CARRIAGE_LENGTH:
         case SUMO_ATTR_LOCOMOTIVE_LENGTH:
@@ -630,8 +646,8 @@ GNEVehicleType::isValid(SumoXMLAttr key, const std::string& value) {
         case SUMO_ATTR_ID:
             // Vtypes and PTypes shares namespace
             if (SUMOXMLDefinitions::isValidVehicleID(value) &&
-                (myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, value, false) == nullptr) &&
-                (myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_PTYPE, value, false) == nullptr)) {
+                    (myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_VTYPE, value, false) == nullptr) &&
+                    (myViewNet->getNet()->retrieveDemandElement(SUMO_TAG_PTYPE, value, false) == nullptr)) {
                 return true;
             } else {
                 return false;
@@ -771,8 +787,6 @@ GNEVehicleType::isValid(SumoXMLAttr key, const std::string& value) {
             return canParse<double>(value) && (parse<double>(value) >= 0);
         case SUMO_ATTR_PROB:
             return canParse<double>(value) && (parse<double>(value) >= 0);
-        case SUMO_ATTR_HASDRIVERSTATE:
-            return canParse<bool>(value);
         case SUMO_ATTR_OSGFILE:
             return SUMOXMLDefinitions::isValidFilename(value);
         case SUMO_ATTR_CARRIAGE_LENGTH:
@@ -1082,9 +1096,6 @@ GNEVehicleType::overwriteVType(GNEDemandElement* vType, SUMOVTypeParameter* newV
     }
     if (newVTypeParameter->wasSet(VTYPEPARS_ACTIONSTEPLENGTH_SET)) {
         vType->setAttribute(SUMO_ATTR_ACTIONSTEPLENGTH, toString(newVTypeParameter->actionStepLength), undoList);
-    }
-    if (newVTypeParameter->wasSet(VTYPEPARS_HASDRIVERSTATE_SET)) {
-        vType->setAttribute(SUMO_ATTR_HASDRIVERSTATE, toString(newVTypeParameter->hasDriverState), undoList);
     }
     if (newVTypeParameter->wasSet(VTYPEPARS_PROBABILITY_SET)) {
         vType->setAttribute(SUMO_ATTR_PROB, toString(newVTypeParameter->defaultProbability), undoList);
@@ -1562,18 +1573,6 @@ GNEVehicleType::setAttribute(SumoXMLAttr key, const std::string& value) {
                 parametersSet &= ~VTYPEPARS_PROBABILITY_SET;
             }
             break;
-        case SUMO_ATTR_HASDRIVERSTATE:
-            if (!value.empty() && (value != myTagProperty.getDefaultValue(key))) {
-                hasDriverState = parse<bool>(value);
-                // mark parameter as set
-                parametersSet |= VTYPEPARS_HASDRIVERSTATE_SET;
-            } else {
-                // set default value
-                hasDriverState = parse<bool>(myTagProperty.getDefaultValue(key));
-                // unset parameter
-                parametersSet &= ~VTYPEPARS_HASDRIVERSTATE_SET;
-            }
-            break;
         case SUMO_ATTR_OSGFILE:
             if (!value.empty() && (value != defaultValues.osgFile)) {
                 osgFile = value;
@@ -1642,6 +1641,10 @@ GNEVehicleType::setAttribute(SumoXMLAttr key, const std::string& value) {
             break;
         default:
             throw InvalidArgument(getTagStr() + " doesn't have an attribute of type '" + toString(key) + "'");
+    }
+    // check if geometry must be marked as deprecated
+    if (myTagProperty.hasAttribute(key) && (myTagProperty.getAttributeProperties(key).requireUpdateGeometry())) {
+        updateGeometry();
     }
 }
 

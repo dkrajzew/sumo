@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    June 2006
-/// @version $Id$
 ///
 // The GUI-version of a point of interest
 /****************************************************************************/
@@ -154,7 +153,7 @@ GUIPointOfInterest::drawInnerPOI(const GUIVisualizationSettings& s, bool disable
         }
     } else {
         // fallback if no image is defined
-        if (s.drawForSelecting) {
+        if (s.drawForRectangleSelection) {
             GLHelper::drawFilledCircle((double) 1.3 * exaggeration, 8);
         } else {
             // draw filled circle saving vertices
@@ -162,7 +161,7 @@ GUIPointOfInterest::drawInnerPOI(const GUIVisualizationSettings& s, bool disable
         }
     }
     glPopMatrix();
-    if (!s.drawForSelecting) {
+    if (!s.drawForRectangleSelection) {
         const Position namePos = *this;
         drawName(namePos, s.scale, s.poiName, s.angle);
         if (s.poiType.show) {

@@ -10,7 +10,6 @@
 /// @file    GNERoute.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
-/// @version $Id$
 ///
 // A class for visualizing routes in Netedit
 /****************************************************************************/
@@ -119,9 +118,6 @@ public:
     /// @brief get color
     const RGBColor& getColor() const;
 
-    /// @brief compute demand element
-    void compute();
-
     /// @}
 
     /// @name Functions related with geometry of element
@@ -144,6 +140,15 @@ public:
 
     /// @brief update pre-computed geometry information
     void updateGeometry();
+
+    /// @brief partial update pre-computed geometry information
+    void updatePartialGeometry(const GNEEdge* edge);
+
+    /// @brief compute path
+    void computePath();
+
+    /// @brief invalidate path
+    void invalidatePath();
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -170,6 +175,9 @@ public:
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
+
+    /// @brief split geometry
+    void splitEdgeGeometry(const double splitPosition, const GNENetElement* originalElement, const GNENetElement* newElement, GNEUndoList* undoList);
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -238,6 +246,12 @@ public:
     /// @brief get Hierarchy Name (Used in AC Hierarchy)
     std::string getHierarchyName() const;
     /// @}
+
+    /** @brief check if a route is valid
+     * @param[in] edges vector with the route's edges
+     * @return an empty string if route is valid, or a string with the problem
+     */
+    static std::string isRouteValid(const std::vector<GNEEdge*>& edges);
 
 protected:
     /// @brief route color

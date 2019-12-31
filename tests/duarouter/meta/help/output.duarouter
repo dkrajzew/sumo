@@ -1,4 +1,4 @@
-Eclipse SUMO duarouter Version v1_3_1+0470-4a6b08f445
+Eclipse SUMO duarouter Version v1_4_0+0208-2221e4e
  Copyright (C) 2001-2019 German Aerospace Center (DLR) and others; https://sumo.dlr.de
 Shortest path router and DUE computer for the microscopic, multi-modal traffic
   simulation SUMO.
@@ -80,6 +80,9 @@ Processing Options:
                                         internal lanes
   --with-taz                          Use origin and destination zones
                                         (districts) for in- and output
+  --mapmatch.distance FLOAT           Maximum distance when mapping input
+                                        coordinates (fromXY etc.) to the road
+                                        network
   --bulk-routing                      Aggregate routing queries with the same
                                         origin
   --routing-threads INT               The number of parallel execution threads
@@ -153,6 +156,8 @@ Report Options:
                                         network inputs ("never", "auto" or
                                         "always")
   -W, --no-warnings                   Disables output of warnings
+  --aggregate-warnings INT            Aggregate warnings of the same type
+                                        whenever more than INT occur
   -l, --log FILE                      Writes all messages to FILE (implies
                                         verbose)
   --message-log FILE                  Writes all non-error messages to FILE

@@ -10,7 +10,6 @@
 /// @file    GNERerouter.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Nov 2015
-/// @version $Id$
 ///
 //
 /****************************************************************************/
@@ -37,12 +36,12 @@
 
 GNERerouter::GNERerouter(const std::string& id, GNEViewNet* viewNet, const Position& pos, const std::vector<GNEEdge*>& edges, const std::string& name, const std::string& filename, double probability, bool off, SUMOTime timeThreshold, const std::string& vTypes, bool blockMovement) :
     GNEAdditional(id, viewNet, GLO_REROUTER, SUMO_TAG_REROUTER, name, blockMovement, {}, {}, {}, {}, {}, edges, {}, {}, {}, {}),
-    myPosition(pos),
-    myFilename(filename),
-    myProbability(probability),
-    myOff(off),
-    myTimeThreshold(timeThreshold),
-    myVTypes(vTypes) {
+              myPosition(pos),
+              myFilename(filename),
+              myProbability(probability),
+              myOff(off),
+              myTimeThreshold(timeThreshold),
+myVTypes(vTypes) {
 }
 
 
@@ -83,6 +82,12 @@ GNERerouter::getCenteringBoundary() const {
         b.grow(5);
         return b;
     }
+}
+
+
+void
+GNERerouter::splitEdgeGeometry(const double /*splitPosition*/, const GNENetElement* /*originalElement*/, const GNENetElement* /*newElement*/, GNEUndoList* /*undoList*/) {
+    // geometry of this element cannot be splitted
 }
 
 
@@ -137,7 +142,7 @@ GNERerouter::drawGL(const GUIVisualizationSettings& s) const {
         // scale
         glScaled(exaggeration, exaggeration, 1);
         // Draw icon depending of detector is selected and if isn't being drawn for selecting
-        if (!s.drawForSelecting && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
+        if (!s.drawForRectangleSelection && s.drawDetail(s.detailSettings.laneTextures, exaggeration)) {
             glColor3d(1, 1, 1);
             glRotated(180, 0, 0, 1);
             if (drawUsingSelectColor()) {
@@ -177,7 +182,7 @@ GNERerouter::getAttribute(SumoXMLAttr key) const {
         case SUMO_ATTR_ID:
             return getAdditionalID();
         case SUMO_ATTR_EDGES:
-            return parseIDs(getEdgeChildren());
+            return parseIDs(getChildEdges());
         case SUMO_ATTR_POSITION:
             return toString(myPosition);
         case SUMO_ATTR_NAME:
@@ -204,7 +209,7 @@ GNERerouter::getAttribute(SumoXMLAttr key) const {
 }
 
 
-double 
+double
 GNERerouter::getAttributeDouble(SumoXMLAttr key) const {
     throw InvalidArgument(getTagStr() + " doesn't have a double attribute of type '" + toString(key) + "'");
 }
@@ -220,7 +225,7 @@ GNERerouter::setAttribute(SumoXMLAttr key, const std::string& value, GNEUndoList
             // change ID of Rerouter Interval
             undoList->p_add(new GNEChange_Attribute(this, myViewNet->getNet(), key, value));
             // Change Ids of all Rerouter interval children
-            for (auto i : getAdditionalChildren()) {
+            for (auto i : getChildAdditionals()) {
                 i->setAttribute(SUMO_ATTR_ID, generateChildID(SUMO_TAG_INTERVAL), undoList);
             }
             break;
@@ -285,7 +290,7 @@ GNERerouter::isValid(SumoXMLAttr key, const std::string& value) {
 }
 
 
-bool 
+bool
 GNERerouter::isAttributeEnabled(SumoXMLAttr /* key */) const {
     return true;
 }
@@ -313,7 +318,7 @@ GNERerouter::setAttribute(SumoXMLAttr key, const std::string& value) {
             changeAdditionalID(value);
             break;
         case SUMO_ATTR_EDGES:
-            changeEdgeChildren(this, value);
+            changeChildEdges(this, value);
             break;
         case SUMO_ATTR_POSITION:
             myViewNet->getNet()->removeGLObjectFromGrid(this);

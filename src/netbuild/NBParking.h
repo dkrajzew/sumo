@@ -10,7 +10,6 @@
 /// @file    NBParking.h
 /// @author  Jakob Erdmann
 /// @date    Tue, 14 Nov 2017
-/// @version $Id$
 ///
 // The representation of an imported parking area
 /****************************************************************************/
@@ -53,6 +52,10 @@ public:
     NBParking(const std::string& id, const std::string& edgeID, const std::string& name = "");
 
     void write(OutputDevice& device, NBEdgeCont& ec) const;
+
+    const std::string getEdgeID() const {
+        return myEdgeID;
+    }
 
 private:
     std::string myEdgeID;

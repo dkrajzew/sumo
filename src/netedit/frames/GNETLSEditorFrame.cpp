@@ -10,7 +10,6 @@
 /// @file    GNETLSEditorFrame.cpp
 /// @author  Jakob Erdmann
 /// @date    May 2011
-/// @version $Id$
 ///
 // The Widget for modifying traffic lights
 /****************************************************************************/
@@ -127,7 +126,7 @@ GNETLSEditorFrame::~GNETLSEditorFrame() {
 }
 
 
-void 
+void
 GNETLSEditorFrame::show() {
     // hide myOverlappedInspection
     myOverlappedInspection->hideOverlappedInspection();
@@ -135,7 +134,7 @@ GNETLSEditorFrame::show() {
 }
 
 void
-GNETLSEditorFrame::editTLS(const Position& clickedPosition, const GNEViewNetHelper::ObjectsUnderCursor &objectsUnderCursor) {
+GNETLSEditorFrame::editTLS(const Position& clickedPosition, const GNEViewNetHelper::ObjectsUnderCursor& objectsUnderCursor) {
     // first check if in objectsUnderCursor there is a junction
     if (objectsUnderCursor.getJunctionFront()) {
         // show objects under cursor
@@ -450,8 +449,8 @@ GNETLSEditorFrame::fixedDuration() const {
 }
 
 
-void 
-GNETLSEditorFrame::selectedOverlappedElement(GNEAttributeCarrier *AC) {
+void
+GNETLSEditorFrame::selectedOverlappedElement(GNEAttributeCarrier* AC) {
     editJunction(dynamic_cast<GNEJunction*>(AC));
 }
 
@@ -778,15 +777,14 @@ GNETLSEditorFrame::handleMultiChange(GNELane* lane, FXObject* obj, FXSelector se
         const NBConnectionVector& links = myEditedDef->getControlledLinks();
         std::set<std::string> fromIDs;
         fromIDs.insert(lane->getMicrosimID());
-        GNEEdge& edge = lane->getParentEdge();
         // if neither the lane nor its edge are selected, apply changes to the whole edge
-        if (!edge.isAttributeCarrierSelected() && !lane->isAttributeCarrierSelected()) {
-            for (auto it_lane : edge.getLanes()) {
+        if (!lane->getParentEdge()->isAttributeCarrierSelected() && !lane->isAttributeCarrierSelected()) {
+            for (auto it_lane : lane->getParentEdge()->getLanes()) {
                 fromIDs.insert(it_lane->getMicrosimID());
             }
         } else {
             // if the edge is selected, apply changes to all lanes of all selected edges
-            if (edge.isAttributeCarrierSelected()) {
+            if (lane->getParentEdge()->isAttributeCarrierSelected()) {
                 std::vector<GNEEdge*> edges = myViewNet->getNet()->retrieveEdges(true);
                 for (auto it : edges) {
                     for (auto it_lane : it->getLanes()) {
@@ -817,11 +815,11 @@ GNETLSEditorFrame::handleMultiChange(GNELane* lane, FXObject* obj, FXSelector se
 
 
 bool
-GNETLSEditorFrame::controlsEdge(GNEEdge& edge) const {
+GNETLSEditorFrame::controlsEdge(GNEEdge* edge) const {
     if (myEditedDef != nullptr) {
         const NBConnectionVector& links = myEditedDef->getControlledLinks();
         for (auto it : links) {
-            if (it.getFrom()->getID() == edge.getMicrosimID()) {
+            if (it.getFrom()->getID() == edge->getMicrosimID()) {
                 return true;
             }
         }

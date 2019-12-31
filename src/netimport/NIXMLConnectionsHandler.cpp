@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Laura Bieker
 /// @date    Thu, 17 Oct 2002
-/// @version $Id$
 ///
 // Importer for edge connections stored in XML
 /****************************************************************************/
@@ -80,15 +79,15 @@ NIXMLConnectionsHandler::myStartElement(int element,
         NBEdge* fromEdge = myEdgeCont.retrieve(from);
         NBEdge* toEdge = myEdgeCont.retrieve(to);
         if (fromEdge == nullptr) {
-            myErrorMsgHandler->inform("The connection-source edge '" + from + "' to reset is not known.");
+            myErrorMsgHandler->informf("The connection-source edge '%' to reset is not known.", from);
             return;
         }
         if (toEdge == nullptr) {
-            myErrorMsgHandler->inform("The connection-destination edge '" + to + "' to reset is not known.");
+            myErrorMsgHandler->informf("The connection-destination edge '%' to reset is not known.", to);
             return;
         }
-        if (!fromEdge->isConnectedTo(toEdge) && fromEdge->getStep() >= NBEdge::EDGE2EDGES) {
-            WRITE_WARNING("Target edge '" + toEdge->getID() + "' is not connected with '" + fromEdge->getID() + "'; the connection cannot be reset.");
+        if (!fromEdge->isConnectedTo(toEdge) && fromEdge->getStep() >= NBEdge::EdgeBuildingStep::EDGE2EDGES) {
+            WRITE_WARNINGF("Target edge '%' is not connected with '%'; the connection cannot be reset.", toEdge->getID(), fromEdge->getID());
             return;
         }
         int fromLane = -1; // Assume all lanes are to be reset.
@@ -101,8 +100,8 @@ NIXMLConnectionsHandler::myStartElement(int element,
             }
             // we could be trying to reset a connection loaded from a sumo net and which has become obsolete.
             // In this case it's ok to encounter invalid lance indices
-            if (!fromEdge->hasConnectionTo(toEdge, toLane) && fromEdge->getStep() >= NBEdge::LANES2EDGES) {
-                WRITE_WARNING("Edge '" + fromEdge->getID() + "' has no connection to lane " + toString(toLane) + " of edge '" + toEdge->getID() + "'; the connection cannot be reset.");
+            if (!fromEdge->hasConnectionTo(toEdge, toLane) && fromEdge->getStep() >= NBEdge::EdgeBuildingStep::LANES2EDGES) {
+                WRITE_WARNINGF("Edge '%' has no connection to lane '%'; the connection cannot be reset.", fromEdge->getID(), toEdge->getLaneID(toLane));
             }
         }
         fromEdge->removeFromConnections(toEdge, fromLane, toLane, true);
@@ -210,23 +209,21 @@ NIXMLConnectionsHandler::parseLaneBound(const SUMOSAXAttributes& attrs, NBEdge* 
             return;
         }
         if (fromLane < 0) {
-            myErrorMsgHandler->inform("Invalid value '" + toString(fromLane) +
-                                      "' for " + toString(SUMO_ATTR_FROM_LANE) + " in connection from '" +
-                                      from->getID() + "' to '" + to->getID() + "'.");
+            myErrorMsgHandler->informf("Invalid value '%' for " + toString(SUMO_ATTR_FROM_LANE) +
+                                       " in connection from '%' to '%'.", fromLane, from->getID(), to->getID());
             return;
         }
         if (toLane < 0) {
-            myErrorMsgHandler->inform("Invalid value '" + toString(toLane) +
-                                      "' for " + toString(SUMO_ATTR_TO_LANE) + " in connection from '" +
-                                      from->getID() + "' to '" + to->getID() + "'.");
+            myErrorMsgHandler->informf("Invalid value '%' for " + toString(SUMO_ATTR_TO_LANE) +
+                                       " in connection from '%' to '%'.", toLane, from->getID(), to->getID());
             return;
         }
         if (from->hasConnectionTo(to, toLane) && from->getToNode()->getType() != NODETYPE_ZIPPER) {
-            WRITE_WARNING("Target lane '" + to->getLaneID(toLane) + "' is already connected from '" + from->getID() + "'.");
+            WRITE_WARNINGF("Target lane '%' is already connected from '%'.", to->getLaneID(toLane), from->getID());
         }
 
         NBEdge::Connection defaultCon(fromLane, to, toLane);
-        if (from->getStep() == NBEdge::LANES2LANES_USER) {
+        if (from->getStep() == NBEdge::EdgeBuildingStep::LANES2LANES_USER) {
             // maybe we are patching an existing connection
             std::vector<NBEdge::Connection> existing = from->getConnectionsFromLane(fromLane, to, toLane);
             if (existing.size() > 0) {
@@ -245,6 +242,15 @@ NIXMLConnectionsHandler::parseLaneBound(const SUMOSAXAttributes& attrs, NBEdge* 
         const double speed = attrs.getOpt<double>(SUMO_ATTR_SPEED, nullptr, ok, defaultCon.speed);
         const bool uncontrolled = attrs.getOpt<bool>(SUMO_ATTR_UNCONTROLLED, nullptr, ok, defaultCon.uncontrolled);
         PositionVector customShape = attrs.getOpt<PositionVector>(SUMO_ATTR_SHAPE, nullptr, ok, defaultCon.customShape);
+        std::string allow = attrs.getOpt<std::string>(SUMO_ATTR_ALLOW, nullptr, ok, "");
+        std::string disallow = attrs.getOpt<std::string>(SUMO_ATTR_DISALLOW, nullptr, ok, "");
+        SVCPermissions permissions;
+        if (allow == "" && disallow == "") {
+            permissions = SVC_UNSPECIFIED;
+        } else {
+            permissions = parseVehicleClasses(attrs.getOpt<std::string>(SUMO_ATTR_ALLOW, nullptr, ok, ""), attrs.getOpt<std::string>(SUMO_ATTR_DISALLOW, nullptr, ok, ""));
+        }
+
         if (attrs.hasAttribute(SUMO_ATTR_SHAPE) && !NBNetBuilder::transformCoordinates(customShape)) {
             WRITE_ERROR("Unable to project shape for connection from edge '" + from->getID() + "' to edge '" + to->getID() + "'.");
         }
@@ -252,12 +258,12 @@ NIXMLConnectionsHandler::parseLaneBound(const SUMOSAXAttributes& attrs, NBEdge* 
             return;
         }
         if (!from->addLane2LaneConnection(fromLane, to, toLane, NBEdge::L2L_USER, true, mayDefinitelyPass,
-                                          keepClear, contPos, visibility, speed, customShape, uncontrolled)) {
+                                          keepClear, contPos, visibility, speed, customShape, uncontrolled, permissions)) {
             if (OptionsCont::getOptions().getBool("show-errors.connections-first-try")) {
-                WRITE_WARNING("Could not set loaded connection from '" + from->getLaneID(fromLane) + "' to '" + to->getLaneID(toLane) + "'.");
+                WRITE_WARNINGF("Could not set loaded connection from lane '%' to lane '%'.", from->getLaneID(fromLane), to->getLaneID(toLane));
             }
             // set as to be re-applied after network processing
-            myEdgeCont.addPostProcessConnection(from->getID(), fromLane, to->getID(), toLane, mayDefinitelyPass, keepClear, contPos, visibility, speed, customShape, uncontrolled, false);
+            myEdgeCont.addPostProcessConnection(from->getID(), fromLane, to->getID(), toLane, mayDefinitelyPass, keepClear, contPos, visibility, speed, customShape, uncontrolled, false, permissions);
         }
     } catch (NumberFormatException&) {
         myErrorMsgHandler->inform("At least one of the defined lanes was not numeric");

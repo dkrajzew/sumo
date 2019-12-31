@@ -10,7 +10,6 @@
 /// @file    GNEPersonFrame.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    May 2019
-/// @version $Id$
 ///
 // The Widget for add Person elements
 /****************************************************************************/
@@ -337,7 +336,7 @@ GNEPersonFrame::demandElementSelected() {
             }
             // check if myEdgePathCreator has to be show
             if ((myPersonPlanTagSelector->getCurrentTagProperties().getTag() == SUMO_TAG_WALK_ROUTE) ||
-                (myPersonPlanTagSelector->getCurrentTagProperties().isPersonStop())) {
+                    (myPersonPlanTagSelector->getCurrentTagProperties().isPersonStop())) {
                 // hide edge path creator modul
                 myEdgePathCreator->hideEdgePathCreator();
                 // show Netedit attributes modul
@@ -423,8 +422,8 @@ GNEPersonFrame::edgePathCreated() {
                 std::vector<std::string> modes = GNEAttributeCarrier::parse<std::vector<std::string> >(valuesMap[SUMO_ATTR_MODES]);
                 double arrivalPos = GNEAttributeCarrier::parse<double>(valuesMap[SUMO_ATTR_ARRIVALPOS]);
                 // now check that number of selected edges are correct
-                if (myEdgePathCreator->getClickedEdges().size() > 0) {
-                    GNERouteHandler::buildPersonTripFromTo(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges(), types, modes, arrivalPos);
+                if (myEdgePathCreator->getClickedEdges().size() > 1) {
+                    GNERouteHandler::buildPersonTripFromTo(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges().front(), myEdgePathCreator->getClickedEdges().back(), arrivalPos, types, modes);
                     // end undo-redo operation
                     myViewNet->getUndoList()->p_end();
                 } else {
@@ -440,7 +439,7 @@ GNEPersonFrame::edgePathCreated() {
                 std::vector<std::string> modes = GNEAttributeCarrier::parse<std::vector<std::string> >(valuesMap[SUMO_ATTR_MODES]);
                 // now check that number of selected edges are correct
                 if ((myEdgePathCreator->getClickedEdges().size() > 0) && myEdgePathCreator->getClickedBusStop()) {
-                    GNERouteHandler::buildPersonTripBusStop(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges(), myEdgePathCreator->getClickedBusStop(), types, modes);
+                    GNERouteHandler::buildPersonTripBusStop(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges().front(), myEdgePathCreator->getClickedBusStop(), types, modes);
                     // end undo-redo operation
                     myViewNet->getUndoList()->p_end();
                 } else {
@@ -461,14 +460,14 @@ GNEPersonFrame::edgePathCreated() {
             case SUMO_TAG_WALK_FROMTO: {
                 // obtain attributes
                 double arrivalPos = GNEAttributeCarrier::parse<double>(valuesMap[SUMO_ATTR_ARRIVALPOS]);
-                GNERouteHandler::buildWalkFromTo(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges(), arrivalPos);
+                GNERouteHandler::buildWalkFromTo(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges().front(), myEdgePathCreator->getClickedEdges().back(), arrivalPos);
                 // end undo-redo operation
                 myViewNet->getUndoList()->p_end();
                 break;
             }
             case SUMO_TAG_WALK_BUSSTOP: {
                 // obtain attributes
-                GNERouteHandler::buildWalkBusStop(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges(), myEdgePathCreator->getClickedBusStop());
+                GNERouteHandler::buildWalkBusStop(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges().front(), myEdgePathCreator->getClickedBusStop());
                 // end undo-redo operation
                 myViewNet->getUndoList()->p_end();
                 break;
@@ -477,7 +476,7 @@ GNEPersonFrame::edgePathCreated() {
                 // obtain attributes
                 std::vector<std::string> lines = GNEAttributeCarrier::parse<std::vector<std::string> >(valuesMap[SUMO_ATTR_LINES]);
                 double arrivalPos = GNEAttributeCarrier::parse<double>(valuesMap[SUMO_ATTR_ARRIVALPOS]);
-                GNERouteHandler::buildRideFromTo(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges(), lines, arrivalPos);
+                GNERouteHandler::buildRideFromTo(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges().front(), myEdgePathCreator->getClickedEdges().back(), lines, arrivalPos);
                 // end undo-redo operation
                 myViewNet->getUndoList()->p_end();
                 break;
@@ -485,7 +484,7 @@ GNEPersonFrame::edgePathCreated() {
             case SUMO_TAG_RIDE_BUSSTOP: {
                 // obtain attributes
                 std::vector<std::string> lines = GNEAttributeCarrier::parse<std::vector<std::string> >(valuesMap[SUMO_ATTR_LINES]);
-                GNERouteHandler::buildRideBusStop(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges(), myEdgePathCreator->getClickedBusStop(), lines);
+                GNERouteHandler::buildRideBusStop(myViewNet, true, createdPerson, myEdgePathCreator->getClickedEdges().front(), myEdgePathCreator->getClickedBusStop(), lines);
                 // end undo-redo operation
                 myViewNet->getUndoList()->p_end();
                 break;
@@ -579,7 +578,7 @@ GNEPersonFrame::buildPerson() {
         // declare SUMOSAXAttributesImpl_Cached to convert valuesMap into SUMOSAXAttributes
         SUMOSAXAttributesImpl_Cached SUMOSAXAttrs(valuesMap, getPredefinedTagsMML(), toString(personTag));
         // obtain person parameters
-        SUMOVehicleParameter* personParameters = SUMOVehicleParserHelper::parseVehicleAttributes(SUMOSAXAttrs, false, false, false, true);
+        SUMOVehicleParameter* personParameters = SUMOVehicleParserHelper::parseVehicleAttributes(SUMO_TAG_PERSON, SUMOSAXAttrs, false, false, false);
         // build person in GNERouteHandler
         GNERouteHandler::buildPerson(myViewNet, true, *personParameters);
         // delete personParameters

@@ -10,7 +10,6 @@
 /// @file    GNEAdditionalHandler.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Nov 2015
-/// @version $Id$
 ///
 // Builds additional objects for netedit
 /****************************************************************************/
@@ -60,8 +59,8 @@ public:
         /// @brief pop last inserted element (used only in function myEndElement)
         void popElement();
 
-        /// @brief retrieve additional parent correspond to current status of myInsertedElements
-        GNEAdditional* retrieveAdditionalParent(GNEViewNet* viewNet, SumoXMLTag expectedTag) const;
+        /// @brief retrieve parent additional correspond to current status of myInsertedElements
+        GNEAdditional* retrieveParentAdditional(GNEViewNet* viewNet, SumoXMLTag expectedTag) const;
 
         /// @brief return last additional inserted
         GNEAdditional* getLastInsertedAdditional() const;
@@ -130,8 +129,8 @@ public:
      * @return true if was sucesfully created, false in other case
      * @exception InvalidArgument If the bus stop can not be added to the net (is duplicate)
      */
-    static GNEAdditional* buildBusStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
-            const std::string& name, const std::vector<std::string>& lines, int personCapacity, bool friendlyPosition, bool blockMovement);
+    static GNEAdditional* buildBusStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet,
+                                       const std::string& name, const std::vector<std::string>& lines, int personCapacity, bool friendlyPosition, bool blockMovement);
 
     /**@brief Builds an Access
      * @param[in] viewNet viewNet in which element will be inserted
@@ -145,7 +144,7 @@ public:
      * @return true if was sucesfully created, false in other case
      * @exception InvalidArgument If the detector can not be added to the net (is duplicate)
      */
-    static GNEAdditional* buildAccess(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* busStop, GNELane* lane, const std::string& pos, const std::string& length, bool friendlyPos, bool blockMovement);
+    static GNEAdditional* buildAccess(GNEViewNet* viewNet, bool allowUndoRedo, GNEAdditional* busStop, GNELane* lane, double pos, const std::string& length, bool friendlyPos, bool blockMovement);
 
     /**@brief Builds a container stop
      * @param[in] viewNet viewNet in which element will be inserted
@@ -161,7 +160,7 @@ public:
      * @return true if was sucesfully created, false in other case
      * @exception InvalidArgument If the container stop can not be added to the net (is duplicate)
      */
-    static GNEAdditional* buildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
+    static GNEAdditional* buildContainerStop(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet,
             const std::string& name, const std::vector<std::string>& lines, bool friendlyPosition, bool blockMovement);
 
     /**@brief Builds a charging Station
@@ -181,7 +180,7 @@ public:
      * @return true if was sucesfully created, false in other case
      * @exception InvalidArgument If the charging Station can not be added to the net (is duplicate)
      */
-    static GNEAdditional* buildChargingStation(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
+    static GNEAdditional* buildChargingStation(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet,
             const std::string& name, double chargingPower, double efficiency, bool chargeInTransit, SUMOTime chargeDelay, bool friendlyPosition, bool blockMovement);
 
     /**@brief Builds a Parking Area
@@ -201,8 +200,8 @@ public:
      * @return true if was sucesfully created, false in other case
      * @exception InvalidArgument If the charging Station can not be added to the net (is duplicate)
      */
-    static GNEAdditional* buildParkingArea(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet, 
-            const std::string& name, bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length, double angle, bool blockMovement);
+    static GNEAdditional* buildParkingArea(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, const double startPos, const double endPos, const int parametersSet,
+                                           const std::string& name, bool friendlyPosition, int roadSideCapacity, bool onRoad, double width, const std::string& length, double angle, bool blockMovement);
 
     /**@brief Builds a Parking Space
      * @param[in] viewNet viewNet in which element will be inserted
@@ -234,7 +233,7 @@ public:
      * @exception InvalidArgument If the detector can not be added to the net (is duplicate)
      */
     static GNEAdditional* buildDetectorE1(GNEViewNet* viewNet, bool allowUndoRedo, const std::string& id, GNELane* lane, double pos, SUMOTime freq, const std::string& filename,
-            const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
+                                          const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
 
     /**@brief Builds a single-lane Area Detector (E2)
      * @param[in] viewNet viewNet in which element will be inserted
@@ -564,7 +563,7 @@ public:
     static bool fixE2DetectorPosition(double& pos, double& length, const double laneLength, const bool friendlyPos);
 
     /// @brief check if a GNEAccess can be created in a certain Edge
-    static bool accessCanBeCreated(GNEAdditional* busStopParent, GNEEdge& edge);
+    static bool accessCanBeCreated(GNEAdditional* busStopParent, GNEEdge* edge);
 
     /// @brief check if an overlapping is produced in rerouter if a interval with certain begin and end is inserted
     static bool checkOverlappingRerouterIntervals(GNEAdditional* rerouter, SUMOTime newBegin, SUMOTime newEnd);

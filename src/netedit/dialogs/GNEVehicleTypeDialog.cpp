@@ -10,7 +10,6 @@
 /// @file    GNEVehicleTypeDialog.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Jan 2019
-/// @version $Id$
 ///
 // Dialog for edit vehicleTypes
 /****************************************************************************/
@@ -829,19 +828,16 @@ GNEVehicleTypeDialog::VTypeAtributes::buildAttributesB(FXVerticalFrame* column) 
     // 09 create VTypeAttributeRow and Label for MaxSpeedLat
     myMaxSpeedLat = new VTypeAttributeRow(this, column, SUMO_ATTR_MAXSPEED_LAT, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
 
-    // 10 create VTypeAttributeRow and Label for ActionStepLenght
-    myActionStepLenght = new VTypeAttributeRow(this, column, SUMO_ATTR_ACTIONSTEPLENGTH, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
+    // 10 create VTypeAttributeRow and Label for ActionStepLength
+    myActionStepLength = new VTypeAttributeRow(this, column, SUMO_ATTR_ACTIONSTEPLENGTH, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
 
-    // 11 create VTypeAttributeRow and Label for HasDriveStateu
-    myHasDriveState = new VTypeAttributeRow(this, column, SUMO_ATTR_HASDRIVERSTATE, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
-
-    // 12 create FXTextField and Label for Carriage length
+    // 11 create FXTextField and Label for Carriage length
     myCarriageLength = new VTypeAttributeRow(this, column, SUMO_ATTR_CARRIAGE_LENGTH, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
 
-    // 13 create FXTextField and Label for Locomotive length
+    // 12 create FXTextField and Label for Locomotive length
     myLocomotiveLength = new VTypeAttributeRow(this, column, SUMO_ATTR_LOCOMOTIVE_LENGTH, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
 
-    // 14 create FXTextField and Label for carriage GAP
+    // 13 create FXTextField and Label for carriage GAP
     myCarriageGap = new VTypeAttributeRow(this, column, SUMO_ATTR_CARRIAGE_GAP, VTypeAttributeRow::RowAttrType::ROWTYPE_STRING);
 }
 
@@ -974,8 +970,7 @@ GNEVehicleTypeDialog::VTypeAtributes::updateValues() {
     myLoadingDuration->updateValue();
     myMinGapLat->updateValue();
     myMaxSpeedLat->updateValue();
-    myActionStepLenght->updateValue();
-    myHasDriveState->updateValue();
+    myActionStepLength->updateValue();
     myProbability->updateValue();
     myCarriageGap->updateValue();
     // JM Parameters
@@ -1065,8 +1060,7 @@ GNEVehicleTypeDialog::VTypeAtributes::onCmdSetAttribute(FXObject*, FXSelector, v
     myLoadingDuration->setVariable();
     myMinGapLat->setVariable();
     myMaxSpeedLat->setVariable();
-    myActionStepLenght->setVariable();
-    myHasDriveState->setVariable();
+    myActionStepLength->setVariable();
     myProbability->setVariable();
     myCarriageGap->setVariable();
     // JM Variables

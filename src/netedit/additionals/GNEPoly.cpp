@@ -10,7 +10,6 @@
 /// @file    GNEPoly.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Jun 2017
-/// @version $Id$
 ///
 // A class for visualizing and editing POIS in netedit (adapted from
 // GUIPolygon and NLHandler)
@@ -45,14 +44,14 @@ const double GNEPoly::myHintSize = 0.8;
 // method definitions
 // ===========================================================================
 GNEPoly::GNEPoly(GNENet* net, const std::string& id, const std::string& type, const PositionVector& shape, bool geo, bool fill, double lineWidth,
-    const RGBColor& color, double layer, double angle, const std::string& imgFile, bool relativePath, bool movementBlocked, bool shapeBlocked) :
+                 const RGBColor& color, double layer, double angle, const std::string& imgFile, bool relativePath, bool movementBlocked, bool shapeBlocked) :
     GUIPolygon(id, type, color, shape, geo, fill, lineWidth, layer, angle, imgFile, relativePath),
     GNEShape(net, SUMO_TAG_POLY, movementBlocked, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}),
-    myNetElementShapeEdited(nullptr),
-    myBlockShape(shapeBlocked),
-    myClosedShape(shape.front() == shape.back()),
-    mySimplifiedShape(false),
-    myCurrentMovingVertexIndex(-1) {
+         myNetElementShapeEdited(nullptr),
+         myBlockShape(shapeBlocked),
+         myClosedShape(shape.front() == shape.back()),
+         mySimplifiedShape(false),
+myCurrentMovingVertexIndex(-1) {
     // check if imgFile is valid
     if (!imgFile.empty() && GUITexturesHelper::getTextureID(imgFile) == -1) {
         setShapeImgFile("");
@@ -276,8 +275,15 @@ GNEPoly::getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView& parent) {
 
 void
 GNEPoly::drawGL(const GUIVisualizationSettings& s) const {
+    // first obtain poly exaggeration
+    const double polyExaggeration = s.polySize.getExaggeration(s, this);
     // first check if poly can be drawn
-    if (myNet->getViewNet()->getDemandViewOptions().showShapes()) {
+    if ((polyExaggeration > 0) && myNet->getViewNet()->getDemandViewOptions().showShapes()) {
+        // Obtain constants
+        const Position mousePosition = myNet->getViewNet()->getPositionInformation();
+        const double vertexWidth = myHintSize * MIN2((double)1, s.polySize.getExaggeration(s, this));
+        const double vertexWidthSquared = (vertexWidth * vertexWidth);
+        const double contourWidth = (myHintSize / 4.0) * polyExaggeration;
         // check if boundary has to be drawn
         if (s.drawBoundaries) {
             GLHelper::drawBoundary(getCenteringBoundary());
@@ -285,22 +291,25 @@ GNEPoly::drawGL(const GUIVisualizationSettings& s) const {
         // push name (needed for getGUIGlObjectsUnderCursor(...)
         glPushName(getGlID());
         // first check if inner polygon can be drawn
-        if (checkDraw(s)) {
+        if (s.drawForPositionSelection && getFill()) {
+            if (myShape.around(mousePosition)) {
+                // push matrix
+                glPushMatrix();
+                glTranslated(mousePosition.x(), mousePosition.y(), GLO_POLYGON + 0.04);
+                setColor(s, false);
+                GLHelper::drawFilledCircle(1, s.getCircleResolution());
+                glPopMatrix();
+            }
+        } else if (checkDraw(s)) {
             // draw inner polygon
             drawInnerPolygon(s, drawUsingSelectColor());
         }
-        // draw details of Netedit
-        double circleWidth = myHintSize * MIN2((double)1, s.polySize.getExaggeration(s, this));
-        double circleWidthSquared = circleWidth * circleWidth;
-        // Obtain exaggeration of the draw
-        const double exaggeration = s.addSize.getExaggeration(s, this);
         // draw geometry details hints if is not too small and isn't in selecting mode
-        if (s.scale * circleWidth > 1.) {
-            // set values relative to mouse position regarding to shape
+        if (s.scale * vertexWidth > 1.) {
+            // obtain values relative to mouse position regarding to shape
             bool mouseOverVertex = false;
-            bool modeMove = myNet->getViewNet()->getEditModes().networkEditMode == GNE_NMODE_MOVE;
-            Position mousePosition = myNet->getViewNet()->getPositionInformation();
-            double distanceToShape = myShape.distance2D(mousePosition);
+            const double distanceToShape = myShape.distance2D(mousePosition);
+            const Position positionOverLane = myShape.positionAtOffset2D(myShape.nearest_offset_to_point2D(mousePosition));
             // set colors
             RGBColor invertedColor, darkerColor;
             if (drawUsingSelectColor()) {
@@ -316,56 +325,72 @@ GNEPoly::drawGL(const GUIVisualizationSettings& s) const {
                 glPushMatrix();
                 glTranslated(0, 0, GLO_POLYGON + 0.01);
                 GLHelper::setColor(darkerColor);
-                GLHelper::drawBoxLines(myShape, (myHintSize / 4) * s.polySize.getExaggeration(s, this));
+                if (s.drawForPositionSelection) {
+                    if (positionOverLane.distanceSquaredTo2D(mousePosition) <= (contourWidth * contourWidth)) {
+                        // push matrix
+                        glPushMatrix();
+                        // translate to position over lane
+                        glTranslated(positionOverLane.x(), positionOverLane.y(), 0);
+                        // Draw circle
+                        GLHelper::drawFilledCircle(contourWidth, myNet->getViewNet()->getVisualisationSettings()->getCircleResolution());
+                        // pop draw matrix
+                        glPopMatrix();
+                    }
+                } else if (!s.drawForPositionSelection) {
+                    GLHelper::drawBoxLines(myShape, (myHintSize / 4) * s.polySize.getExaggeration(s, this));
+                }
                 glPopMatrix();
                 // draw shape points only in Network supemode
                 if (myNet->getViewNet()->getEditModes().currentSupermode != GNE_SUPERMODE_DEMAND) {
-                    for (auto i : myShape) {
-                        if (!s.drawForSelecting || (myNet->getViewNet()->getPositionInformation().distanceSquaredTo2D(i) <= (circleWidthSquared + 2))) {
+                    for (const auto vertex : myShape) {
+                        if (!s.drawForRectangleSelection || (mousePosition.distanceSquaredTo2D(vertex) <= (vertexWidthSquared + 2))) {
                             glPushMatrix();
-                            glTranslated(i.x(), i.y(), GLO_POLYGON + 0.02);
+                            glTranslated(vertex.x(), vertex.y(), GLO_POLYGON + 0.02);
                             // Change color of vertex and flag mouseOverVertex if mouse is over vertex
-                            if (modeMove && (i.distanceTo(mousePosition) < circleWidth)) {
+                            if ((myNet->getViewNet()->getEditModes().networkEditMode == GNE_NMODE_MOVE) && (vertex.distanceSquaredTo2D(mousePosition) < vertexWidthSquared)) {
                                 mouseOverVertex = true;
                                 GLHelper::setColor(invertedColor);
                             } else {
                                 GLHelper::setColor(darkerColor);
                             }
-                            GLHelper::drawFilledCircle(circleWidth, s.getCircleResolution());
+                            GLHelper::drawFilledCircle(vertexWidth, s.getCircleResolution());
                             glPopMatrix();
                             // draw elevation or special symbols (Start, End and Block)
-                            if (!s.drawForSelecting && myNet->getViewNet()->getNetworkViewOptions().editingElevation()) {
+                            if (!s.drawForRectangleSelection && !s.drawForPositionSelection && myNet->getViewNet()->getNetworkViewOptions().editingElevation()) {
                                 // Push matrix
                                 glPushMatrix();
                                 // Traslate to center of detector
-                                glTranslated(i.x(), i.y(), getType() + 1);
+                                glTranslated(vertex.x(), vertex.y(), getType() + 1);
                                 // draw Z
-                                GLHelper::drawText(toString(i.z()), Position(), .1, 0.7, RGBColor::BLUE);
+                                GLHelper::drawText(toString(vertex.z()), Position(), .1, 0.7, RGBColor::BLUE);
                                 // pop matrix
                                 glPopMatrix();
-                            } else if ((i == myShape.front()) && !s.drawForSelecting && s.drawDetail(s.detailSettings.geometryPointsText, exaggeration)) {
+                            } else if ((vertex == myShape.front()) && !s.drawForRectangleSelection &&
+                                       s.drawDetail(s.detailSettings.geometryPointsText, polyExaggeration)) {
                                 // draw a "s" over first point
                                 glPushMatrix();
-                                glTranslated(i.x(), i.y(), GLO_POLYGON + 0.03);
-                                GLHelper::drawText("S", Position(), .1, 2 * circleWidth, invertedColor);
+                                glTranslated(vertex.x(), vertex.y(), GLO_POLYGON + 0.03);
+                                GLHelper::drawText("S", Position(), .1, 2 * vertexWidth, invertedColor);
                                 glPopMatrix();
-                            } else if ((i == myShape.back()) && (myClosedShape == false) && !s.drawForSelecting && s.drawDetail(s.detailSettings.geometryPointsText, exaggeration)) {
+                            } else if ((vertex == myShape.back()) && (myClosedShape == false) && !s.drawForRectangleSelection &&
+                                       s.drawDetail(s.detailSettings.geometryPointsText, polyExaggeration)) {
                                 // draw a "e" over last point if polygon isn't closed
                                 glPushMatrix();
-                                glTranslated(i.x(), i.y(), GLO_POLYGON + 0.03);
-                                GLHelper::drawText("E", Position(), .1, 2 * circleWidth, invertedColor);
+                                glTranslated(vertex.x(), vertex.y(), GLO_POLYGON + 0.03);
+                                GLHelper::drawText("E", Position(), .1, 2 * vertexWidth, invertedColor);
                                 glPopMatrix();
                             }
                         }
                     }
                     // check if draw moving hint has to be drawed
-                    if (modeMove && (mouseOverVertex == false) && (myBlockMovement == false) && (distanceToShape < circleWidth)) {
+                    if ((myNet->getViewNet()->getEditModes().networkEditMode == GNE_NMODE_MOVE) && (distanceToShape < vertexWidth) &&
+                            (mouseOverVertex == false) && (myBlockMovement == false)) {
                         // push matrix
                         glPushMatrix();
-                        Position hintPos = myShape.size() > 1 ? myShape.positionAtOffset2D(myShape.nearest_offset_to_point2D(mousePosition)) : myShape[0];
+                        const Position hintPos = myShape.size() > 1 ? positionOverLane : myShape[0];
                         glTranslated(hintPos.x(), hintPos.y(), GLO_POLYGON + 0.04);
                         GLHelper::setColor(invertedColor);
-                        GLHelper:: drawFilledCircle(circleWidth, s.getCircleResolution());
+                        GLHelper:: drawFilledCircle(vertexWidth, s.getCircleResolution());
                         glPopMatrix();
                     }
                 }
@@ -395,7 +420,7 @@ GNEPoly::getVertexIndex(Position pos, bool createIfNoExist, bool snapToGrid) {
     }
     // if vertex doesn't exist, insert it
     if (createIfNoExist) {
-        return myShape.insertAtClosest(pos);
+        return myShape.insertAtClosest(pos, true);
     } else {
         return -1;
     }
@@ -737,7 +762,7 @@ GNEPoly::isValid(SumoXMLAttr key, const std::string& value) {
     }
 }
 
-bool 
+bool
 GNEPoly::isAttributeEnabled(SumoXMLAttr /* key */) const {
     // check if we're in supermode Network
     if (myNet->getViewNet()->getEditModes().currentSupermode == GNE_SUPERMODE_NETWORK) {

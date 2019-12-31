@@ -10,7 +10,6 @@
 /// @file    ShapeHandler.cpp
 /// @author  Jakob Erdmann
 /// @date    Feb 2015
-/// @version $Id$
 ///
 // The XML-Handler for network loading
 /****************************************************************************/
@@ -216,17 +215,16 @@ ShapeHandler::addPoly(const SUMOSAXAttributes& attrs, const bool ignorePruning, 
         const std::string type = attrs.getOpt<std::string>(SUMO_ATTR_TYPE, id.c_str(), ok, Shape::DEFAULT_TYPE);
         const RGBColor color = attrs.hasAttribute(SUMO_ATTR_COLOR) ? attrs.get<RGBColor>(SUMO_ATTR_COLOR, id.c_str(), ok) : myDefaultColor;
         PositionVector shape = attrs.get<PositionVector>(SUMO_ATTR_SHAPE, id.c_str(), ok);
-        bool geo = false;
+        const bool geo = attrs.getOpt<bool>(SUMO_ATTR_GEO, id.c_str(), ok, false);
         // set geo converter
         const GeoConvHelper* gch;
         if (myGeoConvHelper != nullptr) {
             gch = myGeoConvHelper;
-        } else { 
+        } else {
             gch = &GeoConvHelper::getFinal();
         }
         // check if poly use geo coordinates
-        if (attrs.getOpt<bool>(SUMO_ATTR_GEO, id.c_str(), ok, false)) {
-            geo = true;
+        if (geo || useProcessing) {
             bool success = true;
             for (int i = 0; i < (int)shape.size(); i++) {
                 if (useProcessing) {
@@ -273,7 +271,7 @@ ShapeHandler::getLastParameterised() const {
 
 bool
 ShapeHandler::loadFiles(const std::vector<std::string>& files, ShapeHandler& sh) {
-    for (const auto &fileIt : files) {
+    for (const auto& fileIt : files) {
         if (!XMLSubSys::runParser(sh, fileIt, false)) {
             WRITE_MESSAGE("Loading of shapes from " + fileIt + " failed.");
             return false;

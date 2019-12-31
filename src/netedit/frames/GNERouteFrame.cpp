@@ -10,7 +10,6 @@
 /// @file    GNERouteFrame.cpp
 /// @author  Pablo Alvarez Lopez
 /// @date    Dec 2018
-/// @version $Id$
 ///
 // The Widget for remove network-elements
 /****************************************************************************/
@@ -306,7 +305,7 @@ GNERouteFrame::ConsecutiveEdges::addEdge(GNEEdge* edge) {
     } else {
         // check if clicked edge is in the candidate edges
         for (const auto& i : myRouteEdges.back()->getGNEJunctionDestiny()->getGNEOutgoingEdges()) {
-            if ((i == edge) && GNEDemandElement::getRouteCalculatorInstance()->areEdgesConsecutives(myRouteFrameParent->myRouteModeSelector->getCurrentVehicleClass(), myRouteEdges.back(), edge)) {
+            if ((i == edge) && GNEDemandElement::getRouteCalculatorInstance()->consecutiveEdgesConnected(myRouteFrameParent->myRouteModeSelector->getCurrentVehicleClass(), myRouteEdges.back(), edge)) {
                 // restore colors of outgoing edges
                 for (const auto& j : myRouteEdges.back()->getGNEJunctionDestiny()->getGNEOutgoingEdges()) {
                     for (const auto& k : j->getLanes()) {
@@ -342,7 +341,7 @@ GNERouteFrame::ConsecutiveEdges::refreshEdgeCandidates() {
         // set new candidate colors
         for (const auto& j : myRouteEdges.back()->getGNEJunctionDestiny()->getGNEOutgoingEdges()) {
             // check if exist a connection between both edges
-            if (GNEDemandElement::getRouteCalculatorInstance()->areEdgesConsecutives(myRouteFrameParent->myRouteModeSelector->getCurrentVehicleClass(), myRouteEdges.back(), j)) {
+            if (GNEDemandElement::getRouteCalculatorInstance()->consecutiveEdgesConnected(myRouteFrameParent->myRouteModeSelector->getCurrentVehicleClass(), myRouteEdges.back(), j)) {
                 for (const auto& k : j->getLanes()) {
                     k->setSpecialColor(&myRouteFrameParent->getEdgeCandidateSelectedColor());
                 }
@@ -481,17 +480,17 @@ void
 GNERouteFrame::ConsecutiveEdges::updateInfoRouteLabel() {
     if (myRouteEdges.size() > 0) {
         // declare variables for route info
-        double lenght = 0;
+        double length = 0;
         double speed = 0;
         for (const auto& i : myRouteEdges) {
-            lenght += i->getNBEdge()->getLength();
+            length += i->getNBEdge()->getLength();
             speed += i->getNBEdge()->getSpeed();
         }
         // declare ostringstream for label and fill it
         std::ostringstream information;
         information
                 << "- Number of Edges: " << toString(myRouteEdges.size()) << "\n"
-                << "- Lenght: " << toString(lenght) << "\n"
+                << "- Length: " << toString(length) << "\n"
                 << "- Average speed: " << toString(speed / myRouteEdges.size());
         // set new label
         myInfoRouteLabel->setText(information.str().c_str());
@@ -701,17 +700,17 @@ void
 GNERouteFrame::NonConsecutiveEdges::updateInfoRouteLabel() {
     if (myTemporalRoute.size() > 0) {
         // declare variables for route info
-        double lenght = 0;
+        double length = 0;
         double speed = 0;
         for (const auto& i : myTemporalRoute) {
-            lenght += i->getNBEdge()->getLength();
+            length += i->getNBEdge()->getLength();
             speed += i->getNBEdge()->getSpeed();
         }
         // declare ostringstream for label and fill it
         std::ostringstream information;
         information
                 << "- Number of Edges: " << toString(myTemporalRoute.size()) << "\n"
-                << "- Lenght: " << toString(lenght) << "\n"
+                << "- Length: " << toString(length) << "\n"
                 << "- Average speed: " << toString(speed / myTemporalRoute.size());
         // set new label
         myInfoRouteLabel->setText(information.str().c_str());

@@ -10,7 +10,6 @@
 /// @file    GNEViewNetHelper.h
 /// @author  Pablo Alvarez Lopez
 /// @date    Feb 2019
-/// @version $Id$
 ///
 // A file used to reduce the size of GNEViewNet.h grouping structs and classes
 /****************************************************************************/
@@ -156,9 +155,6 @@ struct GNEViewNetHelper {
 
         /// @brief swap lane to edge
         void swapLane2Edge();
-
-        /// @brief set created junction
-        void setCreatedJunction(GNEJunction* junction);
 
         /// @brief get front GUI GL ID (or a pointer to nullptr if there isn't)
         GUIGlID getGlIDFront() const;

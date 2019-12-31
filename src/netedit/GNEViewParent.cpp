@@ -10,7 +10,6 @@
 /// @file    GNEViewParent.cpp
 /// @author  Jakob Erdmann
 /// @date    Feb 2011
-/// @version $Id$
 ///
 // A single child window which contains a view of the edited network (adapted
 // from GUISUMOViewParent)
@@ -64,6 +63,7 @@ FXDEFMAP(GNEViewParent) GNEViewParentMap[] = {
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATEJUNCTION,                     GNEViewParent::onCmdLocate),
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATEEDGE,                         GNEViewParent::onCmdLocate),
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATEVEHICLE,                      GNEViewParent::onCmdLocate),
+    FXMAPFUNC(SEL_COMMAND,  MID_LOCATEPERSON,                       GNEViewParent::onCmdLocate),
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATEROUTE,                        GNEViewParent::onCmdLocate),
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATESTOP,                         GNEViewParent::onCmdLocate),
     FXMAPFUNC(SEL_COMMAND,  MID_LOCATETLS,                          GNEViewParent::onCmdLocate),
@@ -326,6 +326,8 @@ GNEViewParent::eraseACChooserDialog(GNEDialogACChooser* chooserDialog) {
         myACChoosers.ACChooserEdges = nullptr;
     } else if (chooserDialog == myACChoosers.ACChooserVehicles) {
         myACChoosers.ACChooserVehicles = nullptr;
+    } else if (chooserDialog == myACChoosers.ACChooserPersons) {
+        myACChoosers.ACChooserPersons = nullptr;
     } else if (chooserDialog == myACChoosers.ACChooserRoutes) {
         myACChoosers.ACChooserRoutes = nullptr;
     } else if (chooserDialog == myACChoosers.ACChooserStops) {
@@ -346,7 +348,7 @@ GNEViewParent::eraseACChooserDialog(GNEDialogACChooser* chooserDialog) {
 }
 
 
-void 
+void
 GNEViewParent::updateUndoRedoButtons() {
     myGNEAppWindows->getUndoList()->p_onUpdUndo(myUndoButton, 0, nullptr);
     myGNEAppWindows->getUndoList()->p_onUpdRedo(myRedoButton, 0, nullptr);
@@ -459,6 +461,26 @@ GNEViewParent::onCmdLocate(FXObject*, FXSelector sel, void*) {
                         ACsToLocate.push_back(i.second);
                     }
                     myACChoosers.ACChooserVehicles = new GNEDialogACChooser(this, GUIIconSubSys::getIcon(ICON_LOCATEVEHICLE), "Vehicle Chooser", ACsToLocate);
+                }
+                break;
+            }
+            case MID_LOCATEPERSON: {
+                if (myACChoosers.ACChooserPersons) {
+                    // set focus in the existent chooser dialog
+                    myACChoosers.ACChooserPersons->setFocus();
+                } else {
+                    // reserve memory
+                    ACsToLocate.reserve(viewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_PERSON).size() +
+                                        viewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_PERSONFLOW).size());
+                    // fill ACsToLocate with persons
+                    for (const auto& i : viewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_PERSON)) {
+                        ACsToLocate.push_back(i.second);
+                    }
+                    // fill ACsToLocate with personFlows
+                    for (const auto& i : viewNet->getNet()->getAttributeCarriers().demandElements.at(SUMO_TAG_PERSONFLOW)) {
+                        ACsToLocate.push_back(i.second);
+                    }
+                    myACChoosers.ACChooserPersons = new GNEDialogACChooser(this, GUIIconSubSys::getIcon(ICON_LOCATEPERSON), "Person Chooser", ACsToLocate);
                 }
                 break;
             }
@@ -781,6 +803,7 @@ GNEViewParent::ACChoosers::ACChoosers() :
     ACChooserJunction(nullptr),
     ACChooserEdges(nullptr),
     ACChooserVehicles(nullptr),
+    ACChooserPersons(nullptr),
     ACChooserRoutes(nullptr),
     ACChooserStops(nullptr),
     ACChooserTLS(nullptr),
@@ -807,6 +830,9 @@ GNEViewParent::ACChoosers::~ACChoosers() {
     }
     if (ACChooserVehicles) {
         delete ACChooserVehicles;
+    }
+    if (ACChooserPersons) {
+        delete ACChooserPersons;
     }
     if (ACChooserTLS) {
         delete ACChooserTLS;

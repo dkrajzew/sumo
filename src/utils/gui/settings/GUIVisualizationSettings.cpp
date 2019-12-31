@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Sept 2002
-/// @version $Id$
 ///
 // Stores the information about how to visualize structures
 /****************************************************************************/
@@ -55,6 +54,7 @@ const RGBColor SUMO_color_STOP(128, 0, 128);
 const RGBColor SUMO_color_ALLWAY_STOP(0, 0, 192);
 const RGBColor SUMO_color_ZIPPER(192, 128, 64);
 const RGBColor SUMO_color_DEADEND(0, 0, 0);
+const RGBColor GUIVisualizationColorSettings::SUMO_color_DEADEND_SHOW(255, 0, 255);
 
 // -------------------------------------------------------------------------
 // color constants for other objects
@@ -332,7 +332,9 @@ GUIVisualizationSettings::GUIVisualizationSettings(bool _netedit) :
     drawLaneChangePreference(false),
     drawMinGap(false),
     drawBrakeGap(false),
-    showBTRange(false), vehicleSize(1),
+    showBTRange(false),
+    showRouteIndex(false),
+    vehicleSize(1),
     vehicleName(false, 60, RGBColor(204, 153, 0, 255)),
     vehicleValue(false, 80, RGBColor::CYAN),
     vehicleText(false, 80, RGBColor::RED),
@@ -365,8 +367,10 @@ GUIVisualizationSettings::GUIVisualizationSettings(bool _netedit) :
     gaming(false),
     drawBoundaries(false),
     selectionScale(1.),
-    drawForSelecting(false),
-    forceDrawForSelecting(false),
+    drawForPositionSelection(false),
+    drawForRectangleSelection(false),
+    forceDrawForPositionSelection(false),
+    forceDrawForRectangleSelection(false),
     lefthand(false),
     disableLaneIcons(false) {
 
@@ -570,6 +574,9 @@ GUIVisualizationSettings::initSumoGuiDefaults() {
     scheme = GUIColorScheme("by reachability (traveltime)", RGBColor(204, 204, 204));
     scheme.addColor(RGBColor::RED, (double)1);
     scheme.setAllowsNegativeValues(true);
+    laneColorer.addScheme(scheme);
+    scheme = GUIColorScheme("by thread index", RGBColor(204, 204, 204));
+    scheme.addColor(RGBColor::RED, (double)1);
     laneColorer.addScheme(scheme);
 
     /// add vehicle coloring schemes
@@ -1195,7 +1202,8 @@ GUIVisualizationSettings::save(OutputDevice& dev) const {
     dev.writeAttr("dither", dither);
     dev.writeAttr("fps", fps);
     dev.writeAttr("drawBoundaries", drawBoundaries);
-    dev.writeAttr("forceDrawSelecting", forceDrawForSelecting);
+    dev.writeAttr("forceDrawPositionSelection", forceDrawForPositionSelection);
+    dev.writeAttr("forceDrawRectangleSelection", forceDrawForRectangleSelection);
     dev.closeTag();
     dev.openTag(SUMO_TAG_VIEWSETTINGS_BACKGROUND);
     dev.writeAttr("backgroundColor", backgroundColor);
@@ -1251,6 +1259,8 @@ GUIVisualizationSettings::save(OutputDevice& dev) const {
     dev.writeAttr("showBlinker", showBlinker);
     dev.writeAttr("drawMinGap", drawMinGap);
     dev.writeAttr("drawBrakeGap", drawBrakeGap);
+    dev.writeAttr("showBTRange", showBTRange);
+    dev.writeAttr("showRouteIndex", showRouteIndex);
     dev.lf();
     dev << "                 ";
     vehicleName.print(dev, "vehicleName");
@@ -1353,7 +1363,10 @@ GUIVisualizationSettings::operator==(const GUIVisualizationSettings& v2) {
     if (drawBoundaries != v2.drawBoundaries) {
         return false;
     }
-    if (forceDrawForSelecting != v2.forceDrawForSelecting) {
+    if (forceDrawForPositionSelection != v2.forceDrawForPositionSelection) {
+        return false;
+    }
+    if (forceDrawForRectangleSelection != v2.forceDrawForRectangleSelection) {
         return false;
     }
     if (backgroundColor != v2.backgroundColor) {
@@ -1469,6 +1482,9 @@ GUIVisualizationSettings::operator==(const GUIVisualizationSettings& v2) {
         return false;
     }
     if (showBTRange != v2.showBTRange) {
+        return false;
+    }
+    if (showRouteIndex != v2.showRouteIndex) {
         return false;
     }
     if (vehicleName != v2.vehicleName) {
@@ -1644,7 +1660,7 @@ GUIVisualizationSettings::getTextAngle(double objectAngle) const {
 }
 
 
-bool 
+bool
 GUIVisualizationSettings::drawAdditionals(const double exaggeration) const {
     return (scale * exaggeration) > 1.;
 }
@@ -1662,7 +1678,7 @@ GUIVisualizationSettings::drawDetail(const double detail, const double exaggerat
 
 int
 GUIVisualizationSettings::getCircleResolution() const {
-    if (drawForSelecting) {
+    if (drawForPositionSelection || drawForRectangleSelection) {
         return 8;
     } else if (scale >= 10) {
         return 32;

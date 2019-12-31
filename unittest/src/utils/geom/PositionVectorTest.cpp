@@ -12,7 +12,6 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    2009-10-24
-/// @version $Id$
 ///
 // Tests the class PositionVector
 /****************************************************************************/
@@ -243,7 +242,7 @@ TEST_F(PositionVectorTest, test_method_splitAt) {
 
 
 /* Test the method 'intersectsAtLengths2D'*/
-TEST_F(PositionVectorTest, test_method_intersectsAtLenghts2D) {
+TEST_F(PositionVectorTest, test_method_intersectsAtLengths2D) {
     PositionVector vec1;
     vec1.push_back(Position(0, 0, 42));
     vec1.push_back(Position(100, 0, 0));

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Wed Oct 16 13:30:14 2019 by Eclipse SUMO polyconvert Version v1_3_1+0470-4a6b08f445
+<!-- generated on Tue Nov 19 08:43:00 2019 by Eclipse SUMO polyconvert Version v1_3_1+0935-6627874
 -->
 
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/polyconvertConfiguration.xsd">
@@ -66,6 +66,7 @@
     <processing>
         <offset.x value="0" synonymes="x-offset-to-apply" type="FLOAT" help="Adds FLOAT to net x-positions"/>
         <offset.y value="0" synonymes="y-offset-to-apply" type="FLOAT" help="Adds FLOAT to net y-positions"/>
+        <offset.z value="0" type="FLOAT" help="Adds FLOAT to net z-positions"/>
         <all-attributes value="false" type="BOOL" help="Imports all attributes as key/value pairs"/>
         <ignore-errors value="false" type="BOOL" help="Continue on broken input"/>
         <poi-layer-offset value="0" type="FLOAT" help="Adds FLOAT to the layer value for each poi (i.e. to raise it above polygons)"/>
@@ -88,6 +89,7 @@
         <xml-validation value="auto" synonymes="X" type="STR" help="Set schema validation scheme of XML inputs (&quot;never&quot;, &quot;auto&quot; or &quot;always&quot;)"/>
         <xml-validation.net value="never" type="STR" help="Set schema validation scheme of SUMO network inputs (&quot;never&quot;, &quot;auto&quot; or &quot;always&quot;)"/>
         <no-warnings value="false" synonymes="W suppress-warnings" type="BOOL" help="Disables output of warnings"/>
+        <aggregate-warnings value="-1" type="INT" help="Aggregate warnings of the same type whenever more than INT occur"/>
         <log value="" synonymes="l log-file" type="FILE" help="Writes all messages to FILE (implies verbose)"/>
         <message-log value="" type="FILE" help="Writes all non-error messages to FILE (implies verbose)"/>
         <error-log value="" type="FILE" help="Writes all warnings and errors to FILE"/>

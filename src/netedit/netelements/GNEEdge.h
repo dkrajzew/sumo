@@ -10,7 +10,6 @@
 /// @file    GNEEdge.h
 /// @author  Jakob Erdmann
 /// @date    Feb 2011
-/// @version $Id$
 ///
 // A road/street connecting two junctions (netedit-version, adapted from GUIEdge)
 // Basically a container for an NBEdge with drawing and editing capabilities
@@ -23,8 +22,10 @@
 // included modules
 // ===========================================================================
 
-#include "GNENetElement.h"
 #include <netbuild/NBEdge.h>
+
+#include "GNENetElement.h"
+
 
 // ===========================================================================
 // class declarations
@@ -60,12 +61,12 @@ public:
     /// @brief Definition of the connection's vector
     typedef std::vector<GNEConnection*> ConnectionVector;
 
-    /**@brief Constructor.
-     * @param[in] nbe The represented edge
+    /**@brief Constructor
      * @param[in] net The net to inform about gui updates
+     * @param[in] nbe The represented edge
      * @param[in] loaded Whether the edge was loaded from a file
      */
-    GNEEdge(NBEdge& nbe, GNENet* net, bool wasSplit = false, bool loaded = false);
+    GNEEdge(GNENet* net, NBEdge* nbe, bool wasSplit = false, bool loaded = false);
 
     /// @brief Destructor.
     ~GNEEdge();
@@ -296,12 +297,10 @@ public:
     PositionVector smoothShape(const PositionVector& shape, bool forElevation);
 
     /// @brief return the first lane that allow a vehicle of type vClass (or the first lane, if none was found)
-    GNELane* getLaneByVClass(const SUMOVehicleClass vClass) const;
+    GNELane* getLaneByAllowedVClass(const SUMOVehicleClass vClass) const;
 
-    /**@brief return the first lane that allow a vehicle of type vClass (or the first lane, if none was found)
-     * @note flag "found" will be changed depending if lane was found
-     */
-    GNELane* getLaneByVClass(const SUMOVehicleClass vClass, bool& found) const;
+    /// @brief return the first lane that disallow a vehicle of type vClass (or the first lane, if none was found)
+    GNELane* getLaneByDisallowedVClass(const SUMOVehicleClass vClass) const;
 
     /// @brief draw partial route
     void drawPartialRoute(const GUIVisualizationSettings& s, const GNEDemandElement* route, const GNEJunction* junction) const;
@@ -312,9 +311,18 @@ public:
     /// @brief draw partial person plan
     void drawPartialPersonPlan(const GUIVisualizationSettings& s, const GNEDemandElement* personPlan, const GNEJunction* junction) const;
 
+    /// @brief add path element (Only used by GNEHierarchicalParentElements::changeRouteEdges)
+    void addPathElement(GNEDemandElement* pathElementChild);
+
+    /// @brief remove path element (Only used by GNEHierarchicalParentElements::changeRouteEdges)
+    void removePathElement(GNEDemandElement* pathElementChild);
+
+    /// @brief invalidate path element childs
+    void invalidatePathChildElementss();
+
 protected:
     /// @brief the underlying NBEdge
-    NBEdge& myNBEdge;
+    NBEdge* myNBEdge;
 
     /// @brief variable used to save shape bevore moving (used to avoid inconsistences in GL Tree)
     PositionVector myMovingShape;
@@ -340,7 +348,13 @@ protected:
     /// @brief modification status of the connections
     std::string myConnectionStatus;
 
+    /// @brief vector with references to path element childs
+    std::vector<GNEDemandElement*> myPathElementChilds;
+
 private:
+    /// @brif flag to enable/disable update geomtetry of lanes (used mainly by setNumLanes)
+    bool myUpdateGeometry;
+
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);
 
@@ -381,6 +395,9 @@ private:
 
     /// @brief draw Rerouter symbols
     void drawRerouterSymbol(const GUIVisualizationSettings& s, GNEAdditional* rerouter) const;
+
+    /// @brief draw demand elements
+    void drawDemandElements(const GUIVisualizationSettings& s) const;
 
     /// @brief invalidated copy constructor
     GNEEdge(const GNEEdge& s) = delete;

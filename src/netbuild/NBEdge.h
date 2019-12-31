@@ -12,7 +12,6 @@
 /// @author  Jakob Erdmann
 /// @author  Michael Behrisch
 /// @date    Tue, 20 Nov 2001
-/// @version $Id$
 ///
 // The representation of a single edge during network building
 /****************************************************************************/
@@ -72,6 +71,12 @@ public:
     virtual bool isInternal() const {
         return false;
     }
+    inline bool prohibits(const NBVehicle* const /*veh*/) const {
+        return false;
+    }
+    inline bool restricts(const NBVehicle* const /*veh*/) const {
+        return false;
+    }
 
     static inline double getTravelTimeStatic(const NBRouterEdge* const edge, const NBVehicle* const /*veh*/, double /*time*/) {
         return edge->getLength() / edge->getSpeed();
@@ -100,7 +105,7 @@ public:
      *  information, a counter holding the current step is needed. This is done
      *  by using this enumeration.
      */
-    enum EdgeBuildingStep {
+    enum class EdgeBuildingStep {
         /// @brief The edge has been loaded and connections shall not be added
         INIT_REJECT_CONNECTIONS,
         /// @brief The edge has been loaded, nothing is computed yet
@@ -197,7 +202,8 @@ public:
                    double speed_ = UNSPECIFIED_SPEED,
                    bool haveVia_ = false,
                    bool uncontrolled_ = false,
-                   const PositionVector& customShape_ = PositionVector::EMPTY);
+                   const PositionVector& customShape_ = PositionVector::EMPTY,
+                   SVCPermissions permissions = SVC_UNSPECIFIED);
 
         /// @brief The lane the connections starts at
         int fromLane;
@@ -213,6 +219,9 @@ public:
 
         /// @brief The index of this connection within the controlling traffic light
         int tlLinkIndex;
+
+        /// @brief The index of the internal junction within the controlling traffic light (optional)
+        int tlLinkIndex2;
 
         /// @brief Information about being definitely free to drive (on-ramps)
         bool mayDefinitelyPass;
@@ -231,6 +240,9 @@ public:
 
         /// @brief custom shape for connection
         PositionVector customShape;
+
+        /// @brief List of vehicle types that are allowed on this connection
+        SVCPermissions permissions;
 
         /// @brief id of Connection
         std::string id;
@@ -733,10 +745,13 @@ public:
     /// @brief shift geometry at the given node to avoid overlap
     void shiftPositionAtNode(NBNode* node, NBEdge* opposite);
 
+    /// @brief return position taking into account loaded length
+    Position geometryPositionAtOffset(double offset) const;
+
     /** @brief Recomputeds the lane shapes to terminate at the node shape
      * For every lane the intersection with the fromNode and toNode is
      * calculated and the lane shorted accordingly. The edge length is then set
-     * to the average of all lane lenghts (which may differ). This average length is used as the lane
+     * to the average of all lane lengths (which may differ). This average length is used as the lane
      * length when writing the network.
      * @note All lanes of an edge in a sumo net must have the same nominal length
      *  but may differ in actual geomtric length.
@@ -823,7 +838,8 @@ public:
                                 double visibility = UNSPECIFIED_VISIBILITY_DISTANCE,
                                 double speed = UNSPECIFIED_SPEED,
                                 const PositionVector& customShape = PositionVector::EMPTY,
-                                const bool uncontrolled = UNSPECIFIED_CONNECTION_UNCONTROLLED);
+                                const bool uncontrolled = UNSPECIFIED_CONNECTION_UNCONTROLLED,
+                                SVCPermissions = SVC_UNSPECIFIED);
 
     /** @brief Builds no connections starting at the given lanes
      *
@@ -867,7 +883,8 @@ public:
                        double visibility = UNSPECIFIED_VISIBILITY_DISTANCE,
                        double speed = UNSPECIFIED_SPEED,
                        const PositionVector& customShape = PositionVector::EMPTY,
-                       const bool uncontrolled = UNSPECIFIED_CONNECTION_UNCONTROLLED);
+                       const bool uncontrolled = UNSPECIFIED_CONNECTION_UNCONTROLLED,
+                       SVCPermissions permissions = SVC_UNSPECIFIED);
 
     /** @brief Returns connections from a given lane
      *
@@ -968,7 +985,7 @@ public:
     void removeFromConnections(NBEdge* toEdge, int fromLane = -1, int toLane = -1, bool tryLater = false, const bool adaptToLaneRemoval = false, const bool keepPossibleTurns = false);
 
     /// @brief remove an existent connection of edge
-    bool removeFromConnections(const NBEdge::Connection &connectionToRemove);
+    bool removeFromConnections(const NBEdge::Connection& connectionToRemove);
 
     /// @brief invalidate current connections of edge
     void invalidateConnections(bool reallowSetting = false);
@@ -1044,7 +1061,7 @@ public:
      */
     int getJunctionPriority(const NBNode* const node) const;
 
-    /// @brief set loaded lenght
+    /// @brief set loaded length
     void setLoadedLength(double val);
 
     /// @brief patch average lane length in regard to the opposite edge
@@ -1281,7 +1298,7 @@ public:
     }
 
     /// @brief declares connections as fully loaded. This is needed to avoid recomputing connections if an edge has no connections intentionally.
-    void declareConnectionsAsLoaded(EdgeBuildingStep step = LANES2LANES_USER) {
+    void declareConnectionsAsLoaded(EdgeBuildingStep step = EdgeBuildingStep::LANES2LANES_USER) {
         myStep = step;
     }
 

@@ -11,7 +11,6 @@
 /// @author  Daniel Krajzewicz
 /// @author  Jakob Erdmann
 /// @date    Tue, 04.05.2011
-/// @version $Id$
 ///
 // Exporter writing networks using the openDRIVE format
 /****************************************************************************/
@@ -729,8 +728,8 @@ NWWriter_OpenDrive::writeGeomSmooth(const PositionVector& shape, double speed, O
         if (dAngle > straightThresh
                 && (length1 > longThresh || j == 1)
                 && (length2 > longThresh || j == (int)shape.size() - 2)) {
-            shape2.insertAtClosest(shape.positionAtOffset2D(offset + length1 - MIN2(length1 - POSITION_EPS, curveCutout)));
-            shape2.insertAtClosest(shape.positionAtOffset2D(offset + length1 + MIN2(length2 - POSITION_EPS, curveCutout)));
+            shape2.insertAtClosest(shape.positionAtOffset2D(offset + length1 - MIN2(length1 - POSITION_EPS, curveCutout)), false);
+            shape2.insertAtClosest(shape.positionAtOffset2D(offset + length1 + MIN2(length2 - POSITION_EPS, curveCutout)), false);
             shape2.removeClosest(p1);
         }
         offset += length1;

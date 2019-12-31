@@ -11,7 +11,6 @@
 /// @author  Melanie Weber
 /// @author  Andreas Kendziorra
 /// @date    Jan 2015
-/// @version $Id$
 ///
 // A rail signal logic
 /****************************************************************************/
@@ -51,9 +50,10 @@ public:
      * @param[in] id This tls' id
      * @param[in] programID This tls' sub-id (program id)
      * @param[in] parameters This tls' parameters
+     * @param[in] delay The time to wait before the first switch
      */
     MSRailSignal(MSTLLogicControl& tlcontrol,
-                 const std::string& id, const std::string& programID,
+                 const std::string& id, const std::string& programID, SUMOTime delay,
                  const std::map<std::string, std::string>& parameters);
 
 

@@ -13,7 +13,6 @@
 /// @author  Michael Behrisch
 /// @author  Laura Bieker
 /// @date    Oct/Nov 2003
-/// @version $Id$
 ///
 // A wrapper for tl-logics to allow their visualisation and interaction
 /****************************************************************************/
@@ -168,11 +167,11 @@ GUITrafficLightLogicWrapper::getPopUpMenu(GUIMainWindow& app,
         new FXMenuCommand(ret, act->showDetectors() ? "Hide Detectors" : "Show Detectors", nullptr, ret, MID_SHOW_DETECTORS);
     }
     new FXMenuSeparator(ret);
-    MSTrafficLightLogic* tll = myTLLogicControl.getActive(myTLLogic.getID());
+    MSTrafficLightLogic* tll = getActiveTLLogic();
     buildNameCopyPopupEntry(ret);
     buildSelectionPopupEntry(ret);
     new FXMenuCommand(ret, ("phase: " + toString(tll->getCurrentPhaseIndex())).c_str(), nullptr, nullptr, 0);
-    const std::string& name =  myTLLogic.getCurrentPhaseDef().getName();
+    const std::string& name =  tll->getCurrentPhaseDef().getName();
     if (name != "") {
         new FXMenuCommand(ret, ("phase name: " + name).c_str(), nullptr, nullptr, 0);
     }
@@ -209,9 +208,15 @@ GUIParameterTableWindow*
 GUITrafficLightLogicWrapper::getParameterWindow(GUIMainWindow& app,
         GUISUMOAbstractView&) {
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 3 + (int)myTLLogic.getParametersMap().size());
+        new GUIParameterTableWindow(app, *this, 9 + (int)myTLLogic.getParametersMap().size());
     ret->mkItem("tlLogic [id]", false, myTLLogic.getID());
     ret->mkItem("program", false, myTLLogic.getProgramID());
+    ret->mkItem("phase", true, new FunctionBinding<GUITrafficLightLogicWrapper, int>(this, &GUITrafficLightLogicWrapper::getCurrentPhase));
+    ret->mkItem("phase name", true, new FunctionBindingString<GUITrafficLightLogicWrapper>(this, &GUITrafficLightLogicWrapper::getCurrentPhaseName));
+    ret->mkItem("duration", true, new FunctionBinding<GUITrafficLightLogicWrapper, int>(this, &GUITrafficLightLogicWrapper::getCurrentDuration));
+    ret->mkItem("minDur", true, new FunctionBinding<GUITrafficLightLogicWrapper, int>(this, &GUITrafficLightLogicWrapper::getCurrentMinDur));
+    ret->mkItem("maxDur", true, new FunctionBinding<GUITrafficLightLogicWrapper, int>(this, &GUITrafficLightLogicWrapper::getCurrentMaxDur));
+    ret->mkItem("running duration", true, new FunctionBinding<GUITrafficLightLogicWrapper, int>(this, &GUITrafficLightLogicWrapper::getRunningDuration));
     // close building
     ret->closeBuilding(&myTLLogic);
     return ret;
@@ -237,8 +242,7 @@ void
 GUITrafficLightLogicWrapper::switchTLSLogic(int to) {
     if (to == -1) {
         myTLLogicControl.switchTo(myTLLogic.getID(), "off");
-        MSTrafficLightLogic* tll = myTLLogicControl.getActive(myTLLogic.getID());
-        GUINet::getGUIInstance()->createTLWrapper(tll);
+        GUINet::getGUIInstance()->createTLWrapper(getActiveTLLogic());
     } else {
         const MSTLLogicControl::TLSLogicVariants& vars = myTLLogicControl.get(myTLLogic.getID());
         std::vector<MSTrafficLightLogic*> logics = vars.getAllLogics();
@@ -298,6 +302,41 @@ GUITrafficLightLogicWrapper::drawGL(const GUIVisualizationSettings& s) const {
             }
         }
     }
+}
+
+MSTrafficLightLogic*
+GUITrafficLightLogicWrapper::getActiveTLLogic() const {
+    return myTLLogicControl.getActive(myTLLogic.getID());
+}
+
+int
+GUITrafficLightLogicWrapper::getCurrentPhase() const {
+    return getActiveTLLogic()->getCurrentPhaseIndex();
+}
+
+std::string
+GUITrafficLightLogicWrapper::getCurrentPhaseName() const {
+    return getActiveTLLogic()->getCurrentPhaseDef().getName();
+}
+
+int
+GUITrafficLightLogicWrapper::getCurrentDuration() const {
+    return (int)STEPS2TIME(getActiveTLLogic()->getCurrentPhaseDef().duration);
+}
+
+int
+GUITrafficLightLogicWrapper::getCurrentMinDur() const {
+    return (int)STEPS2TIME(getActiveTLLogic()->getCurrentPhaseDef().minDuration);
+}
+
+int
+GUITrafficLightLogicWrapper::getCurrentMaxDur() const {
+    return (int)STEPS2TIME(getActiveTLLogic()->getCurrentPhaseDef().maxDuration);
+}
+
+int
+GUITrafficLightLogicWrapper::getRunningDuration() const {
+    return (int)(SIMTIME - STEPS2TIME(getActiveTLLogic()->getCurrentPhaseDef().myLastSwitch));
 }
 
 

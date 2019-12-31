@@ -16,7 +16,6 @@
 /// @author  Michael Behrisch
 /// @author  Sascha Krieg
 /// @date    Tue, 20 Nov 2001
-/// @version $Id$
 ///
 // Container for nodes during the netbuilding process
 /****************************************************************************/
@@ -119,11 +118,11 @@ NBNodeCont::retrieve(const Position& position, const double offset) const {
     const double extOffset = offset + POSITION_EPS;
     const float cmin[2] = {(float)(position.x() - extOffset), (float)(position.y() - extOffset)};
     const float cmax[2] = {(float)(position.x() + extOffset), (float)(position.y() + extOffset)};
-    std::set<std::string> into;
+    std::set<const Named*> into;
     Named::StoringVisitor sv(into);
     myRTree.Search(cmin, cmax, sv);
-    for (std::set<std::string>::const_iterator i = into.begin(); i != into.end(); i++) {
-        NBNode* const node = myNodes.find(*i)->second;
+    for (const Named* namedNode : into) {
+        NBNode* node = const_cast<NBNode*>(dynamic_cast<const NBNode*>(namedNode));
         if (fabs(node->getPosition().x() - position.x()) <= offset
                 &&
                 fabs(node->getPosition().y() - position.y()) <= offset) {
@@ -282,12 +281,12 @@ NBNodeCont::removeIsolatedRoads(NBDistrictCont& dc, NBEdgeCont& ec) {
             }
         } while (!hasJunction && eOld != e);
         if (!hasJunction) {
-            std::string warningString = "Removed a road without junctions: ";
+            std::string warningString;
             for (EdgeVector::iterator roadIt = road.begin(); roadIt != road.end(); ++roadIt) {
                 if (roadIt == road.begin()) {
                     warningString += (*roadIt)->getID();
                 } else {
-                    warningString += ", " + (*roadIt)->getID();
+                    warningString += "," + (*roadIt)->getID();
                 }
 
                 NBNode* fromNode = (*roadIt)->getFromNode();
@@ -302,7 +301,7 @@ NBNodeCont::removeIsolatedRoads(NBDistrictCont& dc, NBEdgeCont& ec) {
                     erase(toNode);
                 }
             }
-            WRITE_WARNING(warningString);
+            WRITE_WARNINGF("Removed a road without junctions: %.", warningString);
         }
     }
 }
@@ -383,7 +382,7 @@ NBNodeCont::removeUnwishedNodes(NBDistrictCont& dc, NBEdgeCont& ec,
             edges2keep.insert(edges.begin(), edges.end());
         }
         sc.addEdges2Keep(oc, edges2keep);
-        lc.addEdges2Keep(oc, edges2keep);
+        UNUSED_PARAMETER(lc); // no need to keep all route edges. They are validated again before writing
         pc.addEdges2Keep(oc, edges2keep);
     }
     int no = 0;
@@ -567,9 +566,9 @@ NBNodeCont::addJoinExclusion(const std::vector<std::string>& ids, bool check) {
         // error handling has to take place here since joinExclusions could be
         // loaded from multiple files / command line
         if (myJoined.count(*it) > 0) {
-            WRITE_WARNING("Ignoring join exclusion for junction '" + *it +  "' since it already occurred in a list of nodes to be joined");
+            WRITE_WARNINGF("Ignoring join exclusion for junction '%' since it already occurred in a list of nodes to be joined.", *it);
         } else if (check && retrieve(*it) == nullptr) {
-            WRITE_WARNING("Ignoring join exclusion for unknown junction '" + *it + "'");
+            WRITE_WARNINGF("Ignoring join exclusion for unknown junction '%'.", *it);
         } else {
             myJoinExclusions.insert(*it);
         }
@@ -583,13 +582,13 @@ NBNodeCont::addCluster2Join(std::set<std::string> cluster, NBNode* node) {
     std::set<std::string> validCluster;
     for (std::string nodeID : cluster) {
         if (myJoinExclusions.count(nodeID) > 0) {
-            WRITE_WARNING("Ignoring join-cluster because junction '" + nodeID + "' was already excluded from joining");
+            WRITE_WARNINGF("Ignoring join-cluster because junction '%' was already excluded from joining.", nodeID);
             return;
         } else if (myJoined.count(nodeID) > 0) {
-            WRITE_WARNING("Ignoring join-cluster because junction '" + nodeID + "' already occurred in another join-cluster");
+            WRITE_WARNINGF("Ignoring join-cluster because junction '%' already occurred in another join-cluster.", nodeID);
             return;
         } else {
-            NBNode* node = retrieve(nodeID);
+            NBNode* const node = retrieve(nodeID);
             if (node != nullptr) {
                 validCluster.insert(nodeID);
             } else {
@@ -597,22 +596,19 @@ NBNodeCont::addCluster2Join(std::set<std::string> cluster, NBNode* node) {
                     // assume join directive came from a pre-processed network. try to use component IDs
                     std::set<std::string> subIDs;
                     for (std::string nID : StringTokenizer(nodeID.substr(8), "_").getVector()) {
-                        NBNode* node = retrieve(nID);
-                        if (node != nullptr) {
+                        if (retrieve(nID) != nullptr) {
                             validCluster.insert(nID);
                         } else {
-                            WRITE_ERROR("Unknown junction '" + nodeID + "' in join-cluster (componentID)");
+                            WRITE_ERROR("Unknown junction '" + nodeID + "' in join-cluster (componentID).");
                         }
                     }
                 } else {
-                    WRITE_ERROR("Unknown junction '" + nodeID + "' in join-cluster");
+                    WRITE_ERROR("Unknown junction '" + nodeID + "' in join-cluster.");
                 }
             }
         }
     }
-    for (std::string nodeID : validCluster) {
-        myJoined.insert(nodeID);
-    }
+    myJoined.insert(validCluster.begin(), validCluster.end());
     myClusters2Join.push_back(std::make_pair(validCluster, node));
 }
 
@@ -626,7 +622,7 @@ NBNodeCont::joinLoadedClusters(NBDistrictCont& dc, NBEdgeCont& ec, NBTrafficLigh
         for (std::string nodeID : item.first) {
             NBNode* node = retrieve(nodeID);
             if (node == nullptr) {
-                WRITE_ERROR("unknown junction '" + nodeID + "' while joining");
+                WRITE_ERROR("unknown junction '" + nodeID + "' while joining.");
             } else {
                 cluster.insert(node);
             }
@@ -692,7 +688,7 @@ NBNodeCont::joinJunctions(double maxDist, NBDistrictCont& dc, NBEdgeCont& ec, NB
                 pruneClusterFringe(cluster);
                 feasible = feasibleCluster(cluster, ec, sc, reason);
                 if (feasible) {
-                    WRITE_WARNING("Reducing junction cluster " + origCluster + " (" + reason + ")");
+                    WRITE_WARNINGF("Reducing junction cluster % (%).", origCluster, reason);
                 }
             }
         }
@@ -702,12 +698,12 @@ NBNodeCont::joinJunctions(double maxDist, NBDistrictCont& dc, NBEdgeCont& ec, NB
                 pruneClusterFringe(cluster);
                 feasible = feasibleCluster(cluster, ec, sc, reason);
                 if (feasible) {
-                    WRITE_WARNING("Reducing junction cluster " + origCluster + " (" + reason + ")");
+                    WRITE_WARNINGF("Reducing junction cluster % (%).", origCluster, reason);
                 }
             }
         }
         if (!feasible) {
-            WRITE_WARNING("Not joining junctions " + joinNamedToString(cluster, ',') + " (" + reason + ")");
+            WRITE_WARNINGF("Not joining junctions % (%).", joinNamedToString(cluster, ','), reason);
             continue;
         }
         // compute all connected components of this cluster
@@ -1104,7 +1100,7 @@ NBNodeCont::joinNodeCluster(NodeSet cluster, NBDistrictCont& dc, NBEdgeCont& ec,
     } else {
         if (!insert(id, pos)) {
             // should not fail
-            WRITE_WARNING("Could not join junctions " + id);
+            WRITE_WARNINGF("Could not join junctions %.", id);
             return;
         }
         newNode = retrieve(id);
@@ -1174,7 +1170,7 @@ NBNodeCont::joinNodeCluster(NodeSet cluster, NBDistrictCont& dc, NBEdgeCont& ec,
                 continue;
             }
             const auto& cons = cur->getConnections();
-            if (cons.size() == 0 || ec.hasPostProcessConnection(cur->getID()) || cur->getStep() == NBEdge::INIT) {
+            if (cons.size() == 0 || ec.hasPostProcessConnection(cur->getID()) || cur->getStep() == NBEdge::EdgeBuildingStep::INIT) {
                 // check permissions to determine reachability
                 for (NBEdge* out : cur->getToNode()->getOutgoingEdges()) {
                     if (seen.count(out) == 0
@@ -1237,7 +1233,7 @@ NBNodeCont::joinNodeCluster(NodeSet cluster, NBDistrictCont& dc, NBEdgeCont& ec,
             e->addLane2LaneConnection((*k).fromLane, (*k).toEdge, (*k).toLane, NBEdge::L2L_USER, false, (*k).mayDefinitelyPass);
             if ((*k).fromLane >= 0 && (*k).fromLane < e->getNumLanes() && e->getLaneStruct((*k).fromLane).connectionsDone) {
                 // @note (see NIImporter_DlrNavteq::ConnectedLanesHandler)
-                e->declareConnectionsAsLoaded(NBEdge::INIT);
+                e->declareConnectionsAsLoaded(NBEdge::EdgeBuildingStep::INIT);
             }
         }
     }
@@ -1296,7 +1292,7 @@ NBNodeCont::analyzeCluster(NodeSet cluster, std::string& id, Position& pos,
             } else {
                 if ((nodeType != NODETYPE_PRIORITY && (nodeType != NODETYPE_NOJUNCTION || otherType != NODETYPE_PRIORITY))
                         || (otherType != NODETYPE_NOJUNCTION && otherType != NODETYPE_UNKNOWN && otherType != NODETYPE_PRIORITY)) {
-                    WRITE_WARNING("Ambiguous node type for node cluster '" + id + "' (" + toString(nodeType) + "," + toString(otherType) + ") set to '" + toString(NODETYPE_PRIORITY) + "'");
+                    WRITE_WARNINGF("Ambiguous node type for node cluster '%' (%,%), setting to '" + toString(NODETYPE_PRIORITY) + "'.", id, toString(nodeType), toString(otherType));
                 }
                 nodeType = NODETYPE_PRIORITY;
             }
@@ -1305,7 +1301,7 @@ NBNodeCont::analyzeCluster(NodeSet cluster, std::string& id, Position& pos,
     pos.mul(1.0 / cluster.size());
     if (ambiguousType) {
         type = SUMOXMLDefinitions::TrafficLightTypes.get(OptionsCont::getOptions().getString("tls.default-type"));
-        WRITE_WARNING("Ambiguous traffic light type for node cluster '" + id + "' set to '" + toString(type) + "'");
+        WRITE_WARNINGF("Ambiguous traffic light type for node cluster '%', setting to '%'.", id, toString(type));
     }
 }
 
@@ -1437,17 +1433,17 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
                 }
                 // propagate signalOffset until the next real intersection
                 while (check.size() > 0) {
-                    NBEdge* edge = check.begin()->first;
+                    NBEdge* const edge = check.begin()->first;
                     const double offset = check.begin()->second;
                     check.erase(check.begin());
-                    NBNode* nextNode = edge->getToNode();
+                    NBNode* const nextNode = edge->getToNode();
                     if (nextNode->geometryLike() && !nextNode->isTLControlled()) {
-                        for (NBEdge* edge : nextNode->getOutgoingEdges()) {
-                            if (seen.count(edge) == 0) {
-                                double offset2 = offset + edge->getLength();
-                                edge->setSignalOffset(offset2, node);
-                                seen.insert(edge);
-                                check.insert(std::make_pair(edge, offset2));
+                        for (NBEdge* const outEdge : nextNode->getOutgoingEdges()) {
+                            if (seen.count(outEdge) == 0) {
+                                const double offset2 = offset + outEdge->getLength();
+                                outEdge->setSignalOffset(offset2, node);
+                                seen.insert(outEdge);
+                                check.insert(std::make_pair(outEdge, offset2));
                             }
                         }
                     }
@@ -1504,7 +1500,7 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
                     // @todo patch endOffset for all incoming lanes according to the signal positions
                     if (!tlc.insert(tlDef)) {
                         // actually, nothing should fail here
-                        WRITE_WARNING("Could not build joined tls '" + node->getID() + "'.");
+                        WRITE_WARNINGF("Could not build joined tls '%'.", node->getID());
                         delete tlDef;
                         return;
                     }
@@ -1549,7 +1545,7 @@ NBNodeCont::guessTLs(OptionsCont& oc, NBTrafficLightLogicCont& tlc) {
             NBTrafficLightDefinition* tlDef = new NBOwnTLDef(id, nodes, 0, type);
             if (!tlc.insert(tlDef)) {
                 // actually, nothing should fail here
-                WRITE_WARNING("Could not build guessed, joined tls");
+                WRITE_WARNING("Could not build guessed, joined tls.");
                 delete tlDef;
                 return;
             }
@@ -1637,7 +1633,7 @@ NBNodeCont::setAsTLControlled(NBNode* node, NBTrafficLightLogicCont& tlc,
     NBTrafficLightDefinition* tlDef = new NBOwnTLDef(id, node, 0, type);
     if (!tlc.insert(tlDef)) {
         // actually, nothing should fail here
-        WRITE_WARNING("Building a tl-logic for junction '" + id + "' twice is not possible.");
+        WRITE_WARNINGF("Building a tl-logic for junction '%' twice is not possible.", id);
         delete tlDef;
         return;
     }
@@ -1863,7 +1859,13 @@ NBNodeCont::discardRailSignals() {
 
 int
 NBNodeCont::remapIDs(bool numericaIDs, bool reservedIDs, const std::string& prefix) {
-    std::vector<std::string> avoid = getAllNames();
+    bool startGiven = !OptionsCont::getOptions().isDefault("numerical-ids.node-start");
+    std::vector<std::string> avoid;
+    if (startGiven) {
+        avoid.push_back(toString(OptionsCont::getOptions().getInt("numerical-ids.node-start") - 1));
+    } else {
+        avoid = getAllNames();
+    }
     std::set<std::string> reserve;
     if (reservedIDs) {
         NBHelpers::loadPrefixedIDsFomFile(OptionsCont::getOptions().getString("reserved-ids"), "node:", reserve); // backward compatibility
@@ -1873,6 +1875,10 @@ NBNodeCont::remapIDs(bool numericaIDs, bool reservedIDs, const std::string& pref
     IDSupplier idSupplier("", avoid);
     NodeSet toChange;
     for (NodeCont::iterator it = myNodes.begin(); it != myNodes.end(); it++) {
+        if (startGiven) {
+            toChange.insert(it->second);
+            continue;
+        }
         if (numericaIDs) {
             try {
                 StringUtils::toLong(it->first);
@@ -1887,6 +1893,8 @@ NBNodeCont::remapIDs(bool numericaIDs, bool reservedIDs, const std::string& pref
     const bool origNames = OptionsCont::getOptions().getBool("output.original-names");
     for (NBNode* node : toChange) {
         myNodes.erase(node->getID());
+    }
+    for (NBNode* node : toChange) {
         if (origNames) {
             node->setParameter(SUMO_PARAM_ORIGID, node->getID());
         }
